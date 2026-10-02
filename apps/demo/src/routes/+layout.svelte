@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { preferenceCookiesAtom } from "#lib/preferences.ts";
   import { RegistryProvider } from "effect-atom-svelte";
   import type { Snippet } from "svelte";
 
-  const { children }: { children: Snippet } = $props();
+  import type { LayoutData } from "./$types";
+
+  const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
   const pages = [
     ["/", "Overview"],
@@ -18,8 +21,9 @@
   ] as const;
 </script>
 
-<!-- One registry per request on the server, one for the session in the browser. -->
-<RegistryProvider>
+<!-- One registry per request on the server, one for the session in the browser. The request's
+     preference cookies seed the store that cookie-backed atoms read on the server. -->
+<RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
   <nav>
     {#each pages as [href, label] (href)}
       <a {href}>{label}</a>

@@ -82,7 +82,7 @@ With `experimental.async`, a component can `await` atoms directly.
 - Give async atoms a serialization key (`AtomRpc.query(..., { serializationKey })`, `AtomHttpApi.query(..., { serializationKey })` or `Atom.serializable`). `useAtomResult` and `useAtomSuspense` then pass the encoded result to the client through Svelte's `hydratable`, so hydration does not wait on the network. Only a server value seeds the registry, and only while a component using it is still mounted; after client-side navigation the atom is fetched in the browser as usual. Two different atoms with the same key throw.
 - **Hydrated atoms are not fetched again.** The server's value is milliseconds old, so `useAtomResult` and `useAtomSuspense` keep it until something refreshes the atom, such as a mutation on its reactivity keys. **This differs from `@effect/atom-react`**, where a query wrapped by `Atom.withReactivity` (as `AtomRpc.query` and `AtomHttpApi.query` do for `reactivityKeys`) or by `swr`, `debounce`, `withRefresh` or `makeRefreshOnSignal` is fetched again straight after hydration, as a side effect of how `AtomRegistry` seeds wrapped atoms. To fetch again once hydration is done, set `revalidateOnHydrate` on `RegistryProvider`, or on a hook (`useAtomSuspense(atom, { revalidateOnHydrate: true })`), which overrides the provider. When components share a serialization key, the atom is fetched again if any of them asks. `HydrationBoundary` hydrates through `Hydration.hydrate` and keeps `AtomRegistry`'s behaviour.
 - A `<svelte:boundary>` with a `pending` snippet renders that snippet on the server and leaves its content to the client. Leave `pending` out where the first paint needs the data.
-- Browser-only atoms need a server value. `Atom.refreshOnWindowFocus` and `Atom.kvs` with `localStorage` touch `window` when computed: wrap them in `Atom.withServerValue`.
+- Browser-only atoms, such as `Atom.kvs` with `localStorage` and `Atom.refreshOnWindowFocus`, throw when computed on the server. See [Browser-only atoms](#browser-only-atoms).
 - **A getter must pick the same atom on the server and on the first browser render.** The server's value reaches the browser only for the atom the getter returned on the server. If the browser's first render picks another serializable atom, for example from a filter stored with `Atom.kvs` in `localStorage`, there is no server value for it: Svelte throws `hydratable_missing_but_required` in development, and in a production build it warns, fetches in the browser and the markup can mismatch. `Atom.withServerValue` does not help here, because it only changes what the server reads, and is what makes the two sides differ. Base the first choice on state the server also has (the URL, a cookie, page data), or keep the server's choice until the component has mounted, then switch, which fetches in the browser as any later switch does:
 
   ```svelte
@@ -95,6 +95,71 @@ With `experimental.async`, a component can `await` atoms directly.
     const todos = useAtomSuspense(() => todosFor(mounted ? saved.current : "all"));
   </script>
   ```
+
+## Browser-only atoms
+
+`Atom.kvs` with `KeyValueStore.layerStorage(() => localStorage)` throws on the server, where there is no `localStorage`. Give the runtime an in-memory store there, so the server renders the default value:
+
+```ts
+import { BROWSER } from "esm-env"; // or `browser` from SvelteKit's $app/env
+
+const storage = Atom.runtime(
+  BROWSER
+    ? KeyValueStore.layerStorage(() => localStorage)
+    : KeyValueStore.layerMemory
+);
+const draftAtom = Atom.kvs({
+  key: "draft",
+  runtime: storage,
+  schema: Schema.String,
+  defaultValue: () => "",
+});
+```
+
+`Atom.withServerValue(() => "")` on the atom works too; it is the only option for an atom you cannot give a runtime, such as `Atom.refreshOnWindowFocus`, which listens on `window` when computed (until Effect guards it for server rendering).
+
+Either way the server cannot know a value stored only in the browser: the page paints the default, and the stored value replaces it once the page hydrates. That is fine for a draft, not for a theme or a locale. For preferences that must be right on first paint, store them in a cookie, which the browser sends with every request. Back `Atom.kvs` with a `KeyValueStore` that reads and writes `document.cookie` in the browser and reads the request's cookies on the server, and pass those cookies to the registry with `initialValues`. In SvelteKit:
+
+```ts
+// src/lib/preferences.ts
+export const preferenceCookiesAtom = Atom.make<Record<string, string>>({}).pipe(
+  Atom.keepAlive
+);
+
+export const cookieStorage = Atom.runtime((get) =>
+  Layer.succeed(KeyValueStore.KeyValueStore)(
+    browser
+      ? documentCookieStore
+      : requestCookieStore(get(preferenceCookiesAtom))
+  )
+);
+
+export const themeAtom = Atom.kvs({
+  key: "pref-theme",
+  runtime: cookieStorage,
+  schema: Schema.Literals(["light", "dark"]),
+  defaultValue: () => "light" as const,
+});
+
+// src/routes/+layout.server.ts: pass on preference cookies only, as page data is embedded in the HTML
+export const load = ({ cookies }) => ({
+  preferenceCookies: Object.fromEntries(
+    cookies
+      .getAll()
+      .filter(({ name }) => name.startsWith("pref-"))
+      .map(({ name, value }) => [name, value])
+  ),
+});
+```
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
+```
+
+The two stores are built with `KeyValueStore.makeStringOnly`; the demo app's `src/lib/preferences.ts` has a complete version. `preferenceCookiesAtom` is kept alive because the registry would otherwise sweep it, and its value with it, before a component reads the preference.
+
+A stored value that picks which atom to read, such as a saved filter, also has to match on both sides: see [a getter must pick the same atom](#server-rendering-and-hydration) above. A cookie-backed filter avoids the problem, because the server picks the same atom as the browser.
 
 ## SvelteKit notes
 

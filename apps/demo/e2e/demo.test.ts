@@ -17,6 +17,12 @@ const pages = [
   "/lifetimes",
 ];
 
+/** The server's HTML for `path`, requested with the page's cookies, before any script runs. */
+const serverHtml = async (page: Page, path: string) => {
+  const response = await page.request.get(path);
+  return response.text();
+};
+
 /** Records page errors and RPC/HTTP API calls for the life of the page. */
 const watch = (page: Page) => {
   const errors: string[] = [];
@@ -266,16 +272,47 @@ test("refs and scopes: AtomRef updates and scoped atoms stay separate", async ({
   await expect(page.getByRole("button", { name: "100" })).toHaveCount(2);
 });
 
-test("browser atoms: kvs survives a reload and searchParam drives the URL", async ({
+test("browser atoms: localStorage kvs survives a reload, the server renders its default", async ({
   page,
 }) => {
+  const { errors } = watch(page);
+  await page.goto("/browser");
+  await page.waitForLoadState("networkidle");
+  await page.getByTestId("draft").fill("hello");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("draft")).toHaveValue("hello");
+
+  // The server cannot read localStorage, so it renders the default and the browser fills it in.
+  const html = await serverHtml(page, "/browser");
+  expect(html).toContain('data-testid="draft-saved"></output>');
+  expect(await errors()).toEqual([]);
+});
+
+test("browser atoms: a cookie-backed theme is right in the server's markup", async ({
+  page,
+}) => {
+  const { errors } = watch(page);
   await page.goto("/browser");
   await page.waitForLoadState("networkidle");
   await page.getByTestId("theme").selectOption("dark");
+
+  const html = await serverHtml(page, "/browser");
+  expect(html).toContain('data-theme="dark"');
+
   await page.reload();
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("theme")).toHaveValue("dark");
+  await expect(page.getByTestId("themed")).toHaveAttribute(
+    "data-theme",
+    "dark"
+  );
+  expect(await errors()).toEqual([]);
+});
 
+test("browser atoms: searchParam drives the URL", async ({ page }) => {
+  await page.goto("/browser");
+  await page.waitForLoadState("networkidle");
   await page.getByTestId("search").fill("atoms");
   await expect(page).toHaveURL(/\?q=atoms/u);
   await expect(page.getByTestId("debounced")).toHaveText("atoms");
