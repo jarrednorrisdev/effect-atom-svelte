@@ -93,6 +93,7 @@ With `experimental.async`, a component can `await` atoms directly.
 
 - Promise-mode setters resolve with the atom's next settled result. When a second `Atom.fn` call supersedes one in flight, both promises resolve with the second call's result, as in `@effect/atom-react`.
 - A mutation still running when its component unmounts completes: the promise holds its own subscription, so navigating away does not cancel a write.
+- A read that is abandoned stops waiting. When a `useAtomSuspense` getter moves to another atom while the old one is still loading, or the component unmounts, the old wait lets go of its atom, so the registry disposes it and interrupts its request. The same goes for `await useAtomResult(...)` in a component removed before the result arrives. A `useAtomSuspense` promise read outside a template or effect (a top-level `await` in the script, an event handler) is held until the component is destroyed.
 - In a monorepo, make sure the bundler loads one copy of `effect`. Workspace packages compiled from source can otherwise get their own, and their schemas and service tags stop matching (`resolve: { dedupe: ["effect"] }` in Vite).
 
 ## How it works

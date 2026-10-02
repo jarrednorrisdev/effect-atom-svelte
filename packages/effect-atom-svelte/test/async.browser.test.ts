@@ -12,6 +12,9 @@ import {
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
+import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
+import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
+import Toggle from "./fixtures/toggle.svelte";
 import { sleep } from "./helpers.ts";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
@@ -19,6 +22,35 @@ const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
 
 const delayed = <A>(value: A, millis = 50) =>
   Atom.make(Effect.succeed(value).pipe(Effect.delay(`${millis} millis`)));
+
+const slowMillis = 100;
+/** Long enough for a slow atom's request to have finished, had it not been interrupted. */
+const afterSlowRequest = `${slowMillis + 50} millis` as const;
+
+/** Slow atoms that log when they start, finish their request and are disposed. */
+const slowFamily = (log: string[]) =>
+  Atom.family((name: string) =>
+    Atom.make((get) => {
+      log.push(`start ${name}`);
+      get.addFinalizer(() => log.push(`stop ${name}`));
+      return Effect.sync(() => {
+        log.push(`done ${name}`);
+        return name;
+      }).pipe(Effect.delay(`${slowMillis} millis`));
+    })
+  );
+
+/** Unmounts while slow atom "a" is loading, and checks it is disposed without finishing. */
+const expectUnmountInterrupts = async (
+  log: string[],
+  unmount: () => Promise<unknown>
+) => {
+  await expect.poll(() => log).toEqual(["start a"]);
+  await unmount();
+  await expect.poll(() => log).toEqual(["start a", "stop a"]);
+  await sleep(afterSlowRequest);
+  expect(log).toEqual(["start a", "stop a"]);
+};
 
 describe("useAtomSuspense", () => {
   test("shows the boundary's pending state, then the value", async () => {
@@ -168,6 +200,86 @@ describe("useAtomSuspense", () => {
     registry.refresh(named("b"));
     await expect.poll(text(screen)).toBe("b b2");
   });
+
+  test("a getter switch while pending interrupts the abandoned atoms (JND-16)", async () => {
+    const registry = AtomRegistry.make();
+    const pick = Atom.make("a");
+    const log: string[] = [];
+    const slow = slowFamily(log);
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        const value = useAtomSuspense(() => slow(choice.current));
+        return () => value.current;
+      },
+    });
+    await expect.poll(() => log).toContain("start a");
+    registry.set(pick, "b");
+    await expect.poll(() => log).toContain("start b");
+    registry.set(pick, "c");
+    await expect.poll(text(screen)).toBe("c");
+    await sleep(afterSlowRequest);
+    expect(log.filter((entry) => entry.startsWith("done"))).toEqual(["done c"]);
+    expect(log).toContain("stop a");
+    expect(log).toContain("stop b");
+    expect(registry.getNodes().has(slow("a"))).toBe(false);
+    expect(registry.getNodes().has(slow("b"))).toBe(false);
+  });
+
+  test("unmounting while pending interrupts the wait (JND-16)", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowFamily(log);
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(slow("a"));
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+  });
+
+  test("a promise awaited in the script lets go of its atom on unmount (JND-16)", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowFamily(log);
+    const screen = await render(ToggleScriptAwait, {
+      registry,
+      setup: async () => {
+        const value = useAtomSuspense(slow("a"));
+        return await value.current;
+      },
+      show: true,
+    });
+    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+  });
+
+  test("a settled promise is reused after its readers go away", async () => {
+    const registry = AtomRegistry.make();
+    const promises: Promise<unknown>[] = [];
+    const atom = delayed("a", 20);
+    // Kept mounted, so the result stays the same object while nothing shows it.
+    registry.mount(atom);
+    const screen = await render(SuspenseToggle, {
+      atom,
+      promises,
+      registry,
+    });
+    await expect.poll(text(screen)).toBe("toggle a");
+    const shown = promises.at(-1);
+    const button = screen.container.querySelector("button");
+    button?.click();
+    await expect.poll(text(screen)).toBe("toggle");
+    await sleep("20 millis");
+    button?.click();
+    await expect.poll(text(screen)).toBe("toggle a");
+    expect(promises.at(-1)).toBe(shown);
+  });
 });
 
 describe("useAtomResult", () => {
@@ -258,5 +370,20 @@ describe("useAtomResult", () => {
     refresh();
     await expect.poll(text(screen)).toBe("1 waiting");
     await expect.poll(text(screen)).toBe("2");
+  });
+
+  test("unmounting before the first result interrupts the wait (JND-16)", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowFamily(log);
+    const screen = await render(ToggleScriptAwait, {
+      registry,
+      setup: async () => {
+        const result = await useAtomResult(slow("a"));
+        return result.current._tag;
+      },
+      show: true,
+    });
+    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
   });
 });

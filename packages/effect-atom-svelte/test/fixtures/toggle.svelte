@@ -8,11 +8,12 @@
     readonly setup: () => unknown;
     readonly registry: AtomRegistry.AtomRegistry;
     readonly show: boolean;
+    readonly async?: boolean | undefined;
   }
 
-  const { registry, setup, show }: Props = $props();
+  const { async, registry, setup, show }: Props = $props();
 </script>
 
 {#if show}
-  <Harness {registry} {setup} />
+  <Harness {async} {registry} {setup} />
 {/if}

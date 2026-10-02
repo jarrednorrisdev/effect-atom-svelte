@@ -7,7 +7,7 @@ import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
 import { BROWSER } from "esm-env";
-import { hydratable, onDestroy } from "svelte";
+import { getAbortSignal, hydratable, onDestroy } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
 import { getRegistry } from "./RegistryContext.ts";
@@ -435,10 +435,24 @@ export const useAtomRefPropValue = <A, K extends keyof A>(
 // ---------------------------------------------------------------------------------------------
 // Async: experimental async components, SSR and hydration
 //
-// Each hook does its context work (registry lookup, subscriptions, onDestroy) synchronously, before
+// Each hook does its context work (registry lookup, subscriptions, teardowns) synchronously, before
 // its own first await, so it works anywhere Svelte has restored component context: at the top level
 // of a component script, including after earlier top-level awaits.
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * Runs `f` when the component is destroyed, even while its script is still awaiting. In the browser
+ * `onDestroy` only takes effect once the component mounts, so a component removed while pending
+ * would never call it. A pre effect runs during init and is torn down with the component (JND-16).
+ * On the server, `onDestroy` runs when the render ends.
+ */
+const onTeardown = (f: () => void): void => {
+  if (BROWSER) {
+    $effect.pre(() => f);
+  } else {
+    onDestroy(f);
+  }
+};
 
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
@@ -516,7 +530,7 @@ const seedFromServer = (
   // hydration's value and fetch it again.
   let release: (() => void) | undefined;
   let destroyed = false;
-  onDestroy(() => {
+  onTeardown(() => {
     destroyed = true;
     release?.();
   });
@@ -561,9 +575,10 @@ export const useAtomResult = async <A, E>(
   const value = useAtomValue(getAtom);
   const atom = getAtom();
   let release: (() => void) | undefined;
-  let destroyed = false;
-  onDestroy(() => {
-    destroyed = true;
+  // Aborted when the component is destroyed, which interrupts the wait below so the atom is not held.
+  const lifetime = new AbortController();
+  onTeardown(() => {
+    lifetime.abort();
     release?.();
   });
   // Later atoms are mounted by this effect, which runs once the component mounts, so after the
@@ -579,10 +594,10 @@ export const useAtomResult = async <A, E>(
     await seed;
   }
   // Mounted only after seeding, so hydration's value is in place before the atom first computes.
-  if (!destroyed) {
+  if (!lifetime.signal.aborted) {
     release = registry.mount(atom);
   }
-  await awaitResult(registry, atom, options);
+  await awaitResult(registry, atom, options, lifetime.signal);
   return value;
 };
 
@@ -604,15 +619,19 @@ const suspend = async <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: ResultAtom<A, E>,
   current: AsyncResult.AsyncResult<A, E>,
-  options: SuspenseOptions
+  options: SuspenseOptions,
+  signal: AbortSignal
 ): Promise<unknown> => {
   const pending =
     current._tag === "Initial" ||
     (options.suspendOnWaiting === true && current.waiting);
   if (pending) {
-    const exit = await awaitResult(registry, atom, {
-      suspendOnWaiting: options.suspendOnWaiting,
-    });
+    const exit = await awaitResult(
+      registry,
+      atom,
+      { suspendOnWaiting: options.suspendOnWaiting },
+      signal
+    );
     if (options.includeFailure) {
       return Exit.isSuccess(exit)
         ? AsyncResult.success(exit.value)
@@ -627,6 +646,68 @@ const suspend = async <A, E>(
     return current;
   }
   throw Cause.squash(current.cause);
+};
+
+/** The derived or effect reading now's abort signal, which Svelte aborts when it re-runs or is destroyed. */
+const readerSignal = (): AbortSignal | undefined => {
+  if (!BROWSER) {
+    return undefined;
+  }
+  try {
+    return getAbortSignal();
+  } catch {
+    return undefined;
+  }
+};
+
+/** A wait shared by every read of one result; each reader holds it until its signal aborts. */
+interface SharedWait {
+  readonly promise: Promise<unknown>;
+  readonly hold: (signal: AbortSignal) => void;
+}
+
+/**
+ * Once no reader holds a pending wait, it is interrupted so it stops holding the atom, which lets
+ * the registry dispose it and interrupt its request (JND-16), and `onAbandoned` drops it from the
+ * cache. A settled wait is kept, so its promise stays the same for the next reader.
+ */
+const sharedWait = (
+  start: (signal: AbortSignal) => Promise<unknown>,
+  onAbandoned: () => void
+): SharedWait => {
+  const controller = new AbortController();
+  const promise = start(controller.signal);
+  let settled = false;
+  void (async () => {
+    try {
+      await promise;
+    } catch {
+      // Rejections belong to the awaiting template; this stops an unread one being reported as unhandled.
+    }
+    settled = true;
+  })();
+  let holders = 0;
+  const release = () => {
+    holders -= 1;
+    // A reaction aborts its signal before it re-runs, so wait a microtask: the re-run may read the
+    // same result again and hold the wait instead of starting a new one.
+    queueMicrotask(() => {
+      if (holders === 0 && !settled && !controller.signal.aborted) {
+        controller.abort();
+        onAbandoned();
+      }
+    });
+  };
+  return {
+    hold: (signal) => {
+      if (signal.aborted) {
+        return;
+      }
+      holders += 1;
+      signal.addEventListener("abort", release, { once: true });
+    },
+    promise,
+  };
 };
 
 /**
@@ -680,25 +761,27 @@ export function useAtomSuspense<A, E>(
         })
       : undefined;
   const afterSeed = new WeakMap<ResultAtom<A, E>, Promise<unknown>>();
+  // Holds waits read outside any derived or effect (a top-level await in the script, an event
+  // handler), which cannot say when they are done with them, until the component is destroyed.
+  const lifetime = new AbortController();
+  onTeardown(() => lifetime.abort());
 
-  const promises = new WeakMap<
-    AsyncResult.AsyncResult<A, E>,
-    Promise<unknown>
-  >();
+  const waits = new WeakMap<AsyncResult.AsyncResult<A, E>, SharedWait>();
   const settle = (
     atom: ResultAtom<A, E>,
-    current: AsyncResult.AsyncResult<A, E>
+    current: AsyncResult.AsyncResult<A, E>,
+    signal: AbortSignal
   ): Promise<unknown> => {
-    const cached = promises.get(current);
-    if (cached) {
-      return cached;
+    let wait = waits.get(current);
+    if (!wait) {
+      wait = sharedWait(
+        (abort) => suspend(registry, atom, current, options, abort),
+        () => waits.delete(current)
+      );
+      waits.set(current, wait);
     }
-    const promise = suspend(registry, atom, current, options);
-    // Rejections belong to the awaiting template; this stops an unread one being reported as unhandled.
-    // oxlint-disable-next-line promise/prefer-await-to-then
-    promise.catch(() => null);
-    promises.set(current, promise);
-    return promise;
+    wait.hold(signal);
+    return wait.promise;
   };
 
   return new AtomCell<Promise<unknown>, never>(() => {
@@ -710,12 +793,13 @@ export function useAtomSuspense<A, E>(
       if (!promise) {
         promise = (async () => {
           await seed;
-          return settle(atom, registry.get(atom));
+          // Shared by every reader that came before the seed, so the component holds it.
+          return settle(atom, registry.get(atom), lifetime.signal);
         })();
         afterSeed.set(atom, promise);
       }
       return promise;
     }
-    return settle(getAtom(), result.current);
+    return settle(getAtom(), result.current, readerSignal() ?? lifetime.signal);
   }, readOnly);
 }
