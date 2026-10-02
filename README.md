@@ -17,3 +17,5 @@ bun run --cwd apps/demo dev         # in another
 ```
 
 `bun run check`, `bun run test` and `bun run lint` run across the workspace.
+
+Work is tracked in the [effect-atom-svelte project](https://linear.app/jarrednorrisdev/project/effect-atom-svelte-a13e42344ff4) in the personal Linear workspace (team JND, use the `linearis` CLI). Reference issues as `JND-<n>` in commits and changesets.
