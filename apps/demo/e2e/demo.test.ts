@@ -220,12 +220,19 @@ test("streams: a stream atom ticks and a streaming RPC pulls to the end", async 
   const ticks = page.getByTestId("ticks");
   await expect(ticks).toHaveText("0");
   const pull = page.getByRole("button", { name: "Pull next" });
-  for (const expected of ["0, 1", "0, 1, 2", "0, 1, 2, 3", "0, 1, 2, 3, 4"]) {
+  // HTTP RPC has no acks, so the server streams ahead and a pull takes every item that has
+  // arrived since the last one. Each click must add items in order, not exactly one.
+  const done = "0, 1, 2, 3, 4 (done)";
+  let shown = "0";
+  for (let click = 0; click < 5 && shown !== done; click += 1) {
     await pull.click();
-    await expect(ticks).toHaveText(expected);
+    await expect(ticks).not.toHaveText(shown);
+    const next = (await ticks.textContent()) ?? "";
+    expect(next.startsWith(shown), `${next} extends ${shown}`).toBe(true);
+    expect(done.startsWith(next.replace(" (done)", ""))).toBe(true);
+    shown = next;
   }
-  await pull.click();
-  await expect(ticks).toHaveText("0, 1, 2, 3, 4 (done)");
+  expect(shown).toBe(done);
 });
 
 test("refs and scopes: AtomRef updates and scoped atoms stay separate", async ({

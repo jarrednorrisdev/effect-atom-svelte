@@ -38,7 +38,8 @@
   <h2>Streaming RPC, pulled chunk by chunk</h2>
   <p>
     A stream RPC becomes a pull atom. Writing to it pulls the next chunk until the server's stream
-    ends.
+    ends. Over HTTP the server doesn't wait for the client, so a chunk holds every tick that arrived
+    since the last pull: wait a second before clicking and you get several at once.
   </p>
   {#if ticks.current._tag === "Success"}
     <p data-testid="ticks">
