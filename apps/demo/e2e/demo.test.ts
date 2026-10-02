@@ -137,13 +137,16 @@ test.describe("HTTP API page", () => {
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("http-todos");
     // The store is shared across tests, so check what each filter means rather than which titles show.
+    // Wait for the filtered items before asserting what is absent: an empty list mid-update would
+    // otherwise satisfy "no open items" on its own.
+    const done = list.locator("li").filter({ hasText: "✔" });
+    const open = list.locator("li").filter({ hasText: "○" });
     await page.getByTestId("http-filter").selectOption("true");
-    await expect(list.locator("li").filter({ hasText: "○" })).toHaveCount(0);
-    await expect(list.locator("li").filter({ hasText: "✔" })).not.toHaveCount(
-      0
-    );
+    await expect(done.first()).toBeVisible({ timeout: 15_000 });
+    await expect(open).toHaveCount(0);
     await page.getByTestId("http-filter").selectOption("false");
-    await expect(list.locator("li").filter({ hasText: "✔" })).toHaveCount(0);
+    await expect(open.first()).toBeVisible({ timeout: 15_000 });
+    await expect(done).toHaveCount(0);
     await page.getByTestId("http-filter").selectOption("all");
 
     await page.getByTestId("http-draft").fill("Added over HTTP");

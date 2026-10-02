@@ -10,6 +10,11 @@ export default defineConfig({
       // upstreamed: PascalCase module files, and an index that re-exports the public API.
       files: ["packages/effect-atom-svelte/src/**"],
       rules: {
+        // Effect documents every export with @stability and @category alongside @since.
+        "jsdoc/check-tag-names": [
+          "error",
+          { definedTags: ["category", "stability"] },
+        ],
         "oxc/no-barrel-file": "off",
         "unicorn/filename-case": "off",
       },

@@ -1,3 +1,8 @@
+<!--
+  @component
+  Puts an atom registry in context for its children: one per request on the server, one for the
+  session in the browser. Takes the AtomRegistry.make options, or an existing `registry`.
+-->
 <script lang="ts">
   import type { AtomRegistry } from "effect/reactivity";
   import type { Snippet } from "svelte";

@@ -2,7 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "e2e",
-  use: { baseURL: "http://localhost:5180" },
+  // A failing test keeps a full trace (DOM, network, console): the HTTP filter step has failed rarely
+  // under turbo, and the trace is how to find out why. No retries, so that failure stays visible.
+  use: { baseURL: "http://localhost:5180", trace: "retain-on-failure" },
   webServer: [
     {
       command: "bun run --cwd ../demo-api dev",

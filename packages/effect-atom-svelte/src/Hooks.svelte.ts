@@ -1,3 +1,8 @@
+/**
+ * Hooks that read, write and await atoms from Svelte 5 components.
+ *
+ * @since 0.1.0
+ */
 import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
@@ -7,20 +12,54 @@ import { createSubscriber } from "svelte/reactivity";
 
 import { getRegistry } from "./RegistryContext.ts";
 
-/** An atom, or a getter so the hook follows the atom when reactive state picks a different one. */
+/**
+ * An atom, or a getter so the hook follows the atom when reactive state picks a different one.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export type AtomInput<A> = A | (() => A);
 
+/**
+ * A reactive read-only value. Read `.current` in a template, `$derived` or `$effect` to track it.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export interface AtomValue<A> {
   readonly current: A;
 }
 
+/**
+ * A reactive value that can also be assigned, so `bind:value={state.current}` works.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export interface AtomState<R, W = R> {
   get current(): R;
   set current(value: W);
 }
 
+/**
+ * How a setter from `useAtomSet` reports back: not at all, with the result, or with the `Exit`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export type WriteMode = "value" | "promise" | "promiseExit";
 
+/**
+ * Options for a promise-mode setter call.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export interface WriteOptions {
   readonly signal?: AbortSignal | undefined;
 }
@@ -132,7 +171,14 @@ const subscribedReader = <A>(
     });
 };
 
-/** Reads an atom. It stays mounted while something reactive reads `.current`. */
+/**
+ * Reads an atom, optionally through a transform. The atom stays mounted while something reactive
+ * reads `.current`, and is released when nothing does.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export function useAtomValue<A>(input: AtomInput<Atom.Atom<A>>): AtomValue<A>;
 export function useAtomValue<A, B>(
   input: AtomInput<Atom.Atom<A>>,
@@ -146,7 +192,13 @@ export function useAtomValue<A, B>(
   return new AtomCell<A | B, never>(f ? () => f(read()) : read, readOnly);
 }
 
-/** Reads and writes through `.current`, so `bind:value={state.current}` works. */
+/**
+ * Reads and writes a writable atom through `.current`, so `bind:value={state.current}` works.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtom = <R, W>(
   input: AtomInput<Atom.Writable<R, W>>
 ): AtomState<R, W> => {
@@ -157,13 +209,28 @@ export const useAtom = <R, W>(
   );
 };
 
-/** Keeps an atom mounted while the component lives, without reading it. */
+/**
+ * Keeps an atom mounted while the component lives, without reading it.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
   $effect(() => registry.mount(getAtom()));
 };
 
+/**
+ * Returns a setter. The atom is mounted for the component's lifetime, so an `Atom.fn` keeps its
+ * state between calls and is not disposed between set and read. In `promise` and `promiseExit`
+ * modes the setter waits for the atom's next settled result.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export function useAtomSet<R, W>(
   input: AtomInput<Atom.Writable<R, W>>,
   options?: { readonly mode?: "value" }
@@ -176,10 +243,6 @@ export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
   options: { readonly mode: "promiseExit" }
 ): (value: W, options?: WriteOptions) => Promise<Exit.Exit<A, E>>;
-/**
- * Returns a setter. The atom is mounted for the component's lifetime, so an `Atom.fn` keeps its
- * state between calls and is not disposed between set and read.
- */
 export function useAtomSet(
   input: AtomInput<Atom.Writable<unknown, unknown>>,
   options?: { readonly mode?: WriteMode }
@@ -216,7 +279,13 @@ export function useAtomSet(
   };
 }
 
-/** Returns a function that recomputes the atom. The atom is mounted so the refresh is not lost. */
+/**
+ * Returns a function that recomputes the atom. The atom is mounted so the refresh is not lost.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomRefresh = (
   input: AtomInput<Atom.Atom<unknown>>
 ): (() => void) => {
@@ -226,7 +295,14 @@ export const useAtomRefresh = (
   return () => registry.refresh(getAtom());
 };
 
-/** Calls `f` on every change while the component lives. */
+/**
+ * Calls `f` on every change while the component lives, and with the current value first when
+ * `immediate` is set.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomSubscribe = <A>(
   input: AtomInput<Atom.Atom<A>>,
   f: (value: A) => void,
@@ -242,7 +318,13 @@ const initialValuesApplied = new WeakMap<
   WeakSet<Atom.Atom<unknown>>
 >();
 
-/** Sets starting values once per registry, before anything reads the atoms. */
+/**
+ * Sets starting values once per registry, before anything reads the atoms.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomInitialValues = (
   initialValues: Iterable<readonly [Atom.Atom<unknown>, unknown]>
 ): void => {
@@ -269,7 +351,13 @@ export const useAtomInitialValues = (
   }
 };
 
-/** Reads an `AtomRef`, following it when the getter returns a different ref. */
+/**
+ * Reads an `AtomRef`, following it when the getter returns a different ref.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomRef = <A>(
   input: AtomInput<AtomRef.ReadonlyRef<A>>
 ): AtomValue<A> => {
@@ -294,11 +382,25 @@ export const useAtomRef = <A>(
   );
 };
 
+/**
+ * Returns the `AtomRef` for one property of an `AtomRef`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomRefProp = <A, K extends keyof A>(
   ref: AtomRef.AtomRef<A>,
   prop: K
 ): AtomRef.AtomRef<A[K]> => ref.prop(prop);
 
+/**
+ * Reads one property of an `AtomRef`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category hooks
+ */
 export const useAtomRefPropValue = <A, K extends keyof A>(
   input: AtomInput<AtomRef.AtomRef<A>>,
   prop: K
@@ -379,6 +481,10 @@ const seedFromServer = (
  *   const todos = await useAtomResult(todosAtom);
  * </script>
  * ```
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category async
  */
 export const useAtomResult = async <A, E>(
   atom: ResultAtom<A, E>,
@@ -402,6 +508,13 @@ export const useAtomResult = async <A, E>(
   return value;
 };
 
+/**
+ * Options for `useAtomSuspense`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export interface SuspenseOptions {
   /** Treat a refreshing result as pending, so `await` shows the boundary's pending state again. */
   readonly suspendOnWaiting?: boolean | undefined;
@@ -438,6 +551,16 @@ const suspend = async <A, E>(
   throw Cause.squash(current.cause);
 };
 
+/**
+ * Exposes an async atom as a promise for `await` in markup or `$derived(await ...)`. The promise is
+ * stable while the result is unchanged, and a new one is issued when the result changes, so Svelte
+ * re-runs dependents only on real updates. Failures reject with the squashed cause, or resolve with
+ * the `Failure` when `includeFailure` is set.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category async
+ */
 export function useAtomSuspense<A, E>(
   input: AtomInput<ResultAtom<A, E>>,
   options?: SuspenseOptions & { readonly includeFailure?: false | undefined }
@@ -446,11 +569,6 @@ export function useAtomSuspense<A, E>(
   input: AtomInput<ResultAtom<A, E>>,
   options: SuspenseOptions & { readonly includeFailure: true }
 ): AtomValue<Promise<AsyncResult.Success<A, E> | AsyncResult.Failure<A, E>>>;
-/**
- * Exposes an async atom as a promise for `await` in markup or `$derived(await ...)`. The promise is
- * stable while the result is unchanged, and a new one is issued when the result changes, so Svelte
- * re-runs dependents only on real updates. Failures reject with the squashed cause.
- */
 export function useAtomSuspense<A, E>(
   input: AtomInput<ResultAtom<A, E>>,
   options: SuspenseOptions = {}

@@ -1,7 +1,19 @@
+/**
+ * The registry that hooks read from, and how a component tree gets one.
+ *
+ * @since 0.1.0
+ */
 import { AtomRegistry } from "effect/reactivity";
 import { BROWSER } from "esm-env";
 import { createContext, onDestroy } from "svelte";
 
+/**
+ * Options for a registry created by `provideRegistry` or `RegistryProvider`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
 export type RegistryOptions = NonNullable<
   Parameters<typeof AtomRegistry.make>[0]
 >;
@@ -16,6 +28,10 @@ let browserRegistry: AtomRegistry.AtomRegistry | undefined;
  *
  * In the browser a shared default registry is used when none is provided. On the server there is
  * no default: one module-level registry would share atom state between concurrent requests.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category registry
  */
 export const getRegistry = (): AtomRegistry.AtomRegistry => {
   if (hasContextRegistry()) {
@@ -35,6 +51,10 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
  *
  * A registry created here is owned by the component and disposed with it, which on the server
  * means at the end of the request. A registry passed in is left for the caller to dispose.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category registry
  */
 export const provideRegistry = (
   options: RegistryOptions & {

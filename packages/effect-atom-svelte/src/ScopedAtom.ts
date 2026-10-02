@@ -1,11 +1,25 @@
+/**
+ * Atoms scoped to a component subtree.
+ *
+ * @since 0.1.0
+ */
 import type { Atom } from "effect/reactivity";
 import { createContext } from "svelte";
 
+/**
+ * @stability unstable
+ * @since 0.1.0
+ * @category type ids
+ */
 export const TypeId = "~effect-atom-svelte/ScopedAtom" as const;
 
 /**
  * An atom created per component subtree. `provide` builds it once in a parent and puts it in
  * context; `use` reads it in descendants.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
  */
 export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
   readonly [TypeId]: typeof TypeId;
@@ -13,6 +27,13 @@ export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
   readonly use: () => A;
 }
 
+/**
+ * Creates a scoped atom from a factory, which runs once per providing component.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category constructors
+ */
 export const make = <A extends Atom.Atom<unknown>, Input = never>(
   f: (() => A) | ((input: Input) => A)
 ): ScopedAtom<A, Input> => {

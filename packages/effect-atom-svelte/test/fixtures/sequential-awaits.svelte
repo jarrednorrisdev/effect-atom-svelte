@@ -16,7 +16,7 @@
   const a = await useAtomResult(first);
   // svelte-ignore state_referenced_locally
   const value = useAtomValue(plain);
-  let destroyed = false;
+  let destroyed = $state(false);
   onDestroy(() => {
     destroyed = true;
   });

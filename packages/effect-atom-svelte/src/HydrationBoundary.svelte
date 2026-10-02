@@ -1,4 +1,5 @@
 <!--
+  @component
   Hydrates dehydrated atom state, for example from `Hydration.dehydrate` returned by a remote
   function. Atoms new to the registry are hydrated before children render; atoms that already
   exist are updated after render, so current UI does not jump to the incoming data mid-render.

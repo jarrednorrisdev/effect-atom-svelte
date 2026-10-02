@@ -9,12 +9,15 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
     "check": "turbo run check",
     "test": "turbo run test",
     "lint": "ultracite check",
     "format": "ultracite fix"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.86.0",
     "turbo": "^2.11.6",
