@@ -537,11 +537,14 @@ const seedFromServer = (
 /**
  * Awaits an async atom's first result, then returns a live handle to its `AsyncResult`. Use it as
  * a top-level `await` in a component script; SSR waits for it, and with a serialization key the
- * result is reused during hydration instead of fetched again.
+ * result is reused during hydration instead of fetched again. With a getter, only the first atom
+ * is awaited: when the getter picks another atom the handle follows it, starting from that atom's
+ * current result (often `Initial`), and the component's await does not run again.
  *
  * ```svelte
  * <script>
  *   const todos = await useAtomResult(todosAtom);
+ *   const user = await useAtomResult(() => userAtom(id));
  * </script>
  * ```
  *
@@ -550,23 +553,35 @@ const seedFromServer = (
  * @category async
  */
 export const useAtomResult = async <A, E>(
-  atom: ResultAtom<A, E>,
+  input: AtomInput<ResultAtom<A, E>>,
   options?: { readonly suspendOnWaiting?: boolean | undefined }
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
-  const value = useAtomValue(atom);
-  const releases: (() => void)[] = [];
+  const getAtom = toGetter(input);
+  const value = useAtomValue(getAtom);
+  const atom = getAtom();
+  let release: (() => void) | undefined;
+  let destroyed = false;
   onDestroy(() => {
-    for (const release of releases) {
-      release();
-    }
+    destroyed = true;
+    release?.();
+  });
+  // Later atoms are mounted by this effect, which runs once the component mounts, so after the
+  // await below. The first atom's mount is released then, as the effect holds it from there.
+  $effect(() => {
+    const unmount = registry.mount(getAtom());
+    release?.();
+    release = undefined;
+    return unmount;
   });
   const seed = seedFromServer(registry, atom);
   if (seed) {
     await seed;
   }
   // Mounted only after seeding, so hydration's value is in place before the atom first computes.
-  releases.push(registry.mount(atom));
+  if (!destroyed) {
+    release = registry.mount(atom);
+  }
   await awaitResult(registry, atom, options);
   return value;
 };

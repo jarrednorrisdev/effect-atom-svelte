@@ -50,7 +50,7 @@ Hooks return objects with a reactive `.current`, Svelte's convention for reactiv
 | `useAtomSubscribe(atom, f, { immediate })` | Calls `f` on each change. |
 | `useAtomInitialValues(pairs)` | Sets starting values once per registry. |
 | `useAtomRef`, `useAtomRefPropValue` | Read an `AtomRef` or one of its properties. `useAtomRefProp` returns the prop ref. |
-| `useAtomResult(atom)` | `await` an async atom's first result, then a live `AsyncResult`. SSR and hydration. |
+| `useAtomResult(atom)` | `await` an async atom's first result, then a live `AsyncResult`. SSR and hydration. With a getter, a later atom is followed without awaiting again. |
 | `useAtomSuspense(atom, options)` | An async atom as a promise for `await` in markup. |
 | `ScopedAtom.make(f)` | An atom per subtree: `provide(input)` in a parent, `use()` below it. |
 | `<HydrationBoundary state>` | Hydrates state from `Hydration.dehydrate`, for example returned by a remote function. |
@@ -73,6 +73,7 @@ With `experimental.async`, a component can `await` atoms directly.
 ```
 
 - Hooks can be called before or after top-level `await`s in a component script: Svelte restores the component context after each one. Like any Svelte lifecycle function, a hook cannot be called after an `await` inside your own async helper, because only top-level awaits get the context back. Awaiting several atoms in sequence makes requests that could run in parallel wait for each other; start them together with `await Promise.all([useAtomResult(a), useAtomResult(b)])` when they are independent.
+- Every hook takes an atom or a getter (`() => atom`) that follows reactive state. `await useAtomResult(() => userAtom(id))` waits only for the first atom; when `id` changes, the handle switches to the new atom's result, which is usually `Initial` until it loads. Use `useAtomSuspense` when a switch should show the boundary's pending state again.
 - `useAtomSuspense(...).current` is a promise that stays the same object while the result is unchanged, so dependents only re-run on real updates. Failures reject with the squashed cause; `includeFailure: true` resolves with the `Failure` instead, and `suspendOnWaiting: true` treats a refresh as pending again.
 
 ## Server rendering and hydration

@@ -8,6 +8,7 @@ import { commands } from "vitest/browser";
 import { useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { computed } from "./fixtures/seeded-list.ts";
+import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import { text } from "./helpers.ts";
 
@@ -128,7 +129,7 @@ describe("HydrationBoundary", () => {
 /** Hydrates a fixture over its real server output, running the head's hydratable script first. */
 const hydrateFromServer = async (
   path: string,
-  component: typeof SsrHydrate
+  component: typeof SsrHydrate | typeof SsrHydrateResult
 ) => {
   const { body, head } = await commands.renderOnServer(path);
   const script = document.createElement("script");
@@ -160,6 +161,21 @@ describe("hydrating server output", () => {
 
     await expect.poll(output).toBe("a from the server");
     // The seed is the only source for "a": the browser must not compute it (JND-23).
+    expect(computed).toEqual([]);
+    target.querySelector("button")?.click();
+    await expect.poll(output).toBe("b from the browser");
+    expect(computed).toEqual(["b"]);
+  });
+
+  test("useAtomResult uses the server's result, then follows its getter", async () => {
+    computed.length = 0;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-hydrate-result.svelte",
+      SsrHydrateResult
+    );
+    const output = () => target.querySelector("output")?.textContent;
+
+    await expect.poll(output).toBe("a from the server");
     expect(computed).toEqual([]);
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");

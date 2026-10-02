@@ -205,6 +205,35 @@ describe("useAtomResult", () => {
     await expect.poll(text(screen)).toBe("Success:1 15");
   });
 
+  test("a getter follows the new atom without re-running the top-level await", async () => {
+    const registry = AtomRegistry.make();
+    const pick = Atom.make("a");
+    const named = Atom.family((name: string) => delayed(name, 100));
+    let setups = 0;
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: async () => {
+        setups += 1;
+        const choice = useAtomValue(pick);
+        const result = await useAtomResult(() => named(choice.current));
+        return () =>
+          result.current._tag === "Success"
+            ? result.current.value
+            : result.current._tag;
+      },
+    });
+    await expect.poll(text(screen)).toBe("a");
+    registry.set(pick, "b");
+    await expect.poll(text(screen)).toBe("Initial");
+    await expect.poll(text(screen)).toBe("b");
+    expect(setups).toBe(1);
+    // The handle keeps "b" mounted; "a" is released once nothing reads it.
+    await sleep("50 millis");
+    expect(registry.getNodes().has(named("b"))).toBe(true);
+    expect(registry.getNodes().has(named("a"))).toBe(false);
+  });
+
   test("shows waiting while refreshing and keeps the previous value", async () => {
     let calls = 0;
     const atom = Atom.make(
