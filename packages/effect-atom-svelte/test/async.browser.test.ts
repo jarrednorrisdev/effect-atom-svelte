@@ -9,6 +9,7 @@ import {
   useAtomSuspense,
 } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
+import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
   screen.container.textContent?.trim();
@@ -117,6 +118,15 @@ describe("useAtomSuspense", () => {
 });
 
 describe("useAtomResult", () => {
+  test("hooks can be called between top-level awaits in a component script", async () => {
+    const screen = await render(SequentialAwaits, {
+      first: delayed("one", 30),
+      plain: Atom.make(2),
+      second: delayed("three", 30),
+    });
+    await expect.poll(text(screen)).toBe("one 2 three false");
+  });
+
   test("awaits the first result, then stays live", async () => {
     const registry = AtomRegistry.make();
     const atom = Atom.make(Effect.succeed(1).pipe(Effect.delay("100 millis")));
@@ -126,7 +136,6 @@ describe("useAtomResult", () => {
       async: true,
       registry,
       setup: async () => {
-        // Svelte does not restore component context after an await, so both hooks start before it.
         const [result, live] = await Promise.all([
           useAtomResult(atom),
           useAtomResult(Atom.make((get) => Effect.succeed(get(derived)))),

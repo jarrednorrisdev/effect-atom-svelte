@@ -7,6 +7,7 @@ import { useAtomResult, useAtomSuspense, useAtomValue } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
 import Run from "./fixtures/run.svelte";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
+import SsrSequential from "./fixtures/ssr-sequential.svelte";
 
 let clients: ReturnType<typeof makeClients> | undefined;
 afterEach(async () => {
@@ -54,6 +55,19 @@ describe("server rendering", () => {
       };
     });
     expect(output.body).toContain("Write a Svelte adapter");
+  });
+
+  test("hooks between top-level awaits work on the server too", async () => {
+    const output = await render(SsrSequential, {
+      props: {
+        first: Atom.make(Effect.succeed("one").pipe(Effect.delay("20 millis"))),
+        plain: Atom.make(2),
+        second: Atom.make(
+          Effect.succeed("three").pipe(Effect.delay("20 millis"))
+        ),
+      },
+    });
+    expect(output.body).toContain("one 2 three");
   });
 
   test("concurrent requests get isolated registries", async () => {

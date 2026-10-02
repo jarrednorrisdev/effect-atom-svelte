@@ -72,7 +72,7 @@ With `experimental.async`, a component can `await` atoms directly.
 </svelte:boundary>
 ```
 
-- **Call every hook before the component's first `await`.** Svelte does not restore component context after an `await` in a script, so a hook called after one throws `lifecycle_outside_component`. To wait on several atoms, start them together: `await Promise.all([useAtomResult(a), useAtomResult(b)])`.
+- Hooks can be called before or after top-level `await`s in a component script: Svelte restores the component context after each one. Like any Svelte lifecycle function, a hook cannot be called after an `await` inside your own async helper, because only top-level awaits get the context back. Awaiting several atoms in sequence makes requests that could run in parallel wait for each other; start them together with `await Promise.all([useAtomResult(a), useAtomResult(b)])` when they are independent.
 - `useAtomSuspense(...).current` is a promise that stays the same object while the result is unchanged, so dependents only re-run on real updates. Failures reject with the squashed cause; `includeFailure: true` resolves with the `Failure` instead, and `suspendOnWaiting: true` treats a refresh as pending again.
 
 ## Server rendering and hydration

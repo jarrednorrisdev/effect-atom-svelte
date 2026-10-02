@@ -311,9 +311,9 @@ export const useAtomRefPropValue = <A, K extends keyof A>(
 // ---------------------------------------------------------------------------------------------
 // Async: experimental async components, SSR and hydration
 //
-// Svelte does not restore component context after an `await` in a component script, so every
-// hook below does its setup synchronously and must be called before the component's first await.
-// To wait on several, start them together: `await Promise.all([useAtomResult(a), useAtomResult(b)])`.
+// Each hook does its context work (registry lookup, subscriptions, onDestroy) synchronously, before
+// its own first await, so it works anywhere Svelte has restored component context: at the top level
+// of a component script, including after earlier top-level awaits.
 // ---------------------------------------------------------------------------------------------
 
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;

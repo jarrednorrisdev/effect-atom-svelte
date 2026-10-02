@@ -36,7 +36,7 @@
   });
   let error = $state("");
 
-  // Every hook above runs before this await: Svelte does not restore component context after it.
+  // SSR waits for this; hooks could also follow it, since Svelte restores context after top-level awaits.
   const todos = await useAtomResult(todosAtom);
 
   const submit = async (event: SubmitEvent) => {
