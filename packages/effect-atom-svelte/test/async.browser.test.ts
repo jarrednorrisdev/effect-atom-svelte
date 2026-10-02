@@ -7,9 +7,12 @@ import {
   useAtomRefresh,
   useAtomResult,
   useAtomSuspense,
+  useAtomValue,
 } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
+import StateGetter from "./fixtures/state-getter.svelte";
+import { sleep } from "./helpers.ts";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
   screen.container.textContent?.trim();
@@ -114,6 +117,56 @@ describe("useAtomSuspense", () => {
       },
     });
     await expect.poll(text(screen)).toBe("first");
+  });
+
+  test("a getter switch reads only the new atom", async () => {
+    const registry = AtomRegistry.make();
+    const pick = Atom.make("a");
+    const computed: string[] = [];
+    const named = Atom.family((name: string) =>
+      Atom.make(() => {
+        computed.push(name);
+        return Effect.succeed(name).pipe(Effect.delay("20 millis"));
+      })
+    );
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        const value = useAtomSuspense(() => named(choice.current));
+        return () => value.current;
+      },
+    });
+    await expect.poll(text(screen)).toBe("a");
+    registry.set(pick, "b");
+    await expect.poll(text(screen)).toBe("b");
+    await sleep("100 millis");
+    // Svelte renders some batches with pending changes rolled back; none of those renders may pick
+    // the released "a" again (JND-23).
+    expect(computed).toEqual(["a", "b"]);
+    expect(text(screen)()).toBe("b");
+  });
+
+  test("a getter over component state follows the new atom and its updates", async () => {
+    const registry = AtomRegistry.make();
+    const computed: string[] = [];
+    const named = Atom.family((name: string) =>
+      Atom.make(() => {
+        computed.push(name);
+        const count = computed.filter((entry) => entry === name).length;
+        return Effect.succeed(`${name}${count}`).pipe(
+          Effect.delay("20 millis")
+        );
+      })
+    );
+    const screen = await render(StateGetter, { named, registry });
+    await expect.poll(text(screen)).toBe("b a1");
+    screen.container.querySelector("button")?.click();
+    await expect.poll(text(screen)).toBe("b b1");
+    // The subscription must have moved to "b", or this refresh would not reach the page.
+    registry.refresh(named("b"));
+    await expect.poll(text(screen)).toBe("b b2");
   });
 });
 

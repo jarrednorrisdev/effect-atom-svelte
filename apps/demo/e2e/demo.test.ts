@@ -131,10 +131,7 @@ test.describe("HTTP API page", () => {
     expect(html).toContain("Write a Svelte adapter");
   });
 
-  // JND-23: in a production build the server-rendered list (useAtomSuspense with a serialization
-  // key) never updates after hydration: not on a filter switch, not after a create. Re-enable both
-  // tests once fixed.
-  test.fixme("filters switch the query through a getter", async ({ page }) => {
+  test("filters switch the query through a getter", async ({ page }) => {
     await page.goto("/http");
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("http-todos");
@@ -151,7 +148,7 @@ test.describe("HTTP API page", () => {
     await expect(done).toHaveCount(0);
   });
 
-  test.fixme("create refreshes the list, and a typed 404", async ({ page }) => {
+  test("create refreshes the list, and a typed 404", async ({ page }) => {
     await page.goto("/http");
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("http-todos");

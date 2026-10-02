@@ -157,17 +157,32 @@ const subscribedReader = <A>(
       return Atom.getServerValue(atom, registry);
     };
   }
-  const atom = $derived(getAtom());
-  const subscribe = $derived.by(() => {
-    const current = atom;
-    return createSubscriber((update) =>
-      registry.subscribe(current, notifyAfterReads(update))
-    );
+  // The atom is picked on every read, not held in a $derived. In async mode Svelte renders a batch
+  // with other pending batches' changes rolled back, deriveds included, but registry reads always
+  // see the latest state; a derived atom could then pair an old atom with new state, and that
+  // render could commit last and stick (JND-23). One subscription follows whichever atom was read.
+  let atom: Atom.Atom<A> | undefined;
+  let notify: (() => void) | undefined;
+  let cancel: (() => void) | undefined;
+  const subscribe = createSubscriber((update) => {
+    notify = notifyAfterReads(update);
+    cancel = atom ? registry.subscribe(atom, notify) : undefined;
+    return () => {
+      cancel?.();
+      cancel = undefined;
+      notify = undefined;
+    };
   });
   return () =>
     duringRead(() => {
+      const current = getAtom();
+      if (current !== atom) {
+        atom = current;
+        cancel?.();
+        cancel = notify ? registry.subscribe(current, notify) : undefined;
+      }
       subscribe();
-      return registry.get(atom);
+      return registry.get(current);
     });
 };
 
@@ -455,8 +470,18 @@ const seedFromServer = (
     }
     return existing.done;
   }
-  // Held until the component is destroyed, so the settled node is what the render reads.
-  onDestroy(registry.mount(atom));
+  // Held until the component is destroyed, so the settled node is what the render reads. In the
+  // browser it is mounted only once the seed is in: the registry applies a seed when it creates a
+  // node, so mounting first would compute the atom, drop hydration's value and fetch it again.
+  let release: (() => void) | undefined;
+  let destroyed = false;
+  onDestroy(() => {
+    destroyed = true;
+    release?.();
+  });
+  if (!BROWSER) {
+    release = registry.mount(atom);
+  }
   const encoded = hydratable(key, async () => {
     await awaitResult(registry, atom);
     return encode(registry.get(atom));
@@ -465,6 +490,9 @@ const seedFromServer = (
     const value = await encoded;
     if (BROWSER) {
       registry.setSerializable(key, value);
+      if (!destroyed) {
+        release = registry.mount(atom);
+      }
     }
   })();
   byKey.set(key, { atom, done });
@@ -577,14 +605,31 @@ export function useAtomSuspense<A, E>(
   const getAtom = toGetter(input);
   const result = useAtomValue(getAtom);
   const seed = seedFromServer(registry, getAtom());
-  let seeded = $state(seed === undefined);
-  let afterSeed: Promise<unknown> | undefined;
+  // A plain variable, not $state: a render in a batch with this write rolled back would take the
+  // pre-seed path and track nothing but the flag. Reading `trackSeed` asks for a re-read instead.
+  let seeded = seed === undefined;
   if (seed) {
     void (async () => {
       await seed;
       seeded = true;
     })();
   }
+  const trackSeed =
+    seed && BROWSER
+      ? createSubscriber((update) => {
+          let live = true;
+          void (async () => {
+            await seed;
+            if (live) {
+              update();
+            }
+          })();
+          return () => {
+            live = false;
+          };
+        })
+      : undefined;
+  const afterSeed = new WeakMap<ResultAtom<A, E>, Promise<unknown>>();
 
   const promises = new WeakMap<
     AsyncResult.AsyncResult<A, E>,
@@ -609,11 +654,17 @@ export function useAtomSuspense<A, E>(
   return new AtomCell<Promise<unknown>, never>(() => {
     if (!seeded && seed) {
       // Reading the atom before the seed lands would fetch what hydration is about to provide.
-      afterSeed ??= (async () => {
-        await seed;
-        return settle(getAtom(), registry.get(getAtom()));
-      })();
-      return afterSeed;
+      const atom = getAtom();
+      trackSeed?.();
+      let promise = afterSeed.get(atom);
+      if (!promise) {
+        promise = (async () => {
+          await seed;
+          return settle(atom, registry.get(atom));
+        })();
+        afterSeed.set(atom, promise);
+      }
+      return promise;
     }
     return settle(getAtom(), result.current);
   }, readOnly);
