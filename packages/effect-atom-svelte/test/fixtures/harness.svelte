@@ -13,6 +13,12 @@
   }
 
   const { async = false, registry, setup }: Props = $props();
+  const describe = (error: unknown) =>
+    typeof error === "object" && error !== null && "_tag" in error
+      ? String(error._tag)
+      : error instanceof Error
+        ? error.message
+        : String(error);
   // svelte-ignore state_referenced_locally
   provideRegistry({ registry });
 </script>
@@ -27,6 +33,6 @@
     <output>pending</output>
   {/snippet}
   {#snippet failed(error)}
-    <output>failed: {error instanceof Error ? error.message : String(error)}</output>
+    <output>failed: {describe(error)}</output>
   {/snippet}
 </svelte:boundary>
