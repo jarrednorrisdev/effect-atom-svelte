@@ -98,7 +98,34 @@ With `experimental.async`, a component can `await` atoms directly.
 
 ## SvelteKit notes
 
-- SvelteKit runs errors through `handleError` before a boundary's `failed` snippet sees them; by default the snippet only gets `{ status: 500, message: "Internal Error" }`. To show a typed error, use `includeFailure: true` and read the `Failure`, or add a client `handleError` hook that keeps the message and `_tag` (see `apps/demo/src/hooks.client.ts`).
+- SvelteKit runs errors through `handleError` before a boundary's `failed` snippet sees them; by default the snippet only gets `{ status: 500, message: "Internal Error" }`, so an Effect error loses its `_tag`. To show a typed error, use `includeFailure: true` and read the `Failure`, or use the hooks from `effect-atom-svelte/sveltekit`, which add the `_tag` to `App.Error` as `tag`. The client hook also keeps the message; the server hook keeps SvelteKit's `"Internal Error"` so the message cannot expose details of the server (it matters when a `failed` snippet renders on the server). Both log the error like SvelteKit's default hooks and leave `error(...)` and SvelteKit's own errors, such as 404s, as they are. The entry point does not import SvelteKit.
+
+  ```ts
+  // src/hooks.client.ts
+  export { handleClientError as handleError } from "effect-atom-svelte/sveltekit";
+
+  // src/hooks.server.ts
+  export { handleServerError as handleError } from "effect-atom-svelte/sveltekit";
+
+  // src/app.d.ts
+  declare global {
+    namespace App {
+      interface Error {
+        tag?: string;
+      }
+    }
+  }
+  export {};
+  ```
+
+  ```svelte
+  {#snippet failed(error)}
+    {#if (error as App.Error).tag === "TodoNotFound"}No such todo{:else}{(error as App.Error).message}{/if}
+  {/snippet}
+  ```
+
+  To log to a service or set other fields, write your own hook and call these from it.
+
 - Data can come from `await` in components alone; no `load` or server files are needed.
 
 ## Behaviour worth knowing

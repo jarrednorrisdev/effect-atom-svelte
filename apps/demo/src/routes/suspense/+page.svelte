@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import { Effect } from "effect";
+  import { Data, Effect } from "effect";
   import { Atom } from "effect/reactivity";
 
   let calls = 0;
@@ -9,7 +9,10 @@
       return `loaded ${calls} time${calls === 1 ? "" : "s"}`;
     }).pipe(Effect.delay("800 millis"))
   );
-  const failingAtom = Atom.make(Effect.fail(new Error("This atom always fails")));
+  class AlwaysFails extends Data.TaggedError("AlwaysFails")<{ readonly message: string }> {}
+  const failingAtom = Atom.make(
+    Effect.fail(new AlwaysFails({ message: "This atom always fails" }))
+  );
 </script>
 
 <script lang="ts">
@@ -50,12 +53,17 @@
 
 <section>
   <h2>Failures reach the boundary</h2>
-  <p>A failed atom rejects its promise, and the boundary renders its <code>failed</code> snippet.</p>
+  <p>
+    A failed atom rejects its promise, and the boundary renders its <code>failed</code> snippet. The
+    <code>handleError</code> hooks from <code>effect-atom-svelte/sveltekit</code> keep the error's
+    message and <code>_tag</code>.
+  </p>
   <svelte:boundary>
     <p>{await failing.current}</p>
     {#snippet pending()}<p>Loading…</p>{/snippet}
     {#snippet failed(error)}
       <p data-testid="suspense-failed">{(error as App.Error).message}</p>
+      <p data-testid="suspense-failed-tag">{(error as App.Error).tag}</p>
     {/snippet}
   </svelte:boundary>
 </section>

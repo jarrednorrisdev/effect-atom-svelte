@@ -20,11 +20,20 @@ const pages = [
 /** Records page errors and RPC/HTTP API calls for the life of the page. */
 const watch = (page: Page) => {
   const errors: string[] = [];
+  const logged: Promise<string>[] = [];
   const calls: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") {
-      errors.push(message.text());
+      // Firefox's text for a logged Error is just "Error", so read the logged values themselves.
+      logged.push(
+        Promise.all(
+          message.args().map((arg) => arg.evaluate((value) => `${value}`))
+        ).then(
+          (values) => values.join(" "),
+          () => message.text()
+        )
+      );
     }
   });
   page.on("request", (request) => {
@@ -38,7 +47,10 @@ const watch = (page: Page) => {
       calls.push(`${request.method()} ${url.pathname}${url.search}`);
     }
   });
-  return { calls, errors };
+  return {
+    calls,
+    errors: async () => [...errors, ...(await Promise.all(logged))],
+  };
 };
 
 for (const path of pages) {
@@ -49,10 +61,12 @@ for (const path of pages) {
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(200);
     await page.waitForLoadState("networkidle");
-    // The suspense page fails one atom on purpose; Svelte logs errors its boundaries catch in dev.
-    expect(
-      errors.filter((error) => !error.includes("This atom always fails"))
-    ).toEqual([]);
+    // The suspense page fails one atom on purpose, and the handleError hook logs it.
+    const all = await errors();
+    const unexpected = all.filter(
+      (error) => !error.includes("This atom always fails")
+    );
+    expect(unexpected).toEqual([]);
   });
 }
 
@@ -207,6 +221,9 @@ test("suspense: pending, value and failure", async ({ page }) => {
   await expect(page.getByTestId("suspense-value")).toContainText("loaded");
   await expect(page.getByTestId("suspense-failed")).toHaveText(
     "This atom always fails"
+  );
+  await expect(page.getByTestId("suspense-failed-tag")).toHaveText(
+    "AlwaysFails"
   );
 });
 

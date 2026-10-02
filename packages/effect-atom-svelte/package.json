@@ -32,6 +32,10 @@
       "types": "./dist/index.d.ts",
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./sveltekit": {
+      "types": "./dist/SvelteKit.d.ts",
+      "default": "./dist/SvelteKit.js"
     }
   },
   "scripts": {
