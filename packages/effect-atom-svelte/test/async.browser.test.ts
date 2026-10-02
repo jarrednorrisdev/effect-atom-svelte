@@ -3,7 +3,11 @@ import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import { useAtomRefresh, useAtomResult, useAtomSuspense } from "../src/index.ts";
+import {
+  useAtomRefresh,
+  useAtomResult,
+  useAtomSuspense,
+} from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
@@ -102,7 +106,9 @@ describe("useAtomSuspense", () => {
       async: true,
       registry,
       setup: () => {
-        const value = useAtomSuspense(() => (registry.get(pick) ? second : first));
+        const value = useAtomSuspense(() =>
+          registry.get(pick) ? second : first
+        );
         return () => value.current;
       },
     });

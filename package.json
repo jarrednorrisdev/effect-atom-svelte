@@ -1,7 +1,10 @@
 {
   "name": "effect-atom-svelte-monorepo",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
     "dev": "turbo run dev",

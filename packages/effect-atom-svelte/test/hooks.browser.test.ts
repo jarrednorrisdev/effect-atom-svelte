@@ -99,7 +99,9 @@ describe("useAtomValue", () => {
     await expect.element(output(screen)).toHaveTextContent("1");
     registry.set(useSecond, true);
     await expect.element(output(screen)).toHaveTextContent("2");
-    await expect.poll(() => log).toEqual(["start first", "start second", "stop first"]);
+    await expect
+      .poll(() => log)
+      .toEqual(["start first", "start second", "stop first"]);
   });
 
   test("does not throw state_unsafe_mutation when many readers compute the same atom", async () => {
@@ -111,7 +113,12 @@ describe("useAtomValue", () => {
     const screen = await render(Harness, {
       registry,
       setup: () => {
-        const values = [useAtomValue(c), useAtomValue(b), useAtomValue(a), useAtomValue(c)];
+        const values = [
+          useAtomValue(c),
+          useAtomValue(b),
+          useAtomValue(a),
+          useAtomValue(c),
+        ];
         return () => values.map((value) => value.current).join(" ");
       },
     });
@@ -193,7 +200,10 @@ describe("useAtomSet", () => {
 
   test("an abort signal interrupts the waiting promise", async () => {
     const slow = Atom.fn(() => Effect.never);
-    let run!: (value: undefined, options?: { signal?: AbortSignal }) => Promise<unknown>;
+    let run!: (
+      value: undefined,
+      options?: { signal?: AbortSignal }
+    ) => Promise<unknown>;
     await render(Harness, {
       setup: () => {
         run = useAtomSet(slow, { mode: "promiseExit" });
@@ -238,7 +248,12 @@ describe("mounting and lifecycle", () => {
     const ticks = Atom.make((get) => {
       log.push("start");
       get.addFinalizer(() => log.push("stop"));
-      return Stream.tick("10 millis").pipe(Stream.scan(() => 0, (n) => n + 1));
+      return Stream.tick("10 millis").pipe(
+        Stream.scan(
+          () => 0,
+          (n) => n + 1
+        )
+      );
     });
     const screen = await render(Toggle, {
       registry,
@@ -279,7 +294,9 @@ describe("mounting and lifecycle", () => {
     await render(Harness, {
       registry,
       setup: () => {
-        useAtomSubscribe(atom, (value) => seen.push(value), { immediate: true });
+        useAtomSubscribe(atom, (value) => seen.push(value), {
+          immediate: true,
+        });
         return () => "";
       },
     });
@@ -375,7 +392,9 @@ describe("ScopedAtom", () => {
         return () => "unreachable";
       },
     });
-    await expect.poll(() => screen.container.textContent).toContain("failed: ScopedAtom used outside");
+    await expect
+      .poll(() => screen.container.textContent)
+      .toContain("failed: ScopedAtom used outside");
   });
 
   test("provides one atom per provider, built from its input", async () => {

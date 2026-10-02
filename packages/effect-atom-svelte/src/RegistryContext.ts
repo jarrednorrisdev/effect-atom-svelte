@@ -1,8 +1,10 @@
-import { BROWSER } from "esm-env";
 import { AtomRegistry } from "effect/reactivity";
+import { BROWSER } from "esm-env";
 import { createContext, onDestroy } from "svelte";
 
-export type RegistryOptions = NonNullable<Parameters<typeof AtomRegistry.make>[0]>;
+export type RegistryOptions = NonNullable<
+  Parameters<typeof AtomRegistry.make>[0]
+>;
 
 const [getContextRegistry, setContextRegistry, hasContextRegistry] =
   createContext<AtomRegistry.AtomRegistry>();
@@ -35,7 +37,9 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
  * means at the end of the request. A registry passed in is left for the caller to dispose.
  */
 export const provideRegistry = (
-  options: RegistryOptions & { readonly registry?: AtomRegistry.AtomRegistry | undefined } = {}
+  options: RegistryOptions & {
+    readonly registry?: AtomRegistry.AtomRegistry | undefined;
+  } = {}
 ): AtomRegistry.AtomRegistry => {
   const { registry: provided, ...registryOptions } = options;
   const registry = provided ?? AtomRegistry.make(registryOptions);

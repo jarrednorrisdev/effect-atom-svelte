@@ -18,13 +18,19 @@ export const make = <A extends Atom.Atom<unknown>, Input = never>(
 ): ScopedAtom<A, Input> => {
   const [get, set, has] = createContext<A>();
   const provide = (...args: [] | [Input]): A =>
-    set(args.length === 0 ? (f as () => A)() : (f as (input: Input) => A)(args[0] as Input));
+    set(
+      args.length === 0
+        ? (f as () => A)()
+        : (f as (input: Input) => A)(args[0] as Input)
+    );
   return {
     [TypeId]: TypeId,
     provide: provide as ScopedAtom<A, Input>["provide"],
     use: () => {
       if (!has()) {
-        throw new Error("ScopedAtom used outside of the component that provides it");
+        throw new Error(
+          "ScopedAtom used outside of the component that provides it"
+        );
       }
       return get();
     },

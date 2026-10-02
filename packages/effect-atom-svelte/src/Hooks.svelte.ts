@@ -1,7 +1,7 @@
-import { BROWSER } from "esm-env";
 import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
+import { BROWSER } from "esm-env";
 import { hydratable, onDestroy } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
@@ -26,7 +26,9 @@ export interface WriteOptions {
 }
 
 const toGetter = <A>(input: AtomInput<A>): (() => A) =>
-  typeof input === "function" && !Atom.isAtom(input) ? (input as () => A) : () => input as A;
+  typeof input === "function" && !Atom.isAtom(input)
+    ? (input as () => A)
+    : () => input as A;
 
 // The registry notifies subscribers synchronously while it computes an atom, and Svelte throws
 // state_unsafe_mutation if state changes while a template or $derived is evaluating. Reads are
@@ -87,7 +89,9 @@ const awaitResult = <A, E>(
   options?: { readonly suspendOnWaiting?: boolean | undefined },
   signal?: AbortSignal | undefined
 ): Promise<Exit.Exit<A, E>> =>
-  Effect.runPromiseExit(AtomRegistry.getResult(registry, atom, options), { signal });
+  Effect.runPromiseExit(AtomRegistry.getResult(registry, atom, options), {
+    signal,
+  });
 
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
@@ -100,7 +104,9 @@ const subscribedReader = <A>(
   const atom = $derived(getAtom());
   const subscribe = $derived.by(() => {
     const current = atom;
-    return createSubscriber((update) => registry.subscribe(current, notifyAfterReads(update)));
+    return createSubscriber((update) =>
+      registry.subscribe(current, notifyAfterReads(update))
+    );
   });
   return () =>
     duringRead(() => {
@@ -111,7 +117,10 @@ const subscribedReader = <A>(
 
 /** Reads an atom. It stays mounted while something reactive reads `.current`. */
 export function useAtomValue<A>(input: AtomInput<Atom.Atom<A>>): AtomValue<A>;
-export function useAtomValue<A, B>(input: AtomInput<Atom.Atom<A>>, f: (value: A) => B): AtomValue<B>;
+export function useAtomValue<A, B>(
+  input: AtomInput<Atom.Atom<A>>,
+  f: (value: A) => B
+): AtomValue<B>;
 export function useAtomValue<A, B>(
   input: AtomInput<Atom.Atom<A>>,
   f?: (value: A) => B
@@ -121,7 +130,9 @@ export function useAtomValue<A, B>(
 }
 
 /** Reads and writes through `.current`, so `bind:value={state.current}` works. */
-export const useAtom = <R, W>(input: AtomInput<Atom.Writable<R, W>>): AtomState<R, W> => {
+export const useAtom = <R, W>(
+  input: AtomInput<Atom.Writable<R, W>>
+): AtomState<R, W> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
   return new AtomCell<R, W>(subscribedReader(registry, getAtom), (value) =>
@@ -166,20 +177,32 @@ export function useAtomSet(
       const atom = getAtom();
       registry.set(
         atom,
-        typeof value === "function" ? (value as (current: unknown) => unknown)(registry.get(atom)) : value
+        typeof value === "function"
+          ? (value as (current: unknown) => unknown)(registry.get(atom))
+          : value
       );
     };
   }
   return async (value: unknown, writeOptions?: WriteOptions) => {
-    const atom = getAtom() as Atom.Writable<AsyncResult.AsyncResult<unknown, unknown>, unknown>;
+    const atom = getAtom() as Atom.Writable<
+      AsyncResult.AsyncResult<unknown, unknown>,
+      unknown
+    >;
     registry.set(atom, value);
-    const exit = await awaitResult(registry, atom, { suspendOnWaiting: true }, writeOptions?.signal);
+    const exit = await awaitResult(
+      registry,
+      atom,
+      { suspendOnWaiting: true },
+      writeOptions?.signal
+    );
     return mode === "promiseExit" ? exit : valueOrThrow(exit);
   };
 }
 
 /** Returns a function that recomputes the atom. The atom is mounted so the refresh is not lost. */
-export const useAtomRefresh = (input: AtomInput<Atom.Atom<unknown>>): (() => void) => {
+export const useAtomRefresh = (
+  input: AtomInput<Atom.Atom<unknown>>
+): (() => void) => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
   useAtomMount(getAtom);
@@ -197,7 +220,10 @@ export const useAtomSubscribe = <A>(
   $effect(() => registry.subscribe(getAtom(), f, options));
 };
 
-const initialValuesApplied = new WeakMap<AtomRegistry.AtomRegistry, WeakSet<Atom.Atom<unknown>>>();
+const initialValuesApplied = new WeakMap<
+  AtomRegistry.AtomRegistry,
+  WeakSet<Atom.Atom<unknown>>
+>();
 
 /** Sets starting values once per registry, before anything reads the atoms. */
 export const useAtomInitialValues = (
@@ -213,7 +239,13 @@ export const useAtomInitialValues = (
     if (!applied.has(atom)) {
       applied.add(atom);
       // SAFETY: ensureNode is on the registry implementation, not the interface; @effect/atom-react uses it the same way.
-      (registry as unknown as { ensureNode: (atom: Atom.Atom<unknown>) => { setValue: (value: unknown) => void } })
+      (
+        registry as unknown as {
+          ensureNode: (atom: Atom.Atom<unknown>) => {
+            setValue: (value: unknown) => void;
+          };
+        }
+      )
         .ensureNode(atom)
         .setValue(value);
     }
@@ -221,7 +253,9 @@ export const useAtomInitialValues = (
 };
 
 /** Reads an `AtomRef`, following it when the getter returns a different ref. */
-export const useAtomRef = <A>(input: AtomInput<AtomRef.ReadonlyRef<A>>): AtomValue<A> => {
+export const useAtomRef = <A>(
+  input: AtomInput<AtomRef.ReadonlyRef<A>>
+): AtomValue<A> => {
   const getRef = toGetter(input);
   if (!BROWSER) {
     return new AtomCell<A, never>(() => getRef().value, readOnly);
@@ -229,7 +263,9 @@ export const useAtomRef = <A>(input: AtomInput<AtomRef.ReadonlyRef<A>>): AtomVal
   const ref = $derived(getRef());
   const subscribe = $derived.by(() => {
     const current = ref;
-    return createSubscriber((update) => current.subscribe(notifyAfterReads(update)));
+    return createSubscriber((update) =>
+      current.subscribe(notifyAfterReads(update))
+    );
   });
   return new AtomCell<A, never>(
     () =>
@@ -267,7 +303,10 @@ type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
 const seeds = new WeakMap<
   AtomRegistry.AtomRegistry,
-  Map<string, { readonly atom: Atom.Atom<unknown>; readonly done: Promise<void> }>
+  Map<
+    string,
+    { readonly atom: Atom.Atom<unknown>; readonly done: Promise<void> }
+  >
 >();
 
 /**
@@ -291,7 +330,9 @@ const seedFromServer = (
   const existing = byKey.get(key);
   if (existing) {
     if (existing.atom !== atom) {
-      throw new Error(`Two different atoms share the serialization key "${key}"`);
+      throw new Error(
+        `Two different atoms share the serialization key "${key}"`
+      );
     }
     return existing.done;
   }
@@ -357,11 +398,17 @@ const suspend = async <A, E>(
   current: AsyncResult.AsyncResult<A, E>,
   options: SuspenseOptions
 ): Promise<unknown> => {
-  const pending = current._tag === "Initial" || (options.suspendOnWaiting === true && current.waiting);
+  const pending =
+    current._tag === "Initial" ||
+    (options.suspendOnWaiting === true && current.waiting);
   if (pending) {
-    const exit = await awaitResult(registry, atom, { suspendOnWaiting: options.suspendOnWaiting });
+    const exit = await awaitResult(registry, atom, {
+      suspendOnWaiting: options.suspendOnWaiting,
+    });
     if (options.includeFailure) {
-      return Exit.isSuccess(exit) ? AsyncResult.success(exit.value) : AsyncResult.failure(exit.cause);
+      return Exit.isSuccess(exit)
+        ? AsyncResult.success(exit.value)
+        : AsyncResult.failure(exit.cause);
     }
     return valueOrThrow(exit);
   }
@@ -404,8 +451,14 @@ export function useAtomSuspense<A, E>(
     })();
   }
 
-  const promises = new WeakMap<AsyncResult.AsyncResult<A, E>, Promise<unknown>>();
-  const settle = (atom: ResultAtom<A, E>, current: AsyncResult.AsyncResult<A, E>): Promise<unknown> => {
+  const promises = new WeakMap<
+    AsyncResult.AsyncResult<A, E>,
+    Promise<unknown>
+  >();
+  const settle = (
+    atom: ResultAtom<A, E>,
+    current: AsyncResult.AsyncResult<A, E>
+  ): Promise<unknown> => {
     const cached = promises.get(current);
     if (cached) {
       return cached;

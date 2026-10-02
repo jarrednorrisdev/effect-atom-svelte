@@ -10,10 +10,14 @@ import { RpcClient, RpcSerialization } from "effect/rpc";
  * Real HTTP and RPC clients against an in-process demo server. Each call gets a fresh server and
  * client classes, so store state and memoized layers never leak between tests.
  */
-export const makeClients = (options: { readonly latency?: Duration.Input } = {}) => {
+export const makeClients = (
+  options: { readonly latency?: Duration.Input } = {}
+) => {
   const server = makeDemoHandler(options);
-  const fetchLayer = Layer.succeed(FetchHttpClient.Fetch)(((input: RequestInfo | URL, init?: RequestInit) =>
-    server.handler(new Request(input, init))) as typeof fetch);
+  const fetchLayer = Layer.succeed(FetchHttpClient.Fetch)(((
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ) => server.handler(new Request(input, init))) as typeof fetch);
   const httpClient = FetchHttpClient.layer.pipe(Layer.provide(fetchLayer));
 
   class Rpc extends AtomRpc.Service<Rpc>()("test/Rpc", {

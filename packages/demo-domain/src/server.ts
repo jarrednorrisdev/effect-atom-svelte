@@ -24,20 +24,35 @@ class TodoStore extends Context.Service<
   static readonly layer = (options: ServerOptions) =>
     Layer.sync(TodoStore, () => {
       const todos = new Map<number, Todo>([
-        [1, new Todo({ done: false, id: 1, title: "Read the Effect Atom source" })],
+        [
+          1,
+          new Todo({
+            done: false,
+            id: 1,
+            title: "Read the Effect Atom source",
+          }),
+        ],
         [2, new Todo({ done: true, id: 2, title: "Write a Svelte adapter" })],
       ]);
-      const delay = Effect.delay(Duration.fromInputUnsafe(options.latency ?? 0));
+      const delay = Effect.delay(
+        Duration.fromInputUnsafe(options.latency ?? 0)
+      );
       const find = (id: number): Effect.Effect<Todo, TodoNotFound> => {
         const todo = todos.get(id);
-        return todo ? Effect.succeed(todo) : Effect.fail(new TodoNotFound({ id }));
+        return todo
+          ? Effect.succeed(todo)
+          : Effect.fail(new TodoNotFound({ id }));
       };
       return TodoStore.of({
         create: (title) =>
           (title.length > TITLE_MAX_LENGTH
             ? Effect.fail(new TitleTooLong({ maxLength: TITLE_MAX_LENGTH }))
             : Effect.sync(() => {
-                const todo = new Todo({ done: false, id: todos.size + 1, title });
+                const todo = new Todo({
+                  done: false,
+                  id: todos.size + 1,
+                  title,
+                });
                 todos.set(todo.id, todo);
                 return todo;
               })
@@ -45,7 +60,9 @@ class TodoStore extends Context.Service<
         get: (id) => find(id).pipe(delay),
         list: (done) =>
           Effect.sync(() =>
-            [...todos.values()].filter((todo) => done === undefined || todo.done === done)
+            [...todos.values()].filter(
+              (todo) => done === undefined || todo.done === done
+            )
           ).pipe(delay),
         toggle: (id) =>
           find(id).pipe(
@@ -68,7 +85,9 @@ const RpcHandlers = TodosRpcs.toLayer(
       getTodo: ({ id }) => store.get(id),
       listTodos: () => store.list(),
       ticks: ({ count }) =>
-        Stream.fromSchedule(Schedule.spaced("200 millis")).pipe(Stream.take(count)),
+        Stream.fromSchedule(Schedule.spaced("200 millis")).pipe(
+          Stream.take(count)
+        ),
       toggleTodo: ({ id }) => store.toggle(id),
     });
   })
@@ -81,7 +100,9 @@ const HttpHandlers = HttpApiBuilder.group(DemoApi, "todos", (handlers) =>
       create: ({ payload }) => store.create(payload.title),
       get: ({ params }) => store.get(params.id),
       list: ({ query }) =>
-        store.list(query.done === undefined ? undefined : query.done === "true"),
+        store.list(
+          query.done === undefined ? undefined : query.done === "true"
+        ),
       toggle: ({ params }) => store.toggle(params.id),
     });
   })
@@ -92,7 +113,11 @@ export const makeDemoHandler = (options: ServerOptions = {}) =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(
       HttpApiBuilder.layer(DemoApi).pipe(Layer.provide(HttpHandlers)),
-      RpcServer.layerHttp({ group: TodosRpcs, path: "/rpc", protocol: "http" }).pipe(
+      RpcServer.layerHttp({
+        group: TodosRpcs,
+        path: "/rpc",
+        protocol: "http",
+      }).pipe(
         Layer.provide(RpcHandlers),
         Layer.provide(RpcSerialization.layerNdjson)
       )
