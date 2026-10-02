@@ -82,11 +82,9 @@ test.describe("RPC page", () => {
         timeout: 500,
       }
     );
-    // The registry revalidates a hydrated query once in the background (see the README).
+    // A hydrated query is not fetched again in the browser, reactivity keys and all (JND-19).
     await page.waitForTimeout(2000);
-    expect(
-      calls.filter((call) => call === "rpc listTodos").length
-    ).toBeLessThanOrEqual(1);
+    expect(calls.filter((call) => call === "rpc listTodos")).toEqual([]);
   });
 
   test("a slow mutation shows as waiting until it settles", async ({

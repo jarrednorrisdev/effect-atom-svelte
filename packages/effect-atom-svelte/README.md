@@ -19,7 +19,7 @@ Put a registry at the root. On the server it gives every request its own registr
 <RegistryProvider>{@render children()}</RegistryProvider>
 ```
 
-`RegistryProvider` takes the `AtomRegistry.make` options (`initialValues`, `scheduleTask`, `defaultIdleTTL`) or an existing `registry`. `provideRegistry()` does the same from a component script.
+`RegistryProvider` takes the `AtomRegistry.make` options (`initialValues`, `scheduleTask`, `defaultIdleTTL`) or an existing `registry`, plus `revalidateOnHydrate` (see [Server rendering and hydration](#server-rendering-and-hydration)). `provideRegistry()` does the same from a component script.
 
 Without a provider the browser falls back to a shared registry; the server throws instead, because a module-level registry would share atom state between concurrent requests.
 
@@ -80,7 +80,7 @@ With `experimental.async`, a component can `await` atoms directly.
 
 - An atom read on the server stays mounted for the request, so the registry does not sweep it while rendering is suspended, and is released when rendering ends. That includes a registry you pass to `RegistryProvider`: it is not disposed, but each request's atoms are released from it and every request embeds its own hydration seeds. Atoms with an `Atom.withServerValue` override are never computed on the server.
 - Give async atoms a serialization key (`AtomRpc.query(..., { serializationKey })`, `AtomHttpApi.query(..., { serializationKey })` or `Atom.serializable`). `useAtomResult` and `useAtomSuspense` then pass the encoded result to the client through Svelte's `hydratable`, so hydration does not wait on the network. Only a server value seeds the registry, and only while a component using it is still mounted; after client-side navigation the atom is fetched in the browser as usual. Two different atoms with the same key throw.
-- After hydration the registry revalidates a hydrated query once in the background, showing the server data meanwhile. This is `AtomRegistry` behaviour and the same in the React and Vue adapters.
+- **Hydrated atoms are not fetched again.** The server's value is milliseconds old, so `useAtomResult` and `useAtomSuspense` keep it until something refreshes the atom, such as a mutation on its reactivity keys. **This differs from `@effect/atom-react`**, where a query wrapped by `Atom.withReactivity` (as `AtomRpc.query` and `AtomHttpApi.query` do for `reactivityKeys`) or by `swr`, `debounce`, `withRefresh` or `makeRefreshOnSignal` is fetched again straight after hydration, as a side effect of how `AtomRegistry` seeds wrapped atoms. To fetch again once hydration is done, set `revalidateOnHydrate` on `RegistryProvider`, or on a hook (`useAtomSuspense(atom, { revalidateOnHydrate: true })`), which overrides the provider. When components share a serialization key, the atom is fetched again if any of them asks. `HydrationBoundary` hydrates through `Hydration.hydrate` and keeps `AtomRegistry`'s behaviour.
 - A `<svelte:boundary>` with a `pending` snippet renders that snippet on the server and leaves its content to the client. Leave `pending` out where the first paint needs the data.
 - Browser-only atoms need a server value. `Atom.refreshOnWindowFocus` and `Atom.kvs` with `localStorage` touch `window` when computed: wrap them in `Atom.withServerValue`.
 

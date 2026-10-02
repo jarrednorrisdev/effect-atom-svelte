@@ -10,6 +10,7 @@ import { BROWSER } from "esm-env";
 import { getAbortSignal, hydratable, onDestroy } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
+import { revalidatesOnHydrate } from "./internal/hydration.ts";
 import { getRegistry } from "./RegistryContext.ts";
 
 /**
@@ -377,6 +378,28 @@ export const useAtomSubscribe = <A>(
   $effect(() => registry.subscribe(getAtom(), f, options));
 };
 
+/**
+ * Gives an atom a value without computing it. The public registry can only queue a value for an
+ * atom's next read; this sets it on the node now, which is valid, so nothing reads it again.
+ */
+const setNodeValue = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>,
+  value: unknown
+): void => {
+  // SAFETY: ensureNode is on the registry implementation, not the interface (Effect 4.0.0);
+  // @effect/atom-react uses it the same way.
+  (
+    registry as unknown as {
+      ensureNode: (atom: Atom.Atom<unknown>) => {
+        setValue: (value: unknown) => void;
+      };
+    }
+  )
+    .ensureNode(atom)
+    .setValue(value);
+};
+
 const initialValuesApplied = new WeakMap<
   AtomRegistry.AtomRegistry,
   WeakSet<Atom.Atom<unknown>>
@@ -401,16 +424,7 @@ export const useAtomInitialValues = (
   for (const [atom, value] of initialValues) {
     if (!applied.has(atom)) {
       applied.add(atom);
-      // SAFETY: ensureNode is on the registry implementation, not the interface; @effect/atom-react uses it the same way.
-      (
-        registry as unknown as {
-          ensureNode: (atom: Atom.Atom<unknown>) => {
-            setValue: (value: unknown) => void;
-          };
-        }
-      )
-        .ensureNode(atom)
-        .setValue(value);
+      setNodeValue(registry, atom, value);
     }
   }
 };
@@ -502,9 +516,37 @@ type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 interface Seed {
   readonly atom: Atom.Atom<unknown>;
   readonly done: Promise<void>;
-  /** Counts a component using the key until it calls the returned release. */
-  readonly hold: () => () => void;
+  /**
+   * Counts a component using the key until it calls the returned release, and whether it wants the
+   * atom fetched again once seeded.
+   */
+  readonly hold: (revalidate: boolean) => () => void;
 }
+
+/**
+ * Puts the server's value in the registry as current, so nothing fetches it again (JND-19). Seeding
+ * through `setSerializable` would not: for an atom that wraps another, such as a query with
+ * reactivity keys, the registry seeds the inner atom but marks it stale, and building it to wire up
+ * reactivity starts the request again. The value goes on the innermost atom, where the registry
+ * would put it, so the wrapper still builds and wires up on first read.
+ */
+const applySeed = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>,
+  value: unknown,
+  revalidate: boolean
+): void => {
+  let target = atom;
+  while (target.initialValueTarget) {
+    target = target.initialValueTarget;
+  }
+  setNodeValue(registry, target, value);
+  // Released at once, so the registry sweeps the node if the atom is not mounted soon.
+  registry.mount(target)();
+  if (revalidate) {
+    registry.refresh(target);
+  }
+};
 
 const seeds = new WeakMap<AtomRegistry.AtomRegistry, Map<string, Seed>>();
 
@@ -542,19 +584,22 @@ const seedOnServer = (
 /**
  * For a serializable atom, resolves it and passes the encoded result from server to client with
  * `hydratable`, so hydration seeds the registry instead of fetching again. Must run synchronously
- * during component init. Returns undefined for atoms without a serialization key.
+ * during component init. Returns undefined for atoms without a serialization key. The atom is
+ * fetched again once seeded if any component using the key then asked to revalidate.
  */
 const seedFromServer = (
   registry: AtomRegistry.AtomRegistry,
-  atom: ResultAtom<unknown, unknown>
+  atom: ResultAtom<unknown, unknown>,
+  revalidateOption: boolean | undefined
 ): Promise<void> | undefined => {
   if (!Atom.isSerializable(atom)) {
     return undefined;
   }
-  const { encode, key } = atom[Atom.SerializableTypeId];
+  const { decode, encode, key } = atom[Atom.SerializableTypeId];
   if (!BROWSER) {
     return seedOnServer(registry, atom, key, encode);
   }
+  const revalidate = revalidatesOnHydrate(revalidateOption);
   let byKey = seeds.get(registry);
   if (!byKey) {
     byKey = new Map();
@@ -573,20 +618,24 @@ const seedFromServer = (
       return encode(registry.get(atom));
     });
     let holders = 0;
+    let revalidating = 0;
     entry = {
       atom,
       done: (async () => {
         const value = await encoded;
-        // The registry keeps a seed until the atom is next read, however much later, so it is set
-        // only for the server's value and only while someone is there to read it now (JND-37).
+        // Only the server's value is a seed, and only while someone is there to read it now: a seed
+        // set later would show data however old by then (JND-37).
         if (!computedHere && holders > 0) {
-          registry.setSerializable(key, value);
+          applySeed(registry, atom, decode(value), revalidating > 0);
         }
       })(),
-      hold: () => {
+      hold: (wantsRevalidate) => {
+        const counted = wantsRevalidate ? 1 : 0;
         holders += 1;
+        revalidating += counted;
         return () => {
           holders -= 1;
+          revalidating -= counted;
         };
       },
     };
@@ -594,10 +643,10 @@ const seedFromServer = (
   }
   // Every caller holds the atom until it is destroyed, not only the first, which may go first and
   // leave the others' seed to be swept (JND-36). It is mounted only once the seed is in: the
-  // registry applies a seed when it creates a node, so mounting first would compute the atom, drop
-  // hydration's value and fetch it again.
+  // seed must be in before the atom first computes, or mounting would fetch what hydration is about
+  // to provide.
   const { done } = entry;
-  const unhold = entry.hold();
+  const unhold = entry.hold(revalidate);
   let release: (() => void) | undefined;
   let destroyed = false;
   onTeardown(() => {
@@ -612,6 +661,23 @@ const seedFromServer = (
     }
   })();
 };
+
+/**
+ * Options for `useAtomResult`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface ResultOptions {
+  /** Treat a refreshing result as pending, so the first await also waits for the refresh. */
+  readonly suspendOnWaiting?: boolean | undefined;
+  /**
+   * Fetch a server-rendered atom again once hydration is done. Overrides `RegistryProvider`'s
+   * `revalidateOnHydrate`, which defaults to `false`.
+   */
+  readonly revalidateOnHydrate?: boolean | undefined;
+}
 
 /**
  * Awaits an async atom's first result, then returns a live handle to its `AsyncResult`. Use it as
@@ -633,7 +699,7 @@ const seedFromServer = (
  */
 export const useAtomResult = async <A, E>(
   input: AtomInput<ResultAtom<A, E>>,
-  options?: { readonly suspendOnWaiting?: boolean | undefined }
+  options?: ResultOptions
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
@@ -654,7 +720,7 @@ export const useAtomResult = async <A, E>(
     release = undefined;
     return unmount;
   });
-  const seed = seedFromServer(registry, atom);
+  const seed = seedFromServer(registry, atom, options?.revalidateOnHydrate);
   if (seed) {
     await seed;
   }
@@ -680,6 +746,11 @@ export interface SuspenseOptions {
   readonly suspendOnWaiting?: boolean | undefined;
   /** Resolve with the Success or Failure result instead of the value, rather than rejecting. */
   readonly includeFailure?: boolean | undefined;
+  /**
+   * Fetch a server-rendered atom again once hydration is done. Overrides `RegistryProvider`'s
+   * `revalidateOnHydrate`, which defaults to `false`.
+   */
+  readonly revalidateOnHydrate?: boolean | undefined;
 }
 
 const suspend = async <A, E>(
@@ -802,7 +873,7 @@ export function useAtomSuspense<A, E>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   const result = useAtomValue(getAtom);
-  const seed = seedFromServer(registry, getAtom());
+  const seed = seedFromServer(registry, getAtom(), options.revalidateOnHydrate);
   // A plain variable, not $state: a render in a batch with this write rolled back would take the
   // pre-seed path and track nothing but the flag. Reading `trackSeed` asks for a re-read instead.
   let seeded = seed === undefined;

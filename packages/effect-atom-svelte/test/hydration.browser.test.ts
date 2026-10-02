@@ -8,9 +8,11 @@ import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
+import { queryFetches } from "./fixtures/reactive-query.ts";
 import { computed } from "./fixtures/seeded-list.ts";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
+import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import { sleep, text } from "./helpers.ts";
@@ -146,12 +148,14 @@ const afterSweep = "50 millis";
 
 /**
  * Hydrates a fixture over its real server output, running the head's hydratable script first.
- * `beforeHydrate` runs between the two, for example to hold back a seed.
+ * `beforeHydrate` runs between the two, for example to hold back a seed. `props` must not change
+ * what the server renders.
  */
-const hydrateFromServer = async (
+const hydrateFromServer = async <Props extends Record<string, unknown>>(
   path: string,
-  component: Component,
-  beforeHydrate?: () => void
+  component: Component<Props>,
+  beforeHydrate?: () => void,
+  props?: Props
 ) => {
   const { body, head } = await commands.renderOnServer(path);
   const script = document.createElement("script");
@@ -163,7 +167,10 @@ const hydrateFromServer = async (
   const target = document.createElement("div");
   target.innerHTML = body;
   document.body.append(target);
-  const app = hydrate(component, { target });
+  const app = hydrate(component as Component, {
+    props: props ?? {},
+    target,
+  });
   onTestFinished(async () => {
     await unmount(app);
     target.remove();
@@ -188,6 +195,20 @@ describe("hydrating server output", () => {
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
     expect(computed).toEqual(["b"]);
+  });
+
+  test("revalidateOnHydrate fetches an atom without reactivity keys again too (JND-19)", async () => {
+    computed.length = 0;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-hydrate.svelte",
+      SsrHydrate,
+      undefined,
+      { revalidateOnHydrate: true }
+    );
+    const output = () => target.querySelector("output")?.textContent;
+
+    await expect.poll(output).toBe("a from the browser");
+    expect(computed).toEqual(["a"]);
   });
 
   test("useAtomResult uses the server's result, then follows its getter", async () => {
@@ -258,6 +279,60 @@ describe("hydrating server output", () => {
       click(target, "show first");
       await expect.poll(outputs(target)).toEqual(["a from the browser"]);
       expect(computed).toEqual(["a"]);
+    });
+  });
+
+  describe("a query with reactivity keys (JND-19)", () => {
+    const path = "/test/fixtures/ssr-reactive.svelte";
+    /** Longer than a fetch, so a refetch after hydration would have landed. */
+    const afterFetch = "100 millis";
+
+    test("keeps the server's value instead of fetching again", async () => {
+      queryFetches.count = 0;
+      const target = await hydrateFromServer(path, SsrReactive);
+      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      await sleep(afterFetch);
+      expect(outputs(target)()).toEqual(["server", "server"]);
+      expect(queryFetches.count).toBe(0);
+    });
+
+    test("still fetches again after a mutation on its keys", async () => {
+      queryFetches.count = 0;
+      const target = await hydrateFromServer(path, SsrReactive);
+      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      click(target, "mutate");
+      await expect.poll(outputs(target)).toEqual(["browser 1", "browser 1"]);
+      expect(queryFetches.count).toBe(1);
+    });
+
+    test.each([
+      ["RegistryProvider", { provider: true }],
+      ["the hooks", { hook: true }],
+    ])(
+      "revalidateOnHydrate on %s fetches once after hydration",
+      async (_, props) => {
+        queryFetches.count = 0;
+        const target = await hydrateFromServer(
+          path,
+          SsrReactive,
+          undefined,
+          props
+        );
+        await expect.poll(outputs(target)).toEqual(["browser 1", "browser 1"]);
+        await sleep(afterFetch);
+        expect(queryFetches.count).toBe(1);
+      }
+    );
+
+    test("the hooks' option overrides the provider's", async () => {
+      queryFetches.count = 0;
+      const target = await hydrateFromServer(path, SsrReactive, undefined, {
+        hook: false,
+        provider: true,
+      });
+      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      await sleep(afterFetch);
+      expect(queryFetches.count).toBe(0);
     });
   });
 });

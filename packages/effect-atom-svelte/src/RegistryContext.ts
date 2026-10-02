@@ -7,6 +7,8 @@ import { AtomRegistry } from "effect/reactivity";
 import { BROWSER } from "esm-env";
 import { createContext, onDestroy } from "svelte";
 
+import { setRevalidateOnHydrate } from "./internal/hydration.ts";
+
 /**
  * Options for a registry created by `provideRegistry` or `RegistryProvider`.
  *
@@ -47,6 +49,24 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
 };
 
 /**
+ * Options for `provideRegistry` and `RegistryProvider` beyond those of `AtomRegistry.make`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface ProvideRegistryOptions extends RegistryOptions {
+  /** An existing registry to provide instead of creating one. */
+  readonly registry?: AtomRegistry.AtomRegistry | undefined;
+  /**
+   * Fetch server-rendered async atoms again once hydration is done. Defaults to `false`: the
+   * server's value is milliseconds old. Children inherit it; the async hooks' own option overrides
+   * it. `@effect/atom-react` fetches again for atoms wrapped by `withReactivity` and similar.
+   */
+  readonly revalidateOnHydrate?: boolean | undefined;
+}
+
+/**
  * Puts a registry in context for this component and its children.
  *
  * A registry created here is owned by the component and disposed with it, which on the server
@@ -57,13 +77,18 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
  * @category registry
  */
 export const provideRegistry = (
-  options: RegistryOptions & {
-    readonly registry?: AtomRegistry.AtomRegistry | undefined;
-  } = {}
+  options: ProvideRegistryOptions = {}
 ): AtomRegistry.AtomRegistry => {
-  const { registry: provided, ...registryOptions } = options;
+  const {
+    registry: provided,
+    revalidateOnHydrate,
+    ...registryOptions
+  } = options;
   const registry = provided ?? AtomRegistry.make(registryOptions);
   setContextRegistry(registry);
+  if (revalidateOnHydrate !== undefined) {
+    setRevalidateOnHydrate(revalidateOnHydrate);
+  }
   if (!provided) {
     onDestroy(() => registry.dispose());
   }
