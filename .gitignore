@@ -1,0 +1,12 @@
+node_modules
+.turbo
+build
+dist
+.svelte-kit
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+test-results
+__screenshots__

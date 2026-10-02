@@ -1,0 +1,13 @@
+{
+  "name": "@demo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts"
+  },
+  "dependencies": {
+    "@demo/domain": "workspace:*",
+    "effect": "4.0.0"
+  }
+}

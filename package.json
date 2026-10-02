@@ -1,0 +1,22 @@
+{
+  "name": "effect-atom-svelte-monorepo",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check": "turbo run check",
+    "test": "turbo run test",
+    "lint": "ultracite check",
+    "format": "ultracite fix"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.86.0",
+    "turbo": "^2.11.6",
+    "typescript": "^6.0.3",
+    "ultracite": "7.12.2"
+  },
+  "packageManager": "bun@1.4.2"
+}
