@@ -20,6 +20,7 @@
     "effect-atom-svelte": "workspace:*"
   },
   "devDependencies": {
+    "@demo/api": "workspace:*",
     "@playwright/test": "^1.57.0",
     "@sveltejs/adapter-auto": "^8.0.0",
     "@sveltejs/kit": "^3.0.0",

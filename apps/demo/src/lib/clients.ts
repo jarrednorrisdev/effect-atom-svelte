@@ -4,8 +4,11 @@ import { FetchHttpClient } from "effect/http";
 import { AtomHttpApi, AtomRpc } from "effect/reactivity";
 import { RpcClient, RpcSerialization } from "effect/rpc";
 
-// Server rendering calls the demo API directly; the browser goes through the Vite proxy.
-const origin = import.meta.env.SSR ? "http://localhost:3010" : "";
+// Server rendering calls the demo API directly; the browser goes through the Vite proxy. The e2e
+// suite points each worker's server at its own API with DEMO_API_ORIGIN.
+const origin = import.meta.env.SSR
+  ? (process.env.DEMO_API_ORIGIN ?? "http://localhost:3010")
+  : "";
 
 export class TodosRpc extends AtomRpc.Service<TodosRpc>()("demo/TodosRpc", {
   group: TodosRpcs,

@@ -103,7 +103,7 @@ Each read goes through `createSubscriber` from `svelte/reactivity`, subscribed t
 ```sh
 bun run --cwd packages/effect-atom-svelte test   # Vitest: browser mode (Chromium) and Node SSR
 bun run --cwd packages/effect-atom-svelte check  # svelte-check
-bun run --cwd apps/demo test                     # Playwright against the demo app and API
+bun run --cwd apps/demo test                     # Playwright against a production build of the demo
 ```
 
 The tests run real `AtomRpc` and `AtomHttpApi` clients against `@demo/domain`'s server in-process.

@@ -1,9 +1,8 @@
 import { setTimeout as delay } from "node:timers/promises";
 
-import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-test.describe.configure({ mode: "serial" });
+import { expect, test } from "./servers.ts";
 
 const pages = [
   "/",
@@ -42,20 +41,20 @@ const watch = (page: Page) => {
   return { calls, errors };
 };
 
-test("every page renders on the server and hydrates without errors", async ({
-  page,
-}) => {
-  const { errors } = watch(page);
-  for (const path of pages) {
+for (const path of pages) {
+  test(`${path} renders on the server and hydrates without errors`, async ({
+    page,
+  }) => {
+    const { errors } = watch(page);
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(200);
     await page.waitForLoadState("networkidle");
-  }
-  // The suspense page fails one atom on purpose; Svelte logs errors its boundaries catch in dev.
-  expect(
-    errors.filter((error) => !error.includes("This atom always fails"))
-  ).toEqual([]);
-});
+    // The suspense page fails one atom on purpose; Svelte logs errors its boundaries catch in dev.
+    expect(
+      errors.filter((error) => !error.includes("This atom always fails"))
+    ).toEqual([]);
+  });
+}
 
 test.describe("RPC page", () => {
   test("the server HTML already contains the todos and their hydration payload", async ({
@@ -71,7 +70,7 @@ test.describe("RPC page", () => {
     page,
   }) => {
     const { calls } = watch(page);
-    await page.route("**/api/rpc", async (route) => {
+    await page.route("**/api/rpc{,/}", async (route) => {
       // Hold every RPC so anything the page shows must have come from the server render.
       await delay(1500);
       await route.continue();
@@ -88,6 +87,28 @@ test.describe("RPC page", () => {
     expect(
       calls.filter((call) => call === "rpc listTodos").length
     ).toBeLessThanOrEqual(1);
+  });
+
+  test("a slow mutation shows as waiting until it settles", async ({
+    page,
+  }) => {
+    // The demo API runs without latency in e2e; hold the request here instead.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/rpc{,/}", async (route) => {
+      if (route.request().postData()?.includes('"tag":"createTodo"')) {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.goto("/rpc");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByTestId("rpc-draft").fill("Slow todo");
+    await page.getByTestId("rpc-add").click();
+    await expect(page.getByTestId("rpc-add")).toBeDisabled();
+    held.resolve(undefined);
+    await expect(page.getByTestId("rpc-add")).toBeEnabled();
+    await expect(page.getByTestId("rpc-todos")).toContainText("Slow todo");
   });
 
   test("add, typed error, toggle and the query family", async ({ page }) => {
@@ -135,7 +156,7 @@ test.describe("HTTP API page", () => {
     await page.goto("/http");
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("http-todos");
-    // The store is shared across tests, so check what each filter means rather than which titles show.
+    // Check what each filter means rather than which titles show.
     // Wait for the filtered items before asserting what is absent: an empty list mid-update would
     // otherwise satisfy "no open items" on its own.
     const done = list.locator("li").filter({ hasText: "✔" });
