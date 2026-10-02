@@ -17,3 +17,15 @@ export const tracked = (log: string[], name = "") =>
     get.addFinalizer(() => log.push(name ? `stop ${name}` : "stop"));
     return 1;
   });
+
+/** Runs `f` `times` times, one after another (a loop of awaits would trip `no-await-in-loop`). */
+export const repeat = async (
+  times: number,
+  f: () => Promise<void>
+): Promise<void> => {
+  if (times === 0) {
+    return;
+  }
+  await f();
+  await repeat(times - 1, f);
+};

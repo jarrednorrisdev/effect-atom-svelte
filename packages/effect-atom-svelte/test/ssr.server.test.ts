@@ -1,13 +1,20 @@
 import { Effect, Schema } from "effect";
-import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
+import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { render } from "svelte/server";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { useAtomResult, useAtomSuspense, useAtomValue } from "../src/index.ts";
+import {
+  useAtomRef,
+  useAtomResult,
+  useAtomSet,
+  useAtomSuspense,
+  useAtomValue,
+} from "../src/index.ts";
 import { makeClients } from "./clients.ts";
 import Run from "./fixtures/run.svelte";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
 import SsrSequential from "./fixtures/ssr-sequential.svelte";
+import { repeat } from "./helpers.ts";
 
 let clients: ReturnType<typeof makeClients> | undefined;
 afterEach(async () => {
@@ -205,6 +212,85 @@ describe("server rendering", () => {
     await request();
     await request();
     registry.dispose();
+  });
+
+  test("repeated renders leave nothing behind (JND-21)", async () => {
+    const cycles = 10;
+    const log: string[] = [];
+    const track = (
+      name: string,
+      get: { readonly addFinalizer: (f: () => void) => void }
+    ) => {
+      log.push(`start ${name}`);
+      get.addFinalizer(() => log.push(`stop ${name}`));
+    };
+    const plain = Atom.make((get) => {
+      track("plain", get);
+      return 1;
+    });
+    const written = Atom.writable(
+      (get) => {
+        track("written", get);
+        return 1;
+      },
+      (ctx, value: number) => ctx.setSelf(value)
+    );
+    const suspended = Atom.make((get) => {
+      track("suspended", get);
+      return Effect.succeed("suspended");
+    });
+    const seeded = Atom.make((get) => {
+      track("seeded", get);
+      return Effect.succeed("seeded");
+    }).pipe(
+      Atom.serializable({
+        key: "leak-seeded",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const ref = AtomRef.make("ref");
+    const setup = () => {
+      const value = useAtomValue(plain);
+      const set = useAtomSet(written);
+      set((n) => n + 1);
+      const wait = useAtomSuspense(suspended);
+      const result = useAtomResult(seeded);
+      const refValue = useAtomRef(ref);
+      return async () => {
+        const live = await result;
+        const seededValue =
+          live.current._tag === "Success" ? live.current.value : "";
+        return `${value.current} ${await wait.current} ${seededValue} ${refValue.current}`;
+      };
+    };
+    const expected = "1 suspended seeded ref";
+    // Finalizers run in no particular order across atoms, so compare each render's log as a set.
+    const names = ["plain", "written", "suspended", "seeded"];
+    const startsAndStops = new Set(
+      names.flatMap((name) => [`start ${name}`, `stop ${name}`])
+    );
+    const expectBalanced = async () => {
+      await expect.poll(() => log.length).toBe(startsAndStops.size);
+      expect(new Set(log)).toEqual(startsAndStops);
+      log.length = 0;
+    };
+
+    // A registry the caller owns: every request's atoms are released from it.
+    const registry = AtomRegistry.make();
+    await repeat(cycles, async () => {
+      const output = await renderSetup(setup, registry);
+      expect(output.body).toContain(expected);
+      await expect.poll(() => registry.getNodes().size).toBe(0);
+      await expectBalanced();
+    });
+    registry.dispose();
+
+    // The provider's own registry: disposing it at the end of the request runs every finalizer.
+    await repeat(cycles, async () => {
+      const output = await renderSetup(setup);
+      expect(output.body).toContain(expected);
+      await expectBalanced();
+    });
   });
 
   test("two different atoms with the same serialization key are rejected", async () => {
