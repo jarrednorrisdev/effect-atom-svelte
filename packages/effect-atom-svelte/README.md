@@ -1,0 +1,109 @@
+# effect-atom-svelte
+
+Svelte 5 bindings for [Effect Atom](https://effect.website) (`effect/reactivity`), in the shape of the official `@effect/atom-react` and `@effect/atom-vue` adapters.
+
+**Status:** pre-release, not yet published. Targets `effect` 4.0, Svelte 5.57+ and SvelteKit 3. Server rendering and the async hooks need Svelte's `experimental.async` compiler option.
+
+## Setup
+
+Put a registry at the root. On the server it gives every request its own registry and disposes it when rendering ends; in the browser it lives for the session.
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { RegistryProvider } from "effect-atom-svelte";
+
+  const { children } = $props();
+</script>
+
+<RegistryProvider>{@render children()}</RegistryProvider>
+```
+
+`RegistryProvider` takes the `AtomRegistry.make` options (`initialValues`, `scheduleTask`, `defaultIdleTTL`) or an existing `registry`. `provideRegistry()` does the same from a component script.
+
+Without a provider the browser falls back to a shared registry; the server throws instead, because a module-level registry would share atom state between concurrent requests.
+
+## Reading and writing
+
+Hooks return objects with a reactive `.current`, Svelte's convention for reactive values. Every hook accepts an atom, or a getter so it follows a different atom when reactive state changes.
+
+```svelte
+<script lang="ts">
+  import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
+  const count = useAtom(countAtom); // read and assign .current; works with bind:
+  const parity = useAtomValue(countAtom, (n) => (n % 2 ? "odd" : "even"));
+  const todo = useAtomValue(() => todoAtom(selected.current)); // follows the selected atom
+  const save = useAtomSet(saveAtom, { mode: "promise" }); // or "promiseExit", or the default "value"
+</script>
+
+<input bind:value={count.current} type="number" />
+```
+
+| Hook | Does |
+| --- | --- |
+| `useAtomValue(atom, f?)` | Reads, optionally transformed. Mounted while something reactive reads it. |
+| `useAtom(atom)` | Reads and writes through `.current`. |
+| `useAtomSet(atom, { mode })` | Setter. `promise` and `promiseExit` modes take an `AbortSignal`. |
+| `useAtomMount(atom)` | Keeps an atom mounted for the component's lifetime without reading it. |
+| `useAtomRefresh(atom)` | Returns a function that recomputes the atom. |
+| `useAtomSubscribe(atom, f, { immediate })` | Calls `f` on each change. |
+| `useAtomInitialValues(pairs)` | Sets starting values once per registry. |
+| `useAtomRef`, `useAtomRefPropValue` | Read an `AtomRef` or one of its properties. `useAtomRefProp` returns the prop ref. |
+| `useAtomResult(atom)` | `await` an async atom's first result, then a live `AsyncResult`. SSR and hydration. |
+| `useAtomSuspense(atom, options)` | An async atom as a promise for `await` in markup. |
+| `ScopedAtom.make(f)` | An atom per subtree: `provide(input)` in a parent, `use()` below it. |
+| `<HydrationBoundary state>` | Hydrates state from `Hydration.dehydrate`, for example returned by a remote function. |
+
+The package also re-exports `AsyncResult`, `Atom`, `AtomHttpApi`, `AtomRef`, `AtomRegistry`, `AtomRpc` and `Hydration` from `effect/reactivity`.
+
+## Async components
+
+With `experimental.async`, a component can `await` atoms directly.
+
+```svelte
+<script lang="ts">
+  const todos = await useAtomResult(todosAtom); // SSR waits; hydration reuses the server's result
+</script>
+
+<svelte:boundary>
+  {#each await user.current.todos as todo}…{/each}
+  {#snippet pending()}Loading…{/snippet}
+</svelte:boundary>
+```
+
+- **Call every hook before the component's first `await`.** Svelte does not restore component context after an `await` in a script, so a hook called after one throws `lifecycle_outside_component`. To wait on several atoms, start them together: `await Promise.all([useAtomResult(a), useAtomResult(b)])`.
+- `useAtomSuspense(...).current` is a promise that stays the same object while the result is unchanged, so dependents only re-run on real updates. Failures reject with the squashed cause; `includeFailure: true` resolves with the `Failure` instead, and `suspendOnWaiting: true` treats a refresh as pending again.
+
+## Server rendering and hydration
+
+- An atom read on the server stays mounted for the request, so the registry does not sweep it while rendering is suspended. Atoms with an `Atom.withServerValue` override are never computed on the server.
+- Give async atoms a serialization key (`AtomRpc.query(..., { serializationKey })`, `AtomHttpApi.query(..., { serializationKey })` or `Atom.serializable`). `useAtomResult` and `useAtomSuspense` then pass the encoded result to the client through Svelte's `hydratable`, so hydration does not wait on the network. Two different atoms with the same key throw.
+- After hydration the registry revalidates a hydrated query once in the background, showing the server data meanwhile. This is `AtomRegistry` behaviour and the same in the React and Vue adapters.
+- A `<svelte:boundary>` with a `pending` snippet renders that snippet on the server and leaves its content to the client. Leave `pending` out where the first paint needs the data.
+- Browser-only atoms need a server value. `Atom.refreshOnWindowFocus` and `Atom.kvs` with `localStorage` touch `window` when computed: wrap them in `Atom.withServerValue`.
+
+## SvelteKit notes
+
+- SvelteKit runs errors through `handleError` before a boundary's `failed` snippet sees them; by default the snippet only gets `{ status: 500, message: "Internal Error" }`. To show a typed error, use `includeFailure: true` and read the `Failure`, or add a client `handleError` hook that keeps the message and `_tag` (see `apps/demo/src/hooks.client.ts`).
+- Data can come from `await` in components alone; no `load` or server files are needed.
+
+## Behaviour worth knowing
+
+- Promise-mode setters resolve with the atom's next settled result. When a second `Atom.fn` call supersedes one in flight, both promises resolve with the second call's result, as in `@effect/atom-react`.
+- A mutation still running when its component unmounts completes: the promise holds its own subscription, so navigating away does not cancel a write.
+- In a monorepo, make sure the bundler loads one copy of `effect`. Workspace packages compiled from source can otherwise get their own, and their schemas and service tags stop matching (`resolve: { dedupe: ["effect"] }` in Vite).
+
+## How it works
+
+Each read goes through `createSubscriber` from `svelte/reactivity`, subscribed to the registry while something reactive reads `.current`. The registry notifies subscribers synchronously while it computes an atom, and Svelte throws `state_unsafe_mutation` if state changes while a template or `$derived` is evaluating. Reads are counted, and a notification raised during one is delivered on a microtask; outside a read, notifications stay synchronous so event-handler writes update in the same tick.
+
+## Development
+
+```sh
+bun run --cwd packages/effect-atom-svelte test   # Vitest: browser mode (Chromium) and Node SSR
+bun run --cwd packages/effect-atom-svelte check  # svelte-check
+bun run --cwd apps/demo test                     # Playwright against the demo app and API
+```
+
+The tests run real `AtomRpc` and `AtomHttpApi` clients against `@demo/domain`'s server in-process.

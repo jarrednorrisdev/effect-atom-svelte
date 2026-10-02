@@ -89,7 +89,7 @@ describe("server rendering", () => {
   });
 
   test("an atom with a server value is not computed on the server", async () => {
-    const browserOnly = Atom.make(() => {
+    const browserOnly = Atom.make((): string => {
       throw new Error("computed on the server");
     }).pipe(Atom.withServerValue(() => "server value"));
     const output = await renderSetup(() => {

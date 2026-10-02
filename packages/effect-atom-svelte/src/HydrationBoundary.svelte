@@ -44,6 +44,15 @@
     }
     if (deferred.length > 0) {
       Hydration.hydrate(registry, deferred);
+      // hydrate only queues values for existing nodes; the registry applies a queued value the next
+      // time the node is looked up, so look each one up now to update its subscribers.
+      const nodes = registry.getNodes();
+      for (const { key } of deferred) {
+        const node = nodes.get(key);
+        if (node) {
+          registry.get(node.atom);
+        }
+      }
       deferred = [];
     }
   });

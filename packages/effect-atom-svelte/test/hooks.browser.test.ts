@@ -322,6 +322,33 @@ describe("mounting and lifecycle", () => {
   });
 });
 
+describe("mutations and unmounting", () => {
+  test("a mutation in flight still completes after its component unmounts", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const save = Atom.fn((value: string) =>
+      Effect.sync(() => log.push(`saved ${value}`)).pipe(
+        Effect.delay("100 millis"),
+        Effect.as(value)
+      )
+    );
+    let run!: (value: string) => Promise<string>;
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promise" });
+        return () => "";
+      },
+      show: true,
+    });
+    const saved = run("draft");
+    await screen.rerender({ show: false });
+    // The promise holds its own subscription, so leaving the page does not cancel the write.
+    await expect(saved).resolves.toBe("draft");
+    expect(log).toEqual(["saved draft"]);
+  });
+});
+
 describe("registries", () => {
   test("separate providers keep separate state", async () => {
     const atom = Atom.make(0);
