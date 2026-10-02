@@ -27,4 +27,9 @@ export default defineConfig({
       },
     },
   ],
+  rules: {
+    // Effect APIs take an explicit `undefined` for void payloads (AtomRpc.query, Atom.Writable<_, void>);
+    // the autofix deletes it and breaks the call.
+    "unicorn/no-useless-undefined": "off",
+  },
 });

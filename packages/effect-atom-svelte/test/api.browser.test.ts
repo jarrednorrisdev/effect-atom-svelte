@@ -27,7 +27,7 @@ describe("AtomRpc", () => {
     const screen = await render(Harness, {
       async: true,
       setup: () => {
-        const todos = useAtomSuspense(Rpc.query("listTodos"));
+        const todos = useAtomSuspense(Rpc.query("listTodos", undefined));
         return async () => titles(await todos.current);
       },
     });
@@ -51,7 +51,10 @@ describe("AtomRpc", () => {
       setup: () => {
         const todos = useAtomSuspense(list);
         create = useAtomSet(Rpc.mutation("createTodo"), { mode: "promise" });
-        return async () => (await todos.current).length;
+        return async () => {
+          const loaded = await todos.current;
+          return loaded.length;
+        };
       },
     });
     await expect.poll(text(screen)).toBe("2");
@@ -95,7 +98,10 @@ describe("AtomRpc", () => {
         const todo = useAtomSuspense(() =>
           Rpc.query("getTodo", { id: id.current })
         );
-        return async () => (await todo.current).title;
+        return async () => {
+          const found = await todo.current;
+          return found.title;
+        };
       },
     });
     await expect.poll(text(screen)).toBe("Read the Effect Atom source");
@@ -124,11 +130,11 @@ describe("AtomRpc", () => {
       },
     });
     await expect.poll(text(screen)).toBe("0");
-    pull();
+    pull(undefined);
     await expect.poll(text(screen)).toBe("0,1");
-    pull();
+    pull(undefined);
     await expect.poll(text(screen)).toBe("0,1,2");
-    pull();
+    pull(undefined);
     await expect.poll(text(screen)).toBe("0,1,2 done");
   });
 
@@ -168,10 +174,10 @@ describe("AtomRpc", () => {
           })
         ),
         reducer: (current, title: string) =>
-          AsyncResult.map(current, (todos) => [
+          AsyncResult.map((todos: readonly Todo[]) => [
             ...todos,
             { done: false, id: -1, title } as Todo,
-          ]),
+          ])(current),
       })
     );
     let add!: (title: string) => void;
@@ -260,7 +266,10 @@ describe("AtomHttpApi", () => {
         create = useAtomSet(Http.mutation("todos", "create"), {
           mode: "promiseExit",
         });
-        return async () => (await todos.current).length;
+        return async () => {
+          const loaded = await todos.current;
+          return loaded.length;
+        };
       },
     });
     await expect.poll(text(screen)).toBe("2");

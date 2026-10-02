@@ -13,12 +13,12 @@
   }
 
   const { async = false, registry, setup }: Props = $props();
-  const describe = (error: unknown) =>
-    typeof error === "object" && error !== null && "_tag" in error
-      ? String(error._tag)
-      : error instanceof Error
-        ? error.message
-        : String(error);
+  const describe = (error: unknown) => {
+    if (typeof error === "object" && error !== null && "_tag" in error) {
+      return String(error._tag);
+    }
+    return error instanceof Error ? error.message : String(error);
+  };
   // svelte-ignore state_referenced_locally
   provideRegistry({ registry });
 </script>
