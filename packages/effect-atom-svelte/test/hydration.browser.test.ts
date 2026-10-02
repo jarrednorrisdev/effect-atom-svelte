@@ -2,7 +2,7 @@ import { Deferred, Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry, Hydration } from "effect/reactivity";
 import { hydrate, unmount } from "svelte";
 import type { Component } from "svelte";
-import { describe, expect, onTestFinished, test } from "vitest";
+import { beforeAll, describe, expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
@@ -158,7 +158,16 @@ const hydrateFromServer = async <Props extends Record<string, unknown>>(
   beforeHydrate?: () => void,
   props?: Props
 ) => {
+  // Vitest does not stop a test that times out, so without this its body would hydrate and click
+  // through the next test, leaving its own state in the shared fixtures (JND-42).
+  const caller = { finished: false };
+  onTestFinished(() => {
+    caller.finished = true;
+  });
   const { body, head } = await commands.renderOnServer(path);
+  if (caller.finished) {
+    throw new Error(`The test finished before ${path} rendered on the server`);
+  }
   const script = document.createElement("script");
   script.textContent =
     new DOMParser().parseFromString(head, "text/html").querySelector("script")
@@ -190,6 +199,12 @@ const hydrateFromServer = async <Props extends Record<string, unknown>>(
 };
 
 describe("hydrating server output", () => {
+  // The first server render compiles the library and Effect for SSR, which takes seconds and far
+  // longer when the e2e suite shares the CPU (JND-42). Pay for it here, not in the first test.
+  beforeAll(async () => {
+    await commands.renderOnServer("/test/fixtures/ssr-hydrate.svelte");
+  }, 120_000);
+
   test("useAtomSuspense uses the server's result, then follows its getter", async () => {
     computed.length = 0;
     const target = await hydrateFromServer(
