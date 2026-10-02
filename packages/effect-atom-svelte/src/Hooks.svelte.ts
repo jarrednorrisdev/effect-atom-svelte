@@ -516,36 +516,40 @@ const seedFromServer = (
     byKey = new Map();
     seeds.set(registry, byKey);
   }
-  const existing = byKey.get(key);
-  if (existing) {
-    if (existing.atom !== atom) {
-      throw new Error(
-        `Two different atoms share the serialization key "${key}"`
-      );
-    }
-    return existing.done;
+  let entry = byKey.get(key);
+  if (entry && entry.atom !== atom) {
+    throw new Error(`Two different atoms share the serialization key "${key}"`);
   }
-  // Held until the component is destroyed. It is mounted only once the seed is in: the registry
-  // applies a seed when it creates a node, so mounting first would compute the atom, drop
+  if (!entry) {
+    const encoded = hydratable(key, async () => {
+      await awaitResult(registry, atom);
+      return encode(registry.get(atom));
+    });
+    entry = {
+      atom,
+      done: (async () => {
+        registry.setSerializable(key, await encoded);
+      })(),
+    };
+    byKey.set(key, entry);
+  }
+  // Every caller holds the atom until it is destroyed, not only the first, which may go first and
+  // leave the others' seed to be swept (JND-36). It is mounted only once the seed is in: the
+  // registry applies a seed when it creates a node, so mounting first would compute the atom, drop
   // hydration's value and fetch it again.
+  const { done } = entry;
   let release: (() => void) | undefined;
   let destroyed = false;
   onTeardown(() => {
     destroyed = true;
     release?.();
   });
-  const encoded = hydratable(key, async () => {
-    await awaitResult(registry, atom);
-    return encode(registry.get(atom));
-  });
-  const done = (async () => {
-    registry.setSerializable(key, await encoded);
+  return (async () => {
+    await done;
     if (!destroyed) {
       release = registry.mount(atom);
     }
   })();
-  byKey.set(key, { atom, done });
-  return done;
 };
 
 /**

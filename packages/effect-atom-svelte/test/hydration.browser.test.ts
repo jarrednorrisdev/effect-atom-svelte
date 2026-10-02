@@ -1,6 +1,7 @@
-import { Effect, Schema } from "effect";
+import { Deferred, Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry, Hydration } from "effect/reactivity";
 import { hydrate, unmount } from "svelte";
+import type { Component } from "svelte";
 import { describe, expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
@@ -10,7 +11,8 @@ import Hydrate from "./fixtures/hydrate.svelte";
 import { computed } from "./fixtures/seeded-list.ts";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
-import { text } from "./helpers.ts";
+import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
+import { sleep, text } from "./helpers.ts";
 
 interface ServerOutput {
   readonly body: string;
@@ -126,10 +128,29 @@ describe("HydrationBoundary", () => {
   });
 });
 
-/** Hydrates a fixture over its real server output, running the head's hydratable script first. */
+/** The values the head's hydratable script left for hydration, by key. */
+const hydratables = () =>
+  (window as unknown as { __svelte: { h: Map<string, unknown> } }).__svelte.h;
+
+const outputs = (target: HTMLElement) => () =>
+  [...target.querySelectorAll("output")].map((output) => output.textContent);
+
+const click = (target: HTMLElement, label: string) =>
+  [...target.querySelectorAll("button")]
+    .find((button) => button.textContent === label)
+    ?.click();
+
+/** Long enough for the registry to sweep a node that nothing holds. */
+const afterSweep = "50 millis";
+
+/**
+ * Hydrates a fixture over its real server output, running the head's hydratable script first.
+ * `beforeHydrate` runs between the two, for example to hold back a seed.
+ */
 const hydrateFromServer = async (
   path: string,
-  component: typeof SsrHydrate | typeof SsrHydrateResult
+  component: Component,
+  beforeHydrate?: () => void
 ) => {
   const { body, head } = await commands.renderOnServer(path);
   const script = document.createElement("script");
@@ -137,6 +158,7 @@ const hydrateFromServer = async (
     new DOMParser().parseFromString(head, "text/html").querySelector("script")
       ?.textContent ?? "";
   document.head.append(script);
+  beforeHydrate?.();
   const target = document.createElement("div");
   target.innerHTML = body;
   document.body.append(target);
@@ -180,5 +202,41 @@ describe("hydrating server output", () => {
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
     expect(computed).toEqual(["b"]);
+  });
+
+  describe("two components sharing a serialization key", () => {
+    const path = "/test/fixtures/ssr-shared-seed.svelte";
+
+    test("the second keeps the seed when the first is destroyed before it lands (JND-36)", async () => {
+      computed.length = 0;
+      // Held back, so the first is destroyed while the seed is still on its way.
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(path, SsrSharedSeed, () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      });
+      click(target, "hide first");
+      await expect.poll(outputs(target)).toEqual([]);
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      click(target, "show second");
+      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      expect(computed).toEqual([]);
+    });
+
+    test("the second keeps the seed when the first is destroyed after it lands (JND-36)", async () => {
+      computed.length = 0;
+      const target = await hydrateFromServer(path, SsrSharedSeed);
+      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      await sleep(afterSweep);
+      click(target, "hide first");
+      await expect.poll(outputs(target)).toEqual([]);
+      await sleep(afterSweep);
+      click(target, "show second");
+      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      expect(computed).toEqual([]);
+    });
   });
 });
