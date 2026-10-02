@@ -6,12 +6,13 @@ import { describe, expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
-import { useAtomValue } from "../src/index.ts";
+import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { computed } from "./fixtures/seeded-list.ts";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
+import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import { sleep, text } from "./helpers.ts";
 
 interface ServerOutput {
@@ -238,5 +239,86 @@ describe("hydrating server output", () => {
       await expect.poll(outputs(target)).toEqual(["a from the server"]);
       expect(computed).toEqual([]);
     });
+
+    test("a seed that lands after every user is destroyed is dropped (JND-37)", async () => {
+      computed.length = 0;
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(path, SsrSharedSeed, () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      });
+      click(target, "hide first");
+      click(target, "remove second");
+      await expect.poll(outputs(target)).toEqual([]);
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      // Kept, it would be applied whenever the atom is next used, however old by then.
+      click(target, "show first");
+      await expect.poll(outputs(target)).toEqual(["a from the browser"]);
+      expect(computed).toEqual(["a"]);
+    });
+  });
+});
+
+const fetchMillis = 100;
+
+/** A serializable atom whose value counts how often it was fetched. */
+const counted = () => {
+  let fetches = 0;
+  return Atom.make(
+    Effect.sync(() => {
+      fetches += 1;
+      return fetches;
+    }).pipe(Effect.delay(`${fetchMillis} millis`))
+  ).pipe(
+    Atom.serializable({
+      key: "fetches",
+      schema: AsyncResult.Schema({ success: Schema.Number }),
+    })
+  );
+};
+
+/** Mounts a component using the atom; it awaits the atom's result only while `read` is set. */
+const renderCounted = (registry: AtomRegistry.AtomRegistry, read: boolean) => {
+  const atom = counted();
+  const options = { read };
+  const screen = render(ToggleScriptAwait, {
+    registry,
+    setup: async () => {
+      const value = useAtomSuspense(atom);
+      return options.read ? await value.current : "not read";
+    },
+    show: true,
+  });
+  return { options, screen };
+};
+
+describe("seeding after client-side navigation", () => {
+  // Nothing is hydrating, so hydratable fetches in the browser; that value is no seed (JND-37).
+  test("coming back after the node is disposed fetches again", async () => {
+    const registry = AtomRegistry.make();
+    const { screen: rendering } = renderCounted(registry, true);
+    const screen = await rendering;
+    await expect.poll(text(screen)).toBe("1");
+    await screen.rerender({ show: false });
+    await sleep(afterSweep);
+    expect(registry.getNodes().has("fetches")).toBe(false);
+    await screen.rerender({ show: true });
+    await expect.poll(text(screen)).toBe("2");
+  });
+
+  test("leaving before the first fetch lands, then coming back, fetches again", async () => {
+    const registry = AtomRegistry.make();
+    const { options, screen: rendering } = renderCounted(registry, false);
+    const screen = await rendering;
+    await screen.rerender({ show: false });
+    // Long enough for the fetch to land and the node to be swept.
+    await sleep(`${fetchMillis + 50} millis`);
+    expect(registry.getNodes().has("fetches")).toBe(false);
+    options.read = true;
+    await screen.rerender({ show: true });
+    await expect.poll(text(screen)).toBe("2");
   });
 });

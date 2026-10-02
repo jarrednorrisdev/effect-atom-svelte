@@ -456,13 +456,15 @@ const onTeardown = (f: () => void): void => {
 
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
-const seeds = new WeakMap<
-  AtomRegistry.AtomRegistry,
-  Map<
-    string,
-    { readonly atom: Atom.Atom<unknown>; readonly done: Promise<void> }
-  >
->();
+/** One serialization key's seed in a registry, shared by every component using that key. */
+interface Seed {
+  readonly atom: Atom.Atom<unknown>;
+  readonly done: Promise<void>;
+  /** Counts a component using the key until it calls the returned release. */
+  readonly hold: () => () => void;
+}
+
+const seeds = new WeakMap<AtomRegistry.AtomRegistry, Map<string, Seed>>();
 
 // hydratable returns one promise per key per render, so it identifies the atom that claimed a key.
 const serverSeeds = new WeakMap<Promise<unknown>, Atom.Atom<unknown>>();
@@ -521,15 +523,30 @@ const seedFromServer = (
     throw new Error(`Two different atoms share the serialization key "${key}"`);
   }
   if (!entry) {
+    // hydratable runs this only when it has no value from the server, as after client-side navigation.
+    let computedHere = false;
     const encoded = hydratable(key, async () => {
+      computedHere = true;
       await awaitResult(registry, atom);
       return encode(registry.get(atom));
     });
+    let holders = 0;
     entry = {
       atom,
       done: (async () => {
-        registry.setSerializable(key, await encoded);
+        const value = await encoded;
+        // The registry keeps a seed until the atom is next read, however much later, so it is set
+        // only for the server's value and only while someone is there to read it now (JND-37).
+        if (!computedHere && holders > 0) {
+          registry.setSerializable(key, value);
+        }
       })(),
+      hold: () => {
+        holders += 1;
+        return () => {
+          holders -= 1;
+        };
+      },
     };
     byKey.set(key, entry);
   }
@@ -538,10 +555,12 @@ const seedFromServer = (
   // registry applies a seed when it creates a node, so mounting first would compute the atom, drop
   // hydration's value and fetch it again.
   const { done } = entry;
+  const unhold = entry.hold();
   let release: (() => void) | undefined;
   let destroyed = false;
   onTeardown(() => {
     destroyed = true;
+    unhold();
     release?.();
   });
   return (async () => {
@@ -597,10 +616,12 @@ export const useAtomResult = async <A, E>(
   if (seed) {
     await seed;
   }
-  // Mounted only after seeding, so hydration's value is in place before the atom first computes.
-  if (!lifetime.signal.aborted) {
-    release = registry.mount(atom);
+  // Destroyed while seeding: reading the atom now would only compute it for nobody.
+  if (lifetime.signal.aborted) {
+    return value;
   }
+  // Mounted only after seeding, so hydration's value is in place before the atom first computes.
+  release = registry.mount(atom);
   await awaitResult(registry, atom, options, lifetime.signal);
   return value;
 };
@@ -797,6 +818,10 @@ export function useAtomSuspense<A, E>(
       if (!promise) {
         promise = (async () => {
           await seed;
+          // Destroyed meanwhile: nobody awaits this, and reading would compute the atom for nobody.
+          if (lifetime.signal.aborted) {
+            return undefined;
+          }
           // Shared by every reader that came before the seed, so the component holds it.
           return settle(atom, registry.get(atom), lifetime.signal);
         })();
