@@ -770,6 +770,10 @@ const suspend = async <A, E>(
       { suspendOnWaiting: options.suspendOnWaiting },
       signal
     );
+    // Abandoned: rejects with the reason its last reader's signal was aborted with. For a re-run
+    // that is Svelte's STALE_REACTION, which it ignores, so a pending render that still awaits this
+    // wait keeps waiting for its next run instead of showing the interruption (JND-22).
+    signal.throwIfAborted();
     if (options.includeFailure) {
       return Exit.isSuccess(exit)
         ? AsyncResult.success(exit.value)
@@ -825,13 +829,13 @@ const sharedWait = (
     settled = true;
   })();
   let holders = 0;
-  const release = () => {
+  const release = (reason: unknown) => {
     holders -= 1;
     // A reaction aborts its signal before it re-runs, so wait a microtask: the re-run may read the
     // same result again and hold the wait instead of starting a new one.
     queueMicrotask(() => {
       if (holders === 0 && !settled && !controller.signal.aborted) {
-        controller.abort();
+        controller.abort(reason);
         onAbandoned();
       }
     });
@@ -842,7 +846,9 @@ const sharedWait = (
         return;
       }
       holders += 1;
-      signal.addEventListener("abort", release, { once: true });
+      signal.addEventListener("abort", () => release(signal.reason), {
+        once: true,
+      });
     },
     promise,
   };

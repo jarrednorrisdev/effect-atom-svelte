@@ -234,6 +234,34 @@ describe("useAtomSuspense", () => {
     expect(registry.getNodes().has(slow("b"))).toBe(false);
   });
 
+  test("a switch away from a pending atom after the first value does not reach the boundary (JND-22)", async () => {
+    const registry = AtomRegistry.make();
+    const pick = Atom.make("a");
+    const log: string[] = [];
+    const slow = slowFamily(log);
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        const value = useAtomSuspense(() => slow(choice.current));
+        return () => value.current;
+      },
+    });
+    await expect.poll(text(screen)).toBe("a");
+    registry.set(pick, "b");
+    await expect.poll(() => log).toContain("start b");
+    // The render that switched to "b" still awaits b's wait, which this switch abandons.
+    registry.set(pick, "c");
+    await expect.poll(text(screen)).toBe("c");
+    await expect.poll(() => log).toContain("stop a");
+    expect(log.filter((entry) => entry.startsWith("done"))).toEqual([
+      "done a",
+      "done c",
+    ]);
+    expect(log).toContain("stop b");
+  });
+
   test("unmounting while pending interrupts the wait (JND-16)", async () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];
