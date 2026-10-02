@@ -13,6 +13,3 @@ __screenshots__
 test-results
 playwright-report
 .vitest
-
-# Session handoff documents (durable locally, untracked)
-handoffs/
