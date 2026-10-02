@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/main.ts"
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts"
   },
   "dependencies": {
     "@demo/domain": "workspace:*",

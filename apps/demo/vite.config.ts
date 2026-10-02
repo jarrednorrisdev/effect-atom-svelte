@@ -10,9 +10,14 @@ export default defineConfig({
       experimental: { remoteFunctions: true },
     }),
   ],
+  // The demo API has no CORS; the browser reaches it same-origin through this proxy.
+  preview: {
+    port: 5181,
+    proxy: { "/api": "http://localhost:3010" },
+    strictPort: true,
+  },
   server: {
     port: 5180,
-    // The demo API has no CORS; the browser reaches it same-origin through this proxy.
     proxy: { "/api": "http://localhost:3010" },
     strictPort: true,
   },
