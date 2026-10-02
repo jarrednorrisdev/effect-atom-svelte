@@ -4,6 +4,12 @@ import svelte from "ultracite/oxlint/svelte";
 
 export default defineConfig({
   extends: [core, svelte],
+  // shadcn-svelte's generated components: kept as the CLI writes them, so `shadcn-svelte add` can
+  // update them.
+  ignorePatterns: [
+    "apps/demo/src/lib/components/ui/**",
+    "apps/demo/src/lib/hooks/is-mobile.svelte.ts",
+  ],
   overrides: [
     {
       // The library mirrors Effect's adapter packages (@effect/atom-react and friends) so it can be

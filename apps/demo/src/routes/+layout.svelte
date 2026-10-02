@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "../app.css";
   import { preferenceCookiesAtom } from "#lib/preferences.ts";
   import { RegistryProvider } from "effect-atom-svelte";
   import type { Snippet } from "svelte";
