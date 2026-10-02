@@ -139,12 +139,19 @@ const subscribedReader = <A>(
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
     // render awaits, losing initial values and refetching async atoms. Mounting at setup, before any
-    // await, keeps it for the request; the provider disposes its registry when rendering ends.
+    // await, keeps it for the request. The mounts are released in onDestroy, which runs when the
+    // server render ends, because a registry passed in by the caller outlives the request (JND-17).
     // An atom with a withServerValue override is never computed on the server, so it is not mounted:
     // mounting would run its real read, which is often browser-only.
+    const releases: (() => void)[] = [];
+    onDestroy(() => {
+      for (const release of releases) {
+        release();
+      }
+    });
     const mount = (atom: Atom.Atom<A>) => {
       if (!(Atom.ServerValueTypeId in atom)) {
-        registry.mount(atom);
+        releases.push(registry.mount(atom));
       }
       return atom;
     };
@@ -443,6 +450,37 @@ const seeds = new WeakMap<
   >
 >();
 
+// hydratable returns one promise per key per render, so it identifies the atom that claimed a key.
+const serverSeeds = new WeakMap<Promise<unknown>, Atom.Atom<unknown>>();
+
+/**
+ * On the server each request seeds for itself: `hydratable` already shares one result per key
+ * within a render, and a per-registry record would outlive the request when the caller owns the
+ * registry, so later requests would skip embedding their seed (JND-17).
+ */
+const seedOnServer = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: ResultAtom<unknown, unknown>,
+  key: string,
+  encode: (value: AsyncResult.AsyncResult<unknown, unknown>) => unknown
+): Promise<void> => {
+  // Mounted until the render ends, so the settled node is what the render reads.
+  const release = registry.mount(atom);
+  onDestroy(release);
+  const encoded = hydratable(key, async () => {
+    await awaitResult(registry, atom);
+    return encode(registry.get(atom));
+  });
+  const claimed = serverSeeds.get(encoded);
+  if (claimed && claimed !== atom) {
+    throw new Error(`Two different atoms share the serialization key "${key}"`);
+  }
+  serverSeeds.set(encoded, atom);
+  return (async () => {
+    await encoded;
+  })();
+};
+
 /**
  * For a serializable atom, resolves it and passes the encoded result from server to client with
  * `hydratable`, so hydration seeds the registry instead of fetching again. Must run synchronously
@@ -456,6 +494,9 @@ const seedFromServer = (
     return undefined;
   }
   const { encode, key } = atom[Atom.SerializableTypeId];
+  if (!BROWSER) {
+    return seedOnServer(registry, atom, key, encode);
+  }
   let byKey = seeds.get(registry);
   if (!byKey) {
     byKey = new Map();
@@ -470,29 +511,23 @@ const seedFromServer = (
     }
     return existing.done;
   }
-  // Held until the component is destroyed, so the settled node is what the render reads. In the
-  // browser it is mounted only once the seed is in: the registry applies a seed when it creates a
-  // node, so mounting first would compute the atom, drop hydration's value and fetch it again.
+  // Held until the component is destroyed. It is mounted only once the seed is in: the registry
+  // applies a seed when it creates a node, so mounting first would compute the atom, drop
+  // hydration's value and fetch it again.
   let release: (() => void) | undefined;
   let destroyed = false;
   onDestroy(() => {
     destroyed = true;
     release?.();
   });
-  if (!BROWSER) {
-    release = registry.mount(atom);
-  }
   const encoded = hydratable(key, async () => {
     await awaitResult(registry, atom);
     return encode(registry.get(atom));
   });
   const done = (async () => {
-    const value = await encoded;
-    if (BROWSER) {
-      registry.setSerializable(key, value);
-      if (!destroyed) {
-        release = registry.mount(atom);
-      }
+    registry.setSerializable(key, await encoded);
+    if (!destroyed) {
+      release = registry.mount(atom);
     }
   })();
   byKey.set(key, { atom, done });

@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-import { Atom, AtomRegistry } from "effect/reactivity";
+import { Effect, Schema } from "effect";
+import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { render } from "svelte/server";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -141,6 +141,70 @@ describe("server rendering", () => {
     });
     expect(output.body).toContain("value");
     await expect.poll(() => log).toEqual(["start", "stop"]);
+  });
+
+  test("releases each request's atoms from a caller-owned registry", async () => {
+    const log: string[] = [];
+    const track = (
+      name: string,
+      get: { readonly addFinalizer: (f: () => void) => void }
+    ) => {
+      log.push(`start ${name}`);
+      get.addFinalizer(() => log.push(`stop ${name}`));
+    };
+    const plain = Atom.make((get) => {
+      track("plain", get);
+      return "plain";
+    });
+    const suspended = Atom.make((get) => {
+      track("suspended", get);
+      return Effect.succeed("suspended");
+    });
+    const seeded = Atom.make((get) => {
+      track("seeded", get);
+      return Effect.succeed("seeded");
+    }).pipe(
+      Atom.serializable({
+        key: "seeded",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const registry = AtomRegistry.make();
+    const setup = () => {
+      const value = useAtomValue(plain);
+      const wait = useAtomSuspense(suspended);
+      const result = useAtomResult(seeded);
+      return async () => {
+        const live = await result;
+        const seededValue =
+          live.current._tag === "Success" ? live.current.value : "";
+        return `${value.current} ${await wait.current} ${seededValue}`;
+      };
+    };
+    const request = async () => {
+      log.length = 0;
+      const output = await renderSetup(setup, registry);
+      expect(output.body).toContain("plain suspended seeded");
+      // Every request embeds its own seed, not only the first one on this registry.
+      expect(output.head + output.body).toContain('"seeded"');
+      await expect.poll(() => registry.getNodes().size).toBe(0);
+      // Finalizers run in no particular order across atoms.
+      expect(log).toHaveLength(6);
+      expect(new Set(log)).toEqual(
+        new Set([
+          "start plain",
+          "start seeded",
+          "start suspended",
+          "stop plain",
+          "stop seeded",
+          "stop suspended",
+        ])
+      );
+    };
+
+    await request();
+    await request();
+    registry.dispose();
   });
 
   test("two different atoms with the same serialization key are rejected", async () => {
