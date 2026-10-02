@@ -19,7 +19,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run lint
       - run: bun run build
       - run: bun run check

@@ -31,7 +31,11 @@ export default defineConfig({
             commands: { renderOnServer },
             enabled: true,
             headless: true,
-            instances: [{ browser: "chromium" }],
+            instances: [
+              { browser: "chromium" },
+              { browser: "firefox" },
+              { browser: "webkit" },
+            ],
             provider: playwright(),
           },
           include: ["test/**/*.browser.test.ts"],

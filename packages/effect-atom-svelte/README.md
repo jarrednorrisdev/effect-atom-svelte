@@ -103,7 +103,7 @@ Each read goes through `createSubscriber` from `svelte/reactivity`, subscribed t
 ## Development
 
 ```sh
-bun run --cwd packages/effect-atom-svelte test   # Vitest: browser mode (Chromium) and Node SSR
+bun run --cwd packages/effect-atom-svelte test   # Vitest: browser mode (Chromium, Firefox, WebKit) and Node SSR
 bun run --cwd packages/effect-atom-svelte check  # svelte-check
 bun run --cwd apps/demo test                     # Playwright against a production build of the demo
 ```
