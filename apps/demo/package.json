@@ -10,7 +10,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "playwright test"
   },
   "dependencies": {
     "@demo/domain": "workspace:*",
@@ -18,6 +19,7 @@
     "effect-atom-svelte": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@sveltejs/adapter-auto": "^8.0.0",
     "@sveltejs/kit": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",

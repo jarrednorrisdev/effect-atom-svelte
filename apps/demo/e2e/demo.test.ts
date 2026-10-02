@@ -1,0 +1,249 @@
+import { setTimeout as delay } from "node:timers/promises";
+
+import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+test.describe.configure({ mode: "serial" });
+
+const pages = [
+  "/",
+  "/basics",
+  "/rpc",
+  "/http",
+  "/suspense",
+  "/mutations",
+  "/streams",
+  "/refs",
+  "/browser",
+  "/lifetimes",
+];
+
+/** Records page errors and RPC/HTTP API calls for the life of the page. */
+const watch = (page: Page) => {
+  const errors: string[] = [];
+  const calls: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/rpc")) {
+      const tag =
+        /"tag":"(?<tag>\w+)"/u.exec(request.postData() ?? "")?.groups?.tag ??
+        "?";
+      calls.push(`rpc ${tag}`);
+    } else if (url.pathname.startsWith("/api/")) {
+      calls.push(`${request.method()} ${url.pathname}${url.search}`);
+    }
+  });
+  return { calls, errors };
+};
+
+test("every page renders on the server and hydrates without errors", async ({
+  page,
+}) => {
+  const { errors } = watch(page);
+  for (const path of pages) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(200);
+    await page.waitForLoadState("networkidle");
+  }
+  // The suspense page fails one atom on purpose; Svelte logs errors its boundaries catch in dev.
+  expect(
+    errors.filter((error) => !error.includes("This atom always fails"))
+  ).toEqual([]);
+});
+
+test.describe("RPC page", () => {
+  test("the server HTML already contains the todos and their hydration payload", async ({
+    request,
+  }) => {
+    const response = await request.get("/rpc");
+    const html = await response.text();
+    expect(html).toContain("Read the Effect Atom source");
+    expect(html).toContain("AtomRpc:listTodos:rpc-todos");
+  });
+
+  test("hydration shows the server's todos without waiting on the network", async ({
+    page,
+  }) => {
+    const { calls } = watch(page);
+    await page.route("**/api/rpc", async (route) => {
+      // Hold every RPC so anything the page shows must have come from the server render.
+      await delay(1500);
+      await route.continue();
+    });
+    await page.goto("/rpc");
+    await expect(page.getByTestId("rpc-todos")).toContainText(
+      "Read the Effect Atom source",
+      {
+        timeout: 500,
+      }
+    );
+    // The registry revalidates a hydrated query once in the background (see the README).
+    await page.waitForTimeout(2000);
+    expect(
+      calls.filter((call) => call === "rpc listTodos").length
+    ).toBeLessThanOrEqual(1);
+  });
+
+  test("add, typed error, toggle and the query family", async ({ page }) => {
+    await page.goto("/rpc");
+    await page.waitForLoadState("networkidle");
+    const list = page.getByTestId("rpc-todos");
+    const before = await list.locator("li").count();
+
+    await page.getByTestId("rpc-draft").fill("Added over RPC");
+    await page.getByTestId("rpc-add").click();
+    await expect(list.locator("li")).toHaveCount(before + 1);
+    await expect(list).toContainText("Added over RPC");
+
+    await page.getByTestId("rpc-draft").fill("x".repeat(80));
+    await page.getByTestId("rpc-add").click();
+    await expect(page.getByTestId("rpc-error")).toContainText("TitleTooLong");
+
+    const checkbox = list.locator("li").first().getByRole("checkbox");
+    const checked = await checkbox.isChecked();
+    await checkbox.click();
+    await expect(checkbox).toBeChecked({ checked: !checked });
+
+    await expect(page.getByTestId("rpc-selected")).toContainText(
+      "Read the Effect Atom source"
+    );
+    await page.getByTestId("rpc-select").selectOption("2");
+    await expect(page.getByTestId("rpc-selected")).toContainText(
+      "Write a Svelte adapter"
+    );
+    await page.getByTestId("rpc-select").selectOption("99");
+    await expect(page.getByTestId("rpc-selected")).toContainText(
+      "TodoNotFound"
+    );
+  });
+});
+
+test.describe("HTTP API page", () => {
+  test("server-rendered list, filters, create and a typed 404", async ({
+    page,
+    request,
+  }) => {
+    const response = await request.get("/http");
+    const html = await response.text();
+    expect(html).toContain("Write a Svelte adapter");
+
+    await page.goto("/http");
+    await page.waitForLoadState("networkidle");
+    const list = page.getByTestId("http-todos");
+    // The store is shared across tests, so check what each filter means rather than which titles show.
+    await page.getByTestId("http-filter").selectOption("true");
+    await expect(list.locator("li").filter({ hasText: "○" })).toHaveCount(0);
+    await expect(list.locator("li").filter({ hasText: "✔" })).not.toHaveCount(
+      0
+    );
+    await page.getByTestId("http-filter").selectOption("false");
+    await expect(list.locator("li").filter({ hasText: "✔" })).toHaveCount(0);
+    await page.getByTestId("http-filter").selectOption("all");
+
+    await page.getByTestId("http-draft").fill("Added over HTTP");
+    await page.getByTestId("http-add").click();
+    await expect(list).toContainText("Added over HTTP");
+    await page.getByTestId("http-draft").fill("y".repeat(80));
+    await page.getByTestId("http-add").click();
+    await expect(page.getByTestId("http-error")).toContainText("TitleTooLong");
+
+    await page.getByTestId("http-id").fill("999");
+    await expect(page.getByTestId("http-found")).toContainText("TodoNotFound");
+    await page.getByTestId("http-id").fill("1");
+    await expect(page.getByTestId("http-found")).toContainText(
+      "Read the Effect Atom source"
+    );
+  });
+});
+
+test("basics: read, write, derive and bind", async ({ page }) => {
+  await page.goto("/basics");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "+" }).click();
+  await page.getByRole("button", { name: "+" }).click();
+  await expect(page.getByTestId("count")).toHaveText("2");
+  await expect(page.getByTestId("doubled")).toHaveText("4");
+  await expect(page.getByTestId("parity")).toHaveText("even");
+  await page.getByRole("button", { name: "×10 with an updater" }).click();
+  await expect(page.getByTestId("count")).toHaveText("20");
+  await page.getByTestId("name").fill("Effect");
+  await expect(page.getByTestId("greeting")).toHaveText("Hello, Effect!");
+});
+
+test("suspense: pending, value and failure", async ({ page }) => {
+  await page.goto("/suspense");
+  await expect(page.getByTestId("suspense-value")).toContainText("loaded");
+  await expect(page.getByTestId("suspense-failed")).toHaveText(
+    "This atom always fails"
+  );
+});
+
+test("streams: a stream atom ticks and a streaming RPC pulls to the end", async ({
+  page,
+}) => {
+  await page.goto("/streams");
+  await expect(page.getByTestId("clock")).toHaveText(/^[1-9]/u, {
+    timeout: 3000,
+  });
+  const ticks = page.getByTestId("ticks");
+  await expect(ticks).toHaveText("0");
+  const pull = page.getByRole("button", { name: "Pull next" });
+  for (const expected of ["0, 1", "0, 1, 2", "0, 1, 2, 3", "0, 1, 2, 3, 4"]) {
+    await pull.click();
+    await expect(ticks).toHaveText(expected);
+  }
+  await pull.click();
+  await expect(ticks).toHaveText("0, 1, 2, 3, 4 (done)");
+});
+
+test("refs and scopes: AtomRef updates and scoped atoms stay separate", async ({
+  page,
+}) => {
+  await page.goto("/refs");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("textbox").fill("Grace");
+  await expect(page.getByTestId("ref-name")).toHaveText("Grace");
+  await page.getByRole("button", { name: "0" }).first().click();
+  await expect(
+    page.getByRole("button", { exact: true, name: "1" })
+  ).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "100" })).toHaveCount(2);
+});
+
+test("browser atoms: kvs survives a reload and searchParam drives the URL", async ({
+  page,
+}) => {
+  await page.goto("/browser");
+  await page.waitForLoadState("networkidle");
+  await page.getByTestId("theme").selectOption("dark");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("theme")).toHaveValue("dark");
+
+  await page.getByTestId("search").fill("atoms");
+  await expect(page).toHaveURL(/\?q=atoms/u);
+  await expect(page.getByTestId("debounced")).toHaveText("atoms");
+});
+
+test("lifetimes: plain atoms are disposed on unmount, keepAlive atoms are not", async ({
+  page,
+}) => {
+  await page.goto("/lifetimes");
+  await page.waitForLoadState("networkidle");
+  const log = page.getByTestId("lifetimes-log");
+  await page.getByLabel("plain").check();
+  await expect(log).toContainText("plain: computed");
+  await page.getByLabel("plain").uncheck();
+  await expect(log).toContainText("plain: disposed");
+  await page.getByLabel("keepAlive").check();
+  await page.getByLabel("keepAlive").uncheck();
+  await page.waitForTimeout(500);
+  await expect(log).toContainText("keepAlive: computed");
+  await expect(log).not.toContainText("keepAlive: disposed");
+});

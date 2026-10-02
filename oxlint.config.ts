@@ -18,12 +18,20 @@ export default defineConfig({
       // Effect schemas, errors, services and API groups are classes; a domain module holds several.
       // Schema.TaggedError is a class factory, which unicorn mistakes for a throw without `new`.
       files: [
+        "apps/demo/src/lib/**",
         "packages/demo-domain/src/**",
         "packages/effect-atom-svelte/test/**",
       ],
       rules: {
         "eslint/max-classes-per-file": "off",
         "unicorn/throw-new-error": "off",
+      },
+    },
+    {
+      // End-to-end steps run one after another on purpose: each depends on the page the last left.
+      files: ["apps/demo/e2e/**"],
+      rules: {
+        "eslint/no-await-in-loop": "off",
       },
     },
   ],

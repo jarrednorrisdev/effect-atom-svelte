@@ -88,6 +88,17 @@ describe("server rendering", () => {
     expect(output.body).not.toContain("client");
   });
 
+  test("an atom with a server value is not computed on the server", async () => {
+    const browserOnly = Atom.make(() => {
+      throw new Error("computed on the server");
+    }).pipe(Atom.withServerValue(() => "server value"));
+    const output = await renderSetup(() => {
+      const value = useAtomValue(browserOnly);
+      return () => value.current;
+    });
+    expect(output.body).toContain("server value");
+  });
+
   test("refuses to share a registry between requests when none is provided", async () => {
     const atom = Atom.make(1);
     await expect(async () => {

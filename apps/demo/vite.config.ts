@@ -12,8 +12,8 @@ export default defineConfig({
   ],
   server: {
     port: 5180,
-    // The demo API has no CORS; the browser reaches it same-origin through these proxies.
-    proxy: { "/api": "http://localhost:3010", "/rpc": "http://localhost:3010" },
+    // The demo API has no CORS; the browser reaches it same-origin through this proxy.
+    proxy: { "/api": "http://localhost:3010" },
     strictPort: true,
   },
 });

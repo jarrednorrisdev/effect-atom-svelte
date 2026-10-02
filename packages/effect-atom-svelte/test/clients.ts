@@ -22,9 +22,9 @@ export const makeClients = (
 
   class Rpc extends AtomRpc.Service<Rpc>()("test/Rpc", {
     group: TodosRpcs,
-    protocol: RpcClient.layerProtocolHttp({ url: "http://demo.test/rpc" }).pipe(
-      Layer.provide([httpClient, RpcSerialization.layerNdjson])
-    ),
+    protocol: RpcClient.layerProtocolHttp({
+      url: "http://demo.test/api/rpc",
+    }).pipe(Layer.provide([httpClient, RpcSerialization.layerNdjson])),
   }) {}
 
   class Http extends AtomHttpApi.Service<Http>()("test/Http", {

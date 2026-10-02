@@ -101,13 +101,19 @@ const subscribedReader = <A>(
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
     // render awaits, losing initial values and refetching async atoms. Mounting at setup, before any
     // await, keeps it for the request; the provider disposes its registry when rendering ends.
-    let mounted = getAtom();
-    registry.mount(mounted);
+    // An atom with a withServerValue override is never computed on the server, so it is not mounted:
+    // mounting would run its real read, which is often browser-only.
+    const mount = (atom: Atom.Atom<A>) => {
+      if (!(Atom.ServerValueTypeId in atom)) {
+        registry.mount(atom);
+      }
+      return atom;
+    };
+    let mounted = mount(getAtom());
     return () => {
       const atom = getAtom();
       if (atom !== mounted) {
-        registry.mount(atom);
-        mounted = atom;
+        mounted = mount(atom);
       }
       return Atom.getServerValue(atom, registry);
     };

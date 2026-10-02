@@ -108,14 +108,14 @@ const HttpHandlers = HttpApiBuilder.group(DemoApi, "todos", (handlers) =>
   })
 );
 
-/** Serves the demo API over HTTP at /api and RPC at /rpc from one in-memory store. */
+/** Serves the demo API over HTTP at /api/todos and RPC at /api/rpc from one in-memory store. */
 export const makeDemoHandler = (options: ServerOptions = {}) =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(
       HttpApiBuilder.layer(DemoApi).pipe(Layer.provide(HttpHandlers)),
       RpcServer.layerHttp({
         group: TodosRpcs,
-        path: "/rpc",
+        path: "/api/rpc",
         protocol: "http",
       }).pipe(
         Layer.provide(RpcHandlers),
