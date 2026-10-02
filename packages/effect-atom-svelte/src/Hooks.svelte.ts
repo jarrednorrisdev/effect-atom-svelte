@@ -98,8 +98,19 @@ const subscribedReader = <A>(
   getAtom: () => Atom.Atom<A>
 ): (() => A) => {
   if (!BROWSER) {
-    // No subscriptions during SSR; withServerValue overrides apply.
-    return () => Atom.getServerValue(getAtom(), registry);
+    // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
+    // render awaits, losing initial values and refetching async atoms. Mounting at setup, before any
+    // await, keeps it for the request; the provider disposes its registry when rendering ends.
+    let mounted = getAtom();
+    registry.mount(mounted);
+    return () => {
+      const atom = getAtom();
+      if (atom !== mounted) {
+        registry.mount(atom);
+        mounted = atom;
+      }
+      return Atom.getServerValue(atom, registry);
+    };
   }
   const atom = $derived(getAtom());
   const subscribe = $derived.by(() => {
