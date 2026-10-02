@@ -2,7 +2,23 @@
   "name": "effect-atom-svelte",
   "version": "0.0.0",
   "description": "Svelte 5 bindings for Effect Atom",
+  "keywords": [
+    "effect",
+    "effect-atom",
+    "reactivity",
+    "state",
+    "svelte",
+    "sveltekit"
+  ],
+  "homepage": "https://github.com/jarrednorrisdev/effect-atom-svelte/tree/main/packages/effect-atom-svelte#readme",
+  "bugs": "https://github.com/jarrednorrisdev/effect-atom-svelte/issues",
   "license": "MIT",
+  "author": "Jarred Norris",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jarrednorrisdev/effect-atom-svelte.git",
+    "directory": "packages/effect-atom-svelte"
+  },
   "files": [
     "dist",
     "!dist/**/*.test.*"
