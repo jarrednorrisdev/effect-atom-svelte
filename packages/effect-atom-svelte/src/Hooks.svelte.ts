@@ -132,6 +132,12 @@ const awaitResult = <A, E>(
     signal,
   });
 
+/** A subscription a reader holds on after switching away from its atom. */
+interface KeptSubscription<A> {
+  readonly atom: Atom.Atom<A>;
+  readonly cancel: () => void;
+}
+
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => Atom.Atom<A>
@@ -171,12 +177,37 @@ const subscribedReader = <A>(
   let atom: Atom.Atom<A> | undefined;
   let notify: (() => void) | undefined;
   let cancel: (() => void) | undefined;
+  // The atom the last commit picked. When a read switches away from it, its subscription is kept
+  // until a commit picks another: a render with the switch rolled back reads it again, and a
+  // released atom would compute again (JND-35). Atoms no commit picked are released at once, so an
+  // abandoned pending atom is still interrupted (JND-16).
+  let committed: Atom.Atom<A> | undefined;
+  let kept: KeptSubscription<A> | undefined;
+  const releaseKept = () => {
+    kept?.cancel();
+    kept = undefined;
+  };
+  $effect(() => {
+    committed = getAtom();
+    if (kept && kept.atom !== committed) {
+      releaseKept();
+    }
+  });
+  const follow = (current: Atom.Atom<A>) => {
+    if (kept?.atom === current) {
+      const { cancel: keptCancel } = kept;
+      kept = undefined;
+      return keptCancel;
+    }
+    return notify ? registry.subscribe(current, notify) : undefined;
+  };
   const subscribe = createSubscriber((update) => {
     notify = notifyAfterReads(update);
-    cancel = atom ? registry.subscribe(atom, notify) : undefined;
+    cancel = atom ? follow(atom) : undefined;
     return () => {
       cancel?.();
       cancel = undefined;
+      releaseKept();
       notify = undefined;
     };
   });
@@ -184,9 +215,20 @@ const subscribedReader = <A>(
     duringRead(() => {
       const current = getAtom();
       if (current !== atom) {
+        const previous = atom;
+        const previousCancel = cancel;
         atom = current;
-        cancel?.();
-        cancel = notify ? registry.subscribe(current, notify) : undefined;
+        cancel = follow(current);
+        if (
+          previous === committed &&
+          previous !== undefined &&
+          previousCancel
+        ) {
+          releaseKept();
+          kept = { atom: previous, cancel: previousCancel };
+        } else {
+          previousCancel?.();
+        }
       }
       subscribe();
       return registry.get(current);

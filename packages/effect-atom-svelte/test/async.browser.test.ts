@@ -199,6 +199,12 @@ describe("useAtomSuspense", () => {
     // The subscription must have moved to "b", or this refresh would not reach the page.
     registry.refresh(named("b"));
     await expect.poll(text(screen)).toBe("b b2");
+    // A render with the switch rolled back still reads "a", which must not compute it again (JND-35).
+    expect(computed).toEqual(["a", "b", "b"]);
+    // Kept only until the switch commits, and nothing outlives the component.
+    await expect.poll(() => registry.getNodes().has(named("a"))).toBe(false);
+    await screen.unmount();
+    await expect.poll(() => registry.getNodes().size).toBe(0);
   });
 
   test("a getter switch while pending interrupts the abandoned atoms (JND-16)", async () => {
