@@ -83,6 +83,18 @@ With `experimental.async`, a component can `await` atoms directly.
 - **Hydrated atoms are not fetched again.** The server's value is milliseconds old, so `useAtomResult` and `useAtomSuspense` keep it until something refreshes the atom, such as a mutation on its reactivity keys. **This differs from `@effect/atom-react`**, where a query wrapped by `Atom.withReactivity` (as `AtomRpc.query` and `AtomHttpApi.query` do for `reactivityKeys`) or by `swr`, `debounce`, `withRefresh` or `makeRefreshOnSignal` is fetched again straight after hydration, as a side effect of how `AtomRegistry` seeds wrapped atoms. To fetch again once hydration is done, set `revalidateOnHydrate` on `RegistryProvider`, or on a hook (`useAtomSuspense(atom, { revalidateOnHydrate: true })`), which overrides the provider. When components share a serialization key, the atom is fetched again if any of them asks. `HydrationBoundary` hydrates through `Hydration.hydrate` and keeps `AtomRegistry`'s behaviour.
 - A `<svelte:boundary>` with a `pending` snippet renders that snippet on the server and leaves its content to the client. Leave `pending` out where the first paint needs the data.
 - Browser-only atoms need a server value. `Atom.refreshOnWindowFocus` and `Atom.kvs` with `localStorage` touch `window` when computed: wrap them in `Atom.withServerValue`.
+- **A getter must pick the same atom on the server and on the first browser render.** The server's value reaches the browser only for the atom the getter returned on the server. If the browser's first render picks another serializable atom, for example from a filter stored with `Atom.kvs` in `localStorage`, there is no server value for it: Svelte throws `hydratable_missing_but_required` in development, and in a production build it warns, fetches in the browser and the markup can mismatch. `Atom.withServerValue` does not help here, because it only changes what the server reads, and is what makes the two sides differ. Base the first choice on state the server also has (the URL, a cookie, page data), or keep the server's choice until the component has mounted, then switch, which fetches in the browser as any later switch does:
+
+  ```svelte
+  <script lang="ts">
+    import { onMount } from "svelte";
+
+    const saved = useAtomValue(savedFilterAtom); // Atom.kvs, withServerValue(() => "all")
+    let mounted = $state(false);
+    onMount(() => (mounted = true));
+    const todos = useAtomSuspense(() => todosFor(mounted ? saved.current : "all"));
+  </script>
+  ```
 
 ## SvelteKit notes
 

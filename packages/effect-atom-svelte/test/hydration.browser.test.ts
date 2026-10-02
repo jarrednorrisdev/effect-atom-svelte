@@ -10,6 +10,7 @@ import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import { computed } from "./fixtures/seeded-list.ts";
+import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
@@ -167,16 +168,24 @@ const hydrateFromServer = async <Props extends Record<string, unknown>>(
   const target = document.createElement("div");
   target.innerHTML = body;
   document.body.append(target);
-  const app = hydrate(component as Component, {
-    props: props ?? {},
-    target,
-  });
-  onTestFinished(async () => {
-    await unmount(app);
+  const cleanUp = () => {
     target.remove();
     script.remove();
     Reflect.deleteProperty(window, "__svelte");
-  });
+  };
+  try {
+    const app = hydrate(component as Component, {
+      props: props ?? {},
+      target,
+    });
+    onTestFinished(async () => {
+      await unmount(app);
+      cleanUp();
+    });
+  } catch (error) {
+    cleanUp();
+    throw error;
+  }
   return target;
 };
 
@@ -333,6 +342,32 @@ describe("hydrating server output", () => {
       await expect.poll(outputs(target)).toEqual(["server", "server"]);
       await sleep(afterFetch);
       expect(queryFetches.count).toBe(0);
+    });
+  });
+
+  describe("a getter that picks a different atom in the browser (JND-24)", () => {
+    const path = "/test/fixtures/ssr-browser-choice.svelte";
+
+    test("fails hydration: the browser's atom has no server value", async () => {
+      // Svelte throws in dev; a production build warns and fetches instead.
+      await expect(hydrateFromServer(path, SsrBrowserChoice)).rejects.toThrow(
+        "hydratable_missing_but_required"
+      );
+    });
+
+    test("keeping the server's choice until mounted uses the seed, then switches", async () => {
+      computed.length = 0;
+      const target = await hydrateFromServer(
+        path,
+        SsrBrowserChoice,
+        undefined,
+        { afterMount: true }
+      );
+      const output = () => target.querySelector("output")?.textContent;
+
+      await expect.poll(output).toBe("b from the browser");
+      // "a" came from the seed; only the browser's own choice was fetched.
+      expect(computed).toEqual(["b"]);
     });
   });
 });
