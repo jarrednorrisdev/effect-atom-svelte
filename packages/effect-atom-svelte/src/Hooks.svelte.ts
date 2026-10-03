@@ -510,6 +510,7 @@ const onTeardown = (f: () => void): void => {
   }
 };
 
+// Internal shorthand; exported signatures spell the type out so the API reference shows it.
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
 /** One serialization key's seed in a registry, shared by every component using that key. */
@@ -686,6 +687,7 @@ export interface ResultOptions {
  * is awaited: when the getter picks another atom the handle follows it, starting from that atom's
  * current result (often `Initial`), and the component's await does not run again.
  *
+ * @example
  * ```svelte
  * <script>
  *   const todos = await useAtomResult(todosAtom);
@@ -698,7 +700,7 @@ export interface ResultOptions {
  * @category async
  */
 export const useAtomResult = async <A, E>(
-  input: AtomInput<ResultAtom<A, E>>,
+  input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options?: ResultOptions
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
@@ -865,15 +867,15 @@ const sharedWait = (
  * @category async
  */
 export function useAtomSuspense<A, E>(
-  input: AtomInput<ResultAtom<A, E>>,
+  input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options?: SuspenseOptions & { readonly includeFailure?: false | undefined }
 ): AtomValue<Promise<A>>;
 export function useAtomSuspense<A, E>(
-  input: AtomInput<ResultAtom<A, E>>,
+  input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options: SuspenseOptions & { readonly includeFailure: true }
 ): AtomValue<Promise<AsyncResult.Success<A, E> | AsyncResult.Failure<A, E>>>;
 export function useAtomSuspense<A, E>(
-  input: AtomInput<ResultAtom<A, E>>,
+  input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options: SuspenseOptions = {}
 ): AtomValue<Promise<unknown>> {
   const registry = getRegistry();

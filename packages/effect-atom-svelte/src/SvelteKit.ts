@@ -79,10 +79,11 @@ const body = (
  * @since 0.1.0
  * @category hooks
  */
-export const handleClientError = ({
-  error,
-  kind,
-}: CaughtError): EffectErrorBody | undefined => {
+export const handleClientError = (
+  input: CaughtError
+): EffectErrorBody | undefined => {
+  // Destructured here, not in the parameter list, so the API reference shows a named parameter.
+  const { error, kind } = input;
   if (kind !== "unknown") {
     return undefined;
   }
@@ -106,11 +107,10 @@ export const handleClientError = ({
  * @since 0.1.0
  * @category hooks
  */
-export const handleServerError = ({
-  error,
-  issues,
-  kind,
-}: CaughtError): EffectErrorBody | undefined => {
+export const handleServerError = (
+  input: CaughtError
+): EffectErrorBody | undefined => {
+  const { error, issues, kind } = input;
   if (kind === "validation") {
     console.error("Remote function schema validation failed:", issues);
     return undefined;

@@ -5,6 +5,8 @@
  */
 
 /**
+ * The hooks that read, write and await atoms from components.
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -12,6 +14,8 @@
 export * from "./Hooks.svelte.ts";
 
 /**
+ * The registry that hooks read from, and `provideRegistry` to give a component tree its own.
+ *
  * @stability unstable
  * @since 0.1.0
  * @category registry
@@ -33,6 +37,8 @@ export { default as HydrationBoundary } from "./HydrationBoundary.svelte";
 export { default as RegistryProvider } from "./RegistryProvider.svelte";
 
 /**
+ * Atoms created once per component subtree and read from context below it.
+ *
  * @stability unstable
  * @since 0.1.0
  * @category scoped atoms
@@ -40,6 +46,8 @@ export { default as RegistryProvider } from "./RegistryProvider.svelte";
 export * as ScopedAtom from "./ScopedAtom.ts";
 
 /**
+ * Effect Atom's modules, so an app can import everything from one place.
+ *
  * @stability unstable
  * @since 0.1.0
  * @category re-exports
