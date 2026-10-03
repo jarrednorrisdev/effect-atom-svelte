@@ -20,7 +20,7 @@
 </script>
 
 <div class="themed" data-testid="themed" data-theme={theme.current}>
-  <select bind:value={theme.current} data-testid="theme">
+  <select aria-label="Theme" bind:value={theme.current} data-testid="theme">
     <option value="light">Light</option>
     <option value="dark">Dark</option>
   </select>

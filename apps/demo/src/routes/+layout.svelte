@@ -31,6 +31,10 @@
      preference cookies seed the store that cookie-backed atoms read on the server. -->
 <RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
   <Sidebar.Provider class="flex-col">
+    <a
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
+      href="#content">Skip to content</a
+    >
     <SiteHeader />
     <div class="flex flex-1">
       <DocsSidebar />
@@ -38,7 +42,7 @@
         <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
           <div class="min-w-0 flex-1">
             <!-- Only this part is indexed for search; the navigation around it is not. -->
-            <article bind:this={content} data-pagefind-body>
+            <article bind:this={content} data-pagefind-body id="content">
               {@render children()}
             </article>
             <Pager />

@@ -14,6 +14,14 @@
   // `undefined` until Pagefind has loaded or failed to.
   let available = $state<boolean>();
 
+  // The server can't know the platform, so it renders Ctrl and Macs switch to ⌘ after hydration.
+  let shortcut = $state("Ctrl K");
+  $effect(() => {
+    if (/Mac|iPhone|iPad/u.test(navigator.userAgent)) {
+      shortcut = "⌘K";
+    }
+  });
+
   const term = $derived(query.trim());
   const matchingPages = $derived(
     pages.filter((page) => page.title.toLowerCase().includes(term.toLowerCase()))
@@ -62,7 +70,7 @@
 >
   <SearchIcon class="size-4" />
   <span class="flex-1 text-left">Search</span>
-  <Kbd class="hidden sm:inline-flex">⌘K</Kbd>
+  <Kbd class="hidden sm:inline-flex">{shortcut}</Kbd>
 </button>
 
 <Command.Dialog bind:open description="Search the docs" shouldFilter={false} title="Search">

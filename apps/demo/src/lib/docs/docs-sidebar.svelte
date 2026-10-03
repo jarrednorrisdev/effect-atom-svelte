@@ -13,6 +13,7 @@
 <!-- Below the sticky header on wide screens; a sheet from the left on small ones. -->
 <Sidebar.Root class={sidebar.isMobile ? undefined : "top-14 h-[calc(100svh-3.5rem)]"}>
   <Sidebar.Content class="py-4">
+    <nav aria-label="Docs">
     {#each nav as section (section.title)}
       <Sidebar.Group>
         <Sidebar.GroupLabel class="text-sm font-semibold text-navigation-heading">
@@ -39,5 +40,6 @@
         </Sidebar.GroupContent>
       </Sidebar.Group>
     {/each}
+    </nav>
   </Sidebar.Content>
 </Sidebar.Root>

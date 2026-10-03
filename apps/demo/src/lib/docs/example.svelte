@@ -42,10 +42,11 @@
     {@render children()}
   </div>
   <div class="group relative">
-    <div class="not-prose flex items-end rounded-none border bg-muted/40 px-2">
+    <!-- Scrolls sideways when the file names are wider than a phone. -->
+    <div class="not-prose flex items-end overflow-x-auto rounded-none border bg-muted/40 px-2">
       {#if files.length > 1}
         <Tabs.Root bind:value={selected}>
-          <Tabs.List class="h-auto gap-0 p-0" variant="line">
+          <Tabs.List class="h-auto w-max gap-0 p-0" variant="line">
             {#each files as entry (entry.name)}
               <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
             {/each}
@@ -61,7 +62,7 @@
     </div>
     <button
       aria-label={copied ? "Copied" : "Copy code"}
-      class="not-prose absolute top-12 right-2 flex size-8 items-center justify-center rounded-sm border bg-background/80 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-75 hover:opacity-100! focus-visible:opacity-100"
+      class="not-prose absolute top-12 right-2 flex size-8 items-center justify-center rounded-sm border bg-background/80 text-muted-foreground opacity-75 transition-opacity md:opacity-0 md:group-hover:opacity-75 hover:opacity-100! focus-visible:opacity-100"
       onclick={copy}
       type="button"
     >

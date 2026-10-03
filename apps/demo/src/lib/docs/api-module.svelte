@@ -7,12 +7,15 @@
    */
   const { module }: { module: ApiModuleHtml } = $props();
 
+  // The index module is what `effect-atom-svelte` itself exports.
+  const title = $derived(module.name === "index" ? "effect-atom-svelte" : module.name);
+
   const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   const slug = (text: string) => text.toLowerCase().replaceAll(/\s+/gu, "-");
 </script>
 
 <div class="prose prose-effect max-w-none">
-  <h1>{module.name}</h1>
+  <h1>{title}</h1>
   <!-- The module's doc comment, from the library's source. -->
   {@html module.description}
   <p>
@@ -37,7 +40,7 @@
         <p><strong>Example</strong></p>
         {@html example}
       {/each}
-      <p class="text-sm text-subtle-foreground">
+      <p class="text-sm text-muted-foreground">
         Since v{entry.since}{#if entry.stability}&ensp;·&ensp;{capitalize(entry.stability)}{/if}
       </p>
     {/each}

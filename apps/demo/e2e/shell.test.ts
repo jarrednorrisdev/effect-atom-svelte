@@ -52,6 +52,36 @@ test.describe("docs shell", () => {
     await expect(
       page.getByRole("heading", { name: "Streaming procedures" })
     ).toBeInViewport();
+    await expect(
+      toc.getByRole("link", { name: "Streaming procedures" })
+    ).toHaveAttribute("aria-current", "location");
+    await expect(
+      toc.getByRole("link", { name: "Streaming procedures" })
+    ).toHaveCSS("border-left-color", /^(?!rgba\(0, 0, 0, 0\))/u);
+  });
+
+  test("an unknown path shows a not-found page inside the docs shell", async ({
+    page,
+  }) => {
+    const response = await page.goto("/no-such-page");
+    expect(response?.status()).toBe(404);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Page not found" })
+    ).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Docs" })).toBeAttached();
+  });
+
+  test("on a phone, a multi-file example scrolls its tabs instead of the page", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ height: 844, width: 390 });
+    await page.goto("/scoped-atoms");
+    await page.waitForLoadState("networkidle");
+    const widths = await page.evaluate(() => [
+      document.documentElement.scrollWidth,
+      document.documentElement.clientWidth,
+    ]);
+    expect(widths[0]).toBe(widths[1]);
   });
 
   test("Example renders the live example above its own source", async ({

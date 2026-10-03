@@ -60,7 +60,7 @@ export const nav: readonly NavSection[] = [
     // Generated from the library's source by vite/api-reference.ts, which fails the build if a
     // module is missing here.
     pages: [
-      { href: "/reference", title: "index" },
+      { href: "/reference", title: "Overview" },
       { href: "/reference/Hooks", title: "Hooks" },
       { href: "/reference/RegistryContext", title: "RegistryContext" },
       { href: "/reference/ScopedAtom", title: "ScopedAtom" },

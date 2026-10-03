@@ -15,7 +15,10 @@ test.describe("API reference", () => {
     }) => {
       await page.goto(module.href);
       await expect(
-        page.getByRole("heading", { level: 1, name: module.name })
+        page.getByRole("heading", {
+          level: 1,
+          name: module.name === "index" ? "effect-atom-svelte" : module.name,
+        })
       ).toBeVisible();
       const headings = page.getByRole("article").getByRole("heading", {
         level: 3,

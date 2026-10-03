@@ -89,11 +89,16 @@
     <ul class="space-y-2 border-l">
       {#each entries as entry (entry.id)}
         <li>
+          <!-- The active and inactive colours are alternatives: both on one element, the inactive
+               ones won and the highlight never showed. -->
           <a
+            aria-current={active === entry.id ? "location" : undefined}
             class={[
-              "-ml-px block border-l border-transparent text-navigation-foreground transition-colors hover:text-foreground",
+              "-ml-px block border-l transition-colors hover:text-foreground",
               entry.depth === 3 ? "pl-6" : "pl-3",
-              active === entry.id && "border-brand text-foreground",
+              active === entry.id
+                ? "border-brand text-foreground"
+                : "border-transparent text-navigation-foreground",
             ]}
             href="#{entry.id}"
           >

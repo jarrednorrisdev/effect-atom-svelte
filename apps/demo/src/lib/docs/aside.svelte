@@ -66,28 +66,41 @@
   .aside-content :global(> :last-child) {
     margin-bottom: 1rem;
   }
+  /* Titles are darker in light mode, where the bright colours fail contrast on the tint. */
   .aside--note {
     background-color: #3b82f614;
     & .aside-title {
-      color: #3b82f6;
+      color: #1d4ed8;
     }
+  }
+  :global(.dark) .aside--note .aside-title {
+    color: #3b82f6;
   }
   .aside--tip {
     background-color: #10b98114;
     & .aside-title {
-      color: #10b981;
+      color: #047857;
     }
+  }
+  :global(.dark) .aside--tip .aside-title {
+    color: #10b981;
   }
   .aside--caution {
     background-color: #f59e0b14;
     & .aside-title {
-      color: #f59e0b;
+      color: #b45309;
     }
+  }
+  :global(.dark) .aside--caution .aside-title {
+    color: #f59e0b;
   }
   .aside--danger {
     background-color: #ef444414;
     & .aside-title {
-      color: #ef4444;
+      color: #b91c1c;
     }
+  }
+  :global(.dark) .aside--danger .aside-title {
+    color: #ef4444;
   }
 </style>
