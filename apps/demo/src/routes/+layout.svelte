@@ -21,6 +21,10 @@
 
 <svelte:head>
   <title>{title ? `${title} · effect-atom-svelte` : "effect-atom-svelte"}</title>
+  <meta
+    name="description"
+    content="Community-built Svelte 5 bindings for Effect Atom. Not affiliated with Effect or the Effect team."
+  />
 </svelte:head>
 
 <!-- One registry per request on the server, one for the session in the browser. The request's
@@ -38,6 +42,13 @@
               {@render children()}
             </article>
             <Pager />
+            <footer class="mt-16 border-t pt-6 text-sm text-muted-foreground">
+              effect-atom-svelte is a community project by
+              <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
+                >Jarred Norris</a
+              >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
+              team.
+            </footer>
           </div>
           <aside class="hidden w-56 shrink-0 xl:block">
             <div class="sticky top-24">

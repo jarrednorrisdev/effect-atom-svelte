@@ -1,7 +1,7 @@
 {
   "name": "effect-atom-svelte",
   "version": "0.0.0",
-  "description": "Svelte 5 bindings for Effect Atom",
+  "description": "Community-built Svelte 5 bindings for Effect Atom (not affiliated with the Effect team)",
   "keywords": [
     "effect",
     "effect-atom",

@@ -22,6 +22,16 @@ test.describe("docs shell", () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
+  test("every page says the project is not made by the Effect team", async ({
+    page,
+  }) => {
+    await page.goto("/derived-atoms");
+    await expect(page.getByRole("banner")).toContainText("Community project");
+    await expect(page.locator("footer")).toContainText(
+      "not made or endorsed by the Effect team"
+    );
+  });
+
   test("the table of contents lists a page's sections and links to them", async ({
     page,
   }) => {

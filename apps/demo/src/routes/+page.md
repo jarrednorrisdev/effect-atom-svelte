@@ -1,17 +1,17 @@
 ---
 title: Introduction
-description: Svelte 5 bindings for Effect Atom.
+description: Community-built Svelte 5 bindings for Effect Atom.
 ---
 
 <script>
   import Aside from "#lib/docs/aside.svelte";
 </script>
 
-effect-atom-svelte connects [Effect Atom](https://effect.website) to Svelte 5 components.
+effect-atom-svelte connects [Effect Atom](https://effect.website) to Svelte 5 components. It is a community project by Jarred Norris: it is not part of Effect, and the Effect team neither makes nor endorses it.
 
 Effect Atom (`effect/reactivity`) keeps your application's state in **atoms**: small reactive values that can hold plain data, be derived from other atoms, or run an `Effect` or a `Stream`. This library gives your components hooks to read and write those atoms, and the pieces you need to render them on the server and pick up where the server left off in the browser.
 
-It follows the shape of Effect's official adapters, `@effect/atom-react` and `@effect/atom-vue`. If you have used atoms in React or Vue, you already know the atoms; only the hooks change.
+Its API follows the adapters the Effect team maintains, `@effect/atom-react` and `@effect/atom-vue`, but it is a separate project. If you have used atoms in React or Vue, you already know the atoms; only the hooks change.
 
 ## What you get
 

@@ -1,6 +1,6 @@
 # effect-atom-svelte
 
-Svelte 5 bindings for Effect Atom, with a docs site and tests. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`, live at [atom.jarrednorris.dev](https://atom.jarrednorris.dev).
+Community-built Svelte 5 bindings for Effect Atom, with a docs site and tests. It is not affiliated with Effect or the Effect team. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`, live at [atom.jarrednorris.dev](https://atom.jarrednorris.dev).
 
 | Path | What |
 | --- | --- |
