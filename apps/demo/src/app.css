@@ -2,80 +2,125 @@
 @import "tw-animate-css";
 @import "shadcn-svelte/tailwind.css";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Design tokens from the Effect docs (effect.website). Their site already uses shadcn's variable
+ * names, so most values are copied as-is; the extra ones (prose, navigation, subtle, brand) are
+ * theirs too. Code block values come from their Expressive Code config.
+ */
 :root {
+  color-scheme: light;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.21 0.006 285.885);
+  --prose-foreground: oklch(0.37 0.013 285.805);
+  --navigation-foreground: oklch(0.37 0.013 285.805);
+  --navigation-heading: oklch(0.37 0.013 285.805);
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.21 0.006 285.885);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.442 0.017 285.786);
+  --subtle-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.92 0.004 286.32);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --primary: oklch(0.21 0.006 285.885);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.92 0.004 286.32);
+  --border-strong: oklch(0.871 0.006 286.286);
+  --input: oklch(0.871 0.006 286.286);
+  --ring: oklch(0.696 0.17 162.48);
+  --brand: oklch(0.696 0.17 162.48);
+  --featured: #f7f7f8;
+  --featured-hover: #f4f4f5;
+  --radius: 0.5rem;
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--navigation-foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --code-background: oklch(0.967 0.001 286.375 / 60%);
+  --code-gutter: #1b1f2363;
+  --code-gutter-border: #1b1f2333;
+  --code-shadow: #00000028;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  color-scheme: dark;
+  --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --prose-foreground: oklch(0.871 0.006 286.286);
+  --navigation-foreground: oklch(0.705 0.015 286.067);
+  --navigation-heading: oklch(0.871 0.006 286.286);
+  --card: oklch(0.21 0.006 285.885);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --subtle-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.637 0.237 25.331);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.274 0.006 286.033);
+  --border-strong: oklch(0.37 0.013 285.805);
+  --input: oklch(0.37 0.013 285.805);
+  --ring: oklch(0.765 0.177 163.223);
+  --brand: oklch(0.765 0.177 163.223);
+  --featured: #141315;
+  --featured-hover: #0f0f11;
+  --code-background: oklch(0.21 0.006 285.885 / 60%);
+  --code-gutter: #646c73;
+  --code-gutter-border: #646c7333;
+  --code-shadow: #0000005b;
+}
+
+/* effect.website's type scale: a major third from 1rem, with a smaller xs. */
+@theme {
+  --text-xs: 0.7rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.375;
+  --text-xl: 1.563rem;
+  --text-xl--line-height: 1.375;
+  --text-2xl: 1.953rem;
+  --text-2xl--line-height: 1.375;
+  --text-3xl: 2.441rem;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 3.052rem;
+  --text-4xl--line-height: 1.25;
+  --text-5xl: 3.815rem;
+  --text-5xl--line-height: 1.15;
+  --text-6xl: 4.768rem;
+  --text-6xl--line-height: 1.15;
+  --leading-tighter: 1.15;
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -84,17 +129,18 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --color-featured-hover: var(--featured-hover);
+  --color-featured: var(--featured);
+  --color-brand: var(--brand);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-border-strong: var(--border-strong);
   --color-border: var(--border);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-subtle-foreground: var(--subtle-foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -105,15 +151,18 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-navigation-heading: var(--navigation-heading);
+  --color-navigation-foreground: var(--navigation-foreground);
+  --color-prose-foreground: var(--prose-foreground);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* Fixed steps, as on effect.website, rather than shadcn's multiples of --radius. */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
 @layer base {
@@ -121,21 +170,95 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;
   }
 }
 
-/* Shiki emits both themes as CSS variables (vite/highlight.ts); pick one by colour scheme. */
-.shiki,
+/* Long-form content: Tailwind Typography, coloured with the tokens above. */
+@utility prose-effect {
+  --tw-prose-body: var(--prose-foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted-foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-bullets: var(--subtle-foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--card);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+
+  & :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  & :where(a):not(:where([class~="not-prose"] *)) {
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  & :where(a):not(:where([class~="not-prose"] *)):hover {
+    text-decoration: none;
+  }
+  & :where(code):not(:where([class~="not-prose"] *, pre *)) {
+    background: var(--muted);
+    border-radius: var(--radius-md);
+    font-size: 0.85em;
+    font-weight: 400;
+    padding: 0.125rem 0.375rem;
+  }
+  & :where(code):not(:where([class~="not-prose"] *, pre *))::before,
+  & :where(code):not(:where([class~="not-prose"] *, pre *))::after {
+    content: none;
+  }
+}
+
+/*
+ * Code blocks (vite/highlight.ts), drawn like effect.website's: a bordered frame with line numbers.
+ * Shiki emits both themes as CSS variables; pick one by colour scheme.
+ */
+.shiki {
+  background-color: var(--code-background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0.1rem 0.1rem 0.2rem var(--code-shadow);
+  color: var(--shiki-light);
+  counter-reset: line;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.65;
+  overflow-x: auto;
+  padding: 1.25rem 1.4rem 1.25rem 0;
+}
 .shiki span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
 }
 .dark .shiki,
 .dark .shiki span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
+}
+.shiki .line {
+  counter-increment: line;
+}
+.shiki .line::before {
+  border-inline-end: 1.5px solid var(--code-gutter-border);
+  box-sizing: content-box;
+  color: var(--code-gutter);
+  content: counter(line);
+  display: inline-block;
+  margin-inline-end: calc(1.4rem - 1.5px);
+  min-width: max(2ch, var(--line-number-width, 0ch));
+  padding-inline: 2ch;
+  text-align: end;
+  user-select: none;
 }

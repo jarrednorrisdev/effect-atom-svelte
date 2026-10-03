@@ -37,9 +37,7 @@
 
 <style>
   :global(body) {
-    font-family: system-ui, sans-serif;
     margin: 0;
-    color: #18181b;
   }
   :global(section) {
     border: 1px solid #e4e4e7;
@@ -55,7 +53,7 @@
     color: #52525b;
     margin-top: 0;
   }
-  :global(code, output) {
+  :global(:not(pre) > code:not(.prose *), output) {
     background: #f4f4f5;
     border-radius: 0.25rem;
     padding: 0 0.25rem;
