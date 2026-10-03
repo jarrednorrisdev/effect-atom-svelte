@@ -11,7 +11,9 @@ const profile =
   profileFlag === -1
     ? process.env.ALCHEMY_PROFILE
     : process.argv[profileFlag + 1];
-if (process.env.CI !== "true") {
+// `alchemy profile ...` loads this file too, to find the providers to log in to; it deploys nothing.
+const managingProfiles = process.argv.includes("profile");
+if (process.env.CI !== "true" && !managingProfiles) {
   if (profile !== "personal") {
     throw new Error(
       `Deploy the docs site with the personal Alchemy profile (bun run deploy), not "${profile ?? "default"}".`
