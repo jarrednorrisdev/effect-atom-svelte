@@ -10,11 +10,13 @@ import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import { computed } from "./fixtures/seeded-list.ts";
+import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
+import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import { sleep, text } from "./helpers.ts";
@@ -249,6 +251,21 @@ describe("hydrating server output", () => {
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
     expect(computed).toEqual(["b"]);
+  });
+
+  test("atoms with a server value hydrate without a seed, then compute in the browser (JND-58)", async () => {
+    serverValueComputed.length = 0;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-server-value.svelte",
+      SsrServerValue
+    );
+
+    await expect
+      .poll(outputs(target))
+      .toEqual(["result from the browser", "suspense from the browser"]);
+    expect(new Set(serverValueComputed)).toEqual(
+      new Set(["result", "suspense"])
+    );
   });
 
   test("refreshing a hydrated atom computes it in the browser", async () => {

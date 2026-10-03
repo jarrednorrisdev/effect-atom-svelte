@@ -123,6 +123,13 @@ const valueOrThrow = <A, E>(exit: Exit.Exit<A, E>): A => {
   throw Cause.squash(exit.cause);
 };
 
+/**
+ * Whether the atom has a `withServerValue` override. The server reads that instead and never
+ * computes the atom, as its real read is often browser-only.
+ */
+const hasServerValue = (atom: Atom.Atom<unknown>): boolean =>
+  Atom.ServerValueTypeId in atom;
+
 const awaitResult = <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
@@ -157,7 +164,7 @@ const subscribedReader = <A>(
       }
     });
     const mount = (atom: Atom.Atom<A>) => {
-      if (!(Atom.ServerValueTypeId in atom)) {
+      if (!hasServerValue(atom)) {
         releases.push(registry.mount(atom));
       }
       return atom;
@@ -606,7 +613,9 @@ const seedFromServer = (
   atom: ResultAtom<unknown, unknown>,
   revalidateOption: boolean | undefined
 ): Promise<void> | undefined => {
-  if (!Atom.isSerializable(atom)) {
+  // The server never computes an atom with a server value, so it has no value to pass on, and the
+  // browser must not ask for one: hydratable throws for a key the server didn't write (JND-58).
+  if (!Atom.isSerializable(atom) || hasServerValue(atom)) {
     return undefined;
   }
   const { decode, encode, key } = atom[Atom.SerializableTypeId];
@@ -700,7 +709,8 @@ export interface ResultOptions {
  * a top-level `await` in a component script; SSR waits for it, and with a serialization key the
  * result is reused during hydration instead of fetched again. With a getter, only the first atom
  * is awaited: when the getter picks another atom the handle follows it, starting from that atom's
- * current result (often `Initial`), and the component's await does not run again.
+ * current result (often `Initial`), and the component's await does not run again. On the server,
+ * an atom with a `withServerValue` override reads as that value and is never computed.
  *
  * @example
  * ```svelte
@@ -741,8 +751,9 @@ export const useAtomResult = async <A, E>(
   if (seed) {
     await seed;
   }
-  // Destroyed while seeding: reading the atom now would only compute it for nobody.
-  if (lifetime.signal.aborted) {
+  // Destroyed while seeding: reading the atom now would only compute it for nobody. On the server,
+  // an atom with a server value is read as that value, with nothing to wait for.
+  if (lifetime.signal.aborted || (!BROWSER && hasServerValue(atom))) {
     return value;
   }
   // Mounted only after seeding, so hydration's value is in place before the atom first computes.
@@ -774,6 +785,51 @@ export interface SuspenseOptions {
   readonly revalidateOnHydrate?: boolean | undefined;
 }
 
+/** Whether the hook waits for a result: it is `Initial`, or refreshing with `suspendOnWaiting`. */
+const isPending = <A, E>(
+  current: AsyncResult.AsyncResult<A, E>,
+  options: SuspenseOptions
+): boolean =>
+  current._tag === "Initial" ||
+  (options.suspendOnWaiting === true && current.waiting);
+
+/** What the promise resolves with, or the error it rejects with, for a result that is not pending. */
+const fromSettled = <A, E>(
+  current: AsyncResult.AsyncResult<A, E>,
+  options: SuspenseOptions
+): unknown => {
+  if (current._tag === "Success") {
+    return options.includeFailure ? current : current.value;
+  }
+  if (current._tag === "Failure" && !options.includeFailure) {
+    throw Cause.squash(current.cause);
+  }
+  return current;
+};
+
+/**
+ * On the server, an atom with a server value resolves from that value and is never computed. An
+ * `Initial` server value, as from `withServerValueInitial`, has nothing to resolve with, and waiting
+ * would hang the render, so it rejects with what to do instead (JND-58).
+ */
+const fromServerValue = <A, E>(
+  current: AsyncResult.AsyncResult<A, E>,
+  options: SuspenseOptions
+): Promise<unknown> => {
+  if (isPending(current, options)) {
+    return Promise.reject(
+      new Error(
+        "useAtomSuspense read an atom whose server value is pending, so the server has nothing to render. Read it inside a <svelte:boundary> with a pending snippet, which the server renders instead, or use useAtomResult."
+      )
+    );
+  }
+  try {
+    return Promise.resolve(fromSettled(current, options));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+};
+
 const suspend = async <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: ResultAtom<A, E>,
@@ -781,10 +837,7 @@ const suspend = async <A, E>(
   options: SuspenseOptions,
   signal: AbortSignal
 ): Promise<unknown> => {
-  const pending =
-    current._tag === "Initial" ||
-    (options.suspendOnWaiting === true && current.waiting);
-  if (pending) {
+  if (isPending(current, options)) {
     const exit = await awaitResult(
       registry,
       atom,
@@ -802,13 +855,7 @@ const suspend = async <A, E>(
     }
     return valueOrThrow(exit);
   }
-  if (current._tag === "Success") {
-    return options.includeFailure ? current : current.value;
-  }
-  if (options.includeFailure) {
-    return current;
-  }
-  throw Cause.squash(current.cause);
+  return fromSettled(current, options);
 };
 
 /** The derived or effect reading now's abort signal, which Svelte aborts when it re-runs or is destroyed. */
@@ -879,7 +926,9 @@ const sharedWait = (
  * Exposes an async atom as a promise for `await` in markup or `$derived(await ...)`. The promise is
  * stable while the result is unchanged, and a new one is issued when the result changes, so Svelte
  * re-runs dependents only on real updates. Failures reject with the squashed cause, or resolve with
- * the `Failure` when `includeFailure` is set.
+ * the `Failure` when `includeFailure` is set. On the server, an atom with a `withServerValue`
+ * override resolves from that value and is never computed; if the value is `Initial`, the promise
+ * rejects, so read it inside a `<svelte:boundary>` with a `pending` snippet.
  *
  * @stability unstable
  * @since 0.1.0
@@ -955,7 +1004,21 @@ export function useAtomSuspense<A, E>(
     return wait.promise;
   };
 
+  const fromServer = new WeakMap<
+    AsyncResult.AsyncResult<A, E>,
+    Promise<unknown>
+  >();
+
   return new AtomCell<Promise<unknown>, never>(() => {
+    if (!BROWSER && hasServerValue(getAtom())) {
+      const { current } = result;
+      let promise = fromServer.get(current);
+      if (!promise) {
+        promise = fromServerValue(current, options);
+        fromServer.set(current, promise);
+      }
+      return promise;
+    }
     if (!seeded && seed) {
       // Reading the atom before the seed lands would fetch what hydration is about to provide.
       const atom = getAtom();

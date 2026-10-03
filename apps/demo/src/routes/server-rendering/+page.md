@@ -63,7 +63,7 @@ Use a `pending` snippet for content that can arrive later, such as anything belo
 
 ## Server values
 
-Some atoms shouldn't run on the server at all, such as one that reads `localStorage` or follows the window's focus. `Atom.withServerValue` gives the server a value to use instead. Read with `useAtomValue` or `useAtom`, the atom is never computed on the server:
+Some atoms shouldn't run on the server at all, such as one that reads `localStorage` or follows the window's focus. `Atom.withServerValue` gives the server a value to use instead. Every hook reads that value on the server, and the atom is never computed there:
 
 **Example** (A window width the server can't know)
 
@@ -78,7 +78,7 @@ const widthAtom = Atom.make((get) => {
 
 Without the server value, reading `window` on the server would throw.
 
-For an async atom, `Atom.withServerValueInitial` makes `useAtomValue` read it as `Initial` on the server. `useAtomResult` and `useAtomSuspense` don't use server values yet: they compute the atom on the server, so read browser-only atoms with `useAtomValue`. [Browser atoms](/browser) covers browser-only atoms in detail.
+For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. `useAtomResult` has nothing to wait for, so the server renders the `Initial` result and the browser fetches the atom once it hydrates. `useAtomSuspense` has nothing to resolve with, so on the server it rejects: read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. A serializable atom with a server value isn't passed to the browser, since the server never computed it. [Browser atoms](/browser) covers browser-only atoms in detail.
 
 <Aside type="caution">
 

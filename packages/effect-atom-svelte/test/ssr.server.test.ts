@@ -12,6 +12,8 @@ import {
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
 import Run from "./fixtures/run.svelte";
+import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
+import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
 import SsrSequential from "./fixtures/ssr-sequential.svelte";
 import { repeat } from "./helpers.ts";
@@ -26,6 +28,19 @@ const renderSetup = (
   setup: () => unknown,
   registry?: AtomRegistry.AtomRegistry
 ) => render(SsrHarness, { props: registry ? { registry, setup } : { setup } });
+
+/** A serializable async atom that fails the test if anything computes it. */
+const failsIfComputed = (key: string) =>
+  Atom.make(
+    Effect.sync((): string => {
+      throw new Error("computed on the server");
+    })
+  ).pipe(
+    Atom.serializable({
+      key,
+      schema: AsyncResult.Schema({ success: Schema.String }),
+    })
+  );
 
 describe("server rendering", () => {
   test("awaits an RPC query and embeds its encoded result for hydration", async () => {
@@ -118,6 +133,54 @@ describe("server rendering", () => {
       return () => value.current;
     });
     expect(output.body).toContain("server value");
+  });
+
+  describe("the async hooks with a server value (JND-58)", () => {
+    test("useAtomResult reads the server value without computing the atom", async () => {
+      const atom = failsIfComputed("server-value-result").pipe(
+        Atom.withServerValueInitial
+      );
+      const output = await renderSetup(() => {
+        const result = useAtomResult(atom);
+        return (async () => {
+          const live = await result;
+          return () => live.current._tag;
+        })();
+      });
+      expect(output.body).toContain("Initial");
+      // Nothing was computed, so there is nothing to hydrate from.
+      expect(output.head).not.toContain("server-value-result");
+    });
+
+    test("useAtomSuspense resolves with the server value without computing the atom", async () => {
+      const atom = failsIfComputed("server-value-suspense").pipe(
+        Atom.withServerValue(() => AsyncResult.success("from the server value"))
+      );
+      const output = await renderSetup(() => {
+        const value = useAtomSuspense(atom);
+        return () => value.current;
+      });
+      expect(output.body).toContain("from the server value");
+      expect(output.head).not.toContain("server-value-suspense");
+    });
+
+    test("useAtomSuspense rejects a pending server value instead of hanging", async () => {
+      const atom = failsIfComputed("server-value-pending").pipe(
+        Atom.withServerValueInitial
+      );
+      await expect(
+        renderSetup(() => {
+          const value = useAtomSuspense(atom);
+          return () => value.current;
+        })
+      ).rejects.toThrow("pending snippet");
+    });
+
+    test("inside a boundary with a pending snippet, the server renders that instead", async () => {
+      const output = await render(ServerValueBoundary);
+      expect(output.body).toContain("loading");
+      expect(serverValueComputed).toEqual([]);
+    });
   });
 
   test("refuses to share a registry between requests when none is provided", async () => {
