@@ -33,6 +33,7 @@ export const nav: readonly NavSection[] = [
   },
   {
     pages: [
+      { href: "/async-atoms", title: "Async atoms" },
       { href: "/suspense", title: "Suspense" },
       { href: "/mutations", title: "Mutations" },
       { href: "/streams", title: "Streams" },

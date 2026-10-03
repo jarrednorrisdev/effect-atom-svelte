@@ -255,15 +255,76 @@ test("families: a getter follows the selected key's atom", async ({ page }) => {
   await expect(page.getByTestId("tally")).toHaveText("2");
 });
 
-test("suspense: pending, value and failure", async ({ page }) => {
+test("async atoms: initial, success and a refresh that keeps the value", async ({
+  page,
+}) => {
+  await page.goto("/async-atoms");
+  await page.waitForLoadState("networkidle");
+  const state = page.getByTestId("die-state");
+  await expect(state).toHaveText("Success");
+  await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
+  await page.getByRole("button", { name: "Roll again" }).click();
+  // The previous roll stays on screen while the new one runs.
+  await expect(state).toHaveText("Success, waiting");
+  await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
+  await expect(state).toHaveText("Success");
+});
+
+test("suspense: pending, value, refresh and failure", async ({ page }) => {
   await page.goto("/suspense");
-  await expect(page.getByTestId("suspense-value")).toContainText("loaded");
+  const value = page.getByTestId("suspense-value");
+  await expect(value).toContainText("Loaded");
+  await page.waitForLoadState("networkidle");
+  const first = await value.textContent();
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(value).not.toHaveText(first ?? "");
   await expect(page.getByTestId("suspense-failed")).toHaveText(
     "This atom always fails"
   );
   await expect(page.getByTestId("suspense-failed-tag")).toHaveText(
     "AlwaysFails"
   );
+});
+
+test("mutations: a second call supersedes the first, and Reset clears it", async ({
+  page,
+}) => {
+  await page.goto("/mutations");
+  await page.waitForLoadState("networkidle");
+  const state = page.getByTestId("echo-state");
+  await expect(state).toHaveText("Initial");
+  await page.getByRole("button", { name: 'Echo "first"' }).click();
+  await expect(state).toHaveText("Initial, waiting");
+  await page.getByRole("button", { name: 'Echo "second"' }).click();
+  // Both promises settle with the second call's result.
+  const replies = page.getByTestId("echo-replies").locator("li");
+  await expect(replies).toHaveCount(2);
+  await expect(replies.filter({ hasText: "first → SECOND" })).toHaveCount(1);
+  await expect(replies.filter({ hasText: "second → SECOND" })).toHaveCount(1);
+  await expect(state).toHaveText("Success");
+  await page.getByRole("button", { name: "Reset" }).click();
+  await expect(state).toHaveText("Initial");
+});
+
+test("mutations: reactivity keys refresh the list, optimistic updates show at once", async ({
+  page,
+}) => {
+  await page.goto("/mutations");
+  await page.waitForLoadState("networkidle");
+  const notes = page.getByTestId("notes").locator("li");
+  await expect(notes).toHaveText(["Read the docs"]);
+
+  await page.getByTestId("note").fill("Plain");
+  const add = page.getByRole("button", { exact: true, name: "Add" });
+  await add.click();
+  await expect(add).toBeDisabled();
+  await expect(notes).toHaveText(["Read the docs"]);
+  await expect(notes).toHaveText(["Read the docs", "Plain"]);
+
+  await page.getByTestId("note").fill("Quick");
+  await page.getByRole("button", { name: "Add optimistically" }).click();
+  await expect(notes).toHaveText(["Read the docs", "Plain", "Quick (saving…)"]);
+  await expect(notes).toHaveText(["Read the docs", "Plain", "Quick"]);
 });
 
 test("streams: a stream atom ticks and a streaming RPC pulls to the end", async ({
