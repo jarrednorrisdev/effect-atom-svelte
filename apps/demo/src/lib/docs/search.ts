@@ -49,5 +49,5 @@ export const loadPagefind = () => {
   return loading;
 };
 
-/** Pagefind's URLs point at the prerendered files (`/basics.html#binding`); the routes have no `.html`. */
+/** Pagefind's URLs point at the prerendered files (`/reading-and-writing.html#writing`); the routes have no `.html`. */
 export const routeUrl = (url: string) => url.replace(/\.html(?=#|$)/u, "");

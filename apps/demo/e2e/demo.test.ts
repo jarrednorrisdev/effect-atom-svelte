@@ -199,18 +199,60 @@ test.describe("HTTP API page", () => {
   });
 });
 
-test("basics: read, write, derive and bind", async ({ page }) => {
-  await page.goto("/basics");
+test("first atom: two counters share one atom", async ({ page }) => {
+  await page.goto("/first-atom");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "First counter: increment" }).click();
+  await page.getByRole("button", { name: "Second counter: increment" }).click();
+  await expect(page.locator("[data-example] output")).toHaveText(["2", "2"]);
+});
+
+test("reading and writing: read, write, transform, update and bind", async ({
+  page,
+}) => {
+  await page.goto("/reading-and-writing");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "+" }).click();
+  await expect(page.getByTestId("count")).toHaveText("1");
+  await expect(page.getByTestId("parity")).toHaveText("odd");
   await page.getByRole("button", { name: "+" }).click();
   await expect(page.getByTestId("count")).toHaveText("2");
-  await expect(page.getByTestId("doubled")).toHaveText("4");
   await expect(page.getByTestId("parity")).toHaveText("even");
   await page.getByRole("button", { name: "×10 with an updater" }).click();
   await expect(page.getByTestId("count")).toHaveText("20");
   await page.getByTestId("name").fill("Effect");
   await expect(page.getByTestId("greeting")).toHaveText("Hello, Effect!");
+});
+
+test("derived atoms: a read-only and a writable derived atom", async ({
+  page,
+}) => {
+  await page.goto("/derived-atoms");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("fahrenheit")).toHaveValue("68");
+  await expect(page.getByTestId("feel")).toHaveText("mild");
+  await page.getByTestId("celsius").fill("100");
+  await expect(page.getByTestId("fahrenheit")).toHaveValue("212");
+  await expect(page.getByTestId("feel")).toHaveText("hot");
+  // Writing the derived atom writes the atom it reads from.
+  await page.getByTestId("fahrenheit").fill("32");
+  await expect(page.getByTestId("celsius")).toHaveValue("0");
+  await expect(page.getByTestId("feel")).toHaveText("cold");
+});
+
+test("families: a getter follows the selected key's atom", async ({ page }) => {
+  await page.goto("/families");
+  await page.waitForLoadState("networkidle");
+  const count = page.getByRole("button", { name: "Count one" });
+  await count.click();
+  await count.click();
+  await page.getByTestId("fruit").selectOption("pears");
+  await expect(page.getByTestId("tally")).toHaveText("0");
+  await count.click();
+  await expect(page.getByTestId("total-apples")).toHaveText("2");
+  await expect(page.getByTestId("total-pears")).toHaveText("1");
+  await page.getByTestId("fruit").selectOption("apples");
+  await expect(page.getByTestId("tally")).toHaveText("2");
 });
 
 test("suspense: pending, value and failure", async ({ page }) => {

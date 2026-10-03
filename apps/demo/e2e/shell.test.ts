@@ -4,20 +4,21 @@ test.describe("docs shell", () => {
   test("the sidebar marks the current page and prev/next links follow its order", async ({
     page,
   }) => {
-    await page.goto("/basics");
+    await page.goto("/reading-and-writing");
     await page.waitForLoadState("networkidle");
-    await expect(page).toHaveTitle("Basics · effect-atom-svelte");
+    await expect(page).toHaveTitle("Reading and writing · effect-atom-svelte");
     const sidebar = page.locator("[data-slot=sidebar]");
-    await expect(sidebar.getByRole("link", { name: "Basics" })).toHaveAttribute(
-      "aria-current",
-      "page"
-    );
-    const pager = page.getByRole("navigation", { name: "Pages" });
-    await expect(pager.getByRole("link", { name: /Overview/u })).toBeVisible();
-    await pager.getByRole("link", { name: /Refs and scopes/u }).click();
-    await expect(page).toHaveURL(/\/refs$/u);
     await expect(
-      sidebar.getByRole("link", { name: "Refs and scopes" })
+      sidebar.getByRole("link", { name: "Reading and writing" })
+    ).toHaveAttribute("aria-current", "page");
+    const pager = page.getByRole("navigation", { name: "Pages" });
+    await expect(
+      pager.getByRole("link", { name: /Your first atom/u })
+    ).toBeVisible();
+    await pager.getByRole("link", { name: /Derived atoms/u }).click();
+    await expect(page).toHaveURL(/\/derived-atoms$/u);
+    await expect(
+      sidebar.getByRole("link", { name: "Derived atoms" })
     ).toHaveAttribute("aria-current", "page");
   });
 
@@ -43,11 +44,11 @@ test.describe("docs shell", () => {
   test("Example renders the live example above its own source", async ({
     page,
   }) => {
-    await page.goto("/basics");
+    await page.goto("/reading-and-writing");
     await page.waitForLoadState("networkidle");
     const example = page.locator("[data-example]");
     await expect(
-      example.getByText("basics.svelte", { exact: true })
+      example.getByText("reading-and-writing.svelte", { exact: true })
     ).toBeVisible();
     await expect(example.locator("pre code")).toContainText(
       'import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";'
@@ -57,10 +58,23 @@ test.describe("docs shell", () => {
     await expect(example.getByTestId("count")).toHaveText("1");
   });
 
+  test("Example shows one tab per file of a multi-file example", async ({
+    page,
+  }) => {
+    await page.goto("/first-atom");
+    await page.waitForLoadState("networkidle");
+    const example = page.locator("[data-example]");
+    const code = example.locator("pre code");
+    await expect(code).toContainText("const countAtom = Atom.make(0);");
+    await example.getByRole("tab", { name: "counters.svelte" }).click();
+    await expect(code).toContainText('import Counter from "./counter.svelte";');
+    await expect(code).not.toContainText("Atom.make");
+  });
+
   test("the theme switch persists and applies before any app script runs", async ({
     page,
   }) => {
-    await page.goto("/basics");
+    await page.goto("/first-atom");
     await page.waitForLoadState("networkidle");
     const html = page.locator("html");
     await expect(html).not.toHaveClass(/dark/u);
@@ -92,7 +106,7 @@ test.describe("docs shell", () => {
     const result = dialog.getByRole("option").filter({ hasText: "updater" });
     await expect(result.first()).toBeVisible();
     await result.first().click();
-    await expect(page).toHaveURL(/\/basics(?:#.*)?$/u);
+    await expect(page).toHaveURL(/\/reading-and-writing(?:#.*)?$/u);
     await expect(dialog).toBeHidden();
   });
 

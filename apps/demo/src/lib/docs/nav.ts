@@ -13,12 +13,18 @@ export interface NavSection {
 /** The sidebar, in reading order. Prev/next links, page titles and search suggestions use it too. */
 export const nav: readonly NavSection[] = [
   {
-    pages: [{ href: "/", title: "Overview" }],
+    pages: [
+      { href: "/", title: "Introduction" },
+      { href: "/installation", title: "Installation" },
+      { href: "/first-atom", title: "Your first atom" },
+    ],
     title: "Getting started",
   },
   {
     pages: [
-      { href: "/basics", title: "Basics" },
+      { href: "/reading-and-writing", title: "Reading and writing" },
+      { href: "/derived-atoms", title: "Derived atoms" },
+      { href: "/families", title: "Families" },
       { href: "/refs", title: "Refs and scopes" },
       { href: "/lifetimes", title: "Lifetimes" },
       { href: "/browser", title: "Browser atoms" },
