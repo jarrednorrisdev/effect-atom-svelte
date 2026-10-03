@@ -7,7 +7,7 @@ description: Keep typed errors through SvelteKit's error handling, and load data
   import Aside from "#lib/docs/aside.svelte";
 </script>
 
-effect-atom-svelte works in any Svelte 5 app, and SvelteKit 3 needs very little extra. Set Svelte's options in `vite.config.ts` and put a `RegistryProvider` in your root layout, as in [Installation](/installation). This page covers the parts where SvelteKit and Effect meet: errors, data loading and prerendering.
+effect-atom-svelte works in any app on Svelte 5.57 or later, and SvelteKit 3 needs very little extra. Set Svelte's options in `vite.config.ts` and put a `RegistryProvider` in your root layout, as in [Installation](/installation). This page covers the parts where SvelteKit and Effect meet: errors, data loading and prerendering.
 
 ## Errors in boundaries
 
@@ -57,7 +57,7 @@ The two hooks differ in one way:
 - **The client hook** keeps the error's message too.
 - **The server hook** keeps SvelteKit's `"Internal Error"` as the message, because a message from the server can reveal details of it. This applies to `failed` snippets rendered on the server.
 
-Both log the error like SvelteKit's default hooks. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
+Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
 
 <Aside type="tip" title="Your own handleError">
 
@@ -86,7 +86,7 @@ A component can `await` the atoms it needs, and the server render waits for them
 
 ## Prerendering
 
-A page with `export const prerender = true` is rendered once, at build time. Its atoms are computed during the build, and their results are hydrated in the browser as usual, so a prerendered page shows the data from when the site was built until something refreshes it.
+A page with `export const prerender = true` is rendered once, at build time. Its atoms are computed during the build, and the results of serializable atoms awaited with `useAtomResult` or `useAtomSuspense` are hydrated in the browser as usual, so a prerendered page shows the data from when the site was built until something refreshes it.
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build.
 

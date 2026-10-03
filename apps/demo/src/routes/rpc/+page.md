@@ -15,7 +15,7 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
   import todosSource from "./todos.svelte?highlight";
 </script>
 
-If your server speaks [Effect RPC](https://effect.website), `AtomRpc` gives your components its procedures as atoms. A query is an async atom you read, a mutation is an atom you write, and both keep the RPC's typed payloads and errors.
+If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/rpc), `AtomRpc` gives your components its procedures as atoms. A query is an async atom you read, a mutation is an atom you write, and both keep the RPC's typed payloads and errors.
 
 The examples on this page call a small demo server that keeps a todo list.
 

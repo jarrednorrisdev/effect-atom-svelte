@@ -62,13 +62,17 @@ By default the setter returns nothing. Pass a `mode` to get a promise of the res
 
 **Example** (Closing a dialog once the save succeeds)
 
-```ts
-const save = useAtomSet(saveAtom, { mode: "promise" });
+```svelte
+<script lang="ts">
+  const { todo } = $props();
+  let open = $state(true);
+  const save = useAtomSet(saveAtom, { mode: "promise" });
 
-const submit = async () => {
-  await save(todo);
-  open = false;
-};
+  const submit = async () => {
+    await save(todo);
+    open = false;
+  };
+</script>
 ```
 
 The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result. In the live example above, click both buttons within a second: both lines end with `SECOND`.
@@ -94,7 +98,7 @@ setSave(Atom.Interrupt);
 
 ## Refreshing what changed
 
-After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation finishes, every atom tagged with one of those keys runs its effect again.
+After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again.
 
 <Example files={[{ html: notesSource, name: "notes.svelte" }]}> <Notes /> </Example>
 

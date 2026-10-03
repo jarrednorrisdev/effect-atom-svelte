@@ -84,7 +84,7 @@ Without a provider, the browser falls back to a shared default registry, but the
 | --- | --- |
 | `initialValues` | Starting values, as `[atom, value]` pairs. |
 | `defaultIdleTTL` | How long, in milliseconds, an atom nobody reads is kept before it is disposed. |
-| `timeoutResolution` | How precisely, in milliseconds, idle timeouts are checked. Defaults to half of `defaultIdleTTL`. |
+| `timeoutResolution` | How precisely, in milliseconds, idle timeouts are checked. Defaults to half of `defaultIdleTTL` when that is set, otherwise 1000. |
 | `scheduleTask` | How the registry schedules its deferred work. |
 | `registry` | An existing registry to provide instead of creating one. You dispose it yourself. |
 | `revalidateOnHydrate` | Fetch server-rendered async atoms again once the page has hydrated. Off by default. See [Hydration](/hydration#fetching-again-after-hydration). |
@@ -92,5 +92,3 @@ Without a provider, the browser falls back to a shared default registry, but the
 The provider reads its props once. Changing them later doesn't create a new registry.
 
 To provide a registry from a component's script instead of its markup, call `provideRegistry` with the same options. It returns the registry.
-
-Next, [create your first atom](/first-atom).

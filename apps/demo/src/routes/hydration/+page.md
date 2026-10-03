@@ -80,7 +80,7 @@ When several components read the same serializable atom, it is fetched again if 
 
 <Aside type="note" title="Different from @effect/atom-react">
 
-In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how the registry seeds atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, no atom is fetched again unless you set `revalidateOnHydrate`.
+In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, no atom is fetched again unless you set `revalidateOnHydrate`.
 
 </Aside>
 

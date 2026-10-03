@@ -7,7 +7,7 @@ description: What happens to atoms when a page renders on the server, and what t
   import Aside from "#lib/docs/aside.svelte";
 </script>
 
-Rendering on the server sends the browser a page that already shows your data. The hooks work the same on the server as in the browser. Async atoms you `await` are computed during the request, and the page is sent once they have their values. [Hydration](/hydration) then carries those values to the browser, so it doesn't fetch them again.
+Rendering on the server sends the browser a page that already shows your data. The reading hooks work on the server too; hooks that act only after mount, such as `useAtomMount` and `useAtomSubscribe`, do nothing there. Async atoms you `await` are computed during the request, and the page is sent once they have their values. [Hydration](/hydration) then carries those values to the browser, so it doesn't fetch them again.
 
 You don't need `load` functions or server files for this. A component that awaits an atom is enough.
 
@@ -38,7 +38,7 @@ A server render waits for the promises it awaits, and for nothing else. Whether 
 | Read with | On the server |
 | --- | --- |
 | `await useAtomResult(atom)` in the script | Waits for the first result. |
-| `{await useAtomSuspense(atom).current}` in markup | Waits, unless it is inside a `<svelte:boundary>` with a `pending` snippet. |
+| `{await todos.current}` in markup, with `const todos = useAtomSuspense(atom)` in the script | Waits, unless it is inside a `<svelte:boundary>` with a `pending` snippet. |
 | `useAtomSuspense` inside a boundary with `pending` | Renders the `pending` snippet, and leaves the content to the browser. |
 | `useAtomValue(atom)` | Doesn't wait. Renders the current result, usually `Initial`. |
 
@@ -63,7 +63,7 @@ Use a `pending` snippet for content that can arrive later, such as anything belo
 
 ## Server values
 
-Some atoms shouldn't run on the server at all, such as one that reads `localStorage` or follows the window's focus. `Atom.withServerValue` gives the server a value to use instead. On the server, the atom is never computed:
+Some atoms shouldn't run on the server at all, such as one that reads `localStorage` or follows the window's focus. `Atom.withServerValue` gives the server a value to use instead. Read with `useAtomValue` or `useAtom`, the atom is never computed on the server:
 
 **Example** (A window width the server can't know)
 
@@ -78,7 +78,7 @@ const widthAtom = Atom.make((get) => {
 
 Without the server value, reading `window` on the server would throw.
 
-For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. [Browser atoms](/browser) covers browser-only atoms in detail.
+For an async atom, `Atom.withServerValueInitial` makes `useAtomValue` read it as `Initial` on the server. `useAtomResult` and `useAtomSuspense` don't use server values yet: they compute the atom on the server, so read browser-only atoms with `useAtomValue`. [Browser atoms](/browser) covers browser-only atoms in detail.
 
 <Aside type="caution">
 

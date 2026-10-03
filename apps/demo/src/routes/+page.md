@@ -7,7 +7,7 @@ description: Community-built Svelte 5 bindings for Effect Atom.
   import Aside from "#lib/docs/aside.svelte";
 </script>
 
-effect-atom-svelte connects [Effect Atom](https://effect.website) to Svelte 5 components. It is a community project by Jarred Norris: it is not part of Effect, and the Effect team neither makes nor endorses it.
+effect-atom-svelte connects [Effect Atom](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/reactivity) to Svelte 5 components. It is a community project by Jarred Norris: it is not part of Effect, and the Effect team neither makes nor endorses it.
 
 Effect Atom (`effect/reactivity`) keeps your application's state in **atoms**: small reactive values that can hold plain data, be derived from other atoms, or run an `Effect` or a `Stream`. This library gives your components hooks to read and write those atoms, and the pieces you need to render them on the server and pick up where the server left off in the browser.
 
@@ -17,7 +17,7 @@ Its API follows the adapters the Effect team maintains, `@effect/atom-react` and
 
 - **Hooks with a reactive `.current`**, Svelte's convention for reactive values. Read it in markup, assign to it, or `bind:` to it.
 - **Async atoms you can `await`**: `useAtomSuspense` and `useAtomResult` build on Svelte's experimental async support, so pending and failed states go through `<svelte:boundary>`.
-- **Server rendering and hydration**: each request gets its own registry, and values computed on the server travel to the browser, which uses them instead of fetching again.
+- **Server rendering and hydration**: each request gets its own registry, and the results of serializable async atoms awaited on the server travel to the browser, which uses them instead of fetching again.
 - **Effect services in components**: `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
 
 ## Requirements
@@ -35,5 +35,3 @@ effect-atom-svelte is not on npm yet, and its API may change before 0.1.0.
 ## How these docs work
 
 Most pages have a live example. The code under each example is the file that runs on the page, so what you read is what you see working. Some examples talk to a small demo API that serves a todo list over Effect `HttpApi` and Effect RPC. On this site, the demo API runs in your browser tab, so the todos you add last until you reload the page.
-
-Start with [Installation](/installation).

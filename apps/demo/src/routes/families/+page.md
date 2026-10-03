@@ -22,7 +22,7 @@ But you don't have one todo. You have as many as the user creates, and you don't
 A **family** is the fix. Instead of an atom, you write a function that takes an id and returns an atom for it:
 
 ```ts
-const todoAtom = Atom.family((id: number) => Atom.make({ done: false }));
+const todoAtom = Atom.family((id: number) => Atom.make({ done: false, id }));
 
 todoAtom(1); // the atom for todo 1
 todoAtom(2); // the atom for todo 2

@@ -28,7 +28,7 @@ An atom is **mounted** while something holds it. Each of these holds an atom:
 - Another mounted atom that reads it with `get`.
 - A promise from a `"promise"` or `"promiseExit"` setter, until it settles.
 
-When the last of them lets go, the registry disposes of the atom on its next sweep, a moment later. The next read starts from scratch: a writable atom goes back to its initial value, and an async atom runs its effect again.
+When the last of them lets go, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and an async atom runs its effect again.
 
 <Aside type="note" title="On the server">
 

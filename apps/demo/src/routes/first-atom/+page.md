@@ -55,5 +55,3 @@ Every component that reads `countAtom` from the same registry sees the same valu
 When no component reads an atom, the registry disposes of its value, and the next read starts again from `Atom.make`'s initial value. Wrap the atom in `Atom.keepAlive` to keep its value for as long as the registry lives. [Lifetimes](/lifetimes) covers this in detail.
 
 </Aside>
-
-Next, see what else [reading and writing](/reading-and-writing) can do.

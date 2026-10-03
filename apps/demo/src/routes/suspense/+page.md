@@ -146,7 +146,7 @@ Either call such hooks before the first `await`, or wrap the handler in an arrow
 
 ## Following a different atom
 
-Both hooks accept a getter, like every other hook. They then follow whichever atom it returns:
+Both hooks accept a getter, like the other hooks that take an atom. They then follow whichever atom it returns:
 
 - `useAtomSuspense(() => todoAtom(id))` issues a new promise when `id` changes, and the boundary awaits the new atom.
 - `await useAtomResult(() => todoAtom(id))` waits only for the first atom. When `id` changes, `current` moves to the new atom's result, which is usually `Initial` until it loads, and the script's `await` doesn't run again. Use `useAtomSuspense` when a change should wait for the new value.

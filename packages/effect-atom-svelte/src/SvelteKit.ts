@@ -94,7 +94,7 @@ export const handleClientError = (
 /**
  * A server `handleError` hook (`src/hooks.server.ts`) that keeps the `_tag` of errors thrown by
  * your code but not their message, which could expose details of the server to users: the
- * message stays SvelteKit's `"Internal Error"`. It logs errors like SvelteKit's default hook.
+ * message stays SvelteKit's `"Internal Error"`. It logs errors with `console.error`.
  * Server errors reach a boundary's `failed` snippet when it renders on the server.
  *
  * @example

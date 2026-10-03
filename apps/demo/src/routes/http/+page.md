@@ -40,7 +40,7 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 ) {}
 ```
 
-Requests go to paths relative to the page. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there. Use `transformClient` to add things like authentication to every request.
+Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there. Use `transformClient` to add things like authentication to every request.
 
 ## Queries
 

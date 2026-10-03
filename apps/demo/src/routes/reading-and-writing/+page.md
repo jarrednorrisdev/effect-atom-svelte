@@ -89,7 +89,7 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 
 ## Following a different atom
 
-Every hook accepts a function that returns an atom, as well as an atom. The hook then follows whichever atom the function returns, and switches when reactive state it reads changes:
+Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook then follows whichever atom the function returns, and switches when reactive state it reads changes:
 
 ```ts
 let id = $state(1);

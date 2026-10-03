@@ -96,7 +96,7 @@ Writes to the URL are batched, and land half a second after the last change, wit
 
 Switch to another tab and back, and the time changes.
 
-It listens on `window` as soon as it is computed, so on the server it throws. Give it a server value with `Atom.withServerValue`, as the example does. On the server, the atom is then never computed. See [Server rendering](/server-rendering#server-values).
+It listens on `window` as soon as it is computed, so on the server it throws. Give it a server value with `Atom.withServerValue`, as the example does. Read with `useAtomValue`, the atom is then never computed on the server. See [Server rendering](/server-rendering#server-values).
 
 <Aside type="tip" title="Stored values that pick an atom">
 
