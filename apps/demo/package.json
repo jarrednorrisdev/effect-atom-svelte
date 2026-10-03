@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "playwright test"
+    "test": "playwright test && playwright test -c playwright.hosted.config.ts",
+    "deploy": "alchemy deploy --stage prod"
   },
   "dependencies": {
     "@demo/domain": "workspace:*",
@@ -20,7 +21,9 @@
     "effect-atom-svelte": "workspace:*"
   },
   "devDependencies": {
+    "@alchemy.run/frontend-frameworks": "2.0.0-beta.80",
     "@demo/api": "workspace:*",
+    "@effect/platform-bun": "4.0.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@internationalized/date": "^3.12.0",
@@ -32,6 +35,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24",
+    "alchemy": "2.0.0-beta.80",
     "bits-ui": "^2.18.0",
     "cn": "^0.3.0",
     "marked": "^18.0.14",

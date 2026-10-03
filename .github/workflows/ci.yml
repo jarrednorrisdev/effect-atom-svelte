@@ -34,6 +34,36 @@ jobs:
             packages/effect-atom-svelte/.vitest
           retention-days: 7
 
+  deploy:
+    # Deploys the docs site to atom.jarrednorris.dev (apps/demo/alchemy.run.ts) once main passes.
+    # It skips until the Cloudflare secrets exist, so adding them is what puts the site live.
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::No Cloudflare secrets yet, so the docs site was not deployed."
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: actions/checkout@v4
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun install --frozen-lockfile
+      # The site imports the library's build.
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run --cwd packages/effect-atom-svelte build
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run --cwd apps/demo deploy --yes --no-input
+
   changeset:
     # A change to the library should come with a changeset describing it for the changelog.
     if: github.event_name == 'pull_request'

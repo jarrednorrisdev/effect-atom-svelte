@@ -34,6 +34,6 @@ effect-atom-svelte is not on npm yet, and its API may change before 0.1.0.
 
 ## How these docs work
 
-Most pages have a live example. The code under each example is the file that runs on the page, so what you read is what you see working. Some examples talk to a small demo API that serves a todo list over Effect `HttpApi` and Effect RPC.
+Most pages have a live example. The code under each example is the file that runs on the page, so what you read is what you see working. Some examples talk to a small demo API that serves a todo list over Effect `HttpApi` and Effect RPC. On this site, the demo API runs in your browser tab, so the todos you add last until you reload the page.
 
 Start with [Installation](/installation).

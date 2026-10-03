@@ -20,7 +20,11 @@ bun run --cwd apps/demo dev         # in another
 
 ## Docs site
 
-`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/first-atom`). Examples that need the demo API (RPC, HTTP API) cannot be prerendered yet. Search uses Pagefind, which only indexes prerendered pages (`export const prerender = true` in `+page.ts`) and only works in a build (`vite build` then `vite preview`).
+`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/first-atom`). The RPC and HTTP API pages need the demo API, so they are only prerendered in the hosted build. Search uses Pagefind, which only indexes prerendered pages (`export const prerender = true` in `+page.ts`) and only works in a build (`vite build` then `vite preview`).
+
+## Hosting
+
+The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing. The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the visitor's tab and in the build (`src/lib/in-tab-api.ts`), so every page except `/browser`, whose cookie example reads the request, is prerendered. `/browser` is rendered by the site's Worker. `bun run test` also runs `playwright.hosted.config.ts`, which builds the site that way and checks it with no demo API running.
 
 ## Tests
 

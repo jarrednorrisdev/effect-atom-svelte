@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 
 import { test as base } from "@playwright/test";
 
-const demoDir = fileURLToPath(new URL("..", import.meta.url));
+export const demoDir = fileURLToPath(new URL("..", import.meta.url));
 const apiDir = fileURLToPath(new URL("../../demo-api", import.meta.url));
-const viteBin = fileURLToPath(
+export const viteBin = fileURLToPath(
   new URL("../node_modules/vite/bin/vite.js", import.meta.url)
 );
 
@@ -20,7 +20,7 @@ export interface Servers {
 }
 
 /** Starts a server process and resolves once `url` answers, or rejects with its output if it exits. */
-const start = async (
+export const start = async (
   command: string,
   args: readonly string[],
   options: { readonly cwd: string; readonly env: NodeJS.ProcessEnv },

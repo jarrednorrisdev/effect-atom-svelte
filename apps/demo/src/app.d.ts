@@ -5,3 +5,8 @@ declare namespace App {
     tag?: string | undefined;
   }
 }
+
+interface ImportMetaEnv {
+  /** `in-tab` for the hosted build, which runs the demo API in the page (`src/lib/in-tab-api.ts`). */
+  readonly VITE_DEMO_API?: "in-tab";
+}
