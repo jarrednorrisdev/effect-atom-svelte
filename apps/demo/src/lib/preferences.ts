@@ -7,8 +7,9 @@ import { Atom } from "effect/reactivity";
 export const preferencePrefix = "pref-";
 
 /**
- * The request's preference cookies, set by the root layout through `RegistryProvider`'s
- * `initialValues`. Kept alive so the registry never sweeps it and loses the request's values.
+ * The request's preference cookies, set by the root layout through
+ * `RegistryProvider`'s `initialValues`. Kept alive so the registry never sweeps it
+ * and loses the request's values.
  */
 export const preferenceCookiesAtom = Atom.make<
   Readonly<Record<string, string>>
@@ -28,10 +29,18 @@ const readDocumentCookies = (): Map<string, string> => {
 
 const writeDocumentCookie = (name: string, value: string, maxAge: number) => {
   // oxlint-disable-next-line unicorn/no-document-cookie -- the store is the cookie API
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
+  document.cookie = [
+    `${name}=${encodeURIComponent(value)}`,
+    "path=/",
+    `max-age=${maxAge}`,
+    "samesite=lax",
+  ].join("; ");
 };
 
-/** Reads and writes `document.cookie`, so every write reaches the server on the next request. */
+/**
+ * Reads and writes `document.cookie`, so every write reaches the server on the next
+ * request.
+ */
 const documentCookieStore = KeyValueStore.makeStringOnly({
   clear: Effect.sync(() => {
     for (const name of readDocumentCookies().keys()) {
@@ -45,7 +54,10 @@ const documentCookieStore = KeyValueStore.makeStringOnly({
   size: Effect.sync(() => readDocumentCookies().size),
 });
 
-/** Reads the request's cookies. Writes stay in memory: a server render cannot set cookies. */
+/**
+ * Reads the request's cookies. Writes stay in memory: a server render cannot set
+ * cookies.
+ */
 const requestCookieStore = (cookies: Readonly<Record<string, string>>) => {
   const values = new Map(Object.entries(cookies));
   return KeyValueStore.makeStringOnly({
@@ -57,7 +69,10 @@ const requestCookieStore = (cookies: Readonly<Record<string, string>>) => {
   });
 };
 
-/** A `KeyValueStore` runtime for preferences that must be right on the server's first paint. */
+/**
+ * A `KeyValueStore` runtime for preferences that must be right on the server's first
+ * paint.
+ */
 export const cookieStorage = Atom.runtime((get) =>
   Layer.succeed(KeyValueStore.KeyValueStore)(
     browser

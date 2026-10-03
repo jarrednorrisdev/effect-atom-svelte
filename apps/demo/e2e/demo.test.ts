@@ -449,6 +449,24 @@ test("browser atoms: a cookie-backed theme is right in the server's markup", asy
   expect(await errors()).toEqual([]);
 });
 
+test("browser atoms: refreshOnWindowFocus computes again when the tab is shown", async ({
+  page,
+}) => {
+  const html = await serverHtml(page, "/browser");
+  expect(html).toContain('data-testid="last-seen">not yet</output>');
+  await page.goto("/browser");
+  await page.waitForLoadState("networkidle");
+  const lastSeen = page.getByTestId("last-seen");
+  await expect(lastSeen).not.toHaveText("not yet");
+  const first = await lastSeen.textContent();
+  // The time has a one-second resolution.
+  await page.waitForTimeout(1100);
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+  );
+  await expect(lastSeen).not.toHaveText(first ?? "");
+});
+
 test("browser atoms: searchParam drives the URL", async ({ page }) => {
   await page.goto("/browser");
   await page.waitForLoadState("networkidle");

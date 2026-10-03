@@ -95,3 +95,9 @@ const todo = useAtomValue(() => todoAtom(id));
 ```
 
 This is how you read from a [family](/families) of atoms.
+
+## When updates arrive
+
+The hooks subscribe to the registry through Svelte's `createSubscriber`, and only while something reactive reads `current`. A write from an event handler updates every reader in the same tick, so `count.current += 1` followed by a read of `doubled.current` sees the new value.
+
+A change that happens while Svelte is evaluating markup or a `$derived` (when reading one atom makes the registry compute another, for example) is delivered on a microtask instead. Svelte doesn't allow state to change during that evaluation.

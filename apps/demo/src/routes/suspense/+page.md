@@ -150,3 +150,11 @@ Both hooks accept a getter, like every other hook. They then follow whichever at
 
 - `useAtomSuspense(() => todoAtom(id))` issues a new promise when `id` changes, and the boundary awaits the new atom.
 - `await useAtomResult(() => todoAtom(id))` waits only for the first atom. When `id` changes, `current` moves to the new atom's result, which is usually `Initial` until it loads, and the script's `await` doesn't run again. Use `useAtomSuspense` when a change should wait for the new value.
+
+<Aside type="note" title="Abandoned reads let go">
+
+When a getter moves to another atom while the old one is still loading, or the component is destroyed, the old wait stops holding its atom. The registry then disposes of the atom and interrupts its request. The abandoned promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
+
+A promise from `useAtomSuspense` that you await outside markup, `$derived` or `$effect`, such as at the top level of the script or in an event handler, is held until the component is destroyed.
+
+</Aside>

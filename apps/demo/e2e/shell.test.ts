@@ -105,11 +105,12 @@ test.describe("docs shell", () => {
     await page.waitForLoadState("networkidle");
     await page.keyboard.press("Control+k");
     const dialog = page.getByRole("dialog");
-    await dialog.getByPlaceholder("Search the docs").fill("updater");
-    const result = dialog.getByRole("option").filter({ hasText: "updater" });
+    // A word only one page uses, so the match does not depend on ranking or excerpts.
+    await dialog.getByPlaceholder("Search the docs").fill("Fahrenheit");
+    const result = dialog.getByRole("option").filter({ hasText: "Fahrenheit" });
     await expect(result.first()).toBeVisible();
     await result.first().click();
-    await expect(page).toHaveURL(/\/reading-and-writing(?:#.*)?$/u);
+    await expect(page).toHaveURL(/\/derived-atoms(?:#.*)?$/u);
     await expect(dialog).toBeHidden();
   });
 
