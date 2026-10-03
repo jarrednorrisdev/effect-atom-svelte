@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-import { Atom, AtomRegistry } from "effect/reactivity";
+import { Effect, Schema } from "effect";
+import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -9,6 +9,7 @@ import {
   useAtomSuspense,
   useAtomValue,
 } from "../src/index.ts";
+import type { AtomValue } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
@@ -22,6 +23,17 @@ const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
 
 const delayed = <A>(value: A, millis = 50) =>
   Atom.make(Effect.succeed(value).pipe(Effect.delay(`${millis} millis`)));
+
+/** An async atom whose value counts how often it has run. */
+const counter = () => {
+  let calls = 0;
+  return Atom.make(
+    Effect.sync(() => {
+      calls += 1;
+      return calls;
+    }).pipe(Effect.delay("50 millis"))
+  );
+};
 
 const slowMillis = 100;
 /** Long enough for a slow atom's request to have finished, had it not been interrupted. */
@@ -39,6 +51,19 @@ const slowFamily = (log: string[]) =>
       }).pipe(Effect.delay(`${slowMillis} millis`));
     })
   );
+
+/** `slowFamily`, with each atom serializable, as `AtomRpc` and `AtomHttpApi` queries are. */
+const slowSerializableFamily = (log: string[]) => {
+  const slow = slowFamily(log);
+  return Atom.family((name: string) =>
+    slow(name).pipe(
+      Atom.serializable({
+        key: `slow-${name}`,
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    )
+  );
+};
 
 /** Unmounts while slow atom "a" is loading, and checks it is disposed without finishing. */
 const expectUnmountInterrupts = async (
@@ -293,6 +318,21 @@ describe("useAtomSuspense", () => {
     await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
   });
 
+  test("a serializable atom awaited in the script is interrupted on unmount (JND-57)", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowSerializableFamily(log);
+    const screen = await render(ToggleScriptAwait, {
+      registry,
+      setup: async () => {
+        const value = useAtomSuspense(slow("a"));
+        return await value.current;
+      },
+      show: true,
+    });
+    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+  });
+
   test("a settled promise is reused after its readers go away", async () => {
     const registry = AtomRegistry.make();
     const promises: Promise<unknown>[] = [];
@@ -314,9 +354,59 @@ describe("useAtomSuspense", () => {
     await expect.poll(text(screen)).toBe("toggle a");
     expect(promises.at(-1)).toBe(shown);
   });
+
+  test("suspendOnWaiting makes a refresh's promise wait for the new value (JND-57)", async () => {
+    const registry = AtomRegistry.make();
+    const atom = counter();
+    let plain!: AtomValue<Promise<number>>;
+    let waiting!: AtomValue<Promise<number>>;
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        plain = useAtomSuspense(atom);
+        waiting = useAtomSuspense(atom, { suspendOnWaiting: true });
+        return () => waiting.current;
+      },
+    });
+    await expect.poll(text(screen)).toBe("1");
+    registry.refresh(atom);
+    expect(await Promise.all([plain.current, waiting.current])).toEqual([1, 2]);
+    await expect.poll(text(screen)).toBe("2");
+  });
 });
 
 describe("useAtomResult", () => {
+  test("suspendOnWaiting makes the first await wait for a refresh in progress (JND-57)", async () => {
+    const registry = AtomRegistry.make();
+    const atom = counter();
+    const release = registry.mount(atom);
+    const current = () => {
+      const result = registry.get(atom);
+      if (result._tag !== "Success") {
+        return result._tag;
+      }
+      return result.waiting ? `${result.value} waiting` : String(result.value);
+    };
+    await expect.poll(current).toBe("1");
+    registry.refresh(atom);
+    expect(current()).toBe("1 waiting");
+    const show = (suspendOnWaiting: boolean) =>
+      render(ToggleScriptAwait, {
+        registry,
+        setup: async () => {
+          const result = await useAtomResult(atom, { suspendOnWaiting });
+          const { current: first } = result;
+          return first._tag === "Success" ? first.value : first._tag;
+        },
+        show: true,
+      });
+    const [plain, waiting] = await Promise.all([show(false), show(true)]);
+    await expect.poll(text(plain)).toBe("1");
+    await expect.poll(text(waiting)).toBe("2");
+    release();
+  });
+
   test("hooks can be called between top-level awaits in a component script", async () => {
     const screen = await render(SequentialAwaits, {
       first: delayed("one", 30),
@@ -410,6 +500,21 @@ describe("useAtomResult", () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];
     const slow = slowFamily(log);
+    const screen = await render(ToggleScriptAwait, {
+      registry,
+      setup: async () => {
+        const result = await useAtomResult(slow("a"));
+        return result.current._tag;
+      },
+      show: true,
+    });
+    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+  });
+
+  test("unmounting before a serializable atom's first result interrupts it (JND-57)", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowSerializableFamily(log);
     const screen = await render(ToggleScriptAwait, {
       registry,
       setup: async () => {

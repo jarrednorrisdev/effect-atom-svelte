@@ -450,16 +450,16 @@ describe("seeding after client-side navigation", () => {
     await expect.poll(text(screen)).toBe("2");
   });
 
-  test("leaving before the first fetch lands, then coming back, fetches again", async () => {
+  test("leaving before the first fetch lands interrupts it, and coming back fetches again", async () => {
     const registry = AtomRegistry.make();
     const { options, screen: rendering } = renderCounted(registry, false);
     const screen = await rendering;
     await screen.rerender({ show: false });
-    // Long enough for the fetch to land and the node to be swept.
+    // Long enough for the fetch to have landed, had it not been interrupted (JND-57).
     await sleep(`${fetchMillis + 50} millis`);
     expect(registry.getNodes().has("fetches")).toBe(false);
     options.read = true;
     await screen.rerender({ show: true });
-    await expect.poll(text(screen)).toBe("2");
+    await expect.poll(text(screen)).toBe("1");
   });
 });

@@ -7,7 +7,7 @@ import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
 import { BROWSER } from "esm-env";
-import { getAbortSignal, hydratable, onDestroy } from "svelte";
+import { getAbortSignal, hydratable, onDestroy, untrack } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
 import { revalidatesOnHydrate } from "./internal/hydration.ts";
@@ -298,7 +298,7 @@ export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
  */
 export function useAtomSet<R, W>(
   input: AtomInput<Atom.Writable<R, W>>,
-  options?: { readonly mode?: "value" }
+  options?: { readonly mode?: "value" | undefined }
 ): (value: W | ((current: R) => W)) => void;
 export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
@@ -308,9 +308,16 @@ export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
   options: { readonly mode: "promiseExit" }
 ): (value: W, options?: WriteOptions) => Promise<Exit.Exit<A, E>>;
+export function useAtomSet<A, E, W>(
+  input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
+  options?: { readonly mode?: WriteMode | undefined }
+): (
+  value: W,
+  options?: WriteOptions
+) => undefined | Promise<A> | Promise<Exit.Exit<A, E>>;
 export function useAtomSet(
   input: AtomInput<Atom.Writable<unknown, unknown>>,
-  options?: { readonly mode?: WriteMode }
+  options?: { readonly mode?: WriteMode | undefined }
 ) {
   const registry = getRegistry();
   const getAtom = toGetter(input);
@@ -371,11 +378,17 @@ export const useAtomRefresh = (
 export const useAtomSubscribe = <A>(
   input: AtomInput<Atom.Atom<A>>,
   f: (value: A) => void,
-  options?: { readonly immediate?: boolean }
+  options?: { readonly immediate?: boolean | undefined }
 ): void => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  $effect(() => registry.subscribe(getAtom(), f, options));
+  $effect(() => {
+    const atom = getAtom();
+    // `immediate` calls `f` now, inside this effect; what `f` reads must not re-run it.
+    return untrack(() =>
+      registry.subscribe(atom, f, { immediate: options?.immediate === true })
+    );
+  });
 };
 
 /**
@@ -611,12 +624,14 @@ const seedFromServer = (
     throw new Error(`Two different atoms share the serialization key "${key}"`);
   }
   if (!entry) {
-    // hydratable runs this only when it has no value from the server, as after client-side navigation.
+    // hydratable runs this only when it has no value from the server, as after client-side
+    // navigation. It fetches nothing: the hook fetches the atom itself, with a wait that is
+    // interrupted when the component goes away (JND-57). A wait here would hold the atom until
+    // its request finished.
     let computedHere = false;
-    const encoded = hydratable(key, async () => {
+    const encoded = hydratable(key, (): unknown => {
       computedHere = true;
-      await awaitResult(registry, atom);
-      return encode(registry.get(atom));
+      return undefined;
     });
     let holders = 0;
     let revalidating = 0;
@@ -744,7 +759,11 @@ export const useAtomResult = async <A, E>(
  * @category models
  */
 export interface SuspenseOptions {
-  /** Treat a refreshing result as pending, so `await` shows the boundary's pending state again. */
+  /**
+   * Treat a refreshing result as pending, so `await` waits for the refreshed value instead of
+   * resolving with the current one. The boundary keeps showing its content meanwhile; use
+   * `$effect.pending()` to show progress.
+   */
   readonly suspendOnWaiting?: boolean | undefined;
   /** Resolve with the Success or Failure result instead of the value, rather than rejecting. */
   readonly includeFailure?: boolean | undefined;
@@ -874,6 +893,12 @@ export function useAtomSuspense<A, E>(
   input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options: SuspenseOptions & { readonly includeFailure: true }
 ): AtomValue<Promise<AsyncResult.Success<A, E> | AsyncResult.Failure<A, E>>>;
+export function useAtomSuspense<A, E>(
+  input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
+  options?: SuspenseOptions & { readonly includeFailure?: boolean | undefined }
+): AtomValue<
+  Promise<A | AsyncResult.Success<A, E> | AsyncResult.Failure<A, E>>
+>;
 export function useAtomSuspense<A, E>(
   input: AtomInput<Atom.Atom<AsyncResult.AsyncResult<A, E>>>,
   options: SuspenseOptions = {}

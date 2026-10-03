@@ -19,6 +19,7 @@ import {
 import Harness from "./fixtures/harness.svelte";
 import Run from "./fixtures/run.svelte";
 import Toggle from "./fixtures/toggle.svelte";
+import { sleep } from "./helpers.ts";
 
 const output = (screen: Awaited<ReturnType<typeof render>>) =>
   screen.locator.getByRole("status");
@@ -304,6 +305,33 @@ describe("mounting and lifecycle", () => {
     registry.set(atom, 2);
     registry.set(atom, 3);
     await expect.poll(() => seen).toEqual([1, 2, 3]);
+  });
+
+  test("useAtomSubscribe's immediate call does not track what the callback reads (JND-57)", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(1);
+    const other = Atom.make("x");
+    const seen: string[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        const label = useAtomValue(other);
+        useAtomSubscribe(
+          atom,
+          (value) => seen.push(`${value}${label.current}`),
+          {
+            immediate: true,
+          }
+        );
+        return () => label.current;
+      },
+    });
+    await expect.poll(() => seen).toEqual(["1x"]);
+    registry.set(other, "y");
+    await sleep("50 millis");
+    expect(seen).toEqual(["1x"]);
+    registry.set(atom, 2);
+    await expect.poll(() => seen).toEqual(["1x", "2y"]);
   });
 
   test("useAtomInitialValues applies once per registry", async () => {
