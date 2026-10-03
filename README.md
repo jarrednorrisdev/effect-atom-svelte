@@ -1,13 +1,13 @@
 # effect-atom-svelte
 
-Svelte 5 bindings for Effect Atom, with a demo app and tests. The library and its documentation are in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md).
+Svelte 5 bindings for Effect Atom, with a docs site and tests. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`.
 
 | Path | What |
 | --- | --- |
 | `packages/effect-atom-svelte` | The library. |
 | `packages/demo-domain` | A todo domain served over Effect `HttpApi` and Effect RPC from one store. |
 | `apps/demo-api` | The demo domain on Bun, at `:3010`. |
-| `apps/demo` | An async-first SvelteKit 3 app with a page per feature, at `:5180`. |
+| `apps/demo` | The docs site: a SvelteKit 3 app with a guide, live examples and the API reference, at `:5180`. |
 
 ```sh
 bun install
@@ -24,7 +24,7 @@ bun run --cwd apps/demo dev         # in another
 
 ## Tests
 
-`bun run test` runs the library's Vitest suite and the demo's Playwright suite, both in Chromium, Firefox and WebKit (install them once with `bunx playwright install chromium firefox webkit`). To run one engine: `bunx vitest run --project "browser (firefox)"` or `bunx playwright test --project firefox`. Turbo caches results, so an unchanged package replays its last result; a cached pass is trustworthy, and `--force` should not be needed.
+`bun run test` runs the library's Vitest suite, which drives real `AtomRpc` and `AtomHttpApi` clients against `@demo/domain`'s server in-process, and the demo's Playwright suite, both in Chromium, Firefox and WebKit (install them once with `bunx playwright install chromium firefox webkit`). To run one engine: `bunx vitest run --project "browser (firefox)"` or `bunx playwright test --project firefox`. Turbo caches results, so an unchanged package replays its last result; a cached pass is trustworthy, and `--force` should not be needed.
 
 The Playwright suite builds the demo once, then gives each worker its own demo API (`:3100` up, no latency) and `vite preview` server (`:5200` up), and resets the API's store before every test. Tests share no state, so they run in parallel and in any order. To run one: `cd apps/demo && bunx playwright test -g "<name>"`. Rebuild the library first (`bun run --cwd packages/effect-atom-svelte build`) if you changed it.
 

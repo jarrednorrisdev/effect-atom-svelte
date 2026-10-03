@@ -23,7 +23,7 @@ On the server, `RegistryProvider` creates a fresh registry for each request. Eve
 
 During the render, the hooks hold every atom they read, so nothing is disposed while the render is waiting on something else. When the render ends, the provider disposes of the registry: effects are interrupted and finalizers run.
 
-If you pass your own registry to `RegistryProvider` with `registry`, it outlives the request. The hooks release the atoms the request read, but the registry itself stays for you to dispose of.
+If you pass your own registry to `RegistryProvider` with `registry`, it outlives the request. The hooks release the atoms the request read, but the registry itself stays for you to dispose of. Each request still sends the browser only its own [hydration](/hydration) results.
 
 <Aside type="caution" title="State outside the registry is shared">
 

@@ -6,7 +6,7 @@
   import { listFor } from "./seeded-list.ts";
 
   interface Props {
-    /** Keep the server's choice until mounted, the fix the README recommends. */
+    /** Keep the server's choice until mounted, the fix the Hydration docs page recommends. */
     readonly afterMount: boolean;
   }
 

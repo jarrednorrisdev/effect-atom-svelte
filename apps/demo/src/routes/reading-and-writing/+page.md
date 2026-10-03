@@ -19,6 +19,8 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
+The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomSubscribe` and `useAtomInitialValues`.
+
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]}> <ReadingAndWriting /> </Example>
 
 ## Reading
