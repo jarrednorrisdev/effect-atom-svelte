@@ -48,16 +48,7 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
   return browserRegistry;
 };
 
-/**
- * Options for `provideRegistry` and `RegistryProvider` beyond those of `AtomRegistry.make`.
- *
- * @stability unstable
- * @since 0.1.0
- * @category models
- */
-export interface ProvideRegistryOptions extends RegistryOptions {
-  /** An existing registry to provide instead of creating one. */
-  readonly registry?: AtomRegistry.AtomRegistry | undefined;
+interface ProvideRegistryCommon {
   /**
    * Fetch server-rendered async atoms again once hydration is done. Defaults to `false`: the
    * server's value is milliseconds old. Children inherit it; the async hooks' own option overrides
@@ -65,6 +56,47 @@ export interface ProvideRegistryOptions extends RegistryOptions {
    */
   readonly revalidateOnHydrate?: boolean | undefined;
 }
+
+/**
+ * Provides a registry made elsewhere. The `AtomRegistry.make` options apply only to a registry the
+ * provider creates, so they are not accepted here.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface ProvideExistingRegistry extends ProvideRegistryCommon {
+  /** An existing registry to provide instead of creating one. The caller disposes it. */
+  readonly registry: AtomRegistry.AtomRegistry;
+  readonly initialValues?: undefined;
+  readonly scheduleTask?: undefined;
+  readonly timeoutResolution?: undefined;
+  readonly defaultIdleTTL?: undefined;
+}
+
+/**
+ * Creates a registry with the `AtomRegistry.make` options, owned by the component.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface ProvideNewRegistry
+  extends RegistryOptions, ProvideRegistryCommon {
+  readonly registry?: undefined;
+}
+
+/**
+ * Options for `provideRegistry` and `RegistryProvider`: an existing `registry`, or the options for
+ * a new one, not both (JND-61).
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export type ProvideRegistryOptions =
+  | ProvideExistingRegistry
+  | ProvideNewRegistry;
 
 /**
  * Puts a registry in context for this component and its children.
@@ -80,10 +112,29 @@ export const provideRegistry = (
   options: ProvideRegistryOptions = {}
 ): AtomRegistry.AtomRegistry => {
   const {
+    defaultIdleTTL,
+    initialValues,
     registry: provided,
     revalidateOnHydrate,
-    ...registryOptions
+    scheduleTask,
+    timeoutResolution,
   } = options;
+  // Picked one by one, as RegistryProvider passes its props here, children included.
+  const registryOptions: RegistryOptions = {
+    defaultIdleTTL,
+    initialValues,
+    scheduleTask,
+    timeoutResolution,
+  };
+  if (
+    provided &&
+    Object.values(registryOptions).some((value) => value !== undefined)
+  ) {
+    // The types rule this out; a caller without them would otherwise lose the options silently.
+    throw new Error(
+      "provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself."
+    );
+  }
   const registry = provided ?? AtomRegistry.make(registryOptions);
   setContextRegistry(registry);
   if (revalidateOnHydrate !== undefined) {

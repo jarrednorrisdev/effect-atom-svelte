@@ -10,14 +10,13 @@
   import { provideRegistry } from "./RegistryContext.ts";
   import type { ProvideRegistryOptions } from "./RegistryContext.ts";
 
-  interface Props extends ProvideRegistryOptions {
-    readonly children: Snippet;
-  }
+  type Props = ProvideRegistryOptions & { readonly children: Snippet };
 
-  const { children, ...options }: Props = $props();
+  const props: Props = $props();
   // Props are read once: a registry is created for the provider's lifetime, not per prop change.
+  // provideRegistry passes on only the options it knows, so `children` is ignored there.
   // svelte-ignore state_referenced_locally
-  provideRegistry(options);
+  provideRegistry(props);
 </script>
 
-{@render children()}
+{@render props.children()}

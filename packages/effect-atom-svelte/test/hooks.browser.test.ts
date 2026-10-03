@@ -6,6 +6,7 @@ import { render } from "vitest-browser-svelte";
 import {
   ScopedAtom,
   getRegistry,
+  provideRegistry,
   useAtom,
   useAtomInitialValues,
   useAtomMount,
@@ -16,7 +17,7 @@ import {
   useAtomSubscribe,
   useAtomValue,
 } from "../src/index.ts";
-import type { AtomState } from "../src/index.ts";
+import type { AtomState, ProvideRegistryOptions } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
@@ -504,6 +505,25 @@ describe("RegistryProvider", () => {
     await expect.element(output(screen)).toHaveTextContent("1");
     registry.set(atom, 2);
     await expect.element(output(screen)).toHaveTextContent("2");
+  });
+
+  test("rejects an existing registry together with options for a new one (JND-61)", async () => {
+    const atom = Atom.make(1);
+    const screen = await render(Harness, {
+      setup: () => {
+        // A caller without types could pass both; the options would be lost.
+        provideRegistry({
+          initialValues: [[atom, 5]],
+          registry: AtomRegistry.make(),
+        } as unknown as ProvideRegistryOptions);
+        return () => "unreachable";
+      },
+    });
+    await expect
+      .element(output(screen))
+      .toHaveTextContent(
+        "failed: provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself."
+      );
   });
 
   test("creates a registry from its options and releases its atoms on unmount", async () => {

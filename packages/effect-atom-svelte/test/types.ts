@@ -3,10 +3,15 @@
  * component, so each check is a function that is never called.
  */
 import type { Exit } from "effect";
-import type { AsyncResult, Atom } from "effect/reactivity";
+import type { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { expectTypeOf } from "vitest";
 
-import { useAtomSet, useAtomSubscribe, useAtomSuspense } from "../src/index.ts";
+import {
+  provideRegistry,
+  useAtomSet,
+  useAtomSubscribe,
+  useAtomSuspense,
+} from "../src/index.ts";
 import type { AtomValue, WriteMode } from "../src/index.ts";
 
 declare const count: Atom.Writable<number>;
@@ -15,6 +20,7 @@ declare const save: Atom.Writable<
   number
 >;
 declare const query: Atom.Atom<AsyncResult.AsyncResult<string, Error>>;
+declare const registry: AtomRegistry.AtomRegistry;
 
 // Options typed as wider values, or explicitly undefined, are accepted under
 // exactOptionalPropertyTypes (JND-57).
@@ -36,4 +42,12 @@ export const optionTypes = (mode: WriteMode, includeFailure: boolean) => {
     >
   >();
   useAtomSubscribe(count, () => undefined, { immediate: undefined });
+};
+
+// The AtomRegistry.make options apply only to a registry the provider creates (JND-61).
+export const providerOptions = () => {
+  provideRegistry({ registry, revalidateOnHydrate: true });
+  provideRegistry({ initialValues: [[count, 1]], revalidateOnHydrate: true });
+  // @ts-expect-error -- an existing registry takes no options for a new one
+  provideRegistry({ initialValues: [[count, 1]], registry });
 };

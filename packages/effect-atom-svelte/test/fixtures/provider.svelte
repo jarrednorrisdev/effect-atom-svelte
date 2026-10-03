@@ -4,13 +4,11 @@
   import { RegistryProvider } from "../../src/index.ts";
   import Run from "./run.svelte";
 
-  interface Props extends ProvideRegistryOptions {
-    readonly setup: () => unknown;
-  }
+  type Props = ProvideRegistryOptions & { readonly setup: () => unknown };
 
-  const { setup, ...options }: Props = $props();
+  const props: Props = $props();
 </script>
 
-<RegistryProvider {...options}>
-  <Run {setup} />
+<RegistryProvider {...props}>
+  <Run setup={props.setup} />
 </RegistryProvider>

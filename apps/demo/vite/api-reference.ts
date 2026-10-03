@@ -138,13 +138,18 @@ const readComponent = async (file: string) => {
     /<script lang="ts">(?<body>[\s\S]*?)<\/script>/u.exec(text)?.groups?.body ??
     "";
   const source = ts.createSourceFile(file, script, ts.ScriptTarget.Latest);
+  // An interface, or a type alias when the props are a union, as RegistryProvider's are.
   const props = source.statements.find(
-    (statement): statement is ts.InterfaceDeclaration =>
-      ts.isInterfaceDeclaration(statement) && statement.name.text === "Props"
+    (
+      statement
+    ): statement is ts.InterfaceDeclaration | ts.TypeAliasDeclaration =>
+      (ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement)) &&
+      statement.name.text === "Props"
   );
   if (comment === undefined || props === undefined) {
     throw new Error(
-      `${file}: a component needs an @component comment and a Props interface`
+      `${file}: a component needs an @component comment and a Props type`
     );
   }
   return {
