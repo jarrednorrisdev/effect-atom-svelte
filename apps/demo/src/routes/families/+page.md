@@ -11,24 +11,57 @@ description: Create one atom per key, and follow the one your component needs.
   import source from "./tallies.svelte?highlight";
 </script>
 
-Some state comes in many copies: a todo per id, a page of results per query, a draft per document. A **family** is a function from a key to an atom. It creates the atom for a key the first time you ask for it, and returns that same atom every time after.
+Say you're building a todo app, and each todo needs its own piece of state. With one todo, you'd write one atom:
+
+```ts
+const todoAtom = Atom.make({ done: false });
+```
+
+But you don't have one todo. You have as many as the user creates, and you don't know their ids while you're writing the code. You can't write an atom for each one by hand.
+
+A **family** is the fix. Instead of an atom, you write a function that takes an id and returns an atom for it:
+
+```ts
+const todoAtom = Atom.family((id: number) => Atom.make({ done: false }));
+
+todoAtom(1); // the atom for todo 1
+todoAtom(2); // the atom for todo 2
+```
+
+The family remembers the atoms it has made. The first time you call `todoAtom(1)`, it creates todo 1's atom. Every call after that returns that same atom. So if a list and a details panel both call `todoAtom(1)`, they share one piece of state: tick the todo in one place and it's ticked in the other.
+
+The value you pass in (here, the id) is called the **key**. It can be any value that identifies the thing: an id, a search query, a document name.
+
+Try it below. The family makes one counter per fruit, so the fruit's name is the key. Pick a fruit and count: only that fruit's total changes, because each fruit has its own atom.
 
 <Example files={[{ html: source, name: "tallies.svelte" }]}> <Tallies /> </Example>
 
-## Creating a family
+## New keys make new atoms
 
-Wrap a function that builds an atom in `Atom.family`:
+You never register keys with a family or create their atoms yourself. The function you pass to `Atom.family` is a recipe: the family runs it the first time it sees a key, and keeps the atom it returns.
 
-**Example** (A todo atom per id)
+So when the user adds a new todo, there's nothing to set up. Call the family with the new id, and the atom exists from then on:
+
+**Example** (A todo the family hasn't seen yet)
 
 ```ts
 import { Atom } from "effect/reactivity";
 
-const todoAtom = Atom.family((id: number) => Atom.make({ done: false, id }));
+const todoAtom = Atom.family((id: number) => {
+  console.log(`creating the atom for todo ${id}`);
+  return Atom.make({ done: false, id });
+});
 
-todoAtom(1) === todoAtom(1); // true
-todoAtom(1) === todoAtom(2); // false
+todoAtom(3); // logs "creating the atom for todo 3"
+todoAtom(3); // logs nothing: todo 3 already has its atom
+
+todoAtom(3) === todoAtom(3); // true, the same atom
+todoAtom(3) === todoAtom(4); // false, todo 4 gets its own
 ```
+
+The recipe receives the key, so each new atom can start from a value based on it. Here every todo's atom starts with its own `id`.
+
+### Which keys count as the same
 
 Keys are compared with Effect's structural equality, so objects and arrays with the same contents give the same atom:
 
@@ -40,7 +73,7 @@ const draftAtom = Atom.family(
 draftAtom({ doc: 1, lang: "en" }) === draftAtom({ doc: 1, lang: "en" }); // true
 ```
 
-A family holds its atoms through weak references, where the platform supports them, so an atom nothing refers to any more can be garbage collected.
+A family holds its atoms through weak references, where the platform supports them, so an atom nothing refers to any more can be garbage collected. If that happens, the next call with that key runs the recipe again and makes a fresh atom.
 
 ## Reading from a family
 
