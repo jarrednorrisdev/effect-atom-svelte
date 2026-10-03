@@ -152,6 +152,28 @@ test.describe("RPC page", () => {
       "TodoNotFound"
     );
   });
+
+  test("a streaming RPC pulls to the end", async ({ page }) => {
+    await page.goto("/rpc");
+    await page.waitForLoadState("networkidle");
+    const ticks = page.getByTestId("ticks");
+    const pull = page.getByRole("button", { name: "Pull next" });
+    // HTTP RPC has no acks, so the server streams ahead and a pull takes every item that has
+    // arrived since the last one, the first pull included. Each must add items in order.
+    const done = "0, 1, 2, 3, 4 (done)";
+    await expect(ticks).toHaveText(/^0/u);
+    let shown = (await ticks.textContent()) ?? "";
+    expect(done.startsWith(shown.replace(" (done)", ""))).toBe(true);
+    for (let click = 0; click < 5 && shown !== done; click += 1) {
+      await pull.click();
+      await expect(ticks).not.toHaveText(shown);
+      const next = (await ticks.textContent()) ?? "";
+      expect(next.startsWith(shown), `${next} extends ${shown}`).toBe(true);
+      expect(done.startsWith(next.replace(" (done)", ""))).toBe(true);
+      shown = next;
+    }
+    expect(shown).toBe(done);
+  });
 });
 
 test.describe("HTTP API page", () => {
@@ -327,29 +349,32 @@ test("mutations: reactivity keys refresh the list, optimistic updates show at on
   await expect(notes).toHaveText(["Read the docs", "Plain", "Quick"]);
 });
 
-test("streams: a stream atom ticks and a streaming RPC pulls to the end", async ({
+test("streams: a stream atom ticks, and a pull atom loads page by page", async ({
   page,
 }) => {
   await page.goto("/streams");
   await expect(page.getByTestId("clock")).toHaveText(/^[1-9]/u, {
     timeout: 3000,
   });
-  const ticks = page.getByTestId("ticks");
-  await expect(ticks).toHaveText("0");
-  const pull = page.getByRole("button", { name: "Pull next" });
-  // HTTP RPC has no acks, so the server streams ahead and a pull takes every item that has
-  // arrived since the last one. Each click must add items in order, not exactly one.
-  const done = "0, 1, 2, 3, 4 (done)";
-  let shown = "0";
-  for (let click = 0; click < 5 && shown !== done; click += 1) {
-    await pull.click();
-    await expect(ticks).not.toHaveText(shown);
-    const next = (await ticks.textContent()) ?? "";
-    expect(next.startsWith(shown), `${next} extends ${shown}`).toBe(true);
-    expect(done.startsWith(next.replace(" (done)", ""))).toBe(true);
-    shown = next;
-  }
-  expect(shown).toBe(done);
+  const fruit = page.getByTestId("fruit");
+  await expect(fruit).toHaveText("apple, banana, cherry");
+  const more = page.getByRole("button", { name: "Load more" });
+  await more.click();
+  await expect(fruit).toHaveText(
+    "apple, banana, cherry, damson, elderberry, fig"
+  );
+  await more.click();
+  await expect(fruit).toHaveText(
+    "apple, banana, cherry, damson, elderberry, fig, grape"
+  );
+  // The pull atom learns the stream has ended only on the next pull, which brings no items.
+  await more.click();
+  await expect(
+    page.getByRole("button", { name: "No more fruit" })
+  ).toBeDisabled();
+  await expect(fruit).toHaveText(
+    "apple, banana, cherry, damson, elderberry, fig, grape"
+  );
 });
 
 test("refs and scopes: AtomRef updates and scoped atoms stay separate", async ({

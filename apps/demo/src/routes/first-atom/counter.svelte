@@ -15,7 +15,11 @@
 
 <p>
   {label}:
-  <button aria-label="{label}: decrement" onclick={() => (count.current -= 1)}>−</button>
+  <button aria-label="{label}: decrement" onclick={() => (count.current -= 1)}>
+    −
+  </button>
   <output>{count.current}</output>
-  <button aria-label="{label}: increment" onclick={() => (count.current += 1)}>+</button>
+  <button aria-label="{label}: increment" onclick={() => (count.current += 1)}>
+    +
+  </button>
 </p>

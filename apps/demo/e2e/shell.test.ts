@@ -30,14 +30,17 @@ test.describe("docs shell", () => {
     await page.waitForLoadState("networkidle");
     const toc = page.getByRole("navigation", { name: "On this page" });
     await expect(toc.getByRole("link")).toHaveText([
-      "Query, rendered on the server",
-      "Mutation with reactivity keys and a typed error",
-      "Query family",
+      "Defining the client",
+      "Queries",
+      "Following arguments",
+      "Mutations",
+      "Streaming procedures",
+      "Calling the client yourself",
     ]);
-    await toc.getByRole("link", { name: "Query family" }).click();
-    await expect(page).toHaveURL(/#query-family$/u);
+    await toc.getByRole("link", { name: "Streaming procedures" }).click();
+    await expect(page).toHaveURL(/#streaming-procedures$/u);
     await expect(
-      page.getByRole("heading", { name: "Query family" })
+      page.getByRole("heading", { name: "Streaming procedures" })
     ).toBeInViewport();
   });
 

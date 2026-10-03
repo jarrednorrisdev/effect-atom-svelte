@@ -28,7 +28,11 @@
 </script>
 
 <p>
-  <label>°C <input bind:value={celsius.current} data-testid="celsius" type="number" /></label>
-  <label>°F <input bind:value={fahrenheit.current} data-testid="fahrenheit" type="number" /></label>
+  <label>
+    °C <input bind:value={celsius.current} data-testid="celsius" type="number" />
+  </label>
+  <label>
+    °F <input bind:value={fahrenheit.current} data-testid="fahrenheit" type="number" />
+  </label>
 </p>
 <p>It feels <output data-testid="feel">{feel.current}</output>.</p>
