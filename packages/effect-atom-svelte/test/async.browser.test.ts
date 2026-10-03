@@ -16,7 +16,7 @@ import StateGetter from "./fixtures/state-getter.svelte";
 import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
-import { sleep } from "./helpers.ts";
+import { repeat, sleep } from "./helpers.ts";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
   screen.container.textContent?.trim();
@@ -524,5 +524,57 @@ describe("useAtomResult", () => {
       show: true,
     });
     await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+  });
+});
+
+/** A serializable async atom; a new object on every call, as when a component creates it. */
+const keyed = (key: string, value: string) =>
+  Atom.make(Effect.succeed(value)).pipe(
+    Atom.serializable({
+      key,
+      schema: AsyncResult.Schema({ success: Schema.String }),
+    })
+  );
+
+describe("serialization keys in the browser (JND-60)", () => {
+  test("an atom created per mount can reuse its key once the last one is gone", async () => {
+    const registry = AtomRegistry.make();
+    let mounts = 0;
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        mounts += 1;
+        const value = useAtomSuspense(keyed("per-mount", `mount ${mounts}`));
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.poll(text(screen)).toBe("mount 1");
+    await repeat(2, async () => {
+      await screen.rerender({ show: false });
+      await expect.poll(text(screen)).toBe("");
+      // The registry keys a serializable atom's node by its key, so wait for the old one to go.
+      await expect.poll(() => registry.getNodes().size).toBe(0);
+      await screen.rerender({ show: true });
+      // Each mount computes its own atom: nothing seeds it with an earlier one's value.
+      await expect.poll(text(screen)).toBe(`mount ${mounts}`);
+    });
+    expect(mounts).toBe(3);
+  });
+
+  test("two different atoms in use at once with one key are rejected", async () => {
+    const screen = await render(Harness, {
+      registry: AtomRegistry.make(),
+      setup: () => {
+        const first = useAtomSuspense(keyed("dup", "first"));
+        const second = useAtomSuspense(keyed("dup", "second"));
+        // The second hook throws during init, so this never renders.
+        return () => `${String(first)} ${String(second)}`;
+      },
+    });
+    await expect
+      .poll(text(screen))
+      .toBe('failed: Two different atoms share the serialization key "dup"');
   });
 });

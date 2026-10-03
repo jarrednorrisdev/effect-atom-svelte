@@ -16,7 +16,9 @@ import {
   useAtomSubscribe,
   useAtomValue,
 } from "../src/index.ts";
+import type { AtomState } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
+import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { sleep } from "./helpers.ts";
@@ -435,6 +437,97 @@ describe("AtomRef", () => {
     });
     ref.prop("name").set("b");
     await expect.element(output(screen)).toHaveTextContent("b");
+  });
+});
+
+describe("getter switches (JND-60)", () => {
+  test("useAtom reads and writes whichever atom its getter picks", async () => {
+    const registry = AtomRegistry.make();
+    const first = Atom.make(1);
+    const second = Atom.make(10);
+    const useSecond = Atom.make(false);
+    let cell: AtomState<number> | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const pick = useAtomValue(useSecond);
+        cell = useAtom(() => (pick.current ? second : first));
+        return () => cell?.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    registry.set(useSecond, true);
+    await expect.element(output(screen)).toHaveTextContent("10");
+    if (cell) {
+      cell.current = 11;
+    }
+    await expect.element(output(screen)).toHaveTextContent("11");
+    expect(registry.get(first)).toBe(1);
+  });
+
+  test("useAtomRefPropValue follows a getter to a different ref", async () => {
+    const first = AtomRef.make({ name: "first" });
+    const second = AtomRef.make({ name: "second" });
+    const pick = AtomRef.make(false);
+    const screen = await render(Harness, {
+      setup: () => {
+        const useSecond = useAtomRef(pick);
+        const name = useAtomRefPropValue(
+          () => (useSecond.current ? second : first),
+          "name"
+        );
+        return () => name.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("first");
+    pick.set(true);
+    await expect.element(output(screen)).toHaveTextContent("second");
+    second.prop("name").set("renamed");
+    await expect.element(output(screen)).toHaveTextContent("renamed");
+    first.prop("name").set("ignored");
+    await sleep("20 millis");
+    await expect.element(output(screen)).toHaveTextContent("renamed");
+  });
+});
+
+describe("RegistryProvider", () => {
+  test("provides the registry it is given", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(1);
+    const screen = await render(Provider, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    registry.set(atom, 2);
+    await expect.element(output(screen)).toHaveTextContent("2");
+  });
+
+  test("creates a registry from its options and releases its atoms on unmount", async () => {
+    const log: string[] = [];
+    const atom = Atom.make((get) => {
+      get.addFinalizer(() => log.push("disposed"));
+      return 1;
+    });
+    let registry: AtomRegistry.AtomRegistry | undefined;
+    const screen = await render(Provider, {
+      initialValues: [[atom, 5]],
+      setup: () => {
+        registry = getRegistry();
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("5");
+    registry?.refresh(atom);
+    await expect.element(output(screen)).toHaveTextContent("1");
+    // The refresh disposed the first computation; unmounting disposes the second.
+    expect(log).toEqual(["disposed"]);
+    await screen.unmount();
+    expect(log).toEqual(["disposed", "disposed"]);
   });
 });
 

@@ -72,6 +72,20 @@ describe("HydrationBoundary", () => {
     await expect.poll(text(screen)).toBe("42");
   });
 
+  test("a state passed after init hydrates too (JND-60)", async () => {
+    const registry = AtomRegistry.make();
+    const screen = await render(Hydrate, {
+      registry,
+      setup: readCount,
+      state: serverState([countAtom], (server) => server.set(countAtom, 1)),
+    });
+    await expect.poll(text(screen)).toBe("1");
+    await screen.rerender({
+      state: serverState([countAtom], (server) => server.set(countAtom, 2)),
+    });
+    await expect.poll(text(screen)).toBe("2");
+  });
+
   test("an empty or missing state is a no-op", async () => {
     const empty = await render(Hydrate, {
       registry: AtomRegistry.make(),

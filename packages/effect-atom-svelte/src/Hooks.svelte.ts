@@ -569,7 +569,18 @@ const applySeed = (
   }
 };
 
-const seeds = new WeakMap<AtomRegistry.AtomRegistry, Map<string, Seed>>();
+/**
+ * A registry's seeds in the browser. A key is held while a component uses it, then spent: its
+ * server value is never applied again, as it would be however old by then (JND-37). Only the key is
+ * kept, not the atom, so a spent atom can be collected and a new atom can reuse the key, as when a
+ * component creates its atom or HMR re-runs the module that defines it (JND-60).
+ */
+interface Seeds {
+  readonly held: Map<string, Seed>;
+  readonly spent: Set<string>;
+}
+
+const seeds = new WeakMap<AtomRegistry.AtomRegistry, Seeds>();
 
 // hydratable returns one promise per key per render, so it identifies the atom that claimed a key.
 const serverSeeds = new WeakMap<Promise<unknown>, Atom.Atom<unknown>>();
@@ -625,14 +636,18 @@ const seedFromServer = (
     return seedOnServer(registry, atom, key, encode);
   }
   const revalidate = revalidatesOnHydrate(revalidateOption);
-  let byKey = seeds.get(registry);
-  if (!byKey) {
-    byKey = new Map();
-    seeds.set(registry, byKey);
+  let registrySeeds = seeds.get(registry);
+  if (!registrySeeds) {
+    registrySeeds = { held: new Map(), spent: new Set() };
+    seeds.set(registry, registrySeeds);
   }
-  let entry = byKey.get(key);
+  const { held, spent } = registrySeeds;
+  let entry = held.get(key);
   if (entry && entry.atom !== atom) {
     throw new Error(`Two different atoms share the serialization key "${key}"`);
+  }
+  if (!entry && spent.has(key)) {
+    return undefined;
   }
   if (!entry) {
     // hydratable runs this only when it has no value from the server, as after client-side
@@ -663,10 +678,14 @@ const seedFromServer = (
         return () => {
           holders -= 1;
           revalidating -= counted;
+          if (holders === 0) {
+            held.delete(key);
+            spent.add(key);
+          }
         };
       },
     };
-    byKey.set(key, entry);
+    held.set(key, entry);
   }
   // Every caller holds the atom until it is destroyed, not only the first, which may go first and
   // leave the others' seed to be swept (JND-36). It is mounted only once the seed is in: the
