@@ -117,7 +117,7 @@ test.describe("docs shell", () => {
     page,
   }) => {
     await page.setViewportSize({ height: 800, width: 390 });
-    await page.goto("/refs");
+    await page.goto("/scoped-atoms");
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
     const sheet = page.getByRole("dialog");

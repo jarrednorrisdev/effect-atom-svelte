@@ -377,13 +377,19 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   );
 });
 
-test("refs and scopes: AtomRef updates and scoped atoms stay separate", async ({
+test("AtomRef: a property ref updates the ref and its derived ref", async ({
   page,
 }) => {
   await page.goto("/refs");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("textbox").fill("Grace");
+  await page.getByRole("textbox", { name: "Name" }).fill("Grace");
   await expect(page.getByTestId("ref-name")).toHaveText("Grace");
+  await expect(page.getByTestId("ref-badge")).toHaveText("Grace · Engineer");
+});
+
+test("scoped atoms: each provider has its own atom", async ({ page }) => {
+  await page.goto("/scoped-atoms");
+  await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "0" }).first().click();
   await expect(
     page.getByRole("button", { exact: true, name: "1" })
@@ -443,13 +449,20 @@ test("lifetimes: plain atoms are disposed on unmount, keepAlive atoms are not", 
   await page.goto("/lifetimes");
   await page.waitForLoadState("networkidle");
   const log = page.getByTestId("lifetimes-log");
-  await page.getByLabel("plain").check();
+  await page.getByLabel("plain", { exact: true }).check();
   await expect(log).toContainText("plain: computed");
-  await page.getByLabel("plain").uncheck();
+  await page.getByLabel("plain", { exact: true }).uncheck();
   await expect(log).toContainText("plain: disposed");
-  await page.getByLabel("keepAlive").check();
-  await page.getByLabel("keepAlive").uncheck();
+  await page.getByLabel("keepAlive", { exact: true }).check();
+  await page.getByLabel("keepAlive", { exact: true }).uncheck();
   await page.waitForTimeout(500);
   await expect(log).toContainText("keepAlive: computed");
   await expect(log).not.toContainText("keepAlive: disposed");
+  // An idle TTL keeps the atom for three seconds after its reader goes.
+  await page.getByLabel("idle TTL", { exact: true }).check();
+  await expect(log).toContainText("idle TTL: computed");
+  await page.getByLabel("idle TTL", { exact: true }).uncheck();
+  await page.waitForTimeout(1000);
+  await expect(log).not.toContainText("idle TTL: disposed");
+  await expect(log).toContainText("idle TTL: disposed", { timeout: 5000 });
 });
