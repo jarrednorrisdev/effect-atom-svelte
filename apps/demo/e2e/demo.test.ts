@@ -221,6 +221,20 @@ test.describe("HTTP API page", () => {
   });
 });
 
+test("hydration: the browser uses the server's result until it computes again", async ({
+  page,
+}) => {
+  await page.goto("/hydration");
+  await page.waitForLoadState("networkidle");
+  const where = page.getByTestId("computed-on");
+  await expect(where).toHaveText("the server");
+  // Give a refetch, if there were one, time to land.
+  await page.waitForTimeout(600);
+  await expect(where).toHaveText("the server");
+  await page.getByRole("button", { name: "Compute again" }).click();
+  await expect(where).toHaveText("the browser");
+});
+
 test("first atom: two counters share one atom", async ({ page }) => {
   await page.goto("/first-atom");
   await page.waitForLoadState("networkidle");

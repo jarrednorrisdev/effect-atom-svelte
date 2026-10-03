@@ -11,6 +11,7 @@ import Hydrate from "./fixtures/hydrate.svelte";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import { computed } from "./fixtures/seeded-list.ts";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
+import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
@@ -248,6 +249,21 @@ describe("hydrating server output", () => {
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
     expect(computed).toEqual(["b"]);
+  });
+
+  test("refreshing a hydrated atom computes it in the browser", async () => {
+    computed.length = 0;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-hydrate-refresh.svelte",
+      SsrHydrateRefresh
+    );
+    const output = () => target.querySelector("output")?.textContent;
+
+    await expect.poll(output).toBe("a from the server");
+    expect(computed).toEqual([]);
+    target.querySelector("button")?.click();
+    await expect.poll(output).toBe("a from the browser");
+    expect(computed).toEqual(["a"]);
   });
 
   describe("two components sharing a serialization key", () => {

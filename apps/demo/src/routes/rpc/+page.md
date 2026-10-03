@@ -66,7 +66,7 @@ A third argument takes options:
 | Option | Does |
 | --- | --- |
 | `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. |
-| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. |
+| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). |
 | `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
 | `headers` | Extra headers for the request. |
 

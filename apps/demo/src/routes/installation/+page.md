@@ -81,7 +81,7 @@ Without a provider, the browser falls back to a shared default registry, but the
 | `timeoutResolution` | How precisely, in milliseconds, idle timeouts are checked. Defaults to half of `defaultIdleTTL`. |
 | `scheduleTask` | How the registry schedules its deferred work. |
 | `registry` | An existing registry to provide instead of creating one. You dispose it yourself. |
-| `revalidateOnHydrate` | Fetch server-rendered async atoms again once the page has hydrated. Off by default. |
+| `revalidateOnHydrate` | Fetch server-rendered async atoms again once the page has hydrated. Off by default. See [Hydration](/hydration#fetching-again-after-hydration). |
 
 The provider reads its props once. Changing them later doesn't create a new registry.
 

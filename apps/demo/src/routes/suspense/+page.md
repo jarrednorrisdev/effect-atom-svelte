@@ -66,19 +66,7 @@ When the atom's effect fails, the promise rejects with the error, and the bounda
 
 <Aside type="caution" title="SvelteKit hides error details">
 
-SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. To keep an Effect error's `_tag` and message, use the hooks from `effect-atom-svelte/sveltekit`:
-
-```ts
-// src/hooks.client.ts
-export { handleClientError as handleError } from "effect-atom-svelte/sveltekit";
-```
-
-```ts
-// src/hooks.server.ts
-export { handleServerError as handleError } from "effect-atom-svelte/sveltekit";
-```
-
-The server hook keeps the `_tag` but not the message, which could reveal details of your server. Add `tag?: string` to `App.Error` in `src/app.d.ts` to read it in the snippet.
+SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The hooks from `effect-atom-svelte/sveltekit` keep an Effect error's `_tag`. See [SvelteKit](/sveltekit#errors-in-boundaries).
 
 </Aside>
 
@@ -119,7 +107,7 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 {/if}
 ```
 
-The await happens once. After that, `todos.current` updates like any other read, including `waiting` while a refresh runs. On the server, rendering waits for it. If the atom has a serialization key, the browser reuses the server's result when it hydrates rather than running the effect again. [RPC](/rpc) shows this with a real query.
+The await happens once. After that, `todos.current` updates like any other read, including `waiting` while a refresh runs. On the server, rendering waits for it. If the atom has a serialization key, the browser reuses the server's result when it hydrates rather than running the effect again. See [Hydration](/hydration). [RPC](/rpc) shows this with a real query.
 
 ### Awaiting more than one atom
 
@@ -137,6 +125,24 @@ const [todos, user] = await Promise.all([
 A hook can't be called after an `await` inside a function of your own, such as an `async` helper. Svelte only restores the component's context after top-level awaits in the script.
 
 </Aside>
+
+### Event handlers after an await
+
+In Svelte 5.57, a production build attaches event handlers before the script has finished its top-level awaits. A handler that a hook returns after an `await` is still `undefined` at that point, so `onclick={refresh}` does nothing. Development builds don't show the problem.
+
+**Example** (A refresh button that works)
+
+```svelte
+<script lang="ts">
+  // Called before the await, so `refresh` exists when the button is set up.
+  const refresh = useAtomRefresh(todosAtom);
+  const todos = await useAtomResult(todosAtom);
+</script>
+
+<button onclick={refresh}>Refresh</button>
+```
+
+Either call such hooks before the first `await`, or wrap the handler in an arrow function, `onclick={() => refresh()}`, which looks `refresh` up when the button is clicked.
 
 ## Following a different atom
 

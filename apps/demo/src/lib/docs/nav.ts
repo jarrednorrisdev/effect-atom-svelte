@@ -48,6 +48,14 @@ export const nav: readonly NavSection[] = [
     ],
     title: "Effect services",
   },
+  {
+    pages: [
+      { href: "/server-rendering", title: "Server rendering" },
+      { href: "/hydration", title: "Hydration" },
+      { href: "/sveltekit", title: "SvelteKit" },
+    ],
+    title: "Server rendering",
+  },
 ];
 
 /** Every page, in reading order. */
