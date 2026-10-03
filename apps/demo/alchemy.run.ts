@@ -2,6 +2,28 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
+// Jarred's work deploys also use Alchemy on this machine, through the default profile. This stack
+// only ever runs with the `personal` profile locally, and in CI with the repo's Cloudflare secrets
+// (where Alchemy never reads profiles). Cloudflare variables in the environment would override the
+// profile, so they are refused locally too.
+const profileFlag = process.argv.indexOf("--profile");
+const profile =
+  profileFlag === -1
+    ? process.env.ALCHEMY_PROFILE
+    : process.argv[profileFlag + 1];
+if (process.env.CI !== "true") {
+  if (profile !== "personal") {
+    throw new Error(
+      `Deploy the docs site with the personal Alchemy profile (bun run deploy), not "${profile ?? "default"}".`
+    );
+  }
+  if (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_ACCOUNT_ID) {
+    throw new Error(
+      "Unset CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID: they would override the personal profile."
+    );
+  }
+}
+
 // The hosted site has no demo API server: the build runs the API in the page instead
 // (src/lib/in-tab-api.ts). Alchemy runs the Vite build in this process, so it reads this.
 process.env.VITE_DEMO_API = "in-tab";
