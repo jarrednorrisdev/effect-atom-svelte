@@ -2,20 +2,11 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { Page } from "@playwright/test";
 
+import { pages as navPages } from "../src/lib/docs/nav.ts";
 import { expect, test } from "./servers.ts";
 
-const pages = [
-  "/",
-  "/basics",
-  "/rpc",
-  "/http",
-  "/suspense",
-  "/mutations",
-  "/streams",
-  "/refs",
-  "/browser",
-  "/lifetimes",
-];
+// Every page in the sidebar.
+const pages = navPages.map((page) => page.href);
 
 /** The server's HTML for `path`, requested with the page's cookies, before any script runs. */
 const serverHtml = async (page: Page, path: string) => {

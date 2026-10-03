@@ -18,6 +18,10 @@ bun run --cwd apps/demo dev         # in another
 
 `bun run check`, `bun run test` and `bun run lint` run across the workspace.
 
+## Docs site
+
+`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/basics`). Pages in `src/routes/(demos)` are the old demo pages, which stay there until they are rewritten. Search uses Pagefind, which only indexes prerendered pages (`export const prerender = true` in `+page.ts`) and only works in a build (`vite build` then `vite preview`).
+
 ## Tests
 
 `bun run test` runs the library's Vitest suite and the demo's Playwright suite, both in Chromium, Firefox and WebKit (install them once with `bunx playwright install chromium firefox webkit`). To run one engine: `bunx vitest run --project "browser (firefox)"` or `bunx playwright test --project firefox`. Turbo caches results, so an unchanged package replays its last result; a cached pass is trustworthy, and `--force` should not be needed.

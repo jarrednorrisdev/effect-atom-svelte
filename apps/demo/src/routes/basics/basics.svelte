@@ -18,8 +18,6 @@
   const greeting = useAtomValue(greetingAtom);
 </script>
 
-<h1>Basics</h1>
-
 <section>
   <h2>Read and write</h2>
   <p><code>useAtom</code> exposes <code>.current</code> for reading and assigning.</p>
