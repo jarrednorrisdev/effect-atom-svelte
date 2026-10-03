@@ -1,6 +1,6 @@
 # effect-atom-svelte
 
-Svelte 5 bindings for Effect Atom, with a docs site and tests. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`.
+Svelte 5 bindings for Effect Atom, with a docs site and tests. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`, live at [atom.jarrednorris.dev](https://atom.jarrednorris.dev).
 
 | Path | What |
 | --- | --- |
@@ -24,7 +24,7 @@ bun run --cwd apps/demo dev         # in another
 
 ## Hosting
 
-The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing. Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy`): this machine also deploys work projects with the default profile, so the stack refuses any other profile, and Cloudflare variables in the environment, outside CI. The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the visitor's tab and in the build (`src/lib/in-tab-api.ts`), so every page except `/browser`, whose cookie example reads the request, is prerendered. `/browser` is rendered by the site's Worker. `bun run test` also runs `playwright.hosted.config.ts`, which builds the site that way and checks it with no demo API running.
+The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing. Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy`): this machine also deploys work projects with the default profile, so the stack refuses any other profile, and Cloudflare variables in the environment, outside CI. Deploys from Windows fail: Alchemy's SvelteKit integration (2.0.0-beta.80) looks for the entry module as `server\index.js` while the modules are named with `/`, so it uploads a chunk as the main module and Cloudflare rejects the script ("no registered event handlers"). Deploy through CI, which runs on Linux. The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the visitor's tab and in the build (`src/lib/in-tab-api.ts`), so every page except `/browser`, whose cookie example reads the request, is prerendered. `/browser` is rendered by the site's Worker. `bun run test` also runs `playwright.hosted.config.ts`, which builds the site that way and checks it with no demo API running.
 
 ## Tests
 

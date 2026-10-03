@@ -12,4 +12,4 @@ npm install effect effect-atom-svelte
 
 ## Documentation
 
-- **Guide and API reference**: the docs site is not hosted yet. Run it from `apps/demo` in [the repository](https://github.com/jarrednorrisdev/effect-atom-svelte#readme).
+- **Guide and API reference**: [atom.jarrednorris.dev](https://atom.jarrednorris.dev).

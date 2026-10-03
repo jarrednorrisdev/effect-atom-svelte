@@ -10,7 +10,7 @@
     "svelte",
     "sveltekit"
   ],
-  "homepage": "https://github.com/jarrednorrisdev/effect-atom-svelte/tree/main/packages/effect-atom-svelte#readme",
+  "homepage": "https://atom.jarrednorris.dev",
   "bugs": "https://github.com/jarrednorrisdev/effect-atom-svelte/issues",
   "license": "MIT",
   "author": "Jarred Norris",
