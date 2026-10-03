@@ -603,16 +603,18 @@ const seedOnServer = (
 };
 
 /**
- * For a serializable atom, resolves it and passes the encoded result from server to client with
- * `hydratable`, so hydration seeds the registry instead of fetching again. Must run synchronously
- * during component init. Returns undefined for atoms without a serialization key. The atom is
- * fetched again once seeded if any component using the key then asked to revalidate.
+ * For the getter's first atom, if serializable, resolves it and passes the encoded result from
+ * server to client with `hydratable`, so hydration seeds the registry instead of fetching again.
+ * Must run synchronously during component init. Returns undefined for atoms without a
+ * serialization key. The atom is fetched again once seeded if any component using the key then
+ * asked to revalidate.
  */
 const seedFromServer = (
   registry: AtomRegistry.AtomRegistry,
-  atom: ResultAtom<unknown, unknown>,
+  getAtom: () => ResultAtom<unknown, unknown>,
   revalidateOption: boolean | undefined
 ): Promise<void> | undefined => {
+  const atom = getAtom();
   // The server never computes an atom with a server value, so it has no value to pass on, and the
   // browser must not ask for one: hydratable throws for a key the server didn't write (JND-58).
   if (!Atom.isSerializable(atom) || hasServerValue(atom)) {
@@ -673,15 +675,25 @@ const seedFromServer = (
   const { done } = entry;
   const unhold = entry.hold(revalidate);
   let release: (() => void) | undefined;
-  let destroyed = false;
-  onTeardown(() => {
-    destroyed = true;
-    unhold();
-    release?.();
+  let left = false;
+  const leave = () => {
+    if (!left) {
+      left = true;
+      unhold();
+      release?.();
+    }
+  };
+  onTeardown(leave);
+  // A committed switch to another atom lets go too: the hook's own subscription follows the getter,
+  // and this mount would keep the old atom running for nobody (JND-59).
+  $effect(() => {
+    if (getAtom() !== atom) {
+      leave();
+    }
   });
   return (async () => {
     await done;
-    if (!destroyed) {
+    if (!left) {
       release = registry.mount(atom);
     }
   })();
@@ -747,7 +759,7 @@ export const useAtomResult = async <A, E>(
     release = undefined;
     return unmount;
   });
-  const seed = seedFromServer(registry, atom, options?.revalidateOnHydrate);
+  const seed = seedFromServer(registry, getAtom, options?.revalidateOnHydrate);
   if (seed) {
     await seed;
   }
@@ -897,6 +909,9 @@ const sharedWait = (
     settled = true;
   })();
   let holders = 0;
+  // Each signal holds once: reads outside a reaction all share the component's lifetime signal, and
+  // would otherwise add a holder and a listener per read until it is destroyed (JND-59).
+  const held = new WeakSet<AbortSignal>();
   const release = (reason: unknown) => {
     holders -= 1;
     // A reaction aborts its signal before it re-runs, so wait a microtask: the re-run may read the
@@ -910,9 +925,10 @@ const sharedWait = (
   };
   return {
     hold: (signal) => {
-      if (signal.aborted) {
+      if (signal.aborted || held.has(signal)) {
         return;
       }
+      held.add(signal);
       holders += 1;
       signal.addEventListener("abort", () => release(signal.reason), {
         once: true,
@@ -955,7 +971,7 @@ export function useAtomSuspense<A, E>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   const result = useAtomValue(getAtom);
-  const seed = seedFromServer(registry, getAtom(), options.revalidateOnHydrate);
+  const seed = seedFromServer(registry, getAtom, options.revalidateOnHydrate);
   // A plain variable, not $state: a render in a batch with this write rolled back would take the
   // pre-seed path and track nothing but the flag. Reading `trackSeed` asks for a re-read instead.
   let seeded = seed === undefined;

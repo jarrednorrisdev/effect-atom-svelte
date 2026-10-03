@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import { Effect, Schema } from "effect";
+import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -142,6 +142,42 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     expect(log).toEqual(startStop(cycles));
   });
 
+  test("useAtomSuspense read again and again outside a reaction holds its wait once (JND-59)", async () => {
+    const registry = AtomRegistry.make();
+    const atom = trackedEffect([]);
+    const add = AbortSignal.prototype.addEventListener;
+    let listeners = 0;
+    AbortSignal.prototype.addEventListener = function addEventListener(
+      this: AbortSignal,
+      ...args: Parameters<AbortSignal["addEventListener"]>
+    ) {
+      if (args[0] === "abort") {
+        listeners += 1;
+      }
+      add.apply(this, args);
+    };
+    try {
+      const screen = await render(Toggle, {
+        async: true,
+        registry,
+        setup: () => {
+          const value = useAtomSuspense(atom);
+          // Script reads have no reaction to say when they are done, so the component holds them.
+          for (let index = 0; index < 50; index += 1) {
+            void value.current;
+          }
+          return () => value.current;
+        },
+        show: true,
+      });
+      await expect.poll(text(screen)).toBe("value");
+      expect(listeners).toBeLessThan(10);
+      await screen.unmount();
+    } finally {
+      AbortSignal.prototype.addEventListener = add;
+    }
+  });
+
   test("useAtomResult", async () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];
@@ -227,41 +263,58 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     expect(stopped).toHaveLength(started.length);
   });
 
-  test("async getter switches release every atom left behind", async () => {
-    const registry = AtomRegistry.make();
-    const log: string[] = [];
-    const pick = Atom.make(0);
-    const named = Atom.family((name: string) => trackedEffect(log, name));
-    const screen = await render(Toggle, {
-      async: true,
-      registry,
-      setup: async () => {
-        const choice = useAtomValue(pick);
-        const suspended = useAtomSuspense(() => named(`${choice.current}`));
-        const result = await useAtomResult(() => named(`${choice.current}`));
-        return async () => `${await suspended.current} ${result.current._tag}`;
-      },
-      show: true,
-    });
-    await expect.poll(text(screen)).toBe("0 Success");
-    let switches = 0;
-    await repeat(cycles, async () => {
-      switches += 1;
-      registry.set(pick, switches);
-      await expect.poll(text(screen)).toBe(`${switches} Success`);
-      await expect.poll(() => registry.getNodes().size).toBe(2);
-    });
-    await screen.unmount();
-    await expect.poll(() => registry.getNodes().size).toBe(0);
-    const started = log.filter((entry) => entry.startsWith("start"));
-    expect(new Set(log)).toEqual(
-      new Set([
-        ...started,
-        ...started.map((entry) => entry.replace("start", "stop")),
-      ])
-    );
-    expect(log).toHaveLength(started.length * 2);
-  });
+  test.each([
+    { serializable: false, title: "" },
+    // A serializable atom is also mounted by its seed, which must let go of it too (JND-59).
+    { serializable: true, title: " (serializable)" },
+  ])(
+    "async getter switches release every atom left behind$title",
+    async ({ serializable }) => {
+      const registry = AtomRegistry.make();
+      const log: string[] = [];
+      const pick = Atom.make(0);
+      const named = Atom.family((name: string) =>
+        serializable
+          ? trackedEffect(log, name).pipe(
+              Atom.serializable({
+                key: `leaks-${name}`,
+                schema: AsyncResult.Schema({ success: Schema.String }),
+              })
+            )
+          : trackedEffect(log, name)
+      );
+      const screen = await render(Toggle, {
+        async: true,
+        registry,
+        setup: async () => {
+          const choice = useAtomValue(pick);
+          const suspended = useAtomSuspense(() => named(`${choice.current}`));
+          const result = await useAtomResult(() => named(`${choice.current}`));
+          return async () =>
+            `${await suspended.current} ${result.current._tag}`;
+        },
+        show: true,
+      });
+      await expect.poll(text(screen)).toBe("0 Success");
+      let switches = 0;
+      await repeat(cycles, async () => {
+        switches += 1;
+        registry.set(pick, switches);
+        await expect.poll(text(screen)).toBe(`${switches} Success`);
+        await expect.poll(() => registry.getNodes().size).toBe(2);
+      });
+      await screen.unmount();
+      await expect.poll(() => registry.getNodes().size).toBe(0);
+      const started = log.filter((entry) => entry.startsWith("start"));
+      expect(new Set(log)).toEqual(
+        new Set([
+          ...started,
+          ...started.map((entry) => entry.replace("start", "stop")),
+        ])
+      );
+      expect(log).toHaveLength(started.length * 2);
+    }
+  );
 
   test("unmounting while the script awaits, over and over", async () => {
     const registry = AtomRegistry.make();
