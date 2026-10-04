@@ -95,3 +95,34 @@ test("HTTP API: prerendered todos, then create, filter and a typed 404", async (
   );
   expect(requests).toEqual([]);
 });
+
+test("Mutations: add, a typed error and an optimistic rollback in the tab", async ({
+  page,
+}) => {
+  const requests = await blockNetworkApi(page);
+  await page.goto("/mutations");
+  await page.waitForLoadState("networkidle");
+  const todos = page.getByTestId("add-todos").locator("li");
+  await expect(todos).toHaveCount(2);
+
+  await page.getByTestId("add-draft").fill("Added in the tab");
+  await page.getByTestId("add-submit").click();
+  await expect(todos).toHaveCount(3);
+  await expect(page.getByLabel("key invalidated")).toHaveText("1");
+
+  await page.getByRole("button", { name: "Paste a long title" }).click();
+  await page.getByTestId("add-submit").click();
+  await expect(page.getByTestId("add-error")).toHaveText(
+    "TitleTooLong: keep it to 60 characters."
+  );
+
+  const example = page.getByTestId("optimistic-example");
+  await example.getByLabel("Make the next save fail").check();
+  const box = page
+    .getByTestId("optimistic-todos")
+    .getByRole("checkbox", { name: "Write a Svelte adapter" });
+  await box.click();
+  await expect(page.getByTestId("optimistic-error")).toBeVisible();
+  await expect(box).toBeChecked();
+  expect(requests).toEqual([]);
+});

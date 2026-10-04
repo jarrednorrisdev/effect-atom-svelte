@@ -423,45 +423,189 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
   );
 });
 
-test("mutations: a second call supersedes the first, and Reset clears it", async ({
-  page,
-}) => {
-  await page.goto("/mutations");
-  await page.waitForLoadState("networkidle");
-  const state = page.getByTestId("echo-state");
-  await expect(state).toHaveText("Initial");
-  await page.getByRole("button", { name: 'Echo "first"' }).click();
-  await expect(state).toHaveText("Initial, waiting");
-  await page.getByRole("button", { name: 'Echo "second"' }).click();
-  // Both promises settle with the second call's result.
-  const replies = page.getByTestId("echo-replies").locator("li");
-  await expect(replies).toHaveCount(2);
-  await expect(replies.filter({ hasText: "first → SECOND" })).toHaveCount(1);
-  await expect(replies.filter({ hasText: "second → SECOND" })).toHaveCount(1);
-  await expect(state).toHaveText("Success");
-  await page.getByRole("button", { name: "Reset" }).click();
-  await expect(state).toHaveText("Initial");
-});
+test.describe("Mutations page", () => {
+  test("adding a todo shows pending, then the list refreshes through its key", async ({
+    page,
+  }) => {
+    // The demo API runs without latency in e2e; hold the request here instead.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/rpc{,/}", async (route) => {
+      if (route.request().postData()?.includes('"tag":"createTodo"')) {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.goto("/mutations");
+    await page.waitForLoadState("networkidle");
+    const todos = page.getByTestId("add-todos").locator("li");
+    await expect(todos).toHaveText([
+      "Read the Effect Atom source",
+      "Write a Svelte adapter",
+    ]);
+    const state = page.getByTestId("add-state");
+    await expect(state).toHaveText("Initial");
 
-test("mutations: reactivity keys refresh the list, optimistic updates show at once", async ({
-  page,
-}) => {
-  await page.goto("/mutations");
-  await page.waitForLoadState("networkidle");
-  const notes = page.getByTestId("notes").locator("li");
-  await expect(notes).toHaveText(["Read the docs"]);
+    await page.getByTestId("add-draft").fill("Water the plants");
+    await page.getByTestId("add-submit").click();
+    const adding = page.getByRole("button", { name: "Adding…" });
+    await expect(adding).toBeDisabled();
+    await expect(state).toHaveText("Initial, waiting");
+    await expect(page.getByTestId("part-create")).toHaveAttribute(
+      "data-tone",
+      "running"
+    );
+    await expect(todos).toHaveCount(2);
 
-  await page.getByTestId("note").fill("Plain");
-  const add = page.getByRole("button", { exact: true, name: "Add" });
-  await add.click();
-  await expect(add).toBeDisabled();
-  await expect(notes).toHaveText(["Read the docs"]);
-  await expect(notes).toHaveText(["Read the docs", "Plain"]);
+    held.resolve(undefined);
+    await expect(todos).toHaveText([
+      "Read the Effect Atom source",
+      "Write a Svelte adapter",
+      "Water the plants",
+    ]);
+    await expect(state).toHaveText("Success");
+    await expect(page.getByTestId("add-draft")).toHaveValue("");
+    await expect(
+      page.getByRole("button", { exact: true, name: "Add" })
+    ).toBeEnabled();
+    await expect(page.getByLabel("key invalidated")).toHaveText("1");
+    await expect(page.getByLabel("todosAtom todos")).toHaveText("3");
+    const log = page.getByTestId("invalidation-log").getByRole("listitem");
+    await expect(log.filter({ hasText: "createTodo sent" })).toHaveCount(1);
+    await expect(
+      log.filter({ hasText: 'createTodo succeeded: "todos" invalidated' })
+    ).toHaveCount(1);
+    await expect(log.filter({ hasText: "listTodos runs again" })).toHaveCount(
+      1
+    );
+    await expect(log.filter({ hasText: "listTodos: 3 todos" })).toHaveCount(1);
+  });
 
-  await page.getByTestId("note").fill("Quick");
-  await page.getByRole("button", { name: "Add optimistically" }).click();
-  await expect(notes).toHaveText(["Read the docs", "Plain", "Quick (saving…)"]);
-  await expect(notes).toHaveText(["Read the docs", "Plain", "Quick"]);
+  test("a typed failure shows inline, keeps the input and invalidates nothing", async ({
+    page,
+  }) => {
+    await page.goto("/mutations");
+    await page.waitForLoadState("networkidle");
+    const todos = page.getByTestId("add-todos").locator("li");
+    await expect(todos).toHaveCount(2);
+
+    await page.getByRole("button", { name: "Paste a long title" }).click();
+    const draft = page.getByTestId("add-draft");
+    await expect(draft).toHaveValue("x".repeat(70));
+    await page.getByTestId("add-submit").click();
+    await expect(page.getByTestId("add-error")).toHaveText(
+      "TitleTooLong: keep it to 60 characters."
+    );
+    await expect(page.getByTestId("add-state")).toHaveText("Failure");
+    await expect(draft).toHaveValue("x".repeat(70));
+    await expect(page.getByLabel("key invalidated")).toHaveText("0");
+    await expect(
+      page
+        .getByTestId("invalidation-log")
+        .getByRole("listitem")
+        .filter({ hasText: "createTodo failed: nothing invalidated" })
+    ).toHaveCount(1);
+    await expect(todos).toHaveCount(2);
+  });
+
+  test("each mode gives back something else, and Cancel and Reset work", async ({
+    page,
+  }) => {
+    await page.goto("/mutations");
+    await page.waitForLoadState("networkidle");
+    const example = page.getByTestId("modes-example");
+    const state = page.getByTestId("modes-state");
+    const log = page.getByTestId("modes-log").getByRole("listitem");
+    await expect(state).toHaveText("Initial");
+
+    // The second call interrupts the first, so both promises settle with draft 2.
+    await example.getByRole("button", { name: "Save (promise)" }).click();
+    await example.getByRole("button", { name: "Save (promiseExit)" }).click();
+    await expect(state).toHaveText("Initial, waiting");
+    await expect(log).toHaveCount(0);
+    await expect(log).toHaveCount(2);
+    await expect(log.nth(0)).toContainText(
+      'promise #1: resolved with "draft 2"'
+    );
+    await expect(log.nth(1)).toContainText(
+      'promiseExit #2: Exit.Success("draft 2")'
+    );
+    await expect(state).toHaveText("Success");
+
+    // Value mode returns at once; the atom's state shows the rest.
+    await example.getByRole("button", { name: "Save (value)" }).click();
+    await expect(log.nth(2)).toContainText("value #3: returned undefined");
+    await expect(state).toHaveText("Success, waiting");
+    await expect(state).toHaveText("Success");
+
+    await example.getByLabel("Fail the save").check();
+    await example.getByRole("button", { name: "Save (promise)" }).click();
+    await expect(log.nth(3)).toContainText("promise #4: rejected, DiskFull");
+    await expect(state).toHaveText("Failure");
+
+    await example.getByRole("button", { name: "Save (promiseExit)" }).click();
+    await expect(state).toHaveText("Failure, waiting");
+    await example.getByRole("button", { name: "Cancel" }).click();
+    await expect(log.nth(4)).toContainText(
+      "promiseExit #5: Exit.Failure, interrupted"
+    );
+    await expect(state).toHaveText("Failure");
+    await expect(
+      example.getByRole("button", { name: "Cancel" })
+    ).toBeDisabled();
+
+    await example.getByRole("button", { name: "Reset" }).click();
+    await expect(state).toHaveText("Initial");
+  });
+
+  test("an optimistic toggle shows at once, and rolls back when the save fails", async ({
+    page,
+  }) => {
+    // Hold the real toggle so the provisional value is all the page can show.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/rpc{,/}", async (route) => {
+      if (route.request().postData()?.includes('"tag":"toggleTodo"')) {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.goto("/mutations");
+    await page.waitForLoadState("networkidle");
+    const example = page.getByTestId("optimistic-example");
+    const list = page.getByTestId("optimistic-todos");
+    const state = page.getByTestId("optimistic-state");
+    const first = list.getByRole("checkbox", {
+      name: "Read the Effect Atom source",
+    });
+    await expect(first).not.toBeChecked();
+
+    await first.click();
+    await expect(first).toBeChecked();
+    await expect(list).toHaveAttribute("aria-busy", "true");
+    await expect(state).toHaveText("Initial, waiting");
+    held.resolve(undefined);
+    await expect(state).toHaveText("Success");
+    await expect(list).toHaveAttribute("aria-busy", "false");
+    await expect(first).toBeChecked();
+
+    const failNext = example.getByLabel("Make the next save fail");
+    await failNext.check();
+    const second = list.getByRole("checkbox", {
+      name: "Write a Svelte adapter",
+    });
+    await expect(second).toBeChecked();
+    await second.click();
+    // The provisional value first, then the rollback a second later.
+    await expect(second).not.toBeChecked();
+    await expect(list).toHaveAttribute("aria-busy", "true");
+    await expect(failNext).not.toBeChecked();
+    await expect(page.getByTestId("optimistic-error")).toHaveText(
+      "ConnectionLost: the save failed, so the todo went back."
+    );
+    await expect(second).toBeChecked();
+    await expect(list).toHaveAttribute("aria-busy", "false");
+    await expect(first).toBeChecked();
+    await expect(state).toHaveText("Failure");
+  });
 });
 
 test("streams: a stream atom ticks, and a pull atom loads page by page", async ({
