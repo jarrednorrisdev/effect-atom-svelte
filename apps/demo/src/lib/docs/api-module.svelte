@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ApiModuleHtml } from "../../../vite/api-reference.ts";
+  import PageDescription from "./page-description.svelte";
 
   /**
    * A module's page in the API reference: its exports grouped by category. Everything in it was
@@ -13,6 +14,12 @@
   const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   const slug = (text: string) => text.toLowerCase().replaceAll(/\s+/gu, "-");
 </script>
+
+<PageDescription
+  description={module.name === "index"
+    ? "The API reference for effect-atom-svelte: every export, with its signature and examples."
+    : `The ${title} module in the effect-atom-svelte API reference: every export, with its signature and examples.`}
+/>
 
 <div class="prose prose-effect max-w-none">
   <h1>{title}</h1>

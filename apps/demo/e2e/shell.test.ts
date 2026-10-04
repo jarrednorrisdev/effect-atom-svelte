@@ -133,6 +133,55 @@ test.describe("docs shell", () => {
     ).toBeInViewport();
   });
 
+  test("each page has its own description, a canonical link and a link preview", async ({
+    page,
+  }) => {
+    await page.goto("/first-atom");
+    const description = page.locator('meta[name="description"]');
+    await expect(description).toHaveCount(1);
+    await expect(description).toHaveAttribute(
+      "content",
+      "Define an atom, read and write it from a component, and share it."
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "https://atom.jarrednorris.dev/first-atom"
+    );
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      "content",
+      "https://atom.jarrednorris.dev/og-image.png"
+    );
+
+    // Client-side navigation swaps the description rather than adding one.
+    await page.waitForLoadState("networkidle");
+    await page
+      .locator("[data-slot=sidebar]")
+      .locator('a[href="/reference/Hooks"]')
+      .click();
+    await expect(page).toHaveURL(/\/reference\/Hooks$/u);
+    await expect(description).toHaveCount(1);
+    await expect(description).toHaveAttribute("content", /Hooks module/u);
+  });
+
+  test("the favicon, preview image and sitemap are served", async ({
+    request,
+  }) => {
+    const responses = await Promise.all(
+      ["/favicon.ico", "/favicon.svg", "/og-image.png"].map((path) =>
+        request.get(path)
+      )
+    );
+    expect(responses.map((response) => response.ok())).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    const sitemap = await request.get("/sitemap.xml");
+    expect(await sitemap.text()).toContain(
+      "<loc>https://atom.jarrednorris.dev/reference/Hooks</loc>"
+    );
+  });
+
   test("an unknown path shows a not-found page inside the docs shell", async ({
     page,
   }) => {

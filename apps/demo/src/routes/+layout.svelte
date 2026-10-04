@@ -4,6 +4,7 @@
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
   import DocsSidebar from "#lib/docs/docs-sidebar.svelte";
   import { neighbours } from "#lib/docs/nav.ts";
+  import { previewImage, siteName, siteUrl } from "#lib/docs/site.ts";
   import Pager from "#lib/docs/pager.svelte";
   import SiteHeader from "#lib/docs/site-header.svelte";
   import { copyCode } from "#lib/docs/copy-code.ts";
@@ -19,6 +20,9 @@
   const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
   const title = $derived(neighbours(page.url.pathname).page?.title);
+  const fullTitle = $derived(title ? `${title} · ${siteName}` : siteName);
+  // Only pages in the sidebar have an address of their own; error pages don't.
+  const canonical = $derived(title ? `${siteUrl}${page.url.pathname}` : undefined);
   let content = $state<HTMLElement>();
   const toc = new TableOfContents(() => content);
 </script>
@@ -26,11 +30,23 @@
 <svelte:document onclick={(event) => void copyCode(event)} />
 
 <svelte:head>
-  <title>{title ? `${title} · effect-atom-svelte` : "effect-atom-svelte"}</title>
-  <meta
-    name="description"
-    content="Community-built Svelte 5 bindings for Effect Atom. Not affiliated with Effect or the Effect team."
-  />
+  <title>{fullTitle}</title>
+  <!-- Each page adds its own description (page-description.svelte), so there is none here. -->
+  {#if canonical}
+    <link href={canonical} rel="canonical" />
+    <meta content={canonical} property="og:url" />
+  {/if}
+  <meta content={fullTitle} property="og:title" />
+  <meta content="website" property="og:type" />
+  <meta content={siteName} property="og:site_name" />
+  <meta content={previewImage.url} property="og:image" />
+  <meta content={String(previewImage.width)} property="og:image:width" />
+  <meta content={String(previewImage.height)} property="og:image:height" />
+  <meta content={previewImage.alt} property="og:image:alt" />
+  <meta content="summary_large_image" name="twitter:card" />
+  <meta content={fullTitle} name="twitter:title" />
+  <meta content={previewImage.url} name="twitter:image" />
+  <meta content={previewImage.alt} name="twitter:image:alt" />
 </svelte:head>
 
 <!-- One registry per request on the server, one for the session in the browser. The request's
