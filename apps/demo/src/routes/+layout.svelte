@@ -15,6 +15,7 @@
   import { TableOfContents } from "#lib/docs/toc.svelte.ts";
   import { preferenceCookiesAtom } from "#lib/preferences.ts";
   import { RegistryProvider } from "effect-atom-svelte";
+  import { onMount } from "svelte";
   import type { Snippet } from "svelte";
 
   import type { LayoutData } from "./$types";
@@ -27,6 +28,11 @@
   const canonical = $derived(title ? `${siteUrl}${page.url.pathname}` : undefined);
   let content = $state<HTMLElement>();
   const toc = new TableOfContents(() => content);
+
+  // Marks the page as hydrated, for the e2e tests: input typed before hydration can be lost.
+  onMount(() => {
+    document.documentElement.dataset.hydrated = "";
+  });
 </script>
 
 <svelte:document onclick={(event) => void copyCode(event)} />

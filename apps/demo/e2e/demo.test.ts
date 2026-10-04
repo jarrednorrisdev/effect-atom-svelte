@@ -110,7 +110,8 @@ test.describe("RPC page", () => {
       await route.continue();
     });
     await page.goto("/rpc");
-    await page.waitForLoadState("networkidle");
+    // Typed before hydration, the title was lost in WebKit on CI and an empty todo was added.
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
 
     await page.getByTestId("rpc-draft").fill("Slow todo");
     await page.getByTestId("rpc-add").click();
