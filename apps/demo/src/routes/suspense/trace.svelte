@@ -14,7 +14,6 @@
   import { useAtomSubscribe } from "effect-atom-svelte";
   import type { HTMLAttributes } from "svelte/elements";
 
-  import EventLog from "#lib/docs/kit/event-log.svelte";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import { reducedMotion } from "#lib/docs/kit/motion.ts";
   import { play } from "#lib/docs/kit/sound.ts";
@@ -24,13 +23,15 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly atom: Atom.Atom<AsyncResult.AsyncResult<string>>;
+    /** How the side reads the atom, for the caption while it refreshes. */
+    readonly mode: "default" | "suspendOnWaiting";
     /** The atom's name, as the example calls it. */
     readonly name: string;
     /** The promise the side's boundary awaits right now. */
     readonly read: () => Promise<string>;
   }
 
-  const { atom, name, read, ...rest }: Props = $props();
+  const { atom, mode, name, read, ...rest }: Props = $props();
 
   const example = getExampleState();
   const log = new EventLogState();
@@ -111,8 +112,14 @@
     <span class="name">{name}</span>
     <StateBadge data-testid="{name}-state" {result} />
   </p>
-  <Timeline entries={log.entries} lanes={["atom", "await"]} {now} />
-  <EventLog code entries={log.entries} label="{name} since the last refresh" max={5} />
+  {#if result.waiting && result._tag === "Success"}
+    <p class="caption" data-testid="{name}-caption">
+      {mode === "default"
+        ? "The await resolved at once, with the old value."
+        : "The await is waiting for the new value."}
+    </p>
+  {/if}
+  <Timeline entries={log.entries} lanes={["atom", "await"]} {now} span={2500} />
 </div>
 
 <style>
@@ -125,6 +132,11 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     margin: 0;
+  }
+  .caption {
+    color: var(--muted-foreground);
+    font-size: 0.8rem;
+    margin: 0.4rem 0 0;
   }
   .name {
     color: var(--muted-foreground);

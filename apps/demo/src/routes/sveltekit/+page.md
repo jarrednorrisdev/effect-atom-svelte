@@ -95,7 +95,7 @@ export const handleError: HandleClientError = (input) => {
 
 </Aside>
 
-Alternatively, handle the error before it reaches the boundary: `useAtomSuspense(atom, { includeFailure: true })` resolves with the `Failure` itself, typed error and all. See [Suspense](/suspense#handling-failure).
+Alternatively, handle the error before it reaches the boundary: `useAtomSuspense(atom, { includeFailure: true })` resolves with the `Failure` itself, typed error and all. See [Suspense](/suspense#when-it-fails).
 
 ## Data without load functions
 

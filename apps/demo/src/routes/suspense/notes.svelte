@@ -6,10 +6,10 @@
   // What the component's script did, for the log beside the example.
   export const script = new EventLogState();
 
-  // Takes 800 ms, and says how many times it has loaded.
+  // Takes 1.5 seconds, and says how many times it has loaded.
   let loads = 0;
   const notesAtom = Atom.make(
-    Effect.sync(() => (loads += 1)).pipe(Effect.delay("800 millis"))
+    Effect.sync(() => (loads += 1)).pipe(Effect.delay("1500 millis"))
   );
 </script>
 

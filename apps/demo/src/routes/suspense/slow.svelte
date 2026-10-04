@@ -2,20 +2,20 @@
   import { Effect } from "effect";
   import { Atom } from "effect/reactivity";
 
-  // An atom that takes 800 ms and says how many times it has loaded.
+  // An atom that takes 2 seconds and says how many times it has loaded.
   const makeSlowAtom = () => {
     let loads = 0;
     return Atom.make(
       Effect.sync(() => {
         loads += 1;
         return `Loaded ${loads} time${loads === 1 ? "" : "s"}`;
-      }).pipe(Effect.delay("800 millis"))
+      }).pipe(Effect.delay("2 seconds"))
     );
   };
 
   // One atom per side, so a refresh on one side doesn't hold up the other.
   const plainAtom = makeSlowAtom();
-  const heldAtom = makeSlowAtom();
+  const waitingAtom = makeSlowAtom();
 </script>
 
 <script lang="ts">
@@ -25,16 +25,21 @@
   import Trace from "./trace.svelte";
 
   const plain = useAtomSuspense(plainAtom);
-  const held = useAtomSuspense(heldAtom, { suspendOnWaiting: true });
+  const waiting = useAtomSuspense(waitingAtom, { suspendOnWaiting: true });
   const refreshPlain = useAtomRefresh(plainAtom);
-  const refreshHeld = useAtomRefresh(heldAtom);
+  const refreshWaiting = useAtomRefresh(waitingAtom);
+
+  const refreshBoth = () => {
+    refreshPlain();
+    refreshWaiting();
+  };
 </script>
 
+<p><button data-cue="start" onclick={refreshBoth}>Refresh both</button></p>
 <div class="grid gap-4 sm:grid-cols-2">
-  <Part code label="default">
-    <button aria-label="Refresh default" onclick={refreshPlain}>Refresh</button>
+  <Part code label="useAtomSuspense(plainAtom)" top>
     <svelte:boundary>
-      <div class="mt-3 flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <ResultChip kind="message" tone="success">
           <span data-testid="suspense-value">{await plain.current}</span>
         </ResultChip>
@@ -44,23 +49,27 @@
         </span>
       </div>
       {#snippet pending()}
-        <p class="mt-3">
-          <ResultChip kind="message" tone="running">Loading…</ResultChip>
-        </p>
+        <ResultChip kind="message" tone="running">Loading…</ResultChip>
       {/snippet}
     </svelte:boundary>
-    <!-- Beside the example: the atom's AsyncResult, and when the await resolved. -->
-    <Trace atom={plainAtom} name="plainAtom" read={() => plain.current} />
+    <!-- The atom's AsyncResult, and when the await resolved. -->
+    <Trace
+      atom={plainAtom}
+      mode="default"
+      name="plainAtom"
+      read={() => plain.current}
+    />
   </Part>
 
-  <Part code label="suspendOnWaiting: true">
-    <button aria-label="Refresh suspendOnWaiting" onclick={refreshHeld}>
-      Refresh
-    </button>
+  <Part
+    code
+    label={"useAtomSuspense(waitingAtom, { suspendOnWaiting: true })"}
+    top
+  >
     <svelte:boundary>
-      <div class="mt-3 flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <ResultChip busy={$effect.pending() > 0} kind="message" tone="success">
-          <span data-testid="held-value">{await held.current}</span>
+          <span data-testid="held-value">{await waiting.current}</span>
         </ResultChip>
         <span class="text-xs">
           $effect.pending():
@@ -68,11 +77,14 @@
         </span>
       </div>
       {#snippet pending()}
-        <p class="mt-3">
-          <ResultChip kind="message" tone="running">Loading…</ResultChip>
-        </p>
+        <ResultChip kind="message" tone="running">Loading…</ResultChip>
       {/snippet}
     </svelte:boundary>
-    <Trace atom={heldAtom} name="heldAtom" read={() => held.current} />
+    <Trace
+      atom={waitingAtom}
+      mode="suspendOnWaiting"
+      name="waitingAtom"
+      read={() => waiting.current}
+    />
   </Part>
 </div>

@@ -39,6 +39,8 @@
     readonly dashed?: boolean;
     readonly label: string;
     readonly tone?: Tone;
+    /** Starts the contents at the top, for a tall part in a row of uneven ones. */
+    readonly top?: boolean;
   }
 
   const {
@@ -49,6 +51,7 @@
     dashed = false,
     label,
     tone = "idle",
+    top = false,
     ...rest
   }: Props = $props();
 
@@ -80,7 +83,7 @@
 </script>
 
 <div
-  class={["part not-prose", dashed && "dashed"]}
+  class={["part not-prose", dashed && "dashed", top && "top"]}
   data-tone={tone}
   {...rest}
   {@attach settle}
@@ -169,5 +172,8 @@
     flex: 1;
     font-size: 0.875rem;
     margin-top: 0.4rem;
+  }
+  .top .body {
+    align-content: start;
   }
 </style>

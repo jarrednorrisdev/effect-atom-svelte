@@ -85,7 +85,7 @@ Both give you the `AsyncResult`, failures included. Check `_tag` in the markup, 
 
 ### In a boundary
 
-`useAtomSuspense` rejects when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. The promise rejects with `Cause.squash(cause)`: the first typed error if there is one, otherwise the defect, otherwise an `Error` saying the effect was interrupted. See [Handling failure](/suspense#handling-failure).
+`useAtomSuspense` rejects when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. The promise rejects with `Cause.squash(cause)`: the first typed error if there is one, otherwise the defect, otherwise an `Error` saying the effect was interrupted. See [When it fails](/suspense#when-it-fails).
 
 Before the `failed` snippet sees the error, SvelteKit passes it through its `handleError` hook, as the next section explains.
 
