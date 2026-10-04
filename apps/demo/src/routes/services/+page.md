@@ -9,6 +9,9 @@ description: Give atoms' effects the services they need, with Atom.runtime and a
 
   import Dice from "./dice.svelte";
   import source from "./dice.svelte?highlight";
+  import Pool from "./pool.svelte";
+  import poolSource from "./pool.svelte?highlight";
+  import poolReaderSource from "./pool-reader.svelte?highlight";
 </script>
 
 An effect that needs a service, such as an HTTP client or a repository, says so in its type, and can't run until something provides it. For atoms, that something is a **runtime**: an atom that builds a `Layer` and runs other atoms' effects with its services.
@@ -52,6 +55,10 @@ An atom made this way fails with the layer's error if the layer fails to build.
 The runtime is an atom itself, so it follows the usual [lifetimes](/lifetimes). It builds its layer the first time one of its atoms runs, and every atom made from it shares the services. When none of its atoms is in use any more, the runtime is disposed and the layer's resources are released.
 
 Layers are built once per registry. On the server, each request has its own registry and so its own services. Two runtimes that use the same layer share one copy of it in each registry.
+
+In the live example, the runtime's layer builds a pretend connection pool with `Effect.acquireRelease`, and two atoms made from the runtime say which pool they got.
+
+<Example files={[{ html: poolSource, name: "pool.svelte" }, { html: poolReaderSource, name: "pool-reader.svelte" }]} hint="Add a reader of usersAtom: the runtime builds pool 1. Add a reader of ordersAtom: it shares pool 1. Remove both: the pool is released. Add one again: pool 2 is built."> <Pool /> </Example>
 
 ## Choosing a layer with `get`
 

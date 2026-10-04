@@ -11,6 +11,8 @@
  * ```
  */
 
+import { untrack } from "svelte";
+
 import type { Tone } from "./tone.ts";
 
 export interface LogEntry {
@@ -52,12 +54,19 @@ export class EventLogState {
       tone,
       ...(lane === undefined ? {} : { lane }),
     };
-    this.entries = [...this.entries, entry].slice(-this.#limit);
+    // Untracked, so an atom's effect may log while Svelte reads the atom (in markup or a
+    // `$derived`), such as a resource being acquired when the effect starts. Svelte rejects a
+    // tracked state change there (`state_unsafe_mutation`).
+    untrack(() => {
+      this.entries = [...this.entries, entry].slice(-this.#limit);
+    });
   }
 
   /** Empties the log; the next entry is at 0 ms again. */
   clear() {
-    this.entries = [];
+    untrack(() => {
+      this.entries = [];
+    });
     this.#start = undefined;
   }
 }

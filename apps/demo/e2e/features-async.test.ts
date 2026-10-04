@@ -187,3 +187,50 @@ test.describe("Effect basics page", () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe("Services page", () => {
+  test("a runtime builds its layer once for its atoms, and releases it when none is in use", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await page.goto("/services");
+    await page.waitForLoadState("networkidle");
+    const log = logEntries(page, "Pool");
+    const inUse = page.getByLabel("runtime atoms in use");
+    await expect(page.getByText("No pool yet.", { exact: true })).toBeVisible();
+    await page
+      .getByRole("button", { name: "Add a reader of usersAtom" })
+      .click();
+    await expect(page.getByTestId("pool-usersAtom")).toHaveText("Uses pool 1");
+    await page
+      .getByRole("button", { name: "Add a reader of ordersAtom" })
+      .click();
+    await expect(page.getByTestId("pool-ordersAtom")).toHaveText("Uses pool 1");
+    await expect(inUse).toHaveText("2");
+    await expect(log).toHaveText([/^0 ms\s*pool 1 built$/u]);
+    // One atom still uses the runtime, so the pool stays.
+    await page
+      .getByRole("button", { name: "Remove a reader of usersAtom" })
+      .click();
+    await expect(inUse).toHaveText("1");
+    await page.waitForTimeout(300);
+    await expect(log).toHaveText([/^0 ms\s*pool 1 built$/u]);
+    await page
+      .getByRole("button", { name: "Remove a reader of ordersAtom" })
+      .click();
+    await expect(log).toHaveText([
+      /^0 ms\s*pool 1 built$/u,
+      /^\d+ ms\s*pool 1 released$/u,
+    ]);
+    await page
+      .getByRole("button", { name: "Add a reader of ordersAtom" })
+      .click();
+    await expect(page.getByTestId("pool-ordersAtom")).toHaveText("Uses pool 2");
+    await expect(log).toHaveText([
+      /^0 ms\s*pool 1 built$/u,
+      /^\d+ ms\s*pool 1 released$/u,
+      /^\d+ ms\s*pool 2 built$/u,
+    ]);
+    expect(errors).toEqual([]);
+  });
+});
