@@ -15,7 +15,7 @@ An effect that needs a service, such as an HTTP client or a repository, says so 
 
 [Effect basics](/effect-basics#services-and-layers) introduces services and layers. The example below uses a `Dice` service with two layers, a fair die and a loaded one. Tick **Loaded dice** to switch layers.
 
-<Example files={[{ html: source, name: "dice.svelte" }]}> <Dice /> </Example>
+<Example files={[{ html: source, name: "dice.svelte" }]} hint="Tick Loaded dice: the runtime builds the other layer, and dieAtom rolls again with it. Then roll a few times."> <Dice /> </Example>
 
 ## Making a runtime
 

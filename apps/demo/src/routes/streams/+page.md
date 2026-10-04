@@ -9,6 +9,7 @@ description: Follow a Stream's latest value, or pull its items when you want the
 
   import Clock from "./clock.svelte";
   import clockSource from "./clock.svelte?highlight";
+  import secondsSource from "./seconds.svelte?highlight";
   import Fruit from "./fruit.svelte";
   import fruitSource from "./fruit.svelte?highlight";
 </script>
@@ -19,7 +20,7 @@ Some values change over time without anyone asking: a clock, a price feed, messa
 
 Pass `Atom.make` a `Stream` and the atom holds the latest item the stream emitted:
 
-<Example files={[{ html: clockSource, name: "clock.svelte" }]}> <Clock /> </Example>
+<Example files={[{ html: secondsSource, name: "seconds.svelte" }, { html: clockSource, name: "clock.svelte" }]} hint="Each second the stream emits, and the atom holds the latest item. Click Stop reading, wait, then Start reading: the stream starts again from 0."> <Clock /> </Example>
 
 The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
@@ -42,7 +43,7 @@ A stream hands over its items in **chunks**: groups of items that are ready at t
 - `items`: every item pulled so far.
 - `done`: whether the stream has ended.
 
-<Example files={[{ html: fruitSource, name: "fruit.svelte" }]}> <Fruit /> </Example>
+<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until the button says No more fruit, and watch the pulls: each brings a page of three, and the last brings nothing but done."> <Fruit /> </Example>
 
 **Example** (Loading the next page)
 

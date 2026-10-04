@@ -1,24 +1,25 @@
-<script module lang="ts">
-  import { Stream } from "effect";
-  import { Atom } from "effect/reactivity";
-
-  // Counts the seconds since something started reading it. withServerValueInitial
-  // keeps it off the server, which would otherwise run it until the render ended.
-  const clockAtom = Atom.make(
-    Stream.tick("1 second").pipe(Stream.scan(() => 0, (n) => n + 1))
-  ).pipe(Atom.withServerValueInitial);
-</script>
-
 <script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
-  import { useAtomValue } from "effect-atom-svelte";
+  import Part from "#lib/docs/kit/part.svelte";
+  import Seconds from "./seconds.svelte";
 
-  const clock = useAtomValue(clockAtom);
+  // While nobody reads clockAtom, its stream isn't running.
+  let reading = $state(true);
 </script>
 
 <p>
-  Seconds on this page:
-  <output data-testid="clock">
-    {AsyncResult.getOrElse(clock.current, () => "starting")}
-  </output>
+  <button
+    data-cue={reading ? "interrupt" : "start"}
+    onclick={() => (reading = !reading)}
+  >
+    {reading ? "Stop reading" : "Start reading"}
+  </button>
 </p>
+<Part dashed={!reading} label="Reader" tone={reading ? "running" : "idle"}>
+  {#if reading}
+    <Seconds />
+  {:else}
+    <p data-testid="clock-stopped">
+      Nothing reads clockAtom, so its stream has stopped.
+    </p>
+  {/if}
+</Part>

@@ -443,10 +443,44 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
   await expect(hash).toHaveText(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
   );
+  await expect(page.getByTestId("hash-state")).toHaveText("Success");
   await page.getByTestId("hash-algorithm").selectOption("MD5");
   await expect(hash).toHaveText("UnsupportedAlgorithm: Web Crypto has no MD5");
+  await expect(page.getByTestId("hash-state")).toHaveText("Failure");
   await page.getByTestId("hash-algorithm").selectOption("SHA-1");
   await expect(hash).toHaveText("a9993e364706816aba3e25717850c26c9cd0d89d");
+});
+
+test("effect basics: interrupting tryPromise aborts the request's signal", async ({
+  page,
+}) => {
+  await page.goto("/effect-basics");
+  await page.waitForLoadState("networkidle");
+  const state = page.getByTestId("request-state");
+  const server = page
+    .getByRole("list", { name: "Server" })
+    .getByRole("listitem");
+  await expect(state).toHaveText("Initial");
+  await page.getByRole("button", { name: "Send request" }).click();
+  await expect(state).toHaveText("Initial, waiting");
+  await expect(server).toHaveText([/^0 ms\s*request received$/u]);
+  await page.getByRole("button", { name: "Interrupt" }).click();
+  await expect(state).toHaveText("Failure");
+  await expect(page.getByTestId("request")).toHaveText("Interrupted");
+  await expect(server).toHaveText([
+    /^0 ms\s*request received$/u,
+    /^\d+ ms\s*signal aborted, request dropped$/u,
+  ]);
+  // Left alone, the request answers after two seconds.
+  await page.getByRole("button", { name: "Send request" }).click();
+  await expect(page.getByTestId("request")).toHaveText("Here is your data", {
+    timeout: 5000,
+  });
+  await expect(state).toHaveText("Success");
+  await expect(server).toHaveText([
+    /^0 ms\s*request received$/u,
+    /^\d+ ms\s*response sent$/u,
+  ]);
 });
 
 test("errors: typed errors match on _tag, and a defect is told apart", async ({
@@ -540,8 +574,11 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   await page.waitForLoadState("networkidle");
   const die = page.getByTestId("service-die");
   await expect(die).toHaveText(/^[1-6]$/u);
+  await expect(page.getByTestId("service-layer")).toHaveText("Dice.fair");
   await page.getByLabel("Loaded dice").check();
+  await expect(page.getByTestId("service-layer")).toHaveText("Dice.loaded");
   await expect(die).toHaveText("6");
+  await expect(page.getByTestId("service-state")).toHaveText("Success");
   // A fair die rolls three sixes in a row once in 216 runs; the loaded one always does.
   const rollAndWait = async () => {
     await page.getByRole("button", { name: "Roll again" }).click();
@@ -813,28 +850,69 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   page,
 }) => {
   await page.goto("/streams");
-  await expect(page.getByTestId("clock")).toHaveText(/^[1-9]/u, {
+  const clock = page.getByTestId("clock");
+  await expect(clock).toHaveText(/^[1-9]/u, {
     timeout: 3000,
   });
-  const fruit = page.getByTestId("fruit");
-  await expect(fruit).toHaveText("apple, banana, cherry");
+  // A stream that is still running is a Success that is waiting.
+  await expect(page.getByTestId("clock-state")).toHaveText("Success, waiting");
+  // With no reader the stream stops; a new reader starts it again from the beginning.
+  await expect(clock).toHaveText(/^[2-9]/u, { timeout: 3000 });
+  await page.getByRole("button", { name: "Stop reading" }).click();
+  await expect(page.getByTestId("clock-stopped")).toBeVisible();
+  await page.getByRole("button", { name: "Start reading" }).click();
+  await expect(clock).toHaveText(/^(?:starting|0|1)$/u);
+
+  const fruit = page.getByTestId("fruit").getByRole("listitem");
+  const pulls = page.getByRole("list", { name: "Pulls" }).getByRole("listitem");
+  await expect(fruit).toHaveText(["apple", "banana", "cherry"]);
+  await expect(page.getByTestId("fruit-done")).toHaveText("false");
   const more = page.getByRole("button", { name: "Load more" });
   await more.click();
-  await expect(fruit).toHaveText(
-    "apple, banana, cherry, damson, elderberry, fig"
-  );
+  await expect(fruit).toHaveText([
+    "apple",
+    "banana",
+    "cherry",
+    "damson",
+    "elderberry",
+    "fig",
+  ]);
   await more.click();
-  await expect(fruit).toHaveText(
-    "apple, banana, cherry, damson, elderberry, fig, grape"
-  );
+  await expect(fruit).toHaveText([
+    "apple",
+    "banana",
+    "cherry",
+    "damson",
+    "elderberry",
+    "fig",
+    "grape",
+  ]);
+  await expect(page.getByTestId("fruit-done")).toHaveText("false");
   // The pull atom learns the stream has ended only on the next pull, which brings no items.
   await more.click();
   await expect(
     page.getByRole("button", { name: "No more fruit" })
   ).toBeDisabled();
-  await expect(fruit).toHaveText(
-    "apple, banana, cherry, damson, elderberry, fig, grape"
+  await expect(page.getByTestId("fruit-done")).toHaveText("true");
+  await expect(fruit).toHaveCount(7);
+  // Each pull adds a chunk, and the last adds none. The pulls that wait for a page show it;
+  // the last one may settle too quickly for its waiting state to show.
+  await expect(pulls.last()).toHaveText(
+    /^\d+ ms\s*Success 7 items, done: true$/u
   );
+  const pullTexts = await pulls.allTextContents();
+  const settled = pullTexts
+    .map((text) => text.replace(/^\s*\d+ ms\s*/u, "").trim())
+    .filter((text) => !text.endsWith("waiting"));
+  expect(settled.slice(-4)).toEqual([
+    "Success 3 items, done: false",
+    "Success 6 items, done: false",
+    "Success 7 items, done: false",
+    "Success 7 items, done: true",
+  ]);
+  await expect(
+    pulls.filter({ hasText: "Success 3 items, done: false, waiting" })
+  ).toHaveCount(1);
 });
 
 test("AtomRef: a property ref updates the ref and its derived ref", async ({

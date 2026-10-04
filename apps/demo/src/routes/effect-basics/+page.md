@@ -9,13 +9,15 @@ description: The parts of Effect these docs use, for Svelte developers who haven
 
   import Hash from "./hash.svelte";
   import hashSource from "./hash.svelte?highlight";
+  import Request from "./request.svelte";
+  import requestSource from "./request.svelte?highlight";
 </script>
 
 From here on, atoms run Effects: to fetch data, to save it, to follow a stream. You don't need to know all of Effect to use them. This page covers the parts these docs use, each with a link to [Effect's own documentation](https://effect.website/docs/v4) for the rest.
 
 The example wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect, and reads it through an atom. Pick `MD5`, which Web Crypto doesn't support, to see a typed error.
 
-<Example files={[{ html: hashSource, name: "hash.svelte" }]}> <Hash /> </Example>
+<Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it. Then pick MD5: the promise rejects, and the atom fails with a typed error."> <Hash /> </Example>
 
 ## The Effect type
 
@@ -71,6 +73,10 @@ const getJson = (url: string) =>
 ```
 
 `try` receives an `AbortSignal`, which Effect aborts if the effect is interrupted. Pass it on, as above, and an atom that nobody reads any more cancels its request.
+
+The example below wraps a pretend slow API that takes an `AbortSignal`, as `fetch` does. Interrupting the effect aborts the signal, and the server's log shows the request being dropped. Its atom is made with `Atom.fn`, which runs the effect each time it's called and stops it when written `Atom.Interrupt`; [Mutations](/mutations) covers it.
+
+<Example files={[{ html: requestSource, name: "request.svelte" }]} hint="Click Send request, then Interrupt before the two seconds are up. Then send another and let it finish."> <Request /> </Example>
 
 Without `catch`, as in `Effect.tryPromise(() => fetch(url))`, a rejection becomes an `UnknownError`. When a promise can't reject, `Effect.promise` wraps it without an error type.
 

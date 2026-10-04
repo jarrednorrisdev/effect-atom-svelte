@@ -35,28 +35,39 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const algorithm = useAtom(algorithmAtom);
   const text = useAtom(textAtom);
   const hash = useAtomValue(hashAtom);
 </script>
 
-<p>
-  <input bind:value={text.current} data-testid="hash-text" />
-  <select bind:value={algorithm.current} data-testid="hash-algorithm">
+<p class="flex flex-wrap gap-2">
+  <input aria-label="Text" bind:value={text.current} data-testid="hash-text" />
+  <select
+    aria-label="Algorithm"
+    bind:value={algorithm.current}
+    data-testid="hash-algorithm"
+  >
     <option>SHA-256</option>
     <option>SHA-1</option>
     <option>MD5</option>
   </select>
 </p>
-<p>
-  <output data-testid="hash" style:word-break="break-all">
-    {#if hash.current._tag === "Success"}
-      {hash.current.value}
-    {:else if hash.current._tag === "Failure"}
-      {describe(hash.current.cause)}
-    {:else}
-      Hashing…
-    {/if}
-  </output>
-</p>
+<div class="flex flex-wrap items-center gap-3">
+  {#if hash.current._tag === "Success"}
+    <ResultChip kind="message" label="hashAtom" tone="success">
+      <output data-testid="hash" style:word-break="break-all">
+        {hash.current.value}
+      </output>
+    </ResultChip>
+  {:else if hash.current._tag === "Failure"}
+    <ResultChip kind="message" label="hashAtom" tone="failure">
+      <output data-testid="hash">{describe(hash.current.cause)}</output>
+    </ResultChip>
+  {:else}
+    <ResultChip kind="message" label="hashAtom" tone="running">Hashing…</ResultChip>
+  {/if}
+  <StateBadge data-testid="hash-state" result={hash.current} />
+</div>
