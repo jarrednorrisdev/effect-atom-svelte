@@ -7,8 +7,16 @@ description: Run an Effect in an atom and read its progress as an AsyncResult.
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import Connection from "./connection.svelte";
+  import connectionSource from "./connection.svelte?highlight";
   import Die from "./die.svelte";
   import source from "./die.svelte?highlight";
+  import feedSource from "./feed.svelte?highlight";
+  import Kept from "./kept.svelte";
+  import keptSource from "./kept.svelte?highlight";
+  import keptReaderSource from "./kept-reader.svelte?highlight";
+  import Sensor from "./sensor.svelte";
+  import sensorSource from "./sensor.svelte?highlight";
 </script>
 
 Most state worth keeping comes from somewhere slow: a server, a database, a file. An async atom runs an `Effect` to get its value. Its value also says whether the effect is still running, succeeded or failed, so a component can show a loading state, the value, or what went wrong.
@@ -117,6 +125,10 @@ The `AsyncResult` module, exported from `effect/reactivity`, has functions that 
 const count = $derived(AsyncResult.getOrElse(todos.current, () => []).length);
 ```
 
+The live example reads one atom both ways. While the sensor is offline, `match` says so, and `getOrElse` still shows the last reading.
+
+<Example files={[{ html: sensorSource, name: "sensor.svelte" }]} hint="Wait for a reading, then tick Offline: match reports the failure, while getOrElse keeps the last temperature. Click Read again while offline: it still does."> <Sensor /> </Example>
+
 [Streams](/streams) uses it to show `starting` until a stream's first item arrives. Other functions in the module:
 
 | Function | Does |
@@ -153,6 +165,10 @@ const searchAtom = Atom.family((term: string) =>
 
 Here the settings load once per registry, which is once per session in the browser. Each search result is kept for a minute after you navigate away, so going back shows it straight away.
 
+The live example has one atom of each kind, each counting how many times its effect has run. Hiding a reader is like navigating away.
+
+<Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Hide each reader and show it again. plain loads again, keepAlive never does, and idle TTL loads again only if it stayed hidden for longer than its 3 seconds."> <Kept /> </Example>
+
 ## Releasing resources
 
 An async atom's effect runs in a `Scope` that lasts as long as the atom's value. Anything the effect acquires with `Effect.acquireRelease` or `Effect.addFinalizer` is released when the atom is disposed, or before its effect runs again:
@@ -169,6 +185,8 @@ const feedAtom = Atom.make(
   })
 );
 ```
+
+<Example files={[{ html: connectionSource, name: "connection.svelte" }, { html: feedSource, name: "feed.svelte" }]} hint="Add a reader: the atom opens a socket. Click Reconnect: the old socket closes before the new one opens. Then remove the reader: the last socket closes."> <Connection /> </Example>
 
 This is the effect version of `get.addFinalizer`, described in [Lifetimes](/lifetimes#finalizers).
 
