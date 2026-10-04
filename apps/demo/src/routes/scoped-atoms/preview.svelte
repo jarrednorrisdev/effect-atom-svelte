@@ -13,7 +13,7 @@
   // Markdown's emphasis: **bold** and *italic*.
   const emphasis = (text: string): Segment[] =>
     text
-      .split(/(\*\*[^*]+\*\*|\*[^*]+\*)/u)
+      .split(/(?<emphasis>\*\*[^*]+\*\*|\*[^*]+\*)/u)
       .filter((part) => part !== "")
       .map((part) => {
         if (/^\*\*[^*]+\*\*$/u.test(part)) {
