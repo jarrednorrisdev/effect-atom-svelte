@@ -40,17 +40,42 @@ Plain buttons, inputs and `<output>` inside an example are already styled by `.d
 
 ## Motion
 
-Every animation is short and explains a change (a value arriving, a state changing, a run in progress). Each component turns its movement off under `prefers-reduced-motion`; color changes stay.
+The kit animates with [Motion](https://motion.dev/) (`animate`, springs, `stagger` from `"motion"`), as Visual Effect does, using its framework-agnostic API driven from Svelte attachments (`{@attach}`). `motion.ts` holds the shared pieces:
+
+- `springs`: Visual Effect's presets (`bouncy` for a result arriving, `contentScale` for a tile's content, `default`, `snappy` for small things).
+- `onChange(read, react)`: an attachment that calls `react(element, now, before)` whenever `read()` changes, but not on first render, so a page's own load stays still.
+- `enter(keyframes)`: an attachment that animates an element in when it mounts, staggered with others mounting in the same frame (log entries, timeline dots).
+- `shake(element)` and `jitter(element)`: Visual Effect's failure shake and its running jitter (the latter returns a stop function to use as an attachment's cleanup).
+- `reducedMotion()`: check it before moving, scaling or rotating anything. Under `prefers-reduced-motion` nothing moves; color changes (flashes, tints) stay.
+
+What moves: `FlashValue` flashes and ticks like an odometer; `ResultChip` jitters while busy, then flashes and pops when a result arrives, and shakes on failure; `StateBadge` bounces and pops its icon on a change of state; `EventLog` entries slide in and `Timeline` dots drop in, staggered; `Part` counters tick, a running part's ring breathes and a part bounces when it settles; `Slots` pop when filled and flash when emptied; `PlayControls` beats its Play icon while playing and spins Restart; `RunControls` pops as Run turns into Interrupt and spins Reset. Spinners and the busy shine stay CSS.
+
+To animate a new component:
+
+1. Import `animate` from `"motion"` and what you need from `./motion.ts`.
+2. For a change of a prop, make an attachment with `onChange(() => prop, (element, now, before) => …)` and put `{@attach it}` on the element. For a mount, use `{@attach enter({ … })}`. For something that lasts while a condition holds (a pulse while running), write an attachment that reads the condition, starts the animation and returns a cleanup that stops it; Svelte reruns it when the condition changes.
+3. Animate colors through a CSS variable rather than a color value (`animate(el, { "--flash": [1, 0] })` with `color-mix(… calc(var(--flash) * 70%) …)` in the style), so the colors follow the theme.
+4. Return early when `reducedMotion()` before any movement.
+5. Keep `data-testid`s, roles and text where tests read them: animate an element, don't replace it.
+
+Motion is about 20 kB gzipped. Only kit components import it, and only pages with examples import kit components, so it is never in the layout chunk; keep it that way (the header and layout must not import `motion.ts` or anything that does).
 
 ## Sound
 
-`sound.ts` synthesizes short cues with Web Audio (no files): `tap`, `start`, `success`, `failure`, `interrupt`, `reset`, `tick`. You rarely call it:
+`sound.ts` plays short cues made with [Tone.js](https://tonejs.github.io/), on Visual Effect's synths (`sound-engine.ts` copies its `TaskSounds` oscillators, envelopes, notes, reverb and volume): `tap` (its configuration chime, walking the pentatonic scale), `start` (its running blip), `success` (its triad chord), `failure` (its bass), `interrupt` (its two-beep alert), `reset` (its G to C), `tick` (its ref-update blip). You rarely call it:
 
 - `Example` plays `tap` for every button, checkbox and radio inside the result. Set `data-cue="start"` (or any cue) on a control to play another, or `data-cue="none"` for silence. `RunControls` and `PlayControls` set theirs.
 - `StateBadge` plays `success` or `failure` when a run ends, but only after the reader has touched that example, so a page's own first load is silent. Pass `sound={false}` if something else in the example plays the outcome.
 - Call `play("tick")` yourself only for steps that matter, and never on a timer that runs without the reader.
 
 Nothing plays while the header's sound switch is off (`sound-preference.ts`, localStorage key `sound`, on by default), nor before the reader has interacted with the page.
+
+Tone.js is about 60 kB gzipped, so it loads lazily. The rules:
+
+- `sound.ts` is tiny and may be imported anywhere (the header's toggle does). It must never import `tone` or `sound-engine.ts` statically; only its `import("./sound-engine.ts")` loads them.
+- That import happens on the first gesture that would play a cue (a press on an example's control starts it on `pointerdown` through `warm()`, so the click's own cue isn't late), and only while sound is on. With sound off, Tone.js never loads and nothing plays. A cue that waited more than 400 ms for the download is dropped.
+- Audio must start inside the gesture. Before Tone.js has loaded, `sound.ts` creates and resumes a plain `AudioContext` in the gesture and Tone.js adopts it (`Tone.setContext`); afterwards every cue calls `Tone.start()` synchronously before playing.
+- `app.html` has an inline script that marks `<html data-sound="off">` before first paint, so the header shows the right icon before hydration. It reads the same key as `sound-preference.ts`; change both together.
 
 ## Tests
 

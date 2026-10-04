@@ -2,8 +2,9 @@
   @component
   A labeled box in a diagram, as in Effect's Module of the Week posts: an uppercase caption
   (REGISTRY, SERVER, BOUNDARY A), the part's contents, and optionally a counter in the corner that
-  flashes when it changes (a reference count going 0, 1, 2, 1, 0). Its border takes the tone, and a
-  `dashed` part reads as absent or released.
+  flashes and ticks when it changes (a reference count going 0, 1, 2, 1, 0). Its border takes the
+  tone, and a `dashed` part reads as absent or released. With Motion, its ring breathes while
+  running and the part bounces when it settles into another state.
 
   ```svelte
   <Part count={holders} countLabel="readers" label="countAtom" tone={holders > 0 ? "success" : "idle"}>
@@ -17,7 +18,10 @@
   import type { Snippet } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
 
+  import { animate } from "motion";
+
   import FlashValue from "./flash-value.svelte";
+  import { onChange, reducedMotion, springs } from "./motion.ts";
   import type { Tone } from "./tone.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
@@ -41,9 +45,41 @@
     tone = "idle",
     ...rest
   }: Props = $props();
+
+  // A part that settles into a new state gives a small bounce.
+  const settle = onChange(
+    () => tone,
+    (part, now) => {
+      if (now !== "running" && !reducedMotion()) {
+        animate(part, { scale: [0.96, 1] }, springs.bouncy);
+      }
+    }
+  );
+
+  // While running, its ring breathes, like the glow of a running effect.
+  const glow = (part: HTMLElement) => {
+    if (tone !== "running" || reducedMotion()) {
+      return undefined;
+    }
+    const pulse = animate(
+      part,
+      { "--glow": [1, 0.3, 1] },
+      { duration: 1.5, ease: "easeInOut", repeat: Number.POSITIVE_INFINITY }
+    );
+    return () => {
+      pulse.stop();
+      part.style.removeProperty("--glow");
+    };
+  };
 </script>
 
-<div class={["part not-prose", dashed && "dashed"]} data-tone={tone} {...rest}>
+<div
+  class={["part not-prose", dashed && "dashed"]}
+  data-tone={tone}
+  {...rest}
+  {@attach settle}
+  {@attach glow}
+>
   <div class="head">
     <span class="label">{label}</span>
     {#if count !== undefined}
@@ -73,7 +109,9 @@
   }
   .part[data-tone="running"] {
     --mark: var(--tone-running);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--tone-running) 20%, transparent);
+    /* --glow (0 to 1) pulses while running; see the script. */
+    box-shadow: 0 0 0 calc(1px + var(--glow, 1) * 3px)
+      color-mix(in oklab, var(--tone-running) calc(var(--glow, 1) * 25%), transparent);
   }
   .part[data-tone="success"] {
     --mark: var(--tone-success);

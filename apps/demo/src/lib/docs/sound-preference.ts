@@ -4,8 +4,9 @@
  * visitor has interacted with the page, and the examples only play sounds in answer to a click, so
  * nothing ever plays on page load.
  *
- * This module is tiny on purpose: the header toggle imports it on every page. The synthesizer
- * (`kit/sound.ts`) loads only with pages that have examples.
+ * This module is tiny on purpose: the header toggle imports it on every page, as it does
+ * `kit/sound.ts`, which is small too. Tone.js (`kit/sound-engine.ts`) loads only when a cue first
+ * plays, and never while sound is off.
  */
 
 const storageKey = "sound";
@@ -23,9 +24,14 @@ export const isSoundOn = (): boolean => {
   }
 };
 
-/** Turns sound on or off and remembers the choice. */
+/**
+ * Turns sound on or off and remembers the choice. `<html data-sound>` follows it, which the
+ * header's icon is styled from; app.html's inline script sets it before first paint from the same
+ * storage key, so keep the two in step.
+ */
 export const setSoundOn = (on: boolean) => {
   fallback = on;
+  document.documentElement.dataset.sound = on ? "on" : "off";
   try {
     localStorage.setItem(storageKey, on ? "on" : "off");
   } catch {

@@ -20,7 +20,9 @@
   "dependencies": {
     "@demo/domain": "workspace:*",
     "effect": "4.0.0",
-    "effect-atom-svelte": "workspace:*"
+    "effect-atom-svelte": "workspace:*",
+    "motion": "^14.0.0",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@alchemy.run/frontend-frameworks": "2.0.0-beta.80",

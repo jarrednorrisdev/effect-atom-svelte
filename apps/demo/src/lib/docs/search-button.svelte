@@ -50,14 +50,15 @@
 
 <button
   aria-label="Search"
-  class="inline-flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground md:w-56"
+  class="inline-flex size-8 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:w-full sm:justify-start sm:px-2.5 md:w-56"
   onclick={() => void show()}
   onfocus={() => void load()}
   onpointerenter={() => void load()}
   type="button"
 >
   <SearchIcon class="size-4" />
-  <span class="flex-1 text-left">Search</span>
+  <!-- Phones get the icon alone, so the header fits; the button's label stays "Search". -->
+  <span class="hidden flex-1 text-left sm:inline">Search</span>
   <Kbd class="hidden sm:inline-flex">{shortcut}</Kbd>
 </button>
 

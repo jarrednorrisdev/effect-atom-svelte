@@ -298,16 +298,28 @@ test.describe("docs shell", () => {
     });
     const notes = () =>
       page.evaluate(() => (window as unknown as { notes: number }).notes);
+    // Tone.js is the only script that names itself "Tone.js"; count the times it is downloaded.
+    let toneLoads = 0;
+    page.on("response", async (response) => {
+      if (response.url().endsWith(".js")) {
+        const body = await response.text().catch(() => "");
+        if (body.includes("Tone.js")) {
+          toneLoads += 1;
+        }
+      }
+    });
     await page.goto("/first-atom");
     await page.waitForLoadState("networkidle");
     const toggle = page.getByRole("button", { name: "Sound effects" });
     const increment = page.getByRole("button", {
       name: "First counter: increment",
     });
-    // On by default: a click in an example plays a note.
+    // On by default, but Tone.js waits for the first click that plays a note.
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toneLoads).toBe(0);
     await increment.click();
     await expect.poll(notes).toBeGreaterThan(0);
+    expect(toneLoads).toBe(1);
 
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -318,6 +330,8 @@ test.describe("docs shell", () => {
     await expect(page.locator("[data-example] output").first()).toHaveText("1");
     await page.waitForTimeout(200);
     expect(await notes()).toBe(0);
+    // While sound is off, Tone.js never loads.
+    expect(toneLoads).toBe(1);
 
     // Turning it back on plays a note to confirm, and is remembered too.
     await toggle.click();
@@ -326,6 +340,39 @@ test.describe("docs shell", () => {
     await page.reload();
     await page.waitForLoadState("networkidle");
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("the sound switch shows off before any app script runs", async ({
+    page,
+  }) => {
+    await page.goto("/first-atom");
+    await page.waitForLoadState("networkidle");
+    const toggle = page.getByRole("button", { name: "Sound effects" });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    // Without the app's JavaScript, only the inline script in app.html can pick the icon.
+    await page.route("**/_app/**/*.js", (route) => route.abort());
+    await page.reload();
+    await expect(toggle.locator(".sound-off-icon")).toBeVisible();
+    await expect(toggle.locator(".sound-on-icon")).toBeHidden();
+  });
+
+  test("on a phone the search button is an icon that still opens search", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ height: 844, width: 390 });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const search = page.getByRole("button", { name: "Search" });
+    await expect(search).toBeVisible();
+    await expect(search).not.toContainText("Search", { useInnerText: true });
+    const box = await search.boundingBox();
+    expect(box?.width).toBeLessThanOrEqual(40);
+    await search.click();
+    await expect(
+      page.getByRole("dialog").getByPlaceholder("Search the docs")
+    ).toBeFocused();
   });
 
   test("with no stored choice the theme follows the system", async ({

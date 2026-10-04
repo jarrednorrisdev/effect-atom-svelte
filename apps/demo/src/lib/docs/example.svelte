@@ -1,8 +1,8 @@
 <script lang="ts">
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
   import Hint from "#lib/docs/kit/hint.svelte";
-  import { play } from '#lib/docs/kit/sound.ts';
-import type { Cue } from '#lib/docs/kit/sound.ts';
+  import { play, warm } from "#lib/docs/kit/sound.ts";
+  import type { Cue } from "#lib/docs/kit/sound.ts";
   import { setExampleState } from "#lib/docs/kit/tone.ts";
   import type { Snippet } from "svelte";
 
@@ -35,27 +35,39 @@ import type { Cue } from '#lib/docs/kit/sound.ts';
     hint,
   }: { children?: Snippet; files: readonly ExampleFile[]; hint?: string } = $props();
 
-  const example = setExampleState({ touched: false });
-  const touch = () => {
-    example.touched = true;
-  };
-
   const cues = new Set<string>(["failure", "interrupt", "reset", "start", "success", "tap", "tick"]);
   const isCue = (value: string): value is Cue => cues.has(value);
 
-  /** One delegated listener plays every control's cue, so examples need no sound code. */
-  const onclick = (event: MouseEvent) => {
+  /** The cue a click on the event's target would play, if any. */
+  const cueOf = (event: Event): Cue | undefined => {
     if (!(event.target instanceof Element)) {
-      return;
+      return undefined;
     }
     const control = event.target.closest<HTMLElement>(
       "[data-cue], button, input[type=checkbox], input[type=radio]"
     );
     if (!control || control.matches(":disabled")) {
-      return;
+      return undefined;
     }
     const cue = control.dataset.cue ?? "tap";
-    if (isCue(cue)) {
+    return isCue(cue) ? cue : undefined;
+  };
+
+  const example = setExampleState({ touched: false });
+  const touch = (event: Event) => {
+    example.touched = true;
+    // A press on a control is about to play a cue: start loading the synthesizer now, inside the
+    // gesture, so the click's own sound isn't late.
+    const presses = !(event instanceof KeyboardEvent) || event.key === "Enter" || event.key === " ";
+    if (presses && cueOf(event)) {
+      warm();
+    }
+  };
+
+  /** One delegated listener plays every control's cue, so examples need no sound code. */
+  const onclick = (event: MouseEvent) => {
+    const cue = cueOf(event);
+    if (cue) {
       play(cue);
     }
   };

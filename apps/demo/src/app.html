@@ -26,6 +26,14 @@
         document.documentElement.classList.toggle("dark", dark);
       } catch {}
     </script>
+    <!-- Shows the header's sound icon as off before first paint; see src/lib/docs/sound-preference.ts. -->
+    <script>
+      try {
+        if (localStorage.getItem("sound") === "off") {
+          document.documentElement.dataset.sound = "off";
+        }
+      } catch {}
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

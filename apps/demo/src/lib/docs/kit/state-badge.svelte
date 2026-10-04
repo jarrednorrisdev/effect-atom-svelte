@@ -1,8 +1,8 @@
 <!--
   @component
   An `AsyncResult`'s state as a badge: `Initial`, `Success` or `Failure`, with ", waiting" and a
-  spinner while `waiting` is true. Each state has its own color and icon, and the icon pops when
-  the state changes. Once the reader has used the example, the badge plays the `success` or
+  spinner while `waiting` is true. Each state has its own color and icon; when the state changes
+  the badge bounces and the icon pops in with a spring (Motion). Once the reader has used the example, the badge plays the `success` or
   `failure` cue when a run ends.
 
   ```svelte
@@ -18,8 +18,10 @@
   import LoaderIcon from "@lucide/svelte/icons/loader-circle";
   import XIcon from "@lucide/svelte/icons/x";
   import type { AsyncResult } from "effect/reactivity";
+  import { animate } from "motion";
   import type { HTMLOutputAttributes } from "svelte/elements";
 
+  import { onChange, reducedMotion, springs } from "./motion.ts";
   import { play } from "./sound.ts";
   import { exampleTouched, getExampleState, toneOf } from "./tone.ts";
 
@@ -51,21 +53,41 @@
       }
     }
   });
+
+  // On a change of state the badge gives a little bounce and its new icon pops in with a spring.
+  const change = onChange(
+    () => `${result._tag} ${result.waiting}`,
+    (badge) => {
+      if (reducedMotion()) {
+        return;
+      }
+      animate(badge, { scale: [0.92, 1] }, springs.bouncy);
+      const icon = badge.querySelector(".icon");
+      if (icon) {
+        animate(icon, { rotate: [-30, 0], scale: [0.3, 1] }, springs.snappy);
+      }
+    }
+  );
 </script>
 
-<output class="badge" data-state={result._tag} data-tone={tone} data-waiting={result.waiting} {...rest}>
+<output
+  class="badge"
+  data-state={result._tag}
+  data-tone={tone}
+  data-waiting={result.waiting}
+  {...rest}
+  {@attach change}
+>
   <!-- A first run has no state to show yet, only the spinner. -->
-  {#key result._tag}
-    <span aria-hidden="true" class="icon" hidden={tone === "running"}>
-      {#if result._tag === "Success"}
-        <CheckIcon strokeWidth={3} />
-      {:else if result._tag === "Failure"}
-        <XIcon strokeWidth={3} />
-      {:else}
-        <CircleIcon strokeWidth={3} />
-      {/if}
-    </span>
-  {/key}
+  <span aria-hidden="true" class="icon" hidden={tone === "running"}>
+    {#if result._tag === "Success"}
+      <CheckIcon strokeWidth={3} />
+    {:else if result._tag === "Failure"}
+      <XIcon strokeWidth={3} />
+    {:else}
+      <CircleIcon strokeWidth={3} />
+    {/if}
+  </span>
   {#if result.waiting}
     <span aria-hidden="true" class="spinner"><LoaderIcon strokeWidth={2.5} /></span>
   {/if}
@@ -120,17 +142,11 @@
     width: 0.85rem;
   }
   .icon {
-    animation: pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
     color: var(--mark);
   }
   .spinner {
     animation: spin 0.8s linear infinite;
     color: var(--tone-running);
-  }
-  @keyframes pop {
-    from {
-      transform: scale(0.3);
-    }
   }
   @keyframes spin {
     to {
@@ -138,7 +154,6 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .icon,
     .spinner {
       animation: none;
     }

@@ -1,9 +1,11 @@
 <!--
   @component
   A tile that holds one result, colored by its state, with an optional caption below, like the
-  tiles on effect.kitlangton.com. While `busy` it keeps its content, dims it and sweeps a shine
-  across, so a refresh visibly keeps the old value. It pops when its tone changes or when `busy`
-  ends, so a new value is noticed even when it equals the old one.
+  tiles on effect.kitlangton.com, and moving like them (Motion). While `busy` or running it keeps
+  its content, dims it, sweeps a shine across and jitters, so a refresh visibly keeps the old
+  value. When a result arrives (its tone changes or `busy` ends) it flashes and its content pops
+  with a spring, so a new value is noticed even when it equals the old one; a failure shakes it.
+  With reduced motion only the colors change.
 
   ```svelte
   {#if die.current._tag === "Success"}
@@ -17,10 +19,14 @@
   on the tile, which carries `aria-busy`.
 -->
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { animate } from "motion";
+  import { untrack } from 'svelte';
+import type { Snippet } from 'svelte';
   import type { HTMLAttributes } from "svelte/elements";
 
-  import type { Tone } from "./tone.ts";
+  import { jitter, reducedMotion, shake, springs } from "./motion.ts";
+  import { getExampleState } from './tone.ts';
+import type { Tone } from './tone.ts';
 
   interface Props extends HTMLAttributes<HTMLSpanElement> {
     /** True while a new result is on its way and this one is kept (`waiting`). */
@@ -35,26 +41,64 @@
 
   const { busy = false, children, kind = "value", label, tone, ...rest }: Props = $props();
 
-  // Counts arrivals (a tone change, or busy ending) to restart the pop animation.
-  let arrivals = $state(0);
-  let previous: { busy: boolean; tone: Tone } | undefined;
-  $effect.pre(() => {
-    const now = { busy, tone };
-    if (previous && (previous.tone !== now.tone || (previous.busy && !now.busy))) {
-      arrivals += 1;
+  const example = getExampleState();
+
+  /** A result arrived: flash, pop the content, and shake a failure. */
+  const land = (chip: HTMLElement, landed: Tone) => {
+    animate(chip, { "--flash": [0.6, 0] }, { duration: 1, ease: "linear" });
+    if (reducedMotion()) {
+      return;
     }
-    previous = now;
-  });
+    const content = chip.querySelector(".content");
+    if (content) {
+      animate(content, { scale: [1.3, 1] }, springs.contentScale);
+    }
+    if (landed === "failure") {
+      void shake(chip);
+    } else {
+      animate(chip, { scale: [0.9, 1] }, springs.bouncy);
+    }
+  };
+
+  // A result arrives when the tone changes or busy ends, or when a chip appears in an example the
+  // reader has used (examples often show a different chip per state). The page's own first
+  // render stays still.
+  let before: { busy: boolean; tone: Tone } | undefined;
+  const arrive = (chip: HTMLElement) => {
+    const now = { busy, tone };
+    const was = before;
+    before = now;
+    untrack(() => {
+      const arrived = was
+        ? !now.busy && (now.tone !== was.tone || was.busy)
+        : example?.touched === true && !now.busy && now.tone !== "running";
+      if (arrived) {
+        land(chip, now.tone);
+      }
+    });
+  };
+
+  // Jitters while working, as a running effect does; the cleanup settles it when the work ends.
+  const run = (chip: HTMLElement) => {
+    if (busy || tone === "running") {
+      return jitter(chip);
+    }
+    return undefined;
+  };
 </script>
 
 <span class="wrap">
-  {#key arrivals}
-    <span aria-busy={busy} class={["chip", arrivals > 0 && "arrived"]}
-      data-kind={kind}
-      data-tone={tone} {...rest}>
-      <span class="content">{@render children()}</span>
-    </span>
-  {/key}
+  <span
+    aria-busy={busy}
+    class="chip"
+    data-kind={kind}
+    data-tone={tone}
+    {...rest}
+    {@attach arrive}
+    {@attach run}
+  >
+    <span class="content">{@render children()}</span>
+  </span>
   {#if label}
     <span class="caption">{label}</span>
   {/if}
@@ -69,10 +113,16 @@
     vertical-align: top;
   }
   .chip {
+    --flash: 0;
     --mark: var(--tone-idle);
     --text: var(--tone-idle-text);
     align-items: center;
-    background: color-mix(in oklab, var(--mark) 12%, var(--background));
+    /* --flash (0 to 1, animated) brightens the tint when a result arrives. */
+    background: color-mix(
+      in oklab,
+      var(--mark) calc(12% + var(--flash) * 40%),
+      var(--background)
+    );
     border: 1.5px solid color-mix(in oklab, var(--mark) 70%, transparent);
     border-radius: var(--radius-lg);
     box-shadow: 0 1px 2px color-mix(in oklab, var(--mark) 25%, transparent);
@@ -110,6 +160,7 @@
     border-style: dashed;
   }
   .content {
+    display: inline-block;
     transition: opacity 200ms;
   }
   /* A sentence reads better smaller than a value. */
@@ -140,9 +191,6 @@
     inset: 0;
     position: absolute;
   }
-  .arrived {
-    animation: arrive 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
   .caption {
     color: var(--muted-foreground);
     font-family: var(--font-mono);
@@ -156,13 +204,7 @@
       transform: translateX(100%);
     }
   }
-  @keyframes arrive {
-    from {
-      transform: scale(0.85);
-    }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .arrived,
     .chip[aria-busy="true"]::after {
       animation: none;
     }

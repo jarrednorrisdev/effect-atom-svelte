@@ -2,8 +2,8 @@
   @component
   Run, Interrupt and Reset for something the reader starts and may stop, after the tiles on
   effect.kitlangton.com. One button runs, and turns into Interrupt while running (it stays the
-  same element, so keyboard focus stays on it). Reset appears only with `onreset`. Each button
-  plays its cue (`start`, `interrupt`, `reset`).
+  same element, so keyboard focus stays on it, and pops as it swaps). Reset appears only with
+  `onreset` and spins its icon. Each button plays its cue (`start`, `interrupt`, `reset`).
 
   ```svelte
   <RunControls
@@ -21,6 +21,9 @@
   import PlayIcon from "@lucide/svelte/icons/play";
   import ResetIcon from "@lucide/svelte/icons/rotate-ccw";
   import StopIcon from "@lucide/svelte/icons/square";
+  import { animate } from "motion";
+
+  import { onChange, reducedMotion, springs } from "./motion.ts";
 
   interface Props {
     /** Disables every button, for example until a form is valid. */
@@ -43,6 +46,24 @@
   }: Props = $props();
 
   const interrupting = $derived(running && oninterrupt !== undefined);
+
+  // The run button pops when it turns into Interrupt and back, so the swap is noticed.
+  const swap = onChange(
+    () => interrupting,
+    (button) => {
+      if (!reducedMotion()) {
+        animate(button, { scale: [0.9, 1] }, springs.bouncy);
+      }
+    }
+  );
+
+  let resetIcon = $state<HTMLElement>();
+  const reset = () => {
+    if (resetIcon && !reducedMotion()) {
+      animate(resetIcon, { rotate: [0, -360] }, springs.bouncy);
+    }
+    onreset?.();
+  };
 </script>
 
 <span class="controls">
@@ -52,6 +73,7 @@
     disabled={disabled || (running && !oninterrupt)}
     onclick={() => (interrupting ? oninterrupt?.() : onrun())}
     type="button"
+    {@attach swap}
   >
     {#if interrupting}
       <StopIcon aria-hidden="true" class="icon" />Interrupt
@@ -60,8 +82,11 @@
     {/if}
   </button>
   {#if onreset}
-    <button class="control" data-cue="reset" {disabled} onclick={onreset} type="button">
-      <ResetIcon aria-hidden="true" class="icon" />Reset
+    <button class="control" data-cue="reset" {disabled} onclick={reset} type="button">
+      <span bind:this={resetIcon} class="icon-box">
+        <ResetIcon aria-hidden="true" class="icon" />
+      </span>
+      Reset
     </button>
   {/if}
 </span>
@@ -80,6 +105,9 @@
   .control :global(.icon) {
     height: 0.9rem;
     width: 0.9rem;
+  }
+  .icon-box {
+    display: inline-flex;
   }
   .stop :global(.icon) {
     color: var(--tone-failure-text);

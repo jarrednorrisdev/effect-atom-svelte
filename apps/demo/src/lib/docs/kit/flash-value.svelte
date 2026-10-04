@@ -1,8 +1,9 @@
 <!--
   @component
-  A value in an `<output>` that flashes the accent when it changes, and ticks up or down when a
-  number grows or shrinks, so every place showing it draws the eye at once. It doesn't flash on
-  first render. With reduced motion it only flashes, without moving.
+  A value in an `<output>` that flashes the accent when it changes, and ticks up or down with a
+  spring when a number grows or shrinks (Motion), so every place showing it draws the eye at once,
+  like a Ref on effect.kitlangton.com. It doesn't flash on first render. With reduced motion it
+  only flashes, without moving.
 
   ```svelte
   <FlashValue value={count.current} />
@@ -11,7 +12,10 @@
   Other attributes (`data-testid`, `aria-label`) go on the `<output>`.
 -->
 <script lang="ts">
+  import { animate } from "motion";
   import type { HTMLOutputAttributes } from "svelte/elements";
+
+  import { onChange, reducedMotion, springs } from "./motion.ts";
 
   interface Props extends HTMLOutputAttributes {
     readonly value: boolean | number | string;
@@ -19,49 +23,38 @@
 
   const { value, ...rest }: Props = $props();
 
-  let element = $state<HTMLOutputElement>();
-  let previous: Props["value"] | undefined;
-  let first = true;
-
-  $effect(() => {
-    const now = value;
-    const before = previous;
-    previous = now;
-    if (first) {
-      first = false;
-      return;
+  const flash = onChange(
+    () => value,
+    (element, now, before) => {
+      // `--flash` mixes the accent into the background (see the style below), so the flash
+      // follows the theme. It flashes at once, holds a moment, then fades.
+      animate(
+        element,
+        { "--flash": [1, 1, 0] },
+        { duration: 0.8, ease: "easeOut", times: [0, 0.3, 1] }
+      );
+      if (reducedMotion()) {
+        return;
+      }
+      // An odometer: a bigger number comes up from below, a smaller one down from above.
+      let from = 0;
+      if (typeof now === "number" && typeof before === "number") {
+        from = now > before ? 6 : -6;
+      }
+      animate(element, { scale: [1.25, 1], y: [from, 0] }, springs.snappy);
     }
-    if (!element || before === now) {
-      return;
-    }
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let shift = 0;
-    if (!still && typeof now === "number" && typeof before === "number") {
-      shift = now > before ? 0.35 : -0.35;
-    }
-    // A quick second change restarts the flash rather than stacking on the first.
-    for (const animation of element.getAnimations()) {
-      animation.cancel();
-    }
-    // Resolved colors, read now so the flash matches the current theme.
-    const resting = getComputedStyle(element).backgroundColor;
-    const brand = getComputedStyle(element).getPropertyValue("--brand");
-    const flash = `color-mix(in oklab, ${brand} 70%, ${resting})`;
-    element.animate(
-      [
-        { backgroundColor: flash, transform: `translateY(${shift}em)` },
-        { backgroundColor: flash, offset: 0.3, transform: "translateY(0)" },
-        { backgroundColor: resting, transform: "translateY(0)" },
-      ],
-      { duration: 800, easing: "ease-out" }
-    );
-  });
+  );
 </script>
 
-<output bind:this={element} class="flash" {...rest}>{value}</output>
+<output class="flash" {...rest} {@attach flash}>{value}</output>
 
 <style>
   .flash {
+    background: color-mix(
+      in oklab,
+      var(--brand) calc(var(--flash, 0) * 70%),
+      var(--muted)
+    );
     display: inline-block;
     min-width: 2ch;
     text-align: center;

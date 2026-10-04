@@ -1,7 +1,7 @@
 <!--
   @component
   A short list of what happened and when, newest last, each entry with its time in milliseconds
-  and a dot in its tone. The newest entry slides in. Feed it from an `EventLogState`
+  and a dot in its tone. New entries slide in with a spring, staggered when several arrive at once (Motion). Feed it from an `EventLogState`
   (`event-log.svelte.ts`), or use `ResultHistory` to log an `AsyncResult` without code in the
   example.
 
@@ -17,6 +17,7 @@
   import type { HTMLAttributes } from "svelte/elements";
 
   import type { LogEntry } from "./event-log.svelte.ts";
+  import { enter } from "./motion.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     /** Shown while there are no entries. */
@@ -41,7 +42,7 @@
   {:else}
     <ol aria-labelledby="{id}-label">
       {#each shown as entry (entry.id)}
-        <li data-tone={entry.tone}>
+        <li data-tone={entry.tone} {@attach enter({ opacity: [0, 1], x: [-8, 0] })}>
           <span class="time">{entry.at} ms</span>
           <span aria-hidden="true" class="dot"></span>
           <span class="label">
@@ -85,7 +86,6 @@
   li {
     --mark: var(--tone-idle);
     align-items: center;
-    animation: enter 240ms ease-out;
     display: grid;
     gap: 0.6rem;
     grid-template-columns: 5.5rem 0.5rem 1fr;
@@ -119,16 +119,5 @@
   }
   .lane::after {
     content: ":";
-  }
-  @keyframes enter {
-    from {
-      opacity: 0;
-      transform: translateY(-0.3rem);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    li {
-      animation: none;
-    }
   }
 </style>

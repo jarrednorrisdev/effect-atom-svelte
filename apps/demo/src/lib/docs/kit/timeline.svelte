@@ -3,7 +3,7 @@
   Log entries as dots on a time axis, one row per lane, like the schedule tracks on
   effect.kitlangton.com. It shows when things happened relative to each other: two boundaries
   resolving at different times, a refresh and the value that follows it. Each dot has its tone's
-  color; its label shows on hover and is read out by screen readers.
+  color and drops onto its track with a spring as it happens (Motion); its label shows on hover and is read out by screen readers.
 
   ```svelte
   <Timeline entries={log.entries} lanes={["default", "suspendOnWaiting"]} />
@@ -16,6 +16,7 @@
   import type { HTMLAttributes } from "svelte/elements";
 
   import type { LogEntry } from "./event-log.svelte.ts";
+  import { enter } from "./motion.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly entries: readonly LogEntry[];
@@ -44,6 +45,7 @@
           data-tone={entry.tone}
           style:left={left(entry.at)}
           title="{entry.label} at {entry.at} ms"
+          {@attach enter({ scale: [0, 1], y: [-10, 0] })}
         >
           <span class="sr-only">{entry.label} at {entry.at} ms</span>
         </li>
@@ -88,7 +90,6 @@
   }
   .dot {
     --mark: var(--tone-idle);
-    animation: drop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
     background: var(--mark);
     border: 2px solid var(--background);
     border-radius: 999px;
@@ -115,15 +116,5 @@
     grid-column: -2 / -1;
     justify-content: space-between;
     margin-top: -0.2rem;
-  }
-  @keyframes drop {
-    from {
-      transform: scale(0);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .dot {
-      animation: none;
-    }
   }
 </style>
