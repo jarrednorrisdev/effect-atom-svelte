@@ -19,8 +19,10 @@
    *   <Counter />
    * </Example>
    * ```
+   *
+   * Without children it shows only the source, for code that runs elsewhere, such as a test.
    */
-  const { children, files }: { children: Snippet; files: readonly ExampleFile[] } = $props();
+  const { children, files }: { children?: Snippet; files: readonly ExampleFile[] } = $props();
 
   // svelte-ignore state_referenced_locally
   let selected = $state(files[0]?.name ?? "");
@@ -38,12 +40,19 @@
 
 <figure class="example my-8" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
-  <div class="demo rounded-t-lg border border-b-0 p-6" data-pagefind-ignore="all">
-    {@render children()}
-  </div>
+  {#if children}
+    <div class="demo rounded-t-lg border border-b-0 p-6" data-pagefind-ignore="all">
+      {@render children()}
+    </div>
+  {/if}
   <div class="group relative">
     <!-- Scrolls sideways when the file names are wider than a phone. -->
-    <div class="not-prose flex items-end overflow-x-auto rounded-none border bg-muted/40 px-2">
+    <div
+      class={[
+        "not-prose flex items-end overflow-x-auto border bg-muted/40 px-2",
+        children ? "rounded-none" : "rounded-t-lg",
+      ]}
+    >
       {#if files.length > 1}
         <Tabs.Root bind:value={selected}>
           <Tabs.List class="h-auto w-max gap-0 p-0" variant="line">

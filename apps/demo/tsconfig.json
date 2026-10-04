@@ -3,5 +3,11 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["src", "vite", "vite.config.ts", "alchemy.run.ts"]
+  "include": [
+    "src",
+    "vite",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "alchemy.run.ts"
+  ]
 }
