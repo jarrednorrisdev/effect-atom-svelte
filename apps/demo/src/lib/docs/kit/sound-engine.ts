@@ -8,6 +8,15 @@ import * as Tone from "tone";
 
 import type { Cue } from "./sound.ts";
 
+/** Ignores a rejection: Firefox rejects audio calls when the click also leaves the page. */
+const quietly = async (promise: Promise<unknown>) => {
+  try {
+    await promise;
+  } catch {
+    // The cue is simply not heard.
+  }
+};
+
 export interface Engine {
   readonly play: (cue: Cue) => void;
   /** `Tone.start()`: call it inside every gesture that plays a cue. */
@@ -173,7 +182,7 @@ export const createEngine = (context: AudioContext): Engine => {
   return {
     play,
     start: () => {
-      void Tone.start();
+      void quietly(Tone.start());
     },
   };
 };

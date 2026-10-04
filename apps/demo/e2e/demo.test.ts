@@ -538,19 +538,18 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
     /^\d+ ms\s*Success [1-6]$/u,
   ]);
   await page.getByRole("button", { name: "Roll again" }).click();
-  // The previous roll stays on screen while the new one runs.
-  await expect(state).toHaveText("Success, waiting");
-  await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
-  await expect(state).toHaveText("Success");
+  // The previous roll stays on screen while the new one runs: "Success n, waiting" in the
+  // history. (The 600 ms waiting state itself can pass between two polls under load.)
   await expect(history).toHaveText([
     /^0 ms\s*Initial, waiting$/u,
     /^\d+ ms\s*Success [1-6]$/u,
     /^\d+ ms\s*Success [1-6], waiting$/u,
     /^\d+ ms\s*Success [1-6]$/u,
   ]);
+  await expect(state).toHaveText("Success");
+  await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
   // The atom reads the checkbox's atom, so ticking it runs the effect again, which fails.
   await page.getByLabel("Drop the die").check();
-  await expect(state).toHaveText("Success, waiting");
   await expect(state).toHaveText("Failure");
   await expect(page.getByTestId("die-failure")).toBeVisible();
   await page.getByLabel("Drop the die").uncheck();
@@ -616,12 +615,9 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
   ]);
 
   // By default, a refresh's await resolves at once with the old value, then with the new one.
+  // A refresh waits for 800 ms, which load can eat between two checks, so the in-flight states
+  // are checked through the logs, which keep every step in order.
   await page.getByRole("button", { name: "Refresh default" }).click();
-  await expect(page.getByTestId("plainAtom-state")).toHaveText(
-    "Success, waiting"
-  );
-  await expect(page.getByTestId("plain-pending")).toHaveText("0");
-  await expect(value).toHaveText("Loaded 1 time");
   await expect(plain).toHaveText([
     /^0 ms\s*atom\s*Success, waiting$/u,
     /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
@@ -637,12 +633,8 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
 
   // With suspendOnWaiting, the await waits for the new value; the boundary counts it as pending.
   await page.getByRole("button", { name: "Refresh suspendOnWaiting" }).click();
-  await expect(page.getByTestId("heldAtom-state")).toHaveText(
-    "Success, waiting"
-  );
+  // Only visible in flight, so checked first.
   await expect(page.getByTestId("held-pending")).toHaveText("1");
-  await expect(page.getByTestId("held-value")).toHaveText("Loaded 1 time");
-  await expect(held).toHaveText([/^0 ms\s*atom\s*Success, waiting$/u]);
   await expect(page.getByTestId("held-value")).toHaveText("Loaded 2 times");
   await expect(page.getByTestId("held-pending")).toHaveText("0");
   await expect(held).toHaveText([

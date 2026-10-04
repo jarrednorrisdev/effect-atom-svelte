@@ -47,6 +47,15 @@ let context: AudioContext | undefined;
 // none.
 const staleMs = 400;
 
+/** Ignores a rejection: Firefox rejects audio calls when the click also leaves the page. */
+const quietly = async (promise: Promise<unknown>) => {
+  try {
+    await promise;
+  } catch {
+    // The cue is simply not heard.
+  }
+};
+
 /** Starts the audio. Must run inside the gesture (click, key or tap) that asked for sound. */
 const unlock = () => {
   if (engine) {
@@ -55,7 +64,7 @@ const unlock = () => {
   }
   context ??= new AudioContext({ latencyHint: "interactive" });
   if (context.state === "suspended") {
-    void context.resume();
+    void quietly(context.resume());
   }
 };
 
