@@ -15,6 +15,4 @@ export default defineConfig({
     baseURL: `http://localhost:${5300 + portOffset}`,
     trace: "retain-on-failure",
   },
-  // As in playwright.config.ts: two workers on CI's two-core runner rather than the default one.
-  workers: process.env.CI ? 2 : undefined,
 });

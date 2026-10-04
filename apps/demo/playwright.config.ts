@@ -17,7 +17,4 @@ export default defineConfig({
   testDir: "e2e",
   // A failing test keeps a full trace (DOM, network, console). No retries, so a failure stays visible.
   use: { trace: "retain-on-failure" },
-  // Playwright's default is half the cores, one on CI's two-core runner. Most of a test is waiting
-  // on timers and the network, so two workers there take about half as long.
-  workers: process.env.CI ? 2 : undefined,
 });

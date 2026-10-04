@@ -32,6 +32,8 @@ The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](
 
 The Playwright suite builds the demo once, then gives each worker its own demo API (`:3100` up, no latency) and `vite preview` server (`:5200` up), and resets the API's store before every test. Tests share no state, so they run in parallel and in any order. To run one: `cd apps/demo && bunx playwright test -g "<name>"`. To run Playwright in two worktrees at once, give one of them `E2E_PORT_OFFSET=50` (it moves every e2e port, including the hosted config's 5300); otherwise the runs share each other's servers. Rebuild the library first (`bun run --cwd packages/effect-atom-svelte build`) if you changed it.
 
+CI (`.github/workflows/ci.yml`) splits this into parallel jobs: lint, check and both Vitest suites; the Playwright suite in two jobs per engine (`--shard`); and the hosted check. The e2e suite runs in all three engines when a push changes the library, the e2e setup, a `package.json`, `bun.lock` or the workflow, and in Chromium alone for docs and example changes. To test every engine regardless, run the workflow by hand (`gh workflow run CI`).
+
 To check for flakiness, repeat tests within one run instead of looping `bun run test`, which would only replay the cache:
 
 ```sh

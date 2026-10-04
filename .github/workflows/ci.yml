@@ -4,12 +4,41 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run by hand (Actions tab or `gh workflow run CI`) to test every engine whatever changed.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  scope:
+    # Which engines the e2e suite runs in. The hooks depend on each engine's microtask timing, so a
+    # change to the library, the e2e setup, dependencies or this workflow runs all three; docs and
+    # examples alone run Chromium (JND-91). A new branch, a force push or a manual run runs all
+    # three.
+    runs-on: ubuntu-latest
+    outputs:
+      engines: ${{ steps.engines.outputs.engines }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: engines
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          all='["chromium","firefox","webkit"]'
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$BASE^{commit}"; then
+            engines=$all
+          elif git diff --name-only "$BASE" HEAD | grep -qE '^(packages/effect-atom-svelte/|apps/demo/e2e/|apps/demo/playwright\.config\.ts$|\.github/workflows/|bun\.lock$|(.*/)?package\.json$)'; then
+            engines=$all
+          else
+            engines='["chromium"]'
+          fi
+          echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          echo "::notice::e2e engines: $engines"
+
   check:
     # Lint, types and the Vitest suites. The browser tests in the library run in all three engines.
     runs-on: ubuntu-latest
@@ -36,15 +65,18 @@ jobs:
           retention-days: 7
 
   e2e:
-    # The e2e suite, one job per engine (JND-91). It ran as one job of about 420 tests with
-    # Playwright's default of one worker on a two-core runner, which took 19 minutes. A push to
-    # main runs all three engines, which the deploy waits for; a PR runs Chromium only.
+    # The e2e suite, split into two jobs per engine (JND-91). It ran as one job of about 420 tests,
+    # which took 19 minutes. Each job keeps Playwright's default of one worker on the two-core
+    # runner: two workers per job made timing-sensitive tests miss in Firefox and WebKit. The scope
+    # job picks the engines.
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        engine: ${{ fromJSON(github.event_name == 'push' && '["chromium","firefox","webkit"]' || '["chromium"]') }}
+        engine: ${{ fromJSON(needs.scope.outputs.engines) }}
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -53,12 +85,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps ${{ matrix.engine }}
       - run: bun run --cwd packages/effect-atom-svelte build
-      - run: bunx playwright test --project=${{ matrix.engine }}
+      - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/2
         working-directory: apps/demo
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-results-${{ matrix.engine }}
+          name: e2e-results-${{ matrix.engine }}-${{ matrix.shard }}
           path: |
             apps/demo/test-results
             apps/demo/playwright-report
