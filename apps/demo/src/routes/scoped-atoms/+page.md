@@ -15,7 +15,7 @@ description: Give each part of the page its own atom, without passing it down by
   import editorsSource from "./editors.svelte?highlight";
   import noteEditorSource from "./note-editor.svelte?highlight";
   import previewSource from "./preview.svelte?highlight";
-  import textAreaSource from "./text-area.svelte?highlight";
+  import textFieldSource from "./text-field.svelte?highlight";
   import toolbarSource from "./toolbar.svelte?highlight";
 </script>
 
@@ -23,7 +23,7 @@ An atom defined at module level is one atom for the whole app. Sometimes each in
 
 Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **Module atom** to give both editors one atom made at module level instead, and see what the scope prevents:
 
-<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textAreaSource, name: "text-area.svelte" }, { html: previewSource, name: "preview.svelte" }]} hint="Write in Note A: its word count and preview follow, and Note B stays empty. Then pick Module atom and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
+<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textFieldSource, name: "text-field.svelte" }, { html: previewSource, name: "preview.svelte" }]} hint="Write in Note A: its word count and preview follow, and Note B stays empty. Then pick Module atom and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
 
 ## Defining a scoped atom
 

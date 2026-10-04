@@ -3,7 +3,7 @@
 
   import { Draft } from "./draft-scope.ts";
   import Preview from "./preview.svelte";
-  import TextArea from "./text-area.svelte";
+  import TextField from "./text-field.svelte";
   import Toolbar from "./toolbar.svelte";
 
   const { kind, name }: { kind: "scoped" | "module"; name: string } = $props();
@@ -14,12 +14,9 @@
 </script>
 
 <Part code label="{name}: Draft.provide()">
-  <div class="grid gap-2">
+  <div aria-label={name} class="grid gap-2" role="group">
     <Toolbar />
-    <label>
-      <span class="sr-only">{name}</span>
-      <TextArea />
-    </label>
+    <TextField />
     <Preview />
   </div>
 </Part>

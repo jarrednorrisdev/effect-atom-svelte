@@ -7,11 +7,11 @@
   const draft = useAtom(Draft.use());
 </script>
 
-<Part code label="TextArea: Draft.use()">
-  <textarea
+<Part code label="TextField: Draft.use()">
+  <input
+    aria-label="Draft"
     bind:value={draft.current}
     class="w-full"
     placeholder="Write a note"
-    rows="2"
-  ></textarea>
+  />
 </Part>
