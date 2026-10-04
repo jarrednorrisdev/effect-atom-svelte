@@ -1,17 +1,16 @@
 <script lang="ts">
   import { Effect, Random } from "effect";
-  import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
-  let promiseRuns = $state(0);
-  let effectRuns = $state(0);
-  let fromPromise = $state<number>();
-  let fromEffect = $state<number>();
+  // How many times each die was really rolled, and what each click got back.
+  let promiseRolls = $state(0);
+  let effectRolls = $state(0);
+  let fromPromise = $state<number[]>([]);
+  let fromEffect = $state<number[]>([]);
 
   // A promise API: calling it does the work and returns a promise of the result.
   const rollDie = () => {
-    promiseRuns += 1;
+    promiseRolls += 1;
     return Promise.resolve(Math.floor(Math.random() * 6) + 1);
   };
 
@@ -20,33 +19,49 @@
 
   // An effect only describes the work: creating it runs nothing.
   const roll = Random.nextIntBetween(1, 6).pipe(
-    Effect.tap(() => Effect.sync(() => (effectRuns += 1)))
+    Effect.tap(() => Effect.sync(() => (effectRolls += 1)))
   );
 
   const awaitPromise = async () => {
-    fromPromise = await promise;
+    fromPromise = [...fromPromise, await promise];
   };
   // Each run does the work again.
   const runEffect = async () => {
-    fromEffect = await Effect.runPromise(roll);
+    fromEffect = [...fromEffect, await Effect.runPromise(roll)];
   };
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part count={promiseRuns} countLabel="runs" label="A promise">
+  <Part code label="Promise<number>">
     <button onclick={awaitPromise}>Await the promise</button>
-    <p class="mt-3">
-      <ResultChip tone={fromPromise === undefined ? "idle" : "success"}>
-        <FlashValue data-testid="lazy-promise" value={fromPromise ?? "–"} />
-      </ResultChip>
+    <p class="text-sm">
+      Rolled <strong data-testid="promise-rolls">{promiseRolls}</strong>
+      {promiseRolls === 1 ? "time" : "times"}, when the page loaded.
     </p>
+    <ol
+      aria-label="Promise results"
+      class="m-0 flex list-none flex-wrap gap-1.5 p-0"
+      data-testid="lazy-promise"
+    >
+      {#each fromPromise as value, index (index)}
+        <li class="m-0"><output>{value}</output></li>
+      {/each}
+    </ol>
   </Part>
-  <Part count={effectRuns} countLabel="runs" label="An effect">
+  <Part code label="Effect<number>">
     <button onclick={runEffect}>Run the effect</button>
-    <p class="mt-3">
-      <ResultChip tone={fromEffect === undefined ? "idle" : "success"}>
-        <FlashValue data-testid="lazy-effect" value={fromEffect ?? "–"} />
-      </ResultChip>
+    <p class="text-sm">
+      Rolled <strong data-testid="effect-rolls">{effectRolls}</strong>
+      {effectRolls === 1 ? "time" : "times"}, once per run.
     </p>
+    <ol
+      aria-label="Effect results"
+      class="m-0 flex list-none flex-wrap gap-1.5 p-0"
+      data-testid="lazy-effect"
+    >
+      {#each fromEffect as value, index (index)}
+        <li class="m-0"><output>{value}</output></li>
+      {/each}
+    </ol>
   </Part>
 </div>

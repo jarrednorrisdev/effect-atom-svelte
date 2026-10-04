@@ -58,7 +58,7 @@ const sum = Effect.gen(function* () {
 
 The example creates a promise and an effect when it loads, each rolling a die. The promise has already run, and awaiting it again gives the same number. The effect runs only when something runs it, here `Effect.runPromise`, and each run rolls again.
 
-<Example files={[{ html: lazySource, name: "lazy.svelte" }]} hint="Await the promise a few times: it ran once, when it was created, and keeps its number. Then run the effect a few times: each run rolls again."> <Lazy /> </Example>
+<Example files={[{ html: lazySource, name: "lazy.svelte" }]} hint="Await the promise a few times: you get the same number every time, and its die was rolled once, when the page loaded. Then run the effect a few times: each run rolls the die again."> <Lazy /> </Example>
 
 Read more in [The Effect Type](https://effect.website/docs/v4/getting-started/the-effect-type) and [Using Generators](https://effect.website/docs/v4/getting-started/using-generators).
 
