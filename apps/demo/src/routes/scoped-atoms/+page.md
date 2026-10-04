@@ -7,6 +7,9 @@ description: Give each part of the page its own atom, without passing it down by
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import counterPanelSource from "./counter-panel.svelte?highlight";
+  import NestedPanels from "./nested-panels.svelte";
+  import nestedSource from "./nested-panels.svelte?highlight";
   import Panels from "./panels.svelte";
   import panelsSource from "./panels.svelte?highlight";
   import scopeSource from "./counter-scope.ts?highlight";
@@ -50,7 +53,9 @@ Call `use` in any component below it to get the same atom, then read it with the
 </script>
 ```
 
-If a component is inside more than one provider, `use` returns the nearest one's atom.
+If a component is inside more than one provider, `use` returns the nearest one's atom. Below, the inner panel sits inside the outer one, and both provide `Counter` with the same input, `0`:
+
+<Example files={[{ html: counterPanelSource, name: "counter-panel.svelte" }, { html: nestedSource, name: "nested-panels.svelte" }]} hint="Click +1 in the outer panel, then in the inner one: each button finds the nearest provider's atom, so the two counts move on their own."> <NestedPanels /> </Example>
 
 <Aside type="caution" title="use needs a provider above it">
 
@@ -63,6 +68,6 @@ If a component is inside more than one provider, `use` returns the nearest one's
 Both give you more than one atom from one definition. Choose by where the atom belongs:
 
 - A [family](/families) is keyed by a value. Any component can ask for `todoAtom(1)` and gets the same atom wherever it asks.
-- A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input.
+- A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested panels above show.
 
 Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.

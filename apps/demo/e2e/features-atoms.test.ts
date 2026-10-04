@@ -182,4 +182,18 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(listCount).toHaveText("3");
     await expect(itemCount("Write the docs")).toHaveText("1");
   });
+
+  test("scoped atoms: use finds the nearest provider", async ({ page }) => {
+    await page.goto("/scoped-atoms");
+    await page.waitForLoadState("networkidle");
+    const count = (name: string) =>
+      page.getByLabel(`${name} count`, { exact: true });
+    await page.getByRole("button", { name: "Outer: add one" }).click();
+    await page.getByRole("button", { name: "Outer: add one" }).click();
+    await expect(count("Outer")).toHaveText("2");
+    await expect(count("Inner")).toHaveText("0");
+    await page.getByRole("button", { name: "Inner: add one" }).click();
+    await expect(count("Inner")).toHaveText("1");
+    await expect(count("Outer")).toHaveText("2");
+  });
 });
