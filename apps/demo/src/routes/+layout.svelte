@@ -67,7 +67,8 @@
     <SiteHeader />
     <div class="flex flex-1">
       <DocsSidebar />
-      <Sidebar.Inset>
+      <!-- min-w-0: without it, wide code in an example stretches the page past the window. -->
+      <Sidebar.Inset class="min-w-0">
         <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
           <div class="min-w-0 flex-1">
             <TocMenu {toc} />
