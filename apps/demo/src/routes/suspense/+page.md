@@ -8,6 +8,7 @@ description: Await async atoms in markup, and let a boundary show loading and fa
   import Example from "#lib/docs/example.svelte";
 
   import Awaits from "./awaits.svelte";
+  import combinedSource from "./combined.svelte?highlight";
   import awaitsSource from "./awaits.svelte?highlight";
   import notesSource from "./notes.svelte?highlight";
   import oneByOneSource from "./one-by-one.svelte?highlight";
@@ -181,9 +182,11 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-You can call hooks before and after top-level `await`s, because Svelte restores the component's context after each one. Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together with `Promise.all`. Below, each side awaits two atoms that take a second each:
+You can call hooks before and after top-level `await`s, because Svelte restores the component's context after each one. Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 
-<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount both: one by one is ready after two seconds, together after one."> <Awaits /> </Example>
+Below, each component loads todos and a user, which take a second each. The timelines show when each load starts and ends:
+
+<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three. One by one, the user's load starts only when the todos have loaded, so it is ready after two seconds. Promise.all and Effect.all start both loads at once, and are ready after one."> <Awaits /> </Example>
 
 <Aside type="caution" title="Only top-level awaits">
 
