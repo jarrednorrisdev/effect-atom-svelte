@@ -52,7 +52,7 @@
   <button onclick={() => addOptimistic(draft)}>Add optimistically</button>
 </p>
 {#if notes.current._tag === "Success"}
-  <ul data-testid="notes" style:opacity={notes.current.waiting ? 0.5 : 1}>
+  <ul data-testid="notes" aria-busy={notes.current.waiting}>
     {#each notes.current.value as note, index (index)}<li>{note}</li>{/each}
   </ul>
 {:else}

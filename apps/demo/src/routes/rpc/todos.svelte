@@ -54,7 +54,7 @@
 </script>
 
 {#if todos.current._tag === "Success"}
-  <ul data-testid="rpc-todos" style:opacity={todos.current.waiting ? 0.5 : 1}>
+  <ul data-testid="rpc-todos" aria-busy={todos.current.waiting}>
     {#each todos.current.value as todo (todo.id)}
       <li>
         <label>

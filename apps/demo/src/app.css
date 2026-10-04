@@ -267,6 +267,83 @@
   text-align: end;
   user-select: none;
 }
+/* A lone "1" says nothing, and on phones the gutter takes a fifth of the width. */
+.shiki.single-line {
+  padding-inline-start: 1.4rem;
+}
+.shiki.single-line .line::before {
+  display: none;
+}
+@media (width < 40rem) {
+  .shiki,
+  .shiki.single-line {
+    padding-inline: 1rem;
+  }
+  .shiki .line::before {
+    display: none;
+  }
+}
+
+/* A code block and its copy button (src/lib/docs/copy-code.ts). */
+.code-block {
+  margin-block: 1.75em;
+  position: relative;
+}
+.code-block > .shiki {
+  margin: 0;
+}
+.copy-code {
+  align-items: center;
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  height: 2rem;
+  justify-content: center;
+  opacity: 0.75;
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  transition: opacity 150ms;
+  width: 2rem;
+  & svg {
+    height: 1rem;
+    width: 1rem;
+  }
+  & .copied-icon,
+  &[data-copied] .copy-icon {
+    display: none;
+  }
+  &[data-copied] .copied-icon {
+    color: var(--brand);
+    display: block;
+  }
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+}
+/* With a mouse, the button shows on hover; touch screens always show it. */
+@media (hover: hover) {
+  .copy-code:not(:hover, :focus-visible, [data-copied]) {
+    opacity: 0;
+  }
+  .code-block:hover .copy-code:not(:hover) {
+    opacity: 0.75;
+  }
+}
+
+/* Headings reached by a link land below the sticky header (and the "On this page" bar). */
+html {
+  scroll-padding-top: 6.5rem;
+}
+@media (width >= 80rem) {
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+}
 
 /*
  * The demo pages and live examples: plain HTML sections and form controls, drawn to sit in the
@@ -332,5 +409,24 @@
   }
   & label {
     margin-right: 0.75rem;
+  }
+  /* A value being computed again: it pulses until the new one arrives. */
+  & [aria-busy="true"] {
+    animation: demo-waiting 0.9s ease-in-out infinite alternate;
+    cursor: progress;
+  }
+}
+@keyframes demo-waiting {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo [aria-busy="true"] {
+    animation: none;
+    opacity: 0.4;
   }
 }

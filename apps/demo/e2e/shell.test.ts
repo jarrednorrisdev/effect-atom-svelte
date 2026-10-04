@@ -60,6 +60,79 @@ test.describe("docs shell", () => {
     ).toHaveCSS("border-left-color", /^(?!rgba\(0, 0, 0, 0\))/u);
   });
 
+  test("below 1280 px the table of contents is a menu above the page", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ height: 844, width: 390 });
+    await page.goto("/rpc");
+    await page.waitForLoadState("networkidle");
+    const menu = page.locator(".toc-menu");
+    await menu.getByText("On this page").click();
+    const toc = page.getByRole("navigation", { name: "On this page" });
+    await toc.getByRole("link", { name: "Streaming procedures" }).click();
+    await expect(page).toHaveURL(/#streaming-procedures$/u);
+    await expect(toc).toBeHidden();
+    await expect(menu).toContainText("Streaming procedures");
+  });
+
+  test("every code block has a copy button that copies its code", async ({
+    page,
+  }) => {
+    // Only Chromium lets a test read the clipboard, so record what the page writes instead.
+    await page.addInitScript(() => {
+      const copied: string[] = [];
+      Object.assign(window, { copied });
+      navigator.clipboard.writeText = (text) => {
+        copied.push(text);
+        return Promise.resolve();
+      };
+    });
+    await page.goto("/installation");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "Copy code" }).first().click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { copied: string[] }).copied)
+      )
+      .toEqual(["npm install effect effect-atom-svelte"]);
+    await expect(
+      page.getByRole("button", { name: "Copied" }).first()
+    ).toBeAttached();
+  });
+
+  test("one-line code blocks and phones show no line numbers", async ({
+    page,
+  }) => {
+    const gutter = (selector: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate((line) => window.getComputedStyle(line, "::before").display);
+    await page.goto("/installation");
+    await page.waitForLoadState("networkidle");
+    await expect.poll(() => gutter(".shiki.single-line .line")).toBe("none");
+    await expect
+      .poll(() => gutter(".shiki:not(.single-line) .line"))
+      .not.toBe("none");
+    await page.setViewportSize({ height: 844, width: 390 });
+    await expect
+      .poll(() => gutter(".shiki:not(.single-line) .line"))
+      .toBe("none");
+  });
+
+  test("the sidebar scrolls the current page's link into view", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ height: 700, width: 1280 });
+    await page.goto("/reference/SvelteKit");
+    await page.waitForLoadState("networkidle");
+    await expect(
+      page
+        .locator("[data-slot=sidebar]")
+        .locator('a[href="/reference/SvelteKit"]')
+    ).toBeInViewport();
+  });
+
   test("an unknown path shows a not-found page inside the docs shell", async ({
     page,
   }) => {

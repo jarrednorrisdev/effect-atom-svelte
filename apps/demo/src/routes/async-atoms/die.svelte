@@ -19,7 +19,7 @@
 <p>
   <button onclick={roll}>Roll again</button>
   {#if die.current._tag === "Success"}
-    <output data-testid="die" style:opacity={die.current.waiting ? 0.4 : 1}>
+    <output data-testid="die" aria-busy={die.current.waiting}>
       {die.current.value}
     </output>
   {:else if die.current._tag === "Initial"}

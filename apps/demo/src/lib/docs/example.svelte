@@ -1,6 +1,4 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import CopyIcon from "@lucide/svelte/icons/copy";
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
   import type { Snippet } from "svelte";
 
@@ -26,61 +24,67 @@
 
   // svelte-ignore state_referenced_locally
   let selected = $state(files[0]?.name ?? "");
-  let code = $state<HTMLElement>();
-  let copied = $state(false);
   const file = $derived(files.find((entry) => entry.name === selected) ?? files[0]);
-
-  const copy = async () => {
-    // Line numbers are CSS counters, so the text is just the code.
-    await navigator.clipboard.writeText(code?.querySelector("code")?.textContent ?? "");
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
-  };
 </script>
 
-<figure class="example my-8" data-example>
+<!-- One frame and one shadow round the live result, the tabs and the code. -->
+<figure class="example my-8 rounded-lg" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
   {#if children}
-    <div class="demo rounded-t-lg border border-b-0 p-6" data-pagefind-ignore="all">
+    <div class="demo rounded-t-lg border border-b-0 px-6 pt-3 pb-6" data-pagefind-ignore="all">
+      <p class="example-label not-prose">Result</p>
       {@render children()}
     </div>
   {/if}
-  <div class="group relative">
-    <!-- Scrolls sideways when the file names are wider than a phone. -->
-    <div
-      class={[
-        "not-prose flex items-end overflow-x-auto border bg-muted/40 px-2",
-        children ? "rounded-none" : "rounded-t-lg",
-      ]}
-    >
-      {#if files.length > 1}
-        <Tabs.Root bind:value={selected}>
-          <Tabs.List class="h-auto w-max gap-0 p-0" variant="line">
-            {#each files as entry (entry.name)}
-              <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
-            {/each}
-          </Tabs.List>
-        </Tabs.Root>
-      {:else}
-        <span class="example-tab" data-active>{file?.name}</span>
-      {/if}
-    </div>
-    <div bind:this={code} role="tabpanel">
-      <!-- Highlighted at build time by vite/highlight.ts from the example's own files. -->
-      {@html file?.html}
-    </div>
-    <button
-      aria-label={copied ? "Copied" : "Copy code"}
-      class="not-prose absolute top-12 right-2 flex size-8 items-center justify-center rounded-sm border bg-background/80 text-muted-foreground opacity-75 transition-opacity md:opacity-0 md:group-hover:opacity-75 hover:opacity-100! focus-visible:opacity-100"
-      onclick={copy}
-      type="button"
-    >
-      {#if copied}<CheckIcon class="size-4 text-brand" />{:else}<CopyIcon class="size-4" />{/if}
-    </button>
+  <!-- Scrolls sideways when the file names are wider than a phone. -->
+  <div
+    class={[
+      "not-prose flex items-end overflow-x-auto border bg-muted/40 px-2",
+      children ? "rounded-none" : "rounded-t-lg",
+    ]}
+  >
+    {#if files.length > 1}
+      <Tabs.Root bind:value={selected}>
+        <Tabs.List class="h-auto w-max gap-0 p-0" variant="line">
+          {#each files as entry (entry.name)}
+            <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
+          {/each}
+        </Tabs.List>
+      </Tabs.Root>
+    {:else}
+      <span class="example-tab" data-active>{file?.name}</span>
+    {/if}
+  </div>
+  <div role="tabpanel">
+    <!-- Highlighted at build time by vite/highlight.ts from the example's own files, copy button
+         included. -->
+    {@html file?.html}
   </div>
 </figure>
 
 <style>
+  .example {
+    box-shadow: 0.1rem 0.1rem 0.2rem var(--code-shadow);
+  }
+  /* A light tint of the brand colour sets the running example apart from the page around it. */
+  .demo {
+    background: color-mix(in oklab, var(--brand) 4%, var(--background));
+  }
+  .example-label {
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+  }
+  /* The label spaces the result from the top edge, so the result's own margins would double it. */
+  .demo > :global(:nth-child(2)) {
+    margin-top: 0;
+  }
+  .demo > :global(:last-child) {
+    margin-bottom: 0;
+  }
   /* An editor tab, as in effect.website's titled code frames. */
   :global(.example-tab) {
     background: transparent;
@@ -103,9 +107,13 @@
     box-shadow: inset 0 2px 0 var(--brand);
     color: var(--foreground);
   }
+  .example :global(.code-block) {
+    margin: 0;
+  }
   .example :global(.shiki) {
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     border-top: 0;
+    box-shadow: none;
     margin: 0;
   }
 </style>

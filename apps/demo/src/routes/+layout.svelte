@@ -6,7 +6,10 @@
   import { neighbours } from "#lib/docs/nav.ts";
   import Pager from "#lib/docs/pager.svelte";
   import SiteHeader from "#lib/docs/site-header.svelte";
+  import { copyCode } from "#lib/docs/copy-code.ts";
+  import TocMenu from "#lib/docs/toc-menu.svelte";
   import Toc from "#lib/docs/toc.svelte";
+  import { TableOfContents } from "#lib/docs/toc.svelte.ts";
   import { preferenceCookiesAtom } from "#lib/preferences.ts";
   import { RegistryProvider } from "effect-atom-svelte";
   import type { Snippet } from "svelte";
@@ -17,7 +20,10 @@
 
   const title = $derived(neighbours(page.url.pathname).page?.title);
   let content = $state<HTMLElement>();
+  const toc = new TableOfContents(() => content);
 </script>
+
+<svelte:document onclick={(event) => void copyCode(event)} />
 
 <svelte:head>
   <title>{title ? `${title} · effect-atom-svelte` : "effect-atom-svelte"}</title>
@@ -41,6 +47,7 @@
       <Sidebar.Inset>
         <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
           <div class="min-w-0 flex-1">
+            <TocMenu {toc} />
             <!-- Only this part is indexed for search; the navigation around it is not. -->
             <article bind:this={content} data-pagefind-body id="content">
               {@render children()}
@@ -56,7 +63,12 @@
           </div>
           <aside class="hidden w-56 shrink-0 xl:block">
             <div class="sticky top-24">
-              <Toc root={content} />
+              {#if toc.entries.length > 0}
+                <nav aria-label="On this page" class="text-sm">
+                  <h2 class="mb-3 font-semibold text-navigation-heading">On this page</h2>
+                  <Toc {toc} />
+                </nav>
+              {/if}
             </div>
           </aside>
         </div>

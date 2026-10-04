@@ -36,10 +36,23 @@ const highlighter = createHighlighter({
   themes: [effectLight, effectDark],
 });
 
-/** Highlights code at build time, so the browser gets plain HTML and no highlighter. */
+// Lucide's copy and check icons, inlined: this HTML is static, so no Svelte component renders it.
+const icon = (className: string, body: string) =>
+  `<svg aria-hidden="true" class="${className}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">${body}</svg>`;
+const copyButton = `<button aria-label="Copy code" class="copy-code" data-copy-code type="button">${icon(
+  "copy-icon",
+  '<rect height="14" rx="2" ry="2" width="14" x="8" y="8"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
+)}${icon("copied-icon", '<path d="M20 6 9 17l-5-5"/>')}</button>`;
+
+/**
+ * Highlights code at build time, so the browser gets plain HTML and no highlighter. The block
+ * comes with a copy button, which `src/lib/docs/copy-code.ts` handles for the whole page. Code
+ * counts for half as much as prose in search, so a page's prose wins the ranking and the excerpt
+ * when both match, while identifiers stay searchable.
+ */
 export const highlight = async (code: string, lang: string) => {
   const shiki = await highlighter;
-  return shiki.codeToHtml(code, {
+  const html = shiki.codeToHtml(code, {
     defaultColor: false,
     lang: shiki.getLoadedLanguages().includes(lang) ? lang : "text",
     themes,
@@ -49,10 +62,15 @@ export const highlight = async (code: string, lang: string) => {
         pre(node) {
           const digits = String(this.lines.length).length;
           node.properties.style = `${node.properties.style ?? ""};--line-number-width:${digits}ch`;
+          // A lone "1" says nothing, so one-line blocks have no line numbers.
+          if (this.lines.length === 1) {
+            this.addClassToHast(node, "single-line");
+          }
         },
       },
     ],
   });
+  return `<div class="code-block" data-pagefind-weight="0.5">${html}${copyButton}</div>`;
 };
 
 /** For mdsvex: highlighted HTML that Svelte will not parse as markup. */
