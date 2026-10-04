@@ -65,7 +65,7 @@ Here the sidebar keeps its state for as long as the registry lives, which is the
 
 The live example at the top of the page shows `keepAlive` and an idle TTL. `useAtomMount` is for a component that needs an atom alive without showing it, such as a layout that keeps a chat's messages while the visitor moves between pages. Below, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`:
 
-<Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: chatSource, name: "chat.ts" }, { html: chatPageSource, name: "chat-page.svelte" }, { html: keepMessagesSource, name: "keep-messages.svelte" }]} hint="Open Chat and send a message or two. Go to Inbox and back: they are gone, because nothing held messagesAtom while you were away. Turn on Hold messagesAtom in the layout, send some more, and switch pages again: they stay."> <KeepMounted /> </Example>
+<Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: chatSource, name: "chat.ts" }, { html: chatPageSource, name: "chat-page.svelte" }, { html: keepMessagesSource, name: "keep-messages.svelte" }]} hint="Open Chat and send a message or two. Go to Inbox: nothing holds messagesAtom any more, so the registry disposes of it and the messages are gone. Turn on useAtomMount(messagesAtom) in the layout bar, send some more, and switch pages again: the layout still holds it, so they stay."> <KeepMounted /> </Example>
 
 Atoms that run an `Effect` follow the same rules, so `keepAlive` and an idle TTL also make a cache: see [Async atoms](/async-atoms). For atoms made per key, see [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 

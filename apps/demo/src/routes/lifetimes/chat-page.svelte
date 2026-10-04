@@ -16,7 +16,17 @@
   };
 </script>
 
-<form class="flex gap-2" onsubmit={send}>
+<ul
+  class="m-0 flex list-none flex-col items-end gap-1.5 p-0"
+  data-testid="chat-messages"
+>
+  {#each messages.current as message, index (index)}
+    <li class="m-0 rounded-2xl rounded-br-sm bg-brand/20 px-3 py-1.5">{message}</li>
+  {:else}
+    <li class="m-0 self-center text-muted-foreground">No messages yet.</li>
+  {/each}
+</ul>
+<form class="mt-3 flex gap-2" onsubmit={send}>
   <input
     aria-label="Message"
     bind:value={draft}
@@ -25,10 +35,3 @@
   />
   <button>Send</button>
 </form>
-<ul class="mt-2 mb-0 list-none p-0" data-testid="chat-messages">
-  {#each messages.current as message, index (index)}
-    <li class="m-0"><output>{message}</output></li>
-  {:else}
-    <li class="m-0 text-muted-foreground">No messages yet.</li>
-  {/each}
-</ul>

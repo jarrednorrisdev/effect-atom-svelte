@@ -74,9 +74,18 @@ test.describe("Atoms pages: an example for every feature", () => {
   }) => {
     await page.goto("/lifetimes");
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
-    const open = (name: string) =>
-      setPressed(page.getByRole("button", { exact: true, name }), true);
+    const pages = page.getByRole("navigation", { name: "Pages" });
+    const open = async (name: string) => {
+      const link = pages.getByRole("button", { exact: true, name });
+      await expect(async () => {
+        await link.click();
+        await expect(link).toHaveAttribute("aria-current", "page", {
+          timeout: 1000,
+        });
+      }).toPass();
+    };
     const messages = page.getByTestId("chat-messages").getByRole("listitem");
+    const log = page.getByTestId("messages-log").getByRole("listitem");
     const send = async (text: string) => {
       await page.getByLabel("Message", { exact: true }).fill(text);
       await page.getByRole("button", { exact: true, name: "Send" }).click();
@@ -87,15 +96,29 @@ test.describe("Atoms pages: an example for every feature", () => {
     await send("Hello");
     await expect(messages).toHaveText(["Hello"]);
     await open("Inbox");
+    await expect(log).toHaveText([
+      /created, empty$/u,
+      /disposed: messages lost$/u,
+    ]);
     await open("Chat");
     await expect(messages).toHaveText(["No messages yet."]);
 
     // Held by the layout, the messages outlive the page.
-    await open("Hold messagesAtom in the layout");
+    await setPressed(
+      page.getByRole("button", {
+        exact: true,
+        name: "useAtomMount(messagesAtom)",
+      }),
+      true
+    );
     await send("Still here");
     await open("Inbox");
+    await expect(page.getByTestId("messages-status")).toContainText(
+      "+layout.svelte · useAtomMount"
+    );
     await open("Chat");
     await expect(messages).toHaveText(["Still here"]);
+    await expect(log).toHaveCount(3);
   });
 
   test("families: equal keys return the same atom", async ({ page }) => {
