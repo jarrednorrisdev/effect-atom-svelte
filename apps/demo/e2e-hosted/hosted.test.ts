@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { setPressed } from "../e2e/toggle.ts";
 import { pages } from "../src/lib/docs/nav.ts";
 
 /** Fails any request for the demo API over the network, and records it. */
@@ -117,7 +118,13 @@ test("Mutations: add, a typed error and an optimistic rollback in the tab", asyn
   );
 
   const example = page.getByTestId("optimistic-example");
-  await example.getByLabel("Make the next save fail").check();
+  await setPressed(
+    example.getByRole("button", {
+      exact: true,
+      name: "Make the next save fail",
+    }),
+    true
+  );
   const box = page
     .getByTestId("optimistic-todos")
     .getByRole("checkbox", { name: "Write a Svelte adapter" });
@@ -151,7 +158,10 @@ test("Cookbook: server-sent events, an auth header and a load function in the ta
   await expect(page.getByTestId("auth-result")).toHaveText(
     "This route needs an Authorization header."
   );
-  await page.getByLabel("Signed in").check();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Signed in" }),
+    true
+  );
   await send.click();
   await expect(page.getByTestId("auth-result")).toHaveText("Signed in as Ada");
   expect(requests).toEqual([]);

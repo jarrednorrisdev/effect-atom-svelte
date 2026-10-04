@@ -1,6 +1,5 @@
+import { expect } from "@playwright/test";
 import type { Locator } from "@playwright/test";
-
-import { expect } from "./servers.ts";
 
 /**
  * Turns a toggle button (`aria-pressed`) on or off, and waits until it shows that state. A press

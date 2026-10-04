@@ -69,51 +69,33 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(transformRuns).toHaveText("6");
   });
 
-  test("lifetimes: useAtomMount holds an atom nothing reads", async ({
+  test("lifetimes: a layout's useAtomMount keeps an atom across pages", async ({
     page,
   }) => {
     await page.goto("/lifetimes");
-    await page.waitForLoadState("networkidle");
-    const entries = page
-      .getByRole("list", { name: "socketAtom" })
-      .getByRole("listitem");
-    const status = page.getByTestId("lifetimes-socketAtom-status");
-    const holders = page.getByLabel("socketAtom holders", { exact: true });
-    await expect(status).toHaveText("not computed yet");
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    const open = (name: string) =>
+      setPressed(page.getByRole("button", { exact: true, name }), true);
+    const messages = page.getByTestId("chat-messages").getByRole("listitem");
+    const send = async (text: string) => {
+      await page.getByLabel("Message", { exact: true }).fill(text);
+      await page.getByRole("button", { exact: true, name: "Send" }).click();
+    };
 
-    await setPressed(
-      page.getByRole("button", { exact: true, name: "Show <ChatPanel>" }),
-      true
-    );
-    await expect(holders).toHaveText("1");
-    await expect(status).toHaveText("mounted");
-    await expect(entries).toHaveText([/socketAtom: computed$/u]);
+    // The chat page holds messagesAtom only while it is open.
+    await open("Chat");
+    await send("Hello");
+    await expect(messages).toHaveText(["Hello"]);
+    await open("Inbox");
+    await open("Chat");
+    await expect(messages).toHaveText(["No messages yet."]);
 
-    await setPressed(
-      page.getByRole("button", { exact: true, name: "Show a <Reader>" }),
-      true
-    );
-    await expect(page.getByTestId("lifetimes-socketAtom")).toContainText(
-      "Reading connected"
-    );
-    // The panel goes, but the reader still holds the atom.
-    await setPressed(
-      page.getByRole("button", { exact: true, name: "Show <ChatPanel>" }),
-      false
-    );
-    await page.waitForTimeout(300);
-    await expect(entries).toHaveText([/socketAtom: computed$/u]);
-    await expect(status).toHaveText("mounted");
-
-    await setPressed(
-      page.getByRole("button", { exact: true, name: "Show a <Reader>" }),
-      false
-    );
-    await expect(status).toHaveText("disposed");
-    await expect(entries).toHaveText([
-      /socketAtom: computed$/u,
-      /socketAtom: disposed$/u,
-    ]);
+    // Held by the layout, the messages outlive the page.
+    await open("Hold messagesAtom in the layout");
+    await send("Still here");
+    await open("Inbox");
+    await open("Chat");
+    await expect(messages).toHaveText(["Still here"]);
   });
 
   test("families: equal keys return the same atom", async ({ page }) => {

@@ -10,12 +10,12 @@ description: When an atom's value is kept, when it is disposed, and how to clean
   import chatPageSource from "./chat-page.svelte?highlight";
   import KeepMounted from "./keep-mounted.svelte";
   import keepMountedSource from "./keep-mounted.svelte?highlight";
-  import keepSocketSource from "./keep-socket.svelte?highlight";
+  import keepMessagesSource from "./keep-messages.svelte?highlight";
   import Lifetimes from "./lifetimes.svelte";
   import lifetimesSource from "./lifetimes.svelte?highlight";
   import Reader from "./reader.svelte";
   import readerSource from "./reader.svelte?highlight";
-  import socketSource from "./socket.ts?highlight";
+  import chatSource from "./chat.ts?highlight";
 </script>
 
 A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value and runs the atom's finalizers. This keeps memory, timers and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
@@ -63,9 +63,9 @@ const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 
 Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed.
 
-The live example at the top of the page shows `keepAlive` and an idle TTL. `useAtomMount` is for a component that needs an atom alive without showing it, such as a layout that keeps a chat connection open while the visitor moves between pages. Below, a tiny app has a layout and two pages, and `socketAtom` stands in for the connection. Only the chat page reads it:
+The live example at the top of the page shows `keepAlive` and an idle TTL. `useAtomMount` is for a component that needs an atom alive without showing it, such as a layout that keeps a chat's messages while the visitor moves between pages. Below, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`:
 
-<Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: socketSource, name: "socket.ts" }, { html: chatPageSource, name: "chat-page.svelte" }, { html: keepSocketSource, name: "keep-socket.svelte" }]} hint="Open Chat: connection 1 opens. Go to Inbox and back: it closes, and connection 2 opens. Then turn on Hold socketAtom in the layout and switch pages again: the same connection stays open."> <KeepMounted /> </Example>
+<Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: chatSource, name: "chat.ts" }, { html: chatPageSource, name: "chat-page.svelte" }, { html: keepMessagesSource, name: "keep-messages.svelte" }]} hint="Open Chat and send a message or two. Go to Inbox and back: they are gone, because nothing held messagesAtom while you were away. Turn on Hold messagesAtom in the layout, send some more, and switch pages again: they stay."> <KeepMounted /> </Example>
 
 Atoms that run an `Effect` follow the same rules, so `keepAlive` and an idle TTL also make a cache: see [Async atoms](/async-atoms). For atoms made per key, see [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 
