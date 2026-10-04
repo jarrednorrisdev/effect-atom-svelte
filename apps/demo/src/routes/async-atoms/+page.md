@@ -13,6 +13,8 @@ description: Run an Effect in an atom and read its progress as an AsyncResult.
 
 Most state worth keeping comes from somewhere slow: a server, a database, a file. An async atom runs an `Effect` to get its value, and tells you where it has got to, so a component can show a loading state, the value, or what went wrong.
 
+If you haven't used Effect before, [Effect basics](/effect-basics) covers what this page and the ones after it need.
+
 <Example files={[{ html: source, name: "die.svelte" }]}> <Die /> </Example>
 
 ## Creating an async atom
@@ -71,13 +73,57 @@ Read the result with `useAtomValue`, and check `_tag` in the markup:
 {/if}
 ```
 
-In a script, `AsyncResult.match` does the same with a function for each state.
-
 <Aside type="tip" title="Await instead of checking tags">
 
 With Svelte's experimental async turned on, you can `await` an async atom in markup and let `<svelte:boundary>` handle loading and failure. See [Suspense](/suspense).
 
 </Aside>
+
+## Working with AsyncResult
+
+The `AsyncResult` module, exported from `effect/reactivity`, has functions that save you checking `_tag` by hand.
+
+`AsyncResult.match` takes a function for each state and returns what the matching one returns. It suits a `$derived`:
+
+**Example** (A label for each state)
+
+```svelte
+<script lang="ts">
+  import { Cause } from "effect";
+  import { AsyncResult } from "effect/reactivity";
+  import { useAtomValue } from "effect-atom-svelte";
+
+  const todo = useAtomValue(todoAtom);
+
+  const label = $derived(
+    AsyncResult.match(todo.current, {
+      onFailure: (failure) => `Could not load: ${Cause.pretty(failure.cause)}`,
+      onInitial: () => "Loading…",
+      onSuccess: (success) => success.value.title,
+    })
+  );
+</script>
+
+<p>{label}</p>
+```
+
+`AsyncResult.getOrElse` gives the value, or a fallback when there is none yet. It also falls back to the last successful value when the effect fails after succeeding before, so a failed refresh doesn't empty the screen:
+
+**Example** (A count that is 0 until the todos load)
+
+```ts
+const count = $derived(AsyncResult.getOrElse(todos.current, () => []).length);
+```
+
+[Streams](/streams) uses it to show `starting` until a stream's first item arrives. Other functions in the module:
+
+| Function | Does |
+| --- | --- |
+| `AsyncResult.isSuccess`, `isFailure`, `isInitial` | Check the state, narrowing the type. |
+| `AsyncResult.value` | The value, or the last successful one, as an `Option`. |
+| `AsyncResult.error` | The typed error of a `Failure`, as an `Option`. |
+| `AsyncResult.map` | Transform the value of a `Success`, as in `result.pipe(AsyncResult.map(f))`. |
+| `AsyncResult.all` | Combine several results into one, which succeeds only when all of them have. |
 
 ## Running it again
 

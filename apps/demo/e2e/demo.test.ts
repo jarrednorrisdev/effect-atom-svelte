@@ -295,6 +295,26 @@ test("families: a getter follows the selected key's atom", async ({ page }) => {
   await expect(page.getByTestId("tally")).toHaveText("2");
 });
 
+test("effect basics: tryPromise hashes the text, and a rejection is a typed error", async ({
+  page,
+}) => {
+  await page.goto("/effect-basics");
+  await page.waitForLoadState("networkidle");
+  const hash = page.getByTestId("hash");
+  // SHA-256 of "Hello, Effect".
+  await expect(hash).toHaveText(
+    "f8cd9e3207ac367ea0e7c10ad4a0bd0551f73dd1e2ddbe556b74850a2db39b70"
+  );
+  await page.getByTestId("hash-text").fill("abc");
+  await expect(hash).toHaveText(
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  );
+  await page.getByTestId("hash-algorithm").selectOption("MD5");
+  await expect(hash).toHaveText("UnsupportedAlgorithm: Web Crypto has no MD5");
+  await page.getByTestId("hash-algorithm").selectOption("SHA-1");
+  await expect(hash).toHaveText("a9993e364706816aba3e25717850c26c9cd0d89d");
+});
+
 test("async atoms: initial, success and a refresh that keeps the value", async ({
   page,
 }) => {
