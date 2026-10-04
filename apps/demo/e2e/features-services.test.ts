@@ -62,3 +62,30 @@ test.describe("Errors page", () => {
     await expect(page.getByTestId("recover-plain-state")).toHaveText("Success");
   });
 });
+
+test("RPC: one effect creates a todo, then reads it back with the client", async ({
+  page,
+}) => {
+  await page.goto("/rpc");
+  await page.waitForLoadState("networkidle");
+  const result = page.getByTestId("create-read");
+  const calls = page.getByTestId("create-read-log").getByRole("listitem");
+  await page.getByTestId("create-read-title").fill("Feed the cat");
+  await page.getByRole("button", { name: "Create and read" }).click();
+  // The demo store starts with two todos, so the new one is todo 3.
+  await expect(result).toHaveText("Todo 3: Feed the cat");
+  await expect(page.getByTestId("create-read-state")).toHaveText("Success");
+  await expect(calls).toHaveText([
+    /createTodo sent$/u,
+    /createTodo: todo 3$/u,
+    /getTodo sent with id 3$/u,
+    /getTodo: "Feed the cat"$/u,
+  ]);
+
+  // A failed createTodo ends the effect: getTodo is never sent.
+  await page.getByRole("button", { name: "Paste a long title" }).last().click();
+  await page.getByRole("button", { name: "Create and read" }).click();
+  await expect(result).toHaveText("TitleTooLong: the effect stopped there");
+  await expect(page.getByTestId("create-read-state")).toHaveText("Failure");
+  await expect(calls).toHaveText([/createTodo sent$/u]);
+});

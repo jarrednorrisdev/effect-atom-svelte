@@ -7,6 +7,8 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import CreateAndRead from "./create-and-read.svelte";
+  import createAndReadSource from "./create-and-read.svelte?highlight";
   import rpcSource from "../../../../../packages/demo-domain/src/rpc.ts?highlight";
   import todoSource from "../../../../../packages/demo-domain/src/todo.ts?highlight";
   import Lookup from "./lookup.svelte";
@@ -118,18 +120,8 @@ Over HTTP, the server doesn't wait for the client to ask: it sends items as they
 
 ## Calling the client yourself
 
-For anything a single query or mutation doesn't cover, write an effect that uses the client, and run it with the service's runtime:
+For anything a single query or mutation doesn't cover, write an effect that uses the client, and run it with the service's runtime. `yield* TodosRpc` gives the client, a function that takes a procedure's tag and its payload. The example creates a todo and then reads it back, in one call of one `Atom.fn`:
 
-**Example** (Creating a todo and then reading it back)
+<Example files={[{ html: createAndReadSource, name: "create-and-read.svelte" }]} hint="Click Create and read, and watch the calls: getTodo waits for the id that createTodo returns. Then paste a long title: createTodo fails, and getTodo is never sent."> <CreateAndRead /> </Example>
 
-```ts
-import { Effect } from "effect";
-
-const createAndReadAtom = TodosRpc.runtime.fn((title: string) =>
-  Effect.gen(function* () {
-    const client = yield* TodosRpc;
-    const created = yield* client("createTodo", { title });
-    return yield* client("getTodo", { id: created.id });
-  })
-);
-```
+The effect's error type is the union of both procedures' errors, plus `RpcClientError`, and the first failure ends it.
