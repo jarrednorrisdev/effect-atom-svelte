@@ -61,7 +61,8 @@
   <legend class="sr-only">Todo</legend>
   {#each [1, 2, 3] as todoId (todoId)}
     <label>
-      <input bind:group={id.current} type="radio" value={todoId} /> Todo {todoId}
+      <input bind:group={id.current} name="todo" type="radio" value={todoId} />
+      Todo {todoId}
     </label>
   {/each}
 </fieldset>
