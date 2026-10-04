@@ -7,13 +7,17 @@
   ```svelte
   <EffectType error="UnsupportedAlgorithm" name="digest(…)" result={hash.current} success="string" />
   ```
+
+  Pass the error type's members as an array (`["NotFound", "Forbidden"]`) for a union of tagged
+  errors: only the member whose `_tag` the failure carries lights up.
 -->
 <script lang="ts">
+  import { Cause, Option } from "effect";
   import type { AsyncResult } from "effect/reactivity";
 
   interface Props {
-    /** The error type, as written in the code. */
-    readonly error: string;
+    /** The error type as written in the code, or a union's tagged members. */
+    readonly error: string | readonly string[];
     /** What has the type, such as `digest(…)`; shown before it. */
     readonly name?: string;
     readonly result: AsyncResult.AsyncResult<unknown, unknown>;
@@ -22,13 +26,35 @@
   }
 
   const { error, name, result, success }: Props = $props();
+
+  const members = $derived(typeof error === "string" ? [error] : error);
+
+  // The member that failed: the typed error's _tag for a union, the whole type otherwise.
+  const failed = $derived.by(() => {
+    if (result._tag !== "Failure") {
+      return undefined;
+    }
+    if (typeof error === "string") {
+      return error;
+    }
+    return Option.match(Cause.findErrorOption(result.cause), {
+      onNone: () => undefined,
+      onSome: (value) =>
+        typeof value === "object" && value !== null && "_tag" in value
+          ? String(value._tag)
+          : undefined,
+    });
+  });
 </script>
 
 <code class="effect-type not-prose" data-testid="effect-type" data-tag={result._tag}
   >{#if name}<span class="muted">{name}:&nbsp;</span>{/if}<span class="muted">Effect&lt;</span
-  ><span class="side success">{success}</span><span class="muted">,&nbsp;</span><span
-    class="side error">{error}</span
-  ><span class="muted">&gt;</span></code
+  ><span class="side success">{success}</span><span class="muted">,&nbsp;</span
+  >{#each members as member, index (member)}{#if index > 0}<span class="muted"
+        >&nbsp;|&nbsp;</span
+      >{/if}<span class={["side", member === failed && "failed"]} data-member={member}
+      >{member}</span
+    >{/each}<span class="muted">&gt;</span></code
 >
 
 <style>
@@ -52,7 +78,7 @@
     background: color-mix(in oklab, var(--tone-success) 18%, transparent);
     color: var(--tone-success-text);
   }
-  [data-tag="Failure"] .error {
+  .failed {
     background: color-mix(in oklab, var(--tone-failure) 18%, transparent);
     color: var(--tone-failure-text);
   }

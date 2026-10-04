@@ -40,21 +40,15 @@
 </script>
 
 <script lang="ts">
-  import { Cause, Option } from "effect";
   import { useAtom, useAtomValue } from "effect-atom-svelte";
-  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import EffectType from "#lib/docs/kit/effect-type.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const id = useAtom(idAtom);
   const recover = useAtom(recoverAtom);
   const todo = useAtomValue(todoAtom);
-
-  // The typed error's _tag, if the effect failed with one.
-  const errorTag = (cause: Cause.Cause<NotFound | Forbidden>) =>
-    Option.match(Cause.findErrorOption(cause), {
-      onNone: () => "no typed error",
-      onSome: (error) => error._tag,
-    });
 </script>
 
 <div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
@@ -72,21 +66,20 @@
     <code>Effect.catchTag("NotFound", …)</code>
   </button>
 </p>
-<p class="text-sm">
-  Error type:
-  <FlashValue
-    data-testid="catch-tag-type"
-    value={recover.current ? "Forbidden" : "NotFound | Forbidden"}
+<!-- With catchTag, NotFound leaves the error type. -->
+<p class="mb-3 flex flex-wrap items-center gap-3">
+  <EffectType
+    error={recover.current ? ["Forbidden"] : ["NotFound", "Forbidden"]}
+    name="todoAtom"
+    result={todo.current}
+    success="string"
   />
+  <StateBadge data-testid="catch-tag-state" result={todo.current} />
 </p>
-<p>
-  {#if todo.current._tag === "Success"}
-    <ResultChip kind="message" label="todoAtom" tone="success">
-      <span data-testid="catch-tag">{todo.current.value}</span>
-    </ResultChip>
-  {:else if todo.current._tag === "Failure"}
-    <ResultChip kind="message" label="todoAtom" tone="failure">
-      <span data-testid="catch-tag">Failed with {errorTag(todo.current.cause)}</span>
-    </ResultChip>
-  {/if}
-</p>
+{#if todo.current._tag === "Success"}
+  <ResultChip kind="message" label="todoAtom" tone="success">
+    <span data-testid="catch-tag">{todo.current.value}</span>
+  </ResultChip>
+{:else if todo.current._tag === "Failure"}
+  <CauseView cause={todo.current.cause} code data-testid="catch-tag" label="todoAtom" />
+{/if}

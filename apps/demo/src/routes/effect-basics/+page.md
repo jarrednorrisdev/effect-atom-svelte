@@ -119,7 +119,7 @@ const describe = (error: NotFound | Forbidden) => {
 
 Inside `Effect.gen`, `yield*` a tagged error to fail with it: `return yield* new NotFound({ id })`. `Effect.catchTag("NotFound", ...)` recovers from one kind and leaves the others in the type.
 
-<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3 to see each error. Then turn on catchTag: NotFound turns into a value, and only Forbidden is left in the error type."> <CatchTag /> </Example>
+<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3: each fails with a different member of the error union, lit up in the type. Then turn on catchTag: NotFound turns into a value and leaves the type, so only Forbidden is left."> <CatchTag /> </Example>
 
 Read more in [Expected Errors](https://effect.website/docs/v4/error-management/expected-errors) and [Yieldable Errors](https://effect.website/docs/v4/error-management/yieldable-errors).
 
