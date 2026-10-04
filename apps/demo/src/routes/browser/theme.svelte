@@ -24,7 +24,7 @@
     <option value="light">Light</option>
     <option value="dark">Dark</option>
   </select>
-  <button onclick={() => location.reload()}>Reload the page</button>
+  <button data-cue="none" onclick={() => location.reload()}>Reload the page</button>
   <p>The {theme.current} theme, read from the pref-theme cookie.</p>
 </div>
 

@@ -31,4 +31,6 @@
 <textarea bind:value={draft.current} data-testid="draft" placeholder="Type, then reload"
 ></textarea>
 <p>Saved draft: <FlashValue data-testid="draft-saved" value={draft.current} /></p>
-<p><button onclick={() => location.reload()}>Reload the page</button></p>
+<p>
+  <button data-cue="none" onclick={() => location.reload()}>Reload the page</button>
+</p>
