@@ -5,10 +5,11 @@
 
   import Combined from "./combined.svelte";
   import OneByOne from "./one-by-one.svelte";
-  import { combined, oneByOne, together } from "./slow-pairs.ts";
+  import { combined, oneByOne, setTodosFail, together } from "./slow-pairs.ts";
   import Together from "./together.svelte";
 
   let mounted = $state(false);
+  let todosFail = $state(false);
 
   const toggle = () => {
     if (!mounted) {
@@ -17,6 +18,12 @@
       }
     }
     mounted = !mounted;
+  };
+  // Takes effect from the next mount, so unmount first.
+  const toggleFail = () => {
+    todosFail = !todosFail;
+    setTodosFail(todosFail);
+    mounted = false;
   };
 
   const sides = [
@@ -42,6 +49,7 @@
   <button data-cue={mounted ? "reset" : "start"} onclick={toggle}>
     {mounted ? "Unmount all three" : "Mount all three"}
   </button>
+  <button aria-pressed={todosFail} onclick={toggleFail}>Todos fails</button>
 </p>
 <div class="grid gap-3 lg:grid-cols-3">
   {#each sides as side (side.label)}

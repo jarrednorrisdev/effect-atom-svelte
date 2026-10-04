@@ -184,9 +184,9 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 You can call hooks before and after top-level `await`s, because Svelte restores the component's context after each one. Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 
-Below, each component loads todos and a user, which take a second each. The timelines show when each load starts and ends:
+Below, each component loads todos and a user, which take a second each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
 
-<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three. One by one, the user's load starts only when the todos have loaded, so it is ready after two seconds. Promise.all and Effect.all start both loads at once, and are ready after one."> <Awaits /> </Example>
+<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three. One by one, the user's load starts only when the todos have loaded, so it is ready after two seconds. Promise.all and Effect.all start both loads at once, and are ready after one. Then turn on Todos fails and mount again: only Effect.all stops at the failure and interrupts the user's load."> <Awaits /> </Example>
 
 <Aside type="caution" title="Only top-level awaits">
 
