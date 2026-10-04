@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
-  import SearchDialog from "./search-dialog.svelte";
+  import SearchButton from "./search-button.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
 </script>
 
@@ -12,7 +12,7 @@
     Community project
   </span>
   <div class="ml-auto flex items-center gap-1 md:gap-2">
-    <SearchDialog />
+    <SearchButton />
     <!-- A GitHub link goes here once the repository is public; until then it would be a 404. -->
     <ThemeToggle />
   </div>

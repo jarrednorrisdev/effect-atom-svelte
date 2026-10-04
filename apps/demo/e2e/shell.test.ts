@@ -276,6 +276,23 @@ test.describe("docs shell", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("the search button loads and opens the search dialog", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    // The dialog loads on first use, so it isn't on the page until then.
+    await expect(page.getByPlaceholder("Search the docs")).toHaveCount(0);
+    await page.getByRole("button", { name: "Search" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByPlaceholder("Search the docs")).toBeFocused();
+    await expect(
+      dialog.getByRole("option", { name: "Installation" })
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+
   test("on small screens the sidebar opens as a sheet and closes after navigating", async ({
     page,
   }) => {

@@ -24,6 +24,9 @@ export default defineConfig({
       compilerOptions: { experimental: { async: true } },
       experimental: { remoteFunctions: true },
       extensions: [".svelte", ".md"],
+      // Components' own stylesheets (Example's, Aside's) are a kilobyte or two: inlining them
+      // leaves the app stylesheet as the only one that blocks the first paint.
+      inlineStyleThreshold: 4096,
       preprocess: [
         mdsvex({
           extensions: [".md"],

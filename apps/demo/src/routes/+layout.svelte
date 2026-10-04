@@ -1,5 +1,7 @@
 <script lang="ts">
   import "../app.css";
+  import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+  import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
   import DocsSidebar from "#lib/docs/docs-sidebar.svelte";
@@ -30,6 +32,11 @@
 <svelte:document onclick={(event) => void copyCode(event)} />
 
 <svelte:head>
+  <!-- Every page uses both fonts; without these, they only start loading once the stylesheet has
+       arrived and the page has been laid out. Only the Latin files: app.css's other subsets load
+       only for text that needs them. -->
+  <link as="font" crossorigin="anonymous" href={interLatin} rel="preload" type="font/woff2" />
+  <link as="font" crossorigin="anonymous" href={monoLatin} rel="preload" type="font/woff2" />
   <title>{fullTitle}</title>
   <!-- Each page adds its own description (page-description.svelte), so there is none here. -->
   {#if canonical}
