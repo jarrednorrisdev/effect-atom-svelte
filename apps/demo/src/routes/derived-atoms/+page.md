@@ -15,7 +15,7 @@ description: Compute an atom's value from other atoms, and write back through it
 
 A derived atom computes its value from other atoms. The registry tracks which atoms it reads and computes it again when any of them change, so it never goes stale and you never update it by hand.
 
-<Example files={[{ html: source, name: "temperature.svelte" }]} hint="Type a temperature in °C: both derived atoms follow. Then type one in °F: fahrenheitAtom writes it back to celsiusAtom."> <Temperature /> </Example>
+<Example files={[{ html: source, name: "temperature.svelte" }]} hint="Step celsiusAtom: both atoms derived from it follow. Then step fahrenheitAtom: it holds no value of its own, so the write converts to °C and sets celsiusAtom."> <Temperature /> </Example>
 
 ## Creating a derived atom
 
