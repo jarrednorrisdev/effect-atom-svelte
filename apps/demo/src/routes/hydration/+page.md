@@ -143,4 +143,4 @@ export const load = async () => {
 </HydrationBoundary>
 ```
 
-Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behaviour of fetching wrapped atoms again.
+Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of fetching wrapped atoms again.

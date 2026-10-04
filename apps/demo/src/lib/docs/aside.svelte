@@ -24,7 +24,7 @@
   const kind = $derived(kinds[type]);
 </script>
 
-<!-- effect.website's asides: a tinted panel with a coloured title. -->
+<!-- effect.website's asides: a tinted panel with a colored title. -->
 <aside aria-label={title ?? kind.title} class="aside aside--{type}">
   <p aria-hidden="true" class="aside-title">
     <kind.icon class="size-4 -translate-y-px" strokeWidth={2.5} />
@@ -66,7 +66,7 @@
   .aside-content :global(> :last-child) {
     margin-bottom: 1rem;
   }
-  /* Titles are darker in light mode, where the bright colours fail contrast on the tint. */
+  /* Titles are darker in light mode, where the bright colors fail contrast on the tint. */
   .aside--note {
     background-color: #3b82f614;
     & .aside-title {

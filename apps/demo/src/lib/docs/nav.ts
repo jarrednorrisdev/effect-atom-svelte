@@ -88,13 +88,13 @@ export const pages: readonly NavPage[] = nav.flatMap(
 );
 
 /** The pages either side of `pathname`, for the links at the foot of a page. */
-export interface Neighbours {
+export interface Neighbors {
   readonly next: NavPage | undefined;
   readonly page: NavPage | undefined;
   readonly previous: NavPage | undefined;
 }
 
-export const neighbours = (pathname: string): Neighbours => {
+export const neighbors = (pathname: string): Neighbors => {
   const index = pages.findIndex((page) => page.href === pathname);
   if (index === -1) {
     return { next: undefined, page: undefined, previous: undefined };

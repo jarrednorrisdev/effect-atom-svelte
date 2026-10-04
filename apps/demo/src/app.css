@@ -177,7 +177,7 @@
   }
 }
 
-/* Long-form content: Tailwind Typography, coloured with the tokens above. */
+/* Long-form content: Tailwind Typography, colored with the tokens above. */
 @utility prose-effect {
   --tw-prose-body: var(--prose-foreground);
   --tw-prose-headings: var(--foreground);
@@ -229,7 +229,7 @@
 
 /*
  * Code blocks (vite/highlight.ts), drawn like effect.website's: a bordered frame with line numbers.
- * Shiki emits both themes as CSS variables; pick one by colour scheme.
+ * Shiki emits both themes as CSS variables; pick one by color scheme.
  */
 .shiki {
   background-color: var(--code-background);

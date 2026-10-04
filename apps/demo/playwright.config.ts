@@ -8,7 +8,7 @@ export default defineConfig({
   // CI's cold cache.
   globalSetup: "./e2e/build.ts",
   // Engines differ in microtask timing (which the hooks' notification deferral depends on) and in
-  // visibilitychange behaviour, so every test runs in all three.
+  // visibilitychange behavior, so every test runs in all three.
   projects: [
     { name: "chromium", use: devices["Desktop Chrome"] },
     { name: "firefox", use: devices["Desktop Firefox"] },

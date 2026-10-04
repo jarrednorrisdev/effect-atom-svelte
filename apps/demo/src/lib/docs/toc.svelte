@@ -8,7 +8,7 @@
 <ul class="space-y-2 border-l">
   {#each toc.entries as entry (entry.id)}
     <li>
-      <!-- The active and inactive colours are alternatives: both on one element, the inactive
+      <!-- The active and inactive colors are alternatives: both on one element, the inactive
            ones won and the highlight never showed. -->
       <a
         aria-current={toc.active === entry.id ? "location" : undefined}

@@ -9,8 +9,8 @@ import type { Plugin } from "vite";
 
 /**
  * effect.website's code blocks: GitHub's themes with Expressive Code's contrast fix, which darkens
- * light colours (and lightens one dark colour) that read poorly on the code background. The
- * replacements were read off the colours effect.website renders for the same tokens.
+ * light colors (and lightens one dark color) that read poorly on the code background. The
+ * replacements were read off the colors effect.website renders for the same tokens.
  */
 const effectLight = {
   ...githubLight,

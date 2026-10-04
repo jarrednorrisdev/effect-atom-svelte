@@ -66,7 +66,7 @@
   .example {
     box-shadow: 0.1rem 0.1rem 0.2rem var(--code-shadow);
   }
-  /* A light tint of the brand colour sets the running example apart from the page around it. */
+  /* A light tint of the brand color sets the running example apart from the page around it. */
   .demo {
     background: color-mix(in oklab, var(--brand) 4%, var(--background));
   }

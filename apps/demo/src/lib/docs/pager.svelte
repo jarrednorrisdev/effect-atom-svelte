@@ -2,9 +2,9 @@
   import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import { page } from "$app/state";
-  import { neighbours } from "#lib/docs/nav.ts";
+  import { neighbors } from "#lib/docs/nav.ts";
 
-  const links = $derived(neighbours(page.url.pathname));
+  const links = $derived(neighbors(page.url.pathname));
 </script>
 
 {#if links.previous || links.next}

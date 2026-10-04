@@ -5,7 +5,7 @@
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
   import DocsSidebar from "#lib/docs/docs-sidebar.svelte";
-  import { neighbours } from "#lib/docs/nav.ts";
+  import { neighbors } from "#lib/docs/nav.ts";
   import { previewImage, siteName, siteUrl } from "#lib/docs/site.ts";
   import Pager from "#lib/docs/pager.svelte";
   import SiteHeader from "#lib/docs/site-header.svelte";
@@ -21,7 +21,7 @@
 
   const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
-  const title = $derived(neighbours(page.url.pathname).page?.title);
+  const title = $derived(neighbors(page.url.pathname).page?.title);
   const fullTitle = $derived(title ? `${title} · ${siteName}` : siteName);
   // Only pages in the sidebar have an address of their own; error pages don't.
   const canonical = $derived(title ? `${siteUrl}${page.url.pathname}` : undefined);

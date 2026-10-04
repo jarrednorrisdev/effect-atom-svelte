@@ -54,7 +54,7 @@ If a component is inside more than one provider, `use` returns the nearest one's
 
 <Aside type="caution">
 
-`use` throws if no component above it called `provide`. Like any Svelte context, both must run while the component initialises, at the top level of its script.
+`use` throws if no component above it called `provide`. Like any Svelte context, both must run while the component initializes, at the top level of its script.
 
 </Aside>
 

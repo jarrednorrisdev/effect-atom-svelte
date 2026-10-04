@@ -22,7 +22,7 @@ const stored = (): Theme | undefined => {
 const isDark = () => document.documentElement.classList.contains("dark");
 
 /**
- * Switches the class on `<html>` with transitions off, so colours change at once instead of
+ * Switches the class on `<html>` with transitions off, so colors change at once instead of
  * animating on every element that has a transition.
  */
 const apply = (theme: Theme) => {
