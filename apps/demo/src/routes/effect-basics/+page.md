@@ -118,6 +118,8 @@ A `Cause` records which of these happened. When an async atom fails, its `AsyncR
 - `Cause.findErrorOption(cause)` gives the typed error, as an `Option`. It is `None` when the effect died or was interrupted.
 - `Cause.pretty(cause)` renders the whole cause as text, for logs and for failures you didn't expect.
 
+[Errors](/errors) covers handling each kind in a component.
+
 Read more in [Cause](https://effect.website/docs/v4/data-types/cause).
 
 ## Services and layers

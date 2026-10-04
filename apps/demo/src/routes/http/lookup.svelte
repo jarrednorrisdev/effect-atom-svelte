@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Cause } from "effect";
+  import type { TodoNotFound } from "@demo/domain";
+  import { Cause, Match, Option } from "effect";
   import { useAtomSuspense } from "effect-atom-svelte";
 
   import { TodosHttp } from "#lib/clients.ts";
@@ -11,6 +12,18 @@
     () => TodosHttp.query("todos", "get", { params: { id } }),
     { includeFailure: true }
   );
+
+  // The endpoint's declared errors are its typed errors. A failed request or a
+  // response that doesn't decode is a defect, which has none.
+  const describe = (cause: Cause.Cause<TodoNotFound>) => {
+    const error = Cause.findErrorOption(cause);
+    if (Option.isNone(error)) {
+      return "Something went wrong.";
+    }
+    return Match.valueTags(error.value, {
+      TodoNotFound: (e) => `TodoNotFound: there is no todo ${e.id}`,
+    });
+  };
 </script>
 
 <label>
@@ -24,7 +37,7 @@
     {#if result._tag === "Success"}
       {result.value.title}
     {:else}
-      {Cause.pretty(result.cause).split("\n")[0]}
+      {describe(result.cause)}
     {/if}
   </p>
   {#snippet pending()}<p>Loading…</p>{/snippet}

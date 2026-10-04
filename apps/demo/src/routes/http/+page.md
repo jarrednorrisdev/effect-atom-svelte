@@ -62,7 +62,9 @@ As with RPC, the same request gives the same atom, so a getter can build the que
 
 ### Typed errors
 
-An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. Pass `includeFailure: true` to `useAtomSuspense` to handle it in your markup:
+An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. A request that fails, or a response that doesn't decode, is a defect rather than a typed error.
+
+Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in your markup. [Errors](/errors) covers the other ways.
 
 <Example files={[{ html: lookupSource, name: "lookup.svelte" }]}> <Lookup /> </Example>
 

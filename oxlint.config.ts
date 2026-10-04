@@ -26,10 +26,12 @@ export default defineConfig({
       },
     },
     {
-      // Effect schemas, errors, services and API groups are classes; a domain module holds several.
+      // Effect schemas, errors, services and API groups are classes; a domain module holds several,
+      // and so does a docs example that shows an error union.
       // Schema.TaggedError is a class factory, which unicorn mistakes for a throw without `new`.
       files: [
         "apps/demo/src/lib/**",
+        "apps/demo/src/routes/**",
         "packages/demo-domain/src/**",
         "packages/effect-atom-svelte/test/**",
       ],

@@ -92,7 +92,7 @@ const exit = await create({
 
 Besides `payload`, the object can carry `reactivityKeys` to invalidate once the call succeeds, and `headers`.
 
-A procedure's errors arrive typed. In `promiseExit` mode, the `Exit`'s cause holds the RPC's own error, such as `TitleTooLong` in the example at the top of this page.
+A procedure's errors arrive typed. In `promiseExit` mode, the `Exit`'s cause holds the RPC's own error, such as `TitleTooLong` in the example at the top of this page. [Errors](/errors) shows how to match on them.
 
 ## Streaming procedures
 

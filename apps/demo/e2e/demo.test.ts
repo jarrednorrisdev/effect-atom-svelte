@@ -133,7 +133,9 @@ test.describe("RPC page", () => {
 
     await page.getByTestId("rpc-draft").fill("x".repeat(80));
     await page.getByTestId("rpc-add").click();
-    await expect(page.getByTestId("rpc-error")).toContainText("TitleTooLong");
+    await expect(page.getByTestId("rpc-error")).toHaveText(
+      "TitleTooLong: the limit is 60 characters"
+    );
 
     const checkbox = list.locator("li").first().getByRole("checkbox");
     const checked = await checkbox.isChecked();
@@ -148,8 +150,8 @@ test.describe("RPC page", () => {
       "Write a Svelte adapter"
     );
     await page.getByTestId("rpc-select").selectOption("99");
-    await expect(page.getByTestId("rpc-selected")).toContainText(
-      "TodoNotFound"
+    await expect(page.getByTestId("rpc-selected")).toHaveText(
+      "TodoNotFound: there is no todo 99"
     );
   });
 
@@ -210,10 +212,14 @@ test.describe("HTTP API page", () => {
     await expect(list).toContainText("Added over HTTP");
     await page.getByTestId("http-draft").fill("y".repeat(80));
     await page.getByTestId("http-add").click();
-    await expect(page.getByTestId("http-error")).toContainText("TitleTooLong");
+    await expect(page.getByTestId("http-error")).toHaveText(
+      "TitleTooLong: the limit is 60 characters"
+    );
 
     await page.getByTestId("http-id").fill("999");
-    await expect(page.getByTestId("http-found")).toContainText("TodoNotFound");
+    await expect(page.getByTestId("http-found")).toHaveText(
+      "TodoNotFound: there is no todo 999"
+    );
     await page.getByTestId("http-id").fill("1");
     await expect(page.getByTestId("http-found")).toContainText(
       "Read the Effect Atom source"
@@ -313,6 +319,24 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
   await expect(hash).toHaveText("UnsupportedAlgorithm: Web Crypto has no MD5");
   await page.getByTestId("hash-algorithm").selectOption("SHA-1");
   await expect(hash).toHaveText("a9993e364706816aba3e25717850c26c9cd0d89d");
+});
+
+test("errors: typed errors match on _tag, and a defect is told apart", async ({
+  page,
+}) => {
+  await page.goto("/errors");
+  await page.waitForLoadState("networkidle");
+  const message = page.getByTestId("outcome-message");
+  const outcome = page.getByTestId("outcome");
+  await expect(message).toHaveText("NotFound: there is no todo 7");
+  await outcome.selectOption("forbidden");
+  await expect(message).toHaveText("Forbidden: you can't see this todo");
+  await outcome.selectOption("defect");
+  await expect(message).toHaveText(
+    "Something went wrong: Error: todos is undefined"
+  );
+  await outcome.selectOption("success");
+  await expect(message).toHaveText("Write the docs");
 });
 
 test("async atoms: initial, success and a refresh that keeps the value", async ({

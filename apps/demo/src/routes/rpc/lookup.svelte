@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Cause } from "effect";
+  import type { TodoNotFound } from "@demo/domain";
+  import { Cause, Match, Option } from "effect";
+  import type { RpcClientError } from "effect/rpc";
   import { useAtomSuspense } from "effect-atom-svelte";
 
   import { TodosRpc } from "#lib/clients.ts";
@@ -11,6 +13,20 @@
   const todo = useAtomSuspense(() => TodosRpc.query("getTodo", { id }), {
     includeFailure: true,
   });
+
+  type LookupError = TodoNotFound | RpcClientError.RpcClientError;
+
+  // Find the typed error and match its _tag. A defect or an interruption has none.
+  const describe = (cause: Cause.Cause<LookupError>) => {
+    const error = Cause.findErrorOption(cause);
+    if (Option.isNone(error)) {
+      return "Something went wrong.";
+    }
+    return Match.valueTags(error.value, {
+      RpcClientError: (e) => `Could not reach the server: ${e.message}`,
+      TodoNotFound: (e) => `TodoNotFound: there is no todo ${e.id}`,
+    });
+  };
 </script>
 
 <select bind:value={id} data-testid="rpc-select">
@@ -25,7 +41,7 @@
     {#if result._tag === "Success"}
       {result.value.title}
     {:else}
-      {Cause.pretty(result.cause).split("\n")[0]}
+      {describe(result.cause)}
     {/if}
   </p>
   {#snippet pending()}<p>Loading…</p>{/snippet}

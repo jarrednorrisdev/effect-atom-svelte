@@ -59,6 +59,10 @@ export const nav: readonly NavSection[] = [
     title: "Server rendering",
   },
   {
+    pages: [{ href: "/errors", title: "Errors" }],
+    title: "Guides",
+  },
+  {
     // Generated from the library's source by vite/api-reference.ts, which fails the build if a
     // module is missing here.
     pages: [

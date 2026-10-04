@@ -48,7 +48,9 @@ test("RPC: prerendered todos, then add, a typed error, toggle and a stream", asy
 
   await page.getByTestId("rpc-draft").fill("x".repeat(80));
   await page.getByTestId("rpc-add").click();
-  await expect(page.getByTestId("rpc-error")).toContainText("TitleTooLong");
+  await expect(page.getByTestId("rpc-error")).toHaveText(
+    "TitleTooLong: the limit is 60 characters"
+  );
 
   const checkbox = list.locator("li").first().getByRole("checkbox");
   await checkbox.click();
@@ -88,6 +90,8 @@ test("HTTP API: prerendered todos, then create, filter and a typed 404", async (
   await expect(list.locator("li").filter({ hasText: "✔" })).not.toHaveCount(0);
 
   await page.getByTestId("http-id").fill("999");
-  await expect(page.getByTestId("http-found")).toContainText("TodoNotFound");
+  await expect(page.getByTestId("http-found")).toHaveText(
+    "TodoNotFound: there is no todo 999"
+  );
   expect(requests).toEqual([]);
 });

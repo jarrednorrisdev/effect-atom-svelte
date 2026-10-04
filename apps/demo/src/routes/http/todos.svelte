@@ -17,7 +17,8 @@
 </script>
 
 <script lang="ts">
-  import { Cause, Exit } from "effect";
+  import type { TitleTooLong } from "@demo/domain";
+  import { Cause, Exit, Match, Option } from "effect";
   import { useAtomSet, useAtomSuspense } from "effect-atom-svelte";
 
   let filter = $state<Filter>("all");
@@ -27,6 +28,17 @@
   const todos = useAtomSuspense(() => todosFor(filter));
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
+  // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
+  const describe = (cause: Cause.Cause<TitleTooLong>) => {
+    const failure = Cause.findErrorOption(cause);
+    if (Option.isNone(failure)) {
+      return "Something went wrong.";
+    }
+    return Match.valueTags(failure.value, {
+      TitleTooLong: (e) => `TitleTooLong: the limit is ${e.maxLength} characters`,
+    });
+  };
+
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     const exit = await create({ payload: { title: draft }, reactivityKeys: ["todos"] });
@@ -34,8 +46,7 @@
       draft = "";
       error = "";
     } else {
-      // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
-      error = Cause.pretty(exit.cause).split("\n")[0] ?? "";
+      error = describe(exit.cause);
     }
   };
 </script>

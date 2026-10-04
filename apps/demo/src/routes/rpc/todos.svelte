@@ -11,7 +11,9 @@
 </script>
 
 <script lang="ts">
-  import { Cause, Exit } from "effect";
+  import type { TitleTooLong } from "@demo/domain";
+  import { Cause, Exit, Match, Option } from "effect";
+  import type { RpcClientError } from "effect/rpc";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
 
   // Server rendering waits for the list.
@@ -24,6 +26,20 @@
   let draft = $state("");
   let error = $state("");
 
+  // A title that is too long fails with the RPC's typed error, TitleTooLong.
+  const describe = (
+    cause: Cause.Cause<TitleTooLong | RpcClientError.RpcClientError>
+  ) => {
+    const failure = Cause.findErrorOption(cause);
+    if (Option.isNone(failure)) {
+      return "Something went wrong.";
+    }
+    return Match.valueTags(failure.value, {
+      RpcClientError: (e) => `Could not reach the server: ${e.message}`,
+      TitleTooLong: (e) => `TitleTooLong: the limit is ${e.maxLength} characters`,
+    });
+  };
+
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     // Invalidating "todos" makes todosAtom fetch the list again.
@@ -32,8 +48,7 @@
       draft = "";
       error = "";
     } else {
-      // A title that is too long fails with the RPC's typed error, TitleTooLong.
-      error = Cause.pretty(exit.cause).split("\n")[0] ?? "";
+      error = describe(exit.cause);
     }
   };
 </script>
