@@ -53,7 +53,10 @@
 
 <div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
   {#each [1, 2, 3] as todoId (todoId)}
-    <button aria-pressed={id.current === todoId} onclick={() => (id.current = todoId)}>
+    <button
+      aria-pressed={id.current === todoId}
+      onclick={() => (id.current = todoId)}
+    >
       Todo {todoId}
     </button>
   {/each}
@@ -81,5 +84,10 @@
     <span data-testid="catch-tag">{todo.current.value}</span>
   </ResultChip>
 {:else if todo.current._tag === "Failure"}
-  <CauseView cause={todo.current.cause} code data-testid="catch-tag" label="todoAtom" />
+  <CauseView
+    cause={todo.current.cause}
+    code
+    data-testid="catch-tag"
+    label="todoAtom"
+  />
 {/if}
