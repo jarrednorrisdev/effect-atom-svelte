@@ -21,15 +21,31 @@
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import ResultHistory from "#lib/docs/kit/result-history.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const polled = useAtomValue(polledTodosAtom);
 </script>
 
-{#if polled.current._tag === "Success"}
-  <p data-testid="polled">
-    {polled.current.value.length} todos, checked at
-    {new Date(polled.current.timestamp).toLocaleTimeString()}
-  </p>
-{:else}
-  <p>Checking…</p>
-{/if}
+<div class="flex flex-wrap items-center gap-3">
+  {#if polled.current._tag === "Success"}
+    <p data-testid="polled">
+      {polled.current.value.length} todos, checked at
+      <FlashValue
+        value={new Date(polled.current.timestamp).toLocaleTimeString()}
+      />
+    </p>
+  {:else if polled.current._tag === "Failure"}
+    <p>Could not check the todos.</p>
+  {:else}
+    <p aria-busy="true">Checking…</p>
+  {/if}
+  <StateBadge data-testid="polled-state" result={polled.current} sound={false} />
+</div>
+<ResultHistory
+  data-testid="polled-history"
+  format={(todos) => (Array.isArray(todos) ? `${todos.length} todos` : "")}
+  label="Checks"
+  result={polled.current}
+/>

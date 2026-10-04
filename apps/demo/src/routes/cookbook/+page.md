@@ -59,7 +59,7 @@ For atoms of your own, put the param into an [`Atom.family`](/families) the same
 
 Sometimes one request needs the result of another, such as fetching a todo's details once the list tells you its id. Write an atom that reads the first atom with `get.result`, which waits for its value, and then makes the second request:
 
-<Example files={[{ html: firstOpenSource, name: "first-open.svelte" }, { html: todosSource, name: "todos.ts" }]}> <FirstOpen /> </Example>
+<Example files={[{ html: firstOpenSource, name: "first-open.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Click Done: the list is fetched again, then firstOpenAtom fetches the next open todo."> <FirstOpen /> </Example>
 
 `get.result` fails the atom if the list fails, so the error reaches the component without any extra code. Because the atom read `todosAtom`, it runs again when the list changes. Click **Done**: the mutation invalidates `"todos"`, the list is fetched again, and the atom moves on to the next open todo.
 
@@ -69,7 +69,7 @@ If the second request only needs a value the component already has, a getter is 
 
 A [pull atom](/streams#pull-atoms) loads one page each time you write to it. Write to it when an element at the end of the list scrolls into view:
 
-<Example files={[{ html: feedSource, name: "feed.svelte" }]}> <Feed /> </Example>
+<Example files={[{ html: feedSource, name: "feed.svelte" }]} hint="Scroll to the end of the list: each time the last row comes into view, the next ten entries arrive."> <Feed /> </Example>
 
 The `IntersectionObserver` lives in an [attachment](https://svelte.dev/docs/svelte/@attach), which disconnects it when the element goes away. The `{#key}` block makes a new element after each page. If the end of the list is still in view, the new observer pulls again straight away.
 
@@ -77,9 +77,9 @@ With an API that takes a cursor, build the stream with `Stream.paginate` around 
 
 ## A form with typed errors and an optimistic update
 
-This form adds a todo. It shows the todo straight away, shows the server's typed error if the title is too long, and removes the todo again when the save fails. Try a title longer than 60 characters:
+This form adds a todo. It shows the todo straight away, shows the server's typed error if the title is too long, and removes the todo again when the save fails:
 
-<Example files={[{ html: newTodoSource, name: "new-todo.svelte" }, { html: todosSource, name: "todos.ts" }]}> <NewTodo /> </Example>
+<Example files={[{ html: newTodoSource, name: "new-todo.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Add a todo: it shows up at once, marked as saving. Then try a title longer than 60 characters."> <NewTodo /> </Example>
 
 Three pieces work together:
 
@@ -93,7 +93,7 @@ To check a form before sending anything, decode its fields with a `Schema` in th
 
 To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
 
-<Example files={[{ html: pollingSource, name: "polling.svelte" }]}> <Polling /> </Example>
+<Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds. Add a todo in the form above, and the count catches up on the next one."> <Polling /> </Example>
 
 The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. Add a todo in the form above, and the count catches up on the next tick. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
 
@@ -180,7 +180,7 @@ A client defined at module level serves every request the server renders. Don't 
 
 A search box shouldn't send a request for every key press. `Atom.debounce` follows another atom once it has stopped changing for a while, and an async atom that reads it runs once per pause. Here the query also lives in the URL, through `Atom.searchParam`:
 
-<Example files={[{ html: searchSource, name: "search.svelte" }]}> <Search /> </Example>
+<Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
 
 When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. [Browser atoms](/browser#the-urls-query-string) covers `Atom.searchParam`, including what the server sees.
 

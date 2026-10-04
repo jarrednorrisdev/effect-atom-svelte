@@ -30,20 +30,33 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
+
+  import SearchTimeline from "./search-timeline.svelte";
 
   const query = useAtom(queryAtom);
   const debounced = useAtomValue(debouncedAtom);
   const results = useAtomValue(resultsAtom);
 </script>
 
-<input
-  bind:value={query.current}
-  data-testid="search"
-  placeholder="Search modules"
-/>
-<p>Searching for: <output data-testid="debounced">{debounced.current}</output></p>
+<p class="flex flex-wrap items-center gap-2">
+  <input
+    aria-label="Search modules"
+    bind:value={query.current}
+    data-testid="search"
+    placeholder="Search modules"
+  />
+  <StateBadge data-testid="search-state" result={results.current} />
+</p>
+<p class="flex flex-wrap gap-x-6 gap-y-2">
+  <span>queryAtom: <FlashValue value={query.current} /></span>
+  <span>
+    debouncedAtom: <FlashValue data-testid="debounced" value={debounced.current} />
+  </span>
+</p>
 {#if results.current._tag === "Success"}
-  <ul data-testid="search-results" style:opacity={results.current.waiting ? 0.5 : 1}>
+  <ul aria-busy={results.current.waiting} data-testid="search-results">
     {#each results.current.value as name (name)}
       <li>{name}</li>
     {:else}
@@ -51,5 +64,10 @@
     {/each}
   </ul>
 {:else}
-  <p>Searching…</p>
+  <p aria-busy="true">Searching…</p>
 {/if}
+<SearchTimeline
+  debounced={debounced.current}
+  query={query.current}
+  result={results.current}
+/>

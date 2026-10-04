@@ -23,28 +23,44 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const firstOpen = useAtomValue(firstOpenAtom);
+  const toggling = useAtomValue(toggleAtom);
   const toggle = useAtomSet(toggleAtom);
 </script>
 
-{#if firstOpen.current._tag === "Success"}
-  {@const todo = firstOpen.current.value}
-  <p data-testid="first-open" style:opacity={firstOpen.current.waiting ? 0.5 : 1}>
+<div class="flex flex-wrap items-center gap-4">
+  {#if firstOpen.current._tag === "Success"}
+    {@const todo = firstOpen.current.value}
+    <ResultChip
+      busy={firstOpen.current.waiting}
+      kind="message"
+      label="firstOpenAtom"
+      tone="success"
+    >
+      <span data-testid="first-open">
+        {todo ? `Next up: ${todo.title}` : "Nothing left to do."}
+      </span>
+    </ResultChip>
     {#if todo}
-      Next up: {todo.title}
       <button
+        disabled={toggling.current.waiting || firstOpen.current.waiting}
         onclick={() =>
           toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
       >
         Done
       </button>
-    {:else}
-      Nothing left to do.
     {/if}
-  </p>
-{:else if firstOpen.current._tag === "Failure"}
-  <p>Could not load the todos.</p>
-{:else}
-  <p>Loading…</p>
-{/if}
+  {:else if firstOpen.current._tag === "Failure"}
+    <ResultChip kind="message" label="firstOpenAtom" tone="failure">
+      Could not load the todos.
+    </ResultChip>
+  {:else}
+    <ResultChip kind="message" label="firstOpenAtom" tone="running">
+      Loading…
+    </ResultChip>
+  {/if}
+  <StateBadge data-testid="first-open-state" result={firstOpen.current} />
+</div>

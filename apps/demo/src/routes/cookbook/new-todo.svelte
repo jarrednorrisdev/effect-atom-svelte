@@ -26,6 +26,8 @@
 <script lang="ts">
   import { Cause, Exit, Option } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const todos = useAtomValue(optimisticTodosAtom);
   const creating = useAtomValue(createAtom);
@@ -36,10 +38,10 @@
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
+    error = "";
     const exit = await create({ payload: { title } });
     if (Exit.isSuccess(exit)) {
       title = "";
-      error = "";
       return;
     }
     // The procedure's own errors arrive typed, next to RpcClientError.
@@ -51,17 +53,29 @@
   };
 </script>
 
-<form onsubmit={submit}>
-  <input bind:value={title} data-testid="new-todo" placeholder="New todo" />
-  <button data-testid="new-todo-add" disabled={creating.current.waiting}>Add</button>
+<form class="flex flex-wrap items-center gap-2" onsubmit={submit}>
+  <input bind:value={title} data-testid="new-todo" placeholder="New todo" required />
+  <button data-testid="new-todo-add" disabled={creating.current.waiting}>
+    {creating.current.waiting ? "Adding…" : "Add"}
+  </button>
+  <StateBadge data-testid="new-todo-state" result={creating.current} />
 </form>
-{#if error}<p data-testid="new-todo-error">{error}</p>{/if}
+{#if error}
+  <p>
+    <ResultChip kind="message" label="createAtom" tone="failure">
+      <span data-testid="new-todo-error">{error}</span>
+    </ResultChip>
+  </p>
+{/if}
 {#if todos.current._tag === "Success"}
-  <ul data-testid="new-todo-list">
+  <ul class="[overflow-wrap:anywhere]" data-testid="new-todo-list">
     {#each todos.current.value as todo, index (index)}
-      <li>{todo.title}{todo.id === 0 ? " (saving…)" : ""}</li>
+      {@const saving = todo.id === 0}
+      <li aria-busy={saving}>{todo.title}{saving ? " (saving…)" : ""}</li>
     {/each}
   </ul>
+{:else if todos.current._tag === "Failure"}
+  <p>Could not load the todos.</p>
 {:else}
-  <p>Loading…</p>
+  <p aria-busy="true">Loading…</p>
 {/if}

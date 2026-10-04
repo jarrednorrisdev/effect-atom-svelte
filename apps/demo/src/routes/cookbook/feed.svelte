@@ -19,6 +19,8 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import type { Attachment } from "svelte/attachments";
 
   const feed = useAtomValue(feedAtom);
@@ -39,6 +41,16 @@
   };
 </script>
 
+<p class="flex flex-wrap items-center gap-3">
+  <span>
+    <FlashValue
+      data-testid="feed-count"
+      value={feed.current._tag === "Success" ? feed.current.value.items.length : 0}
+    />
+    of {total} entries loaded
+  </span>
+  <StateBadge data-testid="feed-state" result={feed.current} />
+</p>
 <ul class="h-48 overflow-y-auto rounded-md border" data-testid="feed">
   {#if feed.current._tag === "Success"}
     {@const { done, items } = feed.current.value}
@@ -47,9 +59,13 @@
       <li>That's everything.</li>
     {:else}
       <!-- A new element per page, so a fresh observer checks it after each pull. -->
-      {#key items.length}<li {@attach pullWhenVisible}>Loading more…</li>{/key}
+      {#key items.length}
+        <li aria-busy={feed.current.waiting} {@attach pullWhenVisible}>
+          {feed.current.waiting ? "Loading more…" : "Scroll for more"}
+        </li>
+      {/key}
     {/if}
   {:else}
-    <li>Loading…</li>
+    <li aria-busy="true">Loading…</li>
   {/if}
 </ul>
