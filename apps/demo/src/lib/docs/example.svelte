@@ -1,5 +1,9 @@
 <script lang="ts">
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
+  import Hint from "#lib/docs/kit/hint.svelte";
+  import { play } from '#lib/docs/kit/sound.ts';
+import type { Cue } from '#lib/docs/kit/sound.ts';
+  import { setExampleState } from "#lib/docs/kit/tone.ts";
   import type { Snippet } from "svelte";
 
   /** A source file of an example: its name, and its code from a `?highlight` import. */
@@ -19,8 +23,53 @@
    * ```
    *
    * Without children it shows only the source, for code that runs elsewhere, such as a test.
+   *
+   * `hint` is the "what to try" line above the result. Every button, checkbox and radio inside the
+   * result plays the `tap` sound; give a control `data-cue="<cue>"` for another cue, or
+   * `data-cue="none"` for silence. Kit components inside see whether the reader has touched the
+   * example yet (`tone.ts`), so a page's own first load plays no outcome sounds.
    */
-  const { children, files }: { children?: Snippet; files: readonly ExampleFile[] } = $props();
+  const {
+    children,
+    files,
+    hint,
+  }: { children?: Snippet; files: readonly ExampleFile[]; hint?: string } = $props();
+
+  const example = setExampleState({ touched: false });
+  const touch = () => {
+    example.touched = true;
+  };
+
+  const cues = new Set<string>(["failure", "interrupt", "reset", "start", "success", "tap", "tick"]);
+  const isCue = (value: string): value is Cue => cues.has(value);
+
+  /** One delegated listener plays every control's cue, so examples need no sound code. */
+  const onclick = (event: MouseEvent) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const control = event.target.closest<HTMLElement>(
+      "[data-cue], button, input[type=checkbox], input[type=radio]"
+    );
+    if (!control || control.matches(":disabled")) {
+      return;
+    }
+    const cue = control.dataset.cue ?? "tap";
+    if (isCue(cue)) {
+      play(cue);
+    }
+  };
+
+  const listen = (element: HTMLElement) => {
+    element.addEventListener("click", onclick);
+    element.addEventListener("keydown", touch);
+    element.addEventListener("pointerdown", touch);
+    return () => {
+      element.removeEventListener("click", onclick);
+      element.removeEventListener("keydown", touch);
+      element.removeEventListener("pointerdown", touch);
+    };
+  };
 
   // svelte-ignore state_referenced_locally
   let selected = $state(files[0]?.name ?? "");
@@ -31,8 +80,17 @@
 <figure class="example my-8 rounded-lg" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
   {#if children}
-    <div class="demo rounded-t-lg border border-b-0 px-6 pt-3 pb-6" data-pagefind-ignore="all">
+    <!-- The listeners only add sound and note that the reader has been here; every control inside
+         is a real button or input with its own keyboard handling. -->
+    <div
+      class="demo rounded-t-lg border border-b-0 px-6 pt-3 pb-6"
+      data-pagefind-ignore="all"
+      {@attach listen}
+    >
       <p class="example-label not-prose">Result</p>
+      {#if hint}
+        <Hint>{hint}</Hint>
+      {/if}
       {@render children()}
     </div>
   {/if}
@@ -78,8 +136,10 @@
     margin-bottom: 0.75rem;
     text-transform: uppercase;
   }
-  /* The label spaces the result from the top edge, so the result's own margins would double it. */
-  .demo > :global(:nth-child(2)) {
+  /* The label (and hint) space the result from the top edge, so the result's own margins would
+     double it. */
+  .demo > :global(:nth-child(2)),
+  .demo > :global(.hint + *) {
     margin-top: 0;
   }
   .demo > :global(:last-child) {

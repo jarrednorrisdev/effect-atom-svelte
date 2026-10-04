@@ -439,3 +439,35 @@ html {
     opacity: 0.4;
   }
 }
+
+/*
+ * State colors for the example kit (src/lib/docs/kit). Each state has a mark color (dots, borders,
+ * rings; 3:1 against the page) and a text color (4.5:1 on the state's tint, which kit components
+ * mix from the mark at 12%). Running is the brand accent; success, failure and interrupted are
+ * Tailwind's green, red and zinc. Interrupted shares idle's gray, and kit components tell the two
+ * apart by icon and a dashed border, not by color alone.
+ */
+:root {
+  --tone-idle: oklch(0.552 0.016 285.938);
+  --tone-idle-text: oklch(0.442 0.017 285.786);
+  --tone-running: var(--brand);
+  /* --brand-text is 4.5:1 on white but not quite on its own tint, so a shade darker. */
+  --tone-running-text: color-mix(in oklab, var(--brand-text) 85%, black);
+  --tone-success: oklch(0.627 0.194 149.214);
+  --tone-success-text: oklch(0.448 0.119 151.328);
+  --tone-failure: oklch(0.577 0.245 27.325);
+  --tone-failure-text: oklch(0.505 0.213 27.518);
+  --tone-interrupted: oklch(0.552 0.016 285.938);
+  --tone-interrupted-text: oklch(0.442 0.017 285.786);
+}
+.dark {
+  --tone-idle: oklch(0.552 0.016 285.938);
+  --tone-idle-text: oklch(0.705 0.015 286.067);
+  --tone-running-text: var(--brand-text);
+  --tone-success: oklch(0.723 0.219 149.579);
+  --tone-success-text: oklch(0.792 0.209 151.711);
+  --tone-failure: oklch(0.637 0.237 25.331);
+  --tone-failure-text: oklch(0.704 0.191 22.216);
+  --tone-interrupted: oklch(0.705 0.015 286.067);
+  --tone-interrupted-text: oklch(0.871 0.006 286.286);
+}

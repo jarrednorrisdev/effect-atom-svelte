@@ -280,6 +280,54 @@ test.describe("docs shell", () => {
     await expect(html).toHaveClass(/dark/u);
   });
 
+  test("the sound switch persists, and no example plays a note while it is off", async ({
+    page,
+  }) => {
+    // Counts the notes the page starts, since a test can't listen to them.
+    await page.addInitScript(() => {
+      const counter = window as unknown as { notes: number };
+      counter.notes = 0;
+      const original = OscillatorNode.prototype.start;
+      OscillatorNode.prototype.start = function start(
+        this: OscillatorNode,
+        ...args: Parameters<OscillatorNode["start"]>
+      ) {
+        counter.notes += 1;
+        original.apply(this, args);
+      };
+    });
+    const notes = () =>
+      page.evaluate(() => (window as unknown as { notes: number }).notes);
+    await page.goto("/first-atom");
+    await page.waitForLoadState("networkidle");
+    const toggle = page.getByRole("button", { name: "Sound effects" });
+    const increment = page.getByRole("button", {
+      name: "First counter: increment",
+    });
+    // On by default: a click in an example plays a note.
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await increment.click();
+    await expect.poll(notes).toBeGreaterThan(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await increment.click();
+    await expect(page.locator("[data-example] output").first()).toHaveText("1");
+    await page.waitForTimeout(200);
+    expect(await notes()).toBe(0);
+
+    // Turning it back on plays a note to confirm, and is remembered too.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(notes).toBeGreaterThan(0);
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("with no stored choice the theme follows the system", async ({
     page,
   }) => {

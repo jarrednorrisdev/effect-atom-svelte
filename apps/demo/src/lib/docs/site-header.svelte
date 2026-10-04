@@ -3,6 +3,7 @@
 
   import GitHubButton from "./github-button.svelte";
   import SearchButton from "./search-button.svelte";
+  import SoundToggle from "./sound-toggle.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
 </script>
 
@@ -15,6 +16,7 @@
   <div class="ml-auto flex items-center gap-1 md:gap-2">
     <SearchButton />
     <GitHubButton />
+    <SoundToggle />
     <ThemeToggle />
   </div>
 </header>
