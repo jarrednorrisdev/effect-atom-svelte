@@ -130,7 +130,7 @@
   <!-- Scrolls sideways when the file names are wider than a phone. -->
   <div
     class={[
-      "not-prose flex items-end overflow-x-auto border bg-muted/40 px-2",
+      "not-prose flex items-end overflow-x-auto border bg-muted/40",
       children ? "rounded-none" : "rounded-t-lg",
     ]}
   >
@@ -177,28 +177,6 @@
   }
   .demo > :global(:last-child) {
     margin-bottom: 0;
-  }
-  /* An editor tab, as in effect.website's titled code frames. */
-  :global(.example-tab) {
-    background: transparent;
-    border: 1px solid transparent;
-    border-bottom: 0;
-    border-radius: 0;
-    color: var(--muted-foreground);
-    flex: none;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    height: auto;
-    margin-bottom: -1px;
-    padding: 0.4rem 0.9rem;
-    position: relative;
-  }
-  :global(.example-tab[data-active]),
-  :global(.example-tab[data-state="active"]) {
-    background: var(--background);
-    border-color: var(--border);
-    box-shadow: inset 0 2px 0 var(--brand);
-    color: var(--foreground);
   }
   .example :global(.code-block) {
     margin: 0;

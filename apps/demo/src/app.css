@@ -358,6 +358,34 @@ html {
   }
 }
 
+/* The file tabs above example code and the install command (example.svelte, install-command.svelte). */
+/* An editor tab, as in effect.website's titled code frames. */
+.example-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 0;
+  color: var(--muted-foreground);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  height: auto;
+  margin-bottom: -1px;
+  padding: 0.4rem 0.9rem;
+  position: relative;
+}
+/* The first tab starts at the frame's edge, its left border under the frame's. */
+.example-tab:first-child {
+  margin-left: -1px;
+}
+.example-tab[data-active],
+.example-tab[data-state="active"] {
+  background: var(--background);
+  border-color: var(--border);
+  box-shadow: inset 0 2px 0 var(--brand);
+  color: var(--foreground);
+}
+
 /* The current page in the sidebar is named in the accent. */
 [data-slot="sidebar"] a[aria-current="page"] {
   color: var(--brand-text);

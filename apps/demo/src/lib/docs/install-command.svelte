@@ -45,7 +45,7 @@
 </script>
 
 <figure class="install-command">
-  <div class="not-prose flex items-end overflow-x-auto rounded-t-lg border bg-muted/40 px-2">
+  <div class="not-prose flex items-end overflow-x-auto rounded-t-lg border bg-muted/40">
     <Tabs.Root bind:value={manager.current}>
       <Tabs.List aria-label="Package manager" class="h-auto w-max gap-0 p-0" variant="line">
         {#each managers as name (name)}
