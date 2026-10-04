@@ -20,9 +20,21 @@
   };
 
   const sides = [
-    { component: OneByOne, label: "<OneByOne>: await, then await", log: oneByOne.log },
-    { component: Together, label: "<Together>: Promise.all", log: together.log },
-    { component: Combined, label: "<Combined>: Effect.all, one await", log: combined.log },
+    {
+      component: OneByOne,
+      label: "<OneByOne>: await, then await",
+      log: oneByOne.log,
+    },
+    {
+      component: Together,
+      label: "<Together>: Promise.all",
+      log: together.log,
+    },
+    {
+      component: Combined,
+      label: "<Combined>: Effect.all, one await",
+      log: combined.log,
+    },
   ];
 </script>
 
@@ -45,7 +57,11 @@
         Not mounted.
       {/if}
       <!-- One lane per load: a dot when it starts and when it ends. -->
-      <Timeline entries={side.log.entries} lanes={["todos", "user"]} span={2500} />
+      <Timeline
+        entries={side.log.entries}
+        lanes={["todos", "user"]}
+        span={2500}
+      />
     </Part>
   {/each}
 </div>
