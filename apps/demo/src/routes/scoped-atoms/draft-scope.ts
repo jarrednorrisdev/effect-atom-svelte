@@ -1,13 +1,13 @@
 import { ScopedAtom } from "effect-atom-svelte";
 import { Atom } from "effect/reactivity";
 
-// Atom.make makes a new atom every time it is called. This call runs once, when
-// the module loads, so every editor that gets this atom shares one draft.
+// Created once, when this module first loads. There is only ever this one
+// atom, so every editor that is given it shares the same draft.
 export const moduleDraftAtom = Atom.make("");
 
-// The function runs once for each editor that provides Draft. For "scoped", it
-// calls Atom.make again, so each editor gets an atom of its own. For "module", it
-// hands out the one atom above, as if the editors imported it.
+// Created separately for each editor: Draft.provide() runs this function once per
+// editor, and for "scoped" each run calls Atom.make again, making a new atom.
+// For "module", it hands out the one atom above, as if the editors imported it.
 export const Draft = ScopedAtom.make((kind: "scoped" | "module") =>
   kind === "scoped" ? Atom.make("") : moduleDraftAtom
 );
