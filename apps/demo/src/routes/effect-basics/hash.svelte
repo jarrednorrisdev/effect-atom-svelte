@@ -17,13 +17,16 @@
   const digest = (algorithm: string, text: string) =>
     Effect.tryPromise({
       catch: () => new UnsupportedAlgorithm({ algorithm }),
-      try: () => crypto.subtle.digest(algorithm, new TextEncoder().encode(text)),
+      try: () =>
+        crypto.subtle.digest(algorithm, new TextEncoder().encode(text)),
     }).pipe(Effect.map(toHex));
 
   const algorithmAtom = Atom.make("SHA-256");
   const textAtom = Atom.make("Hello, Effect");
   // Runs the effect again whenever either input changes.
-  const hashAtom = Atom.make((get) => digest(get(algorithmAtom), get(textAtom)));
+  const hashAtom = Atom.make((get) =>
+    digest(get(algorithmAtom), get(textAtom))
+  );
 </script>
 
 <script lang="ts">
@@ -41,7 +44,11 @@
 <p>
   <input aria-label="Text" bind:value={text.current} data-testid="hash-text" />
 </p>
-<div aria-label="Algorithm" class="flex flex-wrap items-center gap-2" role="group">
+<div
+  aria-label="Algorithm"
+  class="flex flex-wrap items-center gap-2"
+  role="group"
+>
   {#each ["SHA-256", "SHA-1", "MD5"] as name (name)}
     <button
       aria-pressed={algorithm.current === name}
@@ -74,6 +81,8 @@
       label="hashAtom"
     />
   {:else}
-    <ResultChip kind="message" label="hashAtom" tone="running">Hashing…</ResultChip>
+    <ResultChip kind="message" label="hashAtom" tone="running">
+      Hashing…
+    </ResultChip>
   {/if}
 </div>
