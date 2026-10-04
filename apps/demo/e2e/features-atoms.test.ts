@@ -1,4 +1,5 @@
 import { expect, test } from "./servers.ts";
+import { setPressed } from "./toggle.ts";
 
 // The examples JND-82 added to the Atoms pages, one for each feature section that had none.
 
@@ -34,13 +35,19 @@ test.describe("Atoms pages: an example for every feature", () => {
     await followed.fill("Draft text");
     await expect(page.getByTestId("draft")).toHaveText("Draft text");
     await expect(page.getByTestId("saved")).toHaveText("Published post");
-    await page.getByLabel("Follow savedAtom").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "savedAtom" }),
+      true
+    );
     await expect(followed).toHaveValue("Published post");
     await followed.fill("New post");
     await expect(page.getByTestId("saved")).toHaveText("New post");
     // draftAtom kept its value.
     await expect(page.getByTestId("draft")).toHaveText("Draft text");
-    await page.getByLabel("Follow savedAtom").uncheck();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "draftAtom" }),
+      true
+    );
     await expect(followed).toHaveValue("Draft text");
   });
 
@@ -74,22 +81,34 @@ test.describe("Atoms pages: an example for every feature", () => {
     const holders = page.getByLabel("socketAtom holders", { exact: true });
     await expect(status).toHaveText("not computed yet");
 
-    await page.getByLabel("Show <ChatPanel>").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Show <ChatPanel>" }),
+      true
+    );
     await expect(holders).toHaveText("1");
     await expect(status).toHaveText("mounted");
     await expect(entries).toHaveText([/socketAtom: computed$/u]);
 
-    await page.getByLabel("Show a <Reader>").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Show a <Reader>" }),
+      true
+    );
     await expect(page.getByTestId("lifetimes-socketAtom")).toContainText(
       "Reading connected"
     );
     // The panel goes, but the reader still holds the atom.
-    await page.getByLabel("Show <ChatPanel>").uncheck();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Show <ChatPanel>" }),
+      false
+    );
     await page.waitForTimeout(300);
     await expect(entries).toHaveText([/socketAtom: computed$/u]);
     await expect(status).toHaveText("mounted");
 
-    await page.getByLabel("Show a <Reader>").uncheck();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Show a <Reader>" }),
+      false
+    );
     await expect(status).toHaveText("disposed");
     await expect(entries).toHaveText([
       /socketAtom: computed$/u,

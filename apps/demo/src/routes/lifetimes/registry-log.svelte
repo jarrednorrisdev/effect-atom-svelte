@@ -10,6 +10,8 @@
   import type { HTMLAttributes } from "svelte/elements";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
+    /** Shows the caption as code, in its own case, such as an atom's name. */
+    readonly code?: boolean;
     readonly events: readonly { readonly atom: string; readonly event: string }[];
     /** Shown while the log is empty. */
     readonly empty?: string;
@@ -18,6 +20,7 @@
   }
 
   const {
+    code = false,
     empty = "Nothing yet. Add a reader to an atom.",
     events,
     label = "Registry",
@@ -40,6 +43,7 @@
 </script>
 
 <EventLog
+  {code}
   {empty}
   entries={log.entries}
   {label}

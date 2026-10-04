@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { pages as navPages } from "../src/lib/docs/nav.ts";
 import { expect, test } from "./servers.ts";
+import { setPressed } from "./toggle.ts";
 
 // Every page in the sidebar.
 const pages = navPages.map((page) => page.href);
@@ -377,7 +378,7 @@ test("reading and writing: read, write, transform, update and bind", async ({
   await page.getByRole("button", { name: "+" }).click();
   await expect(page.getByTestId("count")).toHaveText("2");
   await expect(page.getByTestId("parity")).toHaveText("even");
-  await page.getByRole("button", { name: "×10 with an updater" }).click();
+  await page.getByRole("button", { name: "Multiply by 10" }).click();
   await expect(page.getByTestId("count")).toHaveText("20");
   await page.getByTestId("name").fill("Effect");
   await expect(page.getByTestId("greeting")).toHaveText("Hello, Effect!");
@@ -389,16 +390,29 @@ test("derived atoms: a read-only and a writable derived atom", async ({
   page,
 }) => {
   await page.goto("/derived-atoms");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("fahrenheit")).toHaveValue("68");
-  await expect(page.getByTestId("feel")).toHaveText("mild");
-  await page.getByTestId("celsius").fill("100");
-  await expect(page.getByTestId("fahrenheit")).toHaveValue("212");
-  await expect(page.getByTestId("feel")).toHaveText("hot");
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
+  const celsius = page.getByTestId("celsius");
+  const fahrenheit = page.getByTestId("fahrenheit");
+  const feel = page.getByTestId("feel");
+  const press = (name: string) =>
+    page.getByRole("button", { exact: true, name }).click();
+  await expect(fahrenheit).toHaveText("68");
+  await expect(feel).toHaveText("mild");
+  await press("Celsius: add 10");
+  await expect(celsius).toHaveText("30");
+  await expect(fahrenheit).toHaveText("86");
+  await expect(feel).toHaveText("hot");
   // Writing the derived atom writes the atom it reads from.
-  await page.getByTestId("fahrenheit").fill("32");
-  await expect(page.getByTestId("celsius")).toHaveValue("0");
-  await expect(page.getByTestId("feel")).toHaveText("cold");
+  const fahrenheitDown = async (f: string, c: string) => {
+    await press("Fahrenheit: subtract 10");
+    await expect(fahrenheit).toHaveText(f);
+    await expect(celsius).toHaveText(c);
+  };
+  await fahrenheitDown("76", "24.4");
+  await fahrenheitDown("66", "18.9");
+  await fahrenheitDown("56", "13.3");
+  await fahrenheitDown("46", "7.8");
+  await expect(feel).toHaveText("cold");
 });
 
 test("families: a getter follows the selected key's atom", async ({ page }) => {
@@ -418,13 +432,19 @@ test("families: a getter follows the selected key's atom", async ({ page }) => {
   const entries = page.getByTestId("family-entries").locator("output");
   await expect(entries).toHaveText("3 / 3 fruits in the registry");
   // With the totals hidden, only the selected fruit's atom has a reader.
-  await page.getByLabel("Show totals").uncheck();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Show totals" }),
+    false
+  );
   await expect(entries).toHaveText("1 / 3 fruits in the registry");
   await page.getByTestId("fruit").selectOption("pears");
   // Pears lost its atom, and its count, when the totals were hidden.
   await expect(page.getByTestId("tally")).toHaveText("0");
   await expect(entries).toHaveText("1 / 3 fruits in the registry");
-  await page.getByLabel("Show totals").check();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Show totals" }),
+    true
+  );
   await expect(page.getByTestId("total-apples")).toHaveText("0");
   await expect(page.getByTestId("total-pears")).toHaveText("0");
   await expect(entries).toHaveText("3 / 3 fruits in the registry");
@@ -499,21 +519,33 @@ test("errors: typed errors match on _tag, and a defect is told apart", async ({
   await expect(reasons).toHaveCount(1);
   await expect(reasons).toHaveAttribute("data-reason", "Fail");
   await expect(reasons).toContainText("NotFound { id: 7 }");
-  await outcome.getByRole("radio", { name: "Fail with Forbidden" }).check();
+  await setPressed(
+    outcome.getByRole("button", { exact: true, name: "Fail with Forbidden" }),
+    true
+  );
   await expect(message).toHaveText("Forbidden: you can't see this todo");
   await expect(reasons).toHaveAttribute("data-reason", "Fail");
   await expect(reasons).toContainText("Forbidden");
-  await outcome.getByRole("radio", { name: "Die with a defect" }).check();
+  await setPressed(
+    outcome.getByRole("button", { exact: true, name: "Die with a defect" }),
+    true
+  );
   await expect(message).toHaveText(
     "Something went wrong: Error: todos is undefined"
   );
   await expect(reasons).toHaveAttribute("data-reason", "Die");
   await expect(reasons).toContainText("Error: todos is undefined");
   await expect(reasons).toContainText("defect, not in the type");
-  await outcome.getByRole("radio", { name: "Be interrupted" }).check();
+  await setPressed(
+    outcome.getByRole("button", { exact: true, name: "Be interrupted" }),
+    true
+  );
   await expect(message).toHaveText(/^Something went wrong: /u);
   await expect(reasons).toHaveAttribute("data-reason", "Interrupt");
-  await outcome.getByRole("radio", { name: "Succeed" }).check();
+  await setPressed(
+    outcome.getByRole("button", { exact: true, name: "Succeed" }),
+    true
+  );
   await expect(message).toHaveText("Write the docs");
   await expect(state).toHaveText("Success");
   await expect(reasons).toHaveCount(0);
@@ -550,10 +582,16 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
   await expect(state).toHaveText("Success");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
   // The atom reads the checkbox's atom, so ticking it runs the effect again, which fails.
-  await page.getByLabel("Drop the die").check();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Drop the die" }),
+    true
+  );
   await expect(state).toHaveText("Failure");
   await expect(page.getByTestId("die-failure")).toBeVisible();
-  await page.getByLabel("Drop the die").uncheck();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Drop the die" }),
+    false
+  );
   await expect(state).toHaveText("Success");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
   // The history shows the six most recent states.
@@ -575,7 +613,10 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   const die = page.getByTestId("service-die");
   await expect(die).toHaveText(/^[1-6]$/u);
   await expect(page.getByTestId("service-layer")).toHaveText("Dice.fair");
-  await page.getByLabel("Loaded dice").check();
+  await setPressed(
+    page.getByRole("button", { exact: true, name: "Loaded dice" }),
+    true
+  );
   await expect(page.getByTestId("service-layer")).toHaveText("Dice.loaded");
   await expect(die).toHaveText("6");
   await expect(page.getByTestId("service-state")).toHaveText("Success");
@@ -776,7 +817,10 @@ test.describe("Mutations page", () => {
     await expect(state).toHaveText("Success, waiting");
     await expect(state).toHaveText("Success");
 
-    await example.getByLabel("Fail the save").check();
+    await setPressed(
+      example.getByRole("button", { exact: true, name: "Fail the save" }),
+      true
+    );
     await example.getByRole("button", { name: "Save (promise)" }).click();
     await expect(log.nth(3)).toContainText("promise #4: rejected, DiskFull");
     await expect(state).toHaveText("Failure");
@@ -826,8 +870,11 @@ test.describe("Mutations page", () => {
     await expect(list).toHaveAttribute("aria-busy", "false");
     await expect(first).toBeChecked();
 
-    const failNext = example.getByLabel("Make the next save fail");
-    await failNext.check();
+    const failNext = example.getByRole("button", {
+      exact: true,
+      name: "Make the next save fail",
+    });
+    await setPressed(failNext, true);
     const second = list.getByRole("checkbox", {
       name: "Write a Svelte adapter",
     });
@@ -836,7 +883,7 @@ test.describe("Mutations page", () => {
     // The provisional value first, then the rollback a second later.
     await expect(second).not.toBeChecked();
     await expect(list).toHaveAttribute("aria-busy", "true");
-    await expect(failNext).not.toBeChecked();
+    await expect(failNext).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByTestId("optimistic-error")).toHaveText(
       "ConnectionLost: the save failed, so the todo went back."
     );

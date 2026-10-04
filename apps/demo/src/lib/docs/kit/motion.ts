@@ -166,7 +166,11 @@ export const refuse = (element: HTMLElement) => {
   if (reducedMotion()) {
     return;
   }
-  animate(element, { x: [0, -5, 5, -4, 4, -2, 0] }, { duration: 0.4, ease: "easeInOut" });
+  animate(
+    element,
+    { x: [0, -5, 5, -4, 4, -2, 0] },
+    { duration: 0.4, ease: "easeInOut" }
+  );
 };
 
 /**

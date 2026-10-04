@@ -59,7 +59,10 @@ import { AsyncResult, Atom } from "effect/reactivity";
 
 const User = Schema.Struct({ name: Schema.String });
 
-export class SignedOut extends Schema.TaggedError<SignedOut>()("SignedOut", {}) {}
+export class SignedOut extends Schema.TaggedError<SignedOut>()(
+  "SignedOut",
+  {}
+) {}
 
 // A service in your Effect code that finds the signed-in user.
 class Users extends Context.Service<

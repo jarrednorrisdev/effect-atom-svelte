@@ -122,10 +122,29 @@ test.describe("docs shell", () => {
       .poll(() =>
         page.evaluate(() => (window as unknown as { copied: string[] }).copied)
       )
-      .toEqual(["npm install effect effect-atom-svelte"]);
+      .toEqual(["bun add effect effect-atom-svelte"]);
     await expect(
       page.getByRole("button", { name: "Copied" }).first()
     ).toBeAttached();
+  });
+
+  test("the install command remembers the package manager", async ({
+    page,
+  }) => {
+    await page.goto("/installation");
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    const shown = page.locator(".install-command pre:visible");
+    await expect(shown).toHaveText("bun add effect effect-atom-svelte");
+    await page.getByRole("tab", { name: "pnpm" }).click();
+    await expect(shown).toHaveText("pnpm add effect effect-atom-svelte");
+    // Kept in localStorage, so the next visit opens on pnpm.
+    await page.reload();
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    await expect(page.getByRole("tab", { name: "pnpm" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    await expect(shown).toHaveText("pnpm add effect effect-atom-svelte");
   });
 
   test("one-line code blocks and phones show no line numbers", async ({
@@ -330,9 +349,13 @@ test.describe("docs shell", () => {
     await increment.click();
     await expect.poll(() => toneLoads).toBe(1);
     // The first click's own cue is dropped if Tone.js took over 400 ms to download (as under
-    // load), so the next click is the one that must play.
+    // load), so the next click is the one that must play. Building the synths starts notes of
+    // its own, so count from just before that click: in Firefox the build once failed after
+    // starting some, and every cue was silent.
+    await page.waitForTimeout(500);
+    const before = await notes();
     await increment.click();
-    await expect.poll(notes).toBeGreaterThan(0);
+    await expect.poll(notes).toBeGreaterThan(before);
     expect(toneLoads).toBe(1);
 
     await toggle.click();

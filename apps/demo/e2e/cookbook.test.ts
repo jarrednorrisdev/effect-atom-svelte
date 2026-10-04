@@ -1,4 +1,5 @@
 import { expect, test } from "./servers.ts";
+import { setPressed } from "./toggle.ts";
 
 test.describe("Cookbook page", () => {
   test("dependent queries: the next open todo follows the list", async ({
@@ -237,7 +238,10 @@ test.describe("Cookbook page", () => {
       "This route needs an Authorization header."
     );
 
-    await page.getByLabel("Signed in").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Signed in" }),
+      true
+    );
     await expect(page.getByTestId("auth-header")).toHaveText(
       "Authorization: Bearer demo-token"
     );

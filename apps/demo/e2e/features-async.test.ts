@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./servers.ts";
+import { setPressed } from "./toggle.ts";
 
 /** Records uncaught page errors, so a test can check an example raised none. */
 const pageErrors = (page: Page) => {
@@ -59,7 +60,10 @@ test.describe("Async atoms page", () => {
     const text = await match.textContent();
     const reading = text?.replace(" °C", "") ?? "";
     await expect(last).toHaveText(reading);
-    await page.getByLabel("Offline", { exact: true }).check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Offline" }),
+      true
+    );
     await expect(state).toHaveText("Failure");
     await expect(match).toHaveText("The sensor is offline");
     // The failure keeps the last success, which getOrElse falls back to.
@@ -68,7 +72,10 @@ test.describe("Async atoms page", () => {
     await expect(state).toHaveText("Failure, waiting");
     await expect(state).toHaveText("Failure");
     await expect(last).toHaveText(reading);
-    await page.getByLabel("Offline", { exact: true }).uncheck();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Offline" }),
+      false
+    );
     await expect(state).toHaveText("Success");
     await expect(match).toHaveText(/^\d+ °C$/u);
     expect(errors).toEqual([]);
@@ -218,14 +225,29 @@ test.describe("Effect basics page", () => {
     const type = page.getByTestId("catch-tag-type");
     await expect(todo).toHaveText("Write the docs");
     await expect(type).toHaveText("NotFound | Forbidden");
-    await page.getByLabel("Todo 2").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Todo 2" }),
+      true
+    );
     await expect(todo).toHaveText("Failed with NotFound");
-    await page.getByLabel("Todo 3").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Todo 3" }),
+      true
+    );
     await expect(todo).toHaveText("Failed with Forbidden");
-    await page.getByLabel('Effect.catchTag("NotFound", …)').check();
+    await setPressed(
+      page.getByRole("button", {
+        exact: true,
+        name: 'Effect.catchTag("NotFound", …)',
+      }),
+      true
+    );
     await expect(type).toHaveText("Forbidden");
     await expect(todo).toHaveText("Failed with Forbidden");
-    await page.getByLabel("Todo 2").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Todo 2" }),
+      true
+    );
     await expect(todo).toHaveText("(there is no todo 2)");
     expect(errors).toEqual([]);
   });
@@ -363,7 +385,10 @@ test.describe("Suspense page", () => {
       /^\d+ ms\s*note 1 loaded$/u,
     ]);
     const states = await recordTexts(page, ["follow-pending", "follow-note"]);
-    await page.getByLabel("Note 2").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Note 2" }),
+      true
+    );
     await expect(note).toHaveText("Note 2");
     await expect(pending).toHaveText("0");
     // The old note stayed on screen while the new one loaded, with an await pending.
@@ -383,11 +408,19 @@ test.describe("Suspense page", () => {
       /^\d+ ms\s*note 2 loaded$/u,
     ]);
     // Moving on before note 3 arrives abandons it, and its effect is interrupted.
-    await page.getByLabel("Note 3").check();
-    await page.getByLabel("Note 1").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Note 3" }),
+      true
+    );
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Note 1" }),
+      true
+    );
     await expect(note).toHaveText("Note 1");
     await expect(pending).toHaveText("0");
-    await expect(page.getByLabel("Note 1")).toBeChecked();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Note 1" })
+    ).toHaveAttribute("aria-pressed", "true");
     const labels = async () => {
       const entries = await log.allTextContents();
       return entries.map((entry) => entry.replace(/^\s*\d+ ms\s*/u, ""));
@@ -425,18 +458,27 @@ test.describe("Streams page", () => {
     await expect(history.last()).toHaveText(/^\d+ ms\s*Success 1$/u);
     await expect(reasons).toHaveCount(0);
     // A failure after some items keeps the last one.
-    await page.getByLabel("Fails").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Fails" }),
+      true
+    );
     await expect(state).toHaveText("Failure", { timeout: 5000 });
     await expect(latest).toHaveText("1");
     await expect(reasons).toHaveAttribute("data-reason", "Fail");
     await expect(reasons).toContainText("SignalLost");
     // A stream that emits nothing has no item to keep.
-    await page.getByLabel("Emits nothing").check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Emits nothing" }),
+      true
+    );
     await expect(state).toHaveText("Failure", { timeout: 5000 });
     await expect(latest).toHaveText("none");
     await expect(reasons).toContainText("NoSuchElementError");
     // Restarting runs the stream again from the beginning.
-    await page.getByLabel("Ends", { exact: true }).check();
+    await setPressed(
+      page.getByRole("button", { exact: true, name: "Ends" }),
+      true
+    );
     await expect(state).toHaveText("Success", { timeout: 5000 });
     await page.getByRole("button", { name: "Restart" }).click();
     await expect(history).toContainText([
