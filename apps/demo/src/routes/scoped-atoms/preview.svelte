@@ -1,9 +1,8 @@
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
-  import Part from "#lib/docs/kit/part.svelte";
 
+  import DraftPart from "./draft-part.svelte";
   import { Draft } from "./draft-scope.ts";
-  import { providerOf } from "./providers.ts";
 
   interface Segment {
     readonly style: "bold" | "italic" | "plain";
@@ -30,7 +29,7 @@
   const segments = useAtomValue(atom, emphasis);
 </script>
 
-<Part code label="Preview: Draft.use() → {providerOf(atom)}">
+<DraftPart {atom} name="Preview">
   {#if segments.current.every((segment) => segment.text.trim() === "")}
     <span class="text-sm text-muted-foreground">Nothing written yet.</span>
   {:else}
@@ -46,4 +45,4 @@
       {/each}
     </p>
   {/if}
-</Part>
+</DraftPart>
