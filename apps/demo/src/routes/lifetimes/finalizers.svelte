@@ -1,46 +1,49 @@
 <script module lang="ts">
   import { Atom } from "effect/reactivity";
-  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
-  const log = new EventLogState();
-  let started = 0;
+  import { startTimer, stopTimer } from "./timers.svelte.ts";
+
+  // The example's switch: leave the finalizer out to see what it prevents.
+  let withFinalizer = true;
 
   const everyAtom = Atom.make(1000);
 
-  // Counts ticks. Each computation starts an interval; its finalizer clears it.
+  // Counts ticks. Each computation starts a timer, and its finalizer stops it.
+  // startTimer and stopTimer are setInterval and clearInterval, drawn below.
   const ticksAtom = Atom.make((get) => {
-    const every = get(everyAtom);
-    started += 1;
-    const interval = started;
     let ticks = 0;
-    const timer = setInterval(() => {
+    const tick = () => {
       ticks += 1;
       get.setSelf(ticks);
-    }, every);
-    log.add(`interval ${interval} started, every ${every} ms`, { tone: "running" });
-    get.addFinalizer(() => {
-      clearInterval(timer);
-      log.add(`interval ${interval} cleared`, { tone: "interrupted" });
-    });
+    };
+    const timer = startTimer(tick, get(everyAtom));
+    if (withFinalizer) {
+      get.addFinalizer(() => stopTimer(timer));
+    }
     return ticks;
   });
 </script>
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
-  import EventLog from "#lib/docs/kit/event-log.svelte";
-  import Part from "#lib/docs/kit/part.svelte";
 
   import Reader from "./reader.svelte";
+  import TimersPanel from "./timers-panel.svelte";
+  import { resetTimers } from "./timers.svelte.ts";
 
   const every = useAtom(everyAtom);
   let shown = $state(false);
+  let finalizer = $state(true);
 
-  // Intervals started minus intervals cleared: never more than one.
-  const running = $derived(
-    log.entries.filter((entry) => entry.label.includes("started")).length -
-      log.entries.filter((entry) => entry.label.includes("cleared")).length
-  );
+  // Applies from the next computation: the current one already chose.
+  const toggleFinalizer = () => {
+    finalizer = !finalizer;
+    withFinalizer = finalizer;
+  };
+  const reset = () => {
+    shown = false;
+    resetTimers();
+  };
 </script>
 
 <div class="flex flex-wrap items-center gap-2">
@@ -60,22 +63,15 @@
     </button>
   </div>
 </div>
-<div class="mt-3">
-  <Part
-    code
-    count={running}
-    countLabel="intervals running"
-    dashed={!shown}
-    label="ticksAtom"
-    tone={shown ? "running" : "idle"}
-  >
-    {#if shown}<Reader atom={ticksAtom} />{:else}Nothing reads it.{/if}
-  </Part>
+<div class="mt-2 flex flex-wrap items-center gap-2">
+  <button aria-pressed={finalizer} onclick={toggleFinalizer}>
+    Clear in a finalizer
+  </button>
+  <button data-cue="reset" onclick={reset}>Reset</button>
 </div>
-<EventLog
-  code
-  data-testid="finalizer-log"
-  empty="Show the clock to start an interval."
-  entries={log.entries}
-  label="ticksAtom"
-/>
+<div class="mt-3 grid gap-3 sm:grid-cols-[10rem_1fr]">
+  <div>
+    {#if shown}<Reader atom={ticksAtom} />{:else}<p class="m-0">Clock hidden.</p>{/if}
+  </div>
+  <TimersPanel {shown} />
+</div>

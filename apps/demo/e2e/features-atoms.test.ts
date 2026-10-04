@@ -69,33 +69,44 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(transformRuns).toHaveText("6");
   });
 
-  test("lifetimes: a finalizer clears each computation's interval", async ({
+  test("lifetimes: a finalizer stops each computation's timer", async ({
     page,
   }) => {
     await page.goto("/lifetimes");
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
     const press = (name: string, on: boolean) =>
       setPressed(page.getByRole("button", { exact: true, name }), on);
-    const log = page.getByTestId("finalizer-log").getByRole("listitem");
-    const running = page.getByLabel("ticksAtom intervals running", {
+    const timers = page.getByTestId("timers").getByRole("listitem");
+    const running = page.getByLabel("setInterval timers running", {
       exact: true,
     });
 
     await press("Show the clock", true);
-    await expect(log).toHaveText([/interval 1 started, every 1000 ms$/u]);
-    await expect(running).toHaveText("1");
-    // Before computing again, the atom's finalizer clears the old interval.
-    await press("0.25 s", true);
-    await expect(log).toHaveText([
-      /interval 1 started, every 1000 ms$/u,
-      /interval 1 cleared$/u,
-      /interval 2 started, every 250 ms$/u,
+    await expect(timers).toHaveText([
+      /timer 1 · every 1 s.*running for the clock$/su,
     ]);
-    await expect(running).toHaveText("1");
-    // Unread, the atom is disposed, and its finalizer clears the last one.
+    // Before computing again, the atom's finalizer stops the old timer.
+    await press("0.25 s", true);
+    await expect(timers).toHaveText([
+      /timer 1 .*stopped by the finalizer$/su,
+      /timer 2 · every 0.25 s.*running for the clock$/su,
+    ]);
+    // Unread, the atom is disposed, and its finalizer stops the last one.
     await press("Show the clock", false);
-    await expect(log.last()).toHaveText(/interval 2 cleared$/u);
+    await expect(timers.nth(1)).toHaveText(/stopped by the finalizer$/su);
     await expect(running).toHaveText("0");
+
+    // Without the finalizer, the timer outlives the atom.
+    await press("Clear in a finalizer", false);
+    await press("Show the clock", true);
+    await press("Show the clock", false);
+    await expect(timers.nth(2)).toHaveText(
+      /leaked: still ticking, nothing uses it$/su
+    );
+    await expect(running).toHaveText("1");
+    await page.getByRole("button", { exact: true, name: "Reset" }).click();
+    await expect(timers).toHaveCount(0);
+    await expect(page.getByTestId("timers")).toContainText("None yet.");
   });
 
   test("lifetimes: a layout's useAtomMount keeps an atom across pages", async ({
