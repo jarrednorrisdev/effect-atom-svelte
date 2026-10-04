@@ -249,6 +249,8 @@ test("first atom: two counters share one atom", async ({ page }) => {
   await expect(page.locator("[data-example] output")).toHaveText(["2", "2"]);
   // Nothing reads the atom while the counters are hidden, so it starts again.
   await page.getByRole("button", { name: "Hide counters" }).click();
+  await expect(page.locator("[data-example] output")).toHaveCount(0);
+  await expect(page.getByText("Nothing reads countAtom now")).toBeVisible();
   await page.getByRole("button", { name: "Show counters" }).click();
   await expect(page.locator("[data-example] output")).toHaveText(["0", "0"]);
 });
@@ -345,13 +347,27 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
   await page.goto("/async-atoms");
   await page.waitForLoadState("networkidle");
   const state = page.getByTestId("die-state");
+  // Every state the atom has been through, in order, with its time.
+  const history = page
+    .getByRole("list", { name: "History" })
+    .getByRole("listitem");
   await expect(state).toHaveText("Success");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
+  await expect(history).toHaveText([
+    /^0 ms\s*Initial, waiting$/u,
+    /^\d+ ms\s*Success [1-6]$/u,
+  ]);
   await page.getByRole("button", { name: "Roll again" }).click();
   // The previous roll stays on screen while the new one runs.
   await expect(state).toHaveText("Success, waiting");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
   await expect(state).toHaveText("Success");
+  await expect(history).toHaveText([
+    /^0 ms\s*Initial, waiting$/u,
+    /^\d+ ms\s*Success [1-6]$/u,
+    /^\d+ ms\s*Success [1-6], waiting$/u,
+    /^\d+ ms\s*Success [1-6]$/u,
+  ]);
   // The atom reads the checkbox's atom, so ticking it runs the effect again, which fails.
   await page.getByLabel("Drop the die").check();
   await expect(state).toHaveText("Success, waiting");
@@ -360,6 +376,15 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
   await page.getByLabel("Drop the die").uncheck();
   await expect(state).toHaveText("Success");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
+  // The history shows the six most recent states.
+  await expect(history).toHaveText([
+    /^\d+ ms\s*Success [1-6], waiting$/u,
+    /^\d+ ms\s*Success [1-6]$/u,
+    /^\d+ ms\s*Success [1-6], waiting$/u,
+    /^\d+ ms\s*Failure$/u,
+    /^\d+ ms\s*Failure, waiting$/u,
+    /^\d+ ms\s*Success [1-6]$/u,
+  ]);
 });
 
 test("services: a runtime's atoms use its layer, and run again when the layer changes", async ({

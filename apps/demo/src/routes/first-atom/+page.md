@@ -14,7 +14,7 @@ description: Define an atom, read and write it from a component, and share it.
 
 This page builds a counter. Two components show it, and clicking either one updates both, because they read the same atom.
 
-<Example files={[{ html: counterSource, name: "counter.svelte" }, { html: countersSource, name: "counters.svelte" }]}> <Counters /> </Example>
+<Example files={[{ html: counterSource, name: "counter.svelte" }, { html: countersSource, name: "counters.svelte" }]} hint="Click + on either counter and watch both values change. Then hide the counters and show them again."> <Counters /> </Example>
 
 ## Define an atom
 

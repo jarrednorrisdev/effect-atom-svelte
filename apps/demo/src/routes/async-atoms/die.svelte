@@ -24,6 +24,9 @@
 
 <script lang="ts">
   import { useAtom, useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import ResultHistory from "#lib/docs/kit/result-history.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const die = useAtomValue(dieAtom);
   const roll = useAtomRefresh(dieAtom);
@@ -34,21 +37,23 @@
   <button onclick={roll}>Roll again</button>
   <label><input bind:checked={fail.current} type="checkbox" /> Drop the die</label>
 </p>
-<p>
+<div class="flex flex-wrap items-center gap-4">
   {#if die.current._tag === "Success"}
-    Rolled
-    <output data-testid="die" aria-busy={die.current.waiting}>
-      {die.current.value}
-    </output>
+    <ResultChip busy={die.current.waiting} label="dieAtom" tone="success">
+      <span data-testid="die">{die.current.value}</span>
+    </ResultChip>
   {:else if die.current._tag === "Failure"}
-    <span data-testid="die-failure">The die fell off the table.</span>
+    <ResultChip
+      busy={die.current.waiting}
+      kind="message"
+      label="dieAtom"
+      tone="failure"
+    >
+      <span data-testid="die-failure">The die fell off the table.</span>
+    </ResultChip>
   {:else}
-    <span>Rolling…</span>
+    <ResultChip kind="message" label="dieAtom" tone="running">Rolling…</ResultChip>
   {/if}
-</p>
-<p>
-  State:
-  <output data-testid="die-state">
-    {die.current._tag}{die.current.waiting ? ", waiting" : ""}
-  </output>
-</p>
+  <StateBadge data-testid="die-state" result={die.current} />
+</div>
+<ResultHistory result={die.current} />

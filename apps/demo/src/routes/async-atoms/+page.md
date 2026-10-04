@@ -15,7 +15,7 @@ Most state worth keeping comes from somewhere slow: a server, a database, a file
 
 If you haven't used Effect before, [Effect basics](/effect-basics) covers what this page and the ones after it need.
 
-<Example files={[{ html: source, name: "die.svelte" }]}> <Die /> </Example>
+<Example files={[{ html: source, name: "die.svelte" }]} hint="Click Roll again: the old roll stays on screen, waiting, until the new one arrives. Then tick Drop the die."> <Die /> </Example>
 
 ## Creating an async atom
 
@@ -52,7 +52,7 @@ An async atom's value is an `AsyncResult`, which is one of three states:
 | `Success` | The effect succeeded. The result is in `value`. |
 | `Failure` | The effect failed. The reason is in `cause`, a `Cause` from Effect. |
 
-Every state also has a `waiting` flag, which is `true` while the effect is running. A `Success` that is `waiting` still has the last value, so you can keep showing it while a new one loads, as the example does by fading it.
+Every state also has a `waiting` flag, which is `true` while the effect is running. A `Success` that is `waiting` still has the last value, so you can keep showing it while a new one loads, as the example does by dimming it. The history under the example lists every state the atom has been through, and when.
 
 Read the result with `useAtomValue`, and check `_tag` in the markup:
 
