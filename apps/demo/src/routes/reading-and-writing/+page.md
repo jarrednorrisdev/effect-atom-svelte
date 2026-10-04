@@ -7,6 +7,10 @@ description: Read atoms with useAtomValue, write them with useAtomSet, or do bot
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import Autosave from "./autosave.svelte";
+  import autosaveSource from "./autosave.svelte?highlight";
+  import Follow from "./follow.svelte";
+  import followSource from "./follow.svelte?highlight";
   import ReadingAndWriting from "./reading-and-writing.svelte";
   import source from "./reading-and-writing.svelte?highlight";
 </script>
@@ -19,7 +23,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
-The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomSubscribe` and `useAtomInitialValues`.
+The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomInitialValues`.
 
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click + or ×10 and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
@@ -87,6 +91,18 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 
 </Aside>
 
+## Running code on every change
+
+`useAtomSubscribe` calls a function each time the atom's value changes, for as long as the component lives. Use it for side effects, such as saving a draft or sending an analytics event, rather than for showing the value:
+
+```ts
+useAtomSubscribe(draftAtom, (draft) => localStorage.setItem("draft", draft));
+```
+
+The function isn't called for the value the atom already has, only for changes. Pass `{ immediate: true }` to also call it once with the current value when the component mounts. Like `useAtomSet`, it keeps the atom mounted while the component lives.
+
+<Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
+
 ## Following a different atom
 
 Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
@@ -104,6 +120,8 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
   const text = useAtomValue(() => (showSaved ? savedAtom : draftAtom));
 </script>
 ```
+
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then tick Follow savedAtom and type again: the same hook now writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
 Passing `showSaved ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
