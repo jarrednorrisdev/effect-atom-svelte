@@ -23,7 +23,7 @@ From here on, atoms run Effects: to fetch data, to save it, to follow a stream. 
 
 The example wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect, and reads it through an atom. Pick `MD5`, which Web Crypto doesn't support, to see a typed error.
 
-<Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it. Then pick MD5: the promise rejects, and the atom fails with a typed error."> <Hash /> </Example>
+<Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it, with the success side of the type lit up. Then pick MD5: the promise rejects, the atom fails with the typed error, and the error side lights up instead."> <Hash /> </Example>
 
 ## The Effect type
 

@@ -24,11 +24,13 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly cause: Cause.Cause<unknown> | undefined;
+    /** Shows the caption as code, in its own case (`hashAtom`), as `Part` does. */
+    readonly code?: boolean;
     /** The caption; "Cause" by default. */
     readonly label?: string;
   }
 
-  const { cause, label = "Cause", ...rest }: Props = $props();
+  const { cause, code = false, label = "Cause", ...rest }: Props = $props();
 
   /** A tagged error as `NotFound { id: 7 }`, anything else as its string. */
   const show = (value: unknown): string => {
@@ -69,7 +71,7 @@
 </script>
 
 <div class="cause not-prose" {...rest}>
-  <p class="caption" id="{id}-label">{label}</p>
+  <p class={["caption", code && "code"]} id="{id}-label">{label}</p>
   {#if keyed.length === 0}
     <p class="empty">No failure, so no cause.</p>
   {:else}
@@ -107,6 +109,11 @@
     letter-spacing: 0.06em;
     margin: 0 0 0.4rem;
     text-transform: uppercase;
+  }
+  .caption.code {
+    font-family: var(--font-mono);
+    letter-spacing: normal;
+    text-transform: none;
   }
   .empty {
     border: 1.5px dashed var(--border-strong);
