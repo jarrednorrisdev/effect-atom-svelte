@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
+  import GitHubButton from "./github-button.svelte";
   import SearchButton from "./search-button.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
 </script>
@@ -13,7 +14,7 @@
   </span>
   <div class="ml-auto flex items-center gap-1 md:gap-2">
     <SearchButton />
-    <!-- A GitHub link goes here once the repository is public; until then it would be a 404. -->
+    <GitHubButton />
     <ThemeToggle />
   </div>
 </header>

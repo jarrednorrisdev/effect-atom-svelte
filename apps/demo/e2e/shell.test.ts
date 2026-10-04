@@ -32,6 +32,34 @@ test.describe("docs shell", () => {
     );
   });
 
+  test("the GitHub button is disabled and says why until the repository is public", async ({
+    page,
+  }) => {
+    await page.goto("/first-atom");
+    await page.waitForLoadState("networkidle");
+    const button = page.getByRole("button", { name: /^GitHub repository/u });
+    await expect(button).toBeVisible();
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute("aria-disabled", "true");
+    await expect(button).toHaveAccessibleName(/goes public soon/u);
+    const tooltip = page.getByRole("tooltip");
+    await expect(tooltip).toBeHidden();
+
+    // Keyboard focus shows the tooltip; Escape hides it.
+    await page.getByRole("button", { name: "Search" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(button).toBeFocused();
+    await expect(tooltip).toHaveText("The repository goes public soon");
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+
+    // A click (or a tap) shows it too, and goes nowhere. Playwright won't click an aria-disabled
+    // element unless forced, but browsers still deliver the click.
+    await button.click({ force: true });
+    await expect(tooltip).toHaveText("The repository goes public soon");
+    await expect(page).toHaveURL(/\/first-atom$/u);
+  });
+
   test("the table of contents lists a page's sections and links to them", async ({
     page,
   }) => {
