@@ -8,6 +8,10 @@
 </script>
 
 <Part code label="TextArea: Draft.use()">
-  <textarea bind:value={draft.current} class="w-full" placeholder="Write a note" rows="2"
+  <textarea
+    bind:value={draft.current}
+    class="w-full"
+    placeholder="Write a note"
+    rows="2"
   ></textarea>
 </Part>
