@@ -8,6 +8,9 @@
   <FlashValue value={count.current} />
   ```
 
+  `tint` flashes another color instead of the accent, for a value whose meaning has a color of its
+  own: `<FlashValue tint={feel === "cold" ? "var(--color-sky-500)" : undefined} … />`.
+
   Other attributes (`data-testid`, `aria-label`) go on the `<output>`.
 -->
 <script lang="ts">
@@ -17,10 +20,12 @@
   import { onChange } from "./motion.ts";
 
   interface Props extends HTMLOutputAttributes {
+    /** A CSS color to flash instead of the accent. */
+    readonly tint?: string | undefined;
     readonly value: boolean | number | string;
   }
 
-  const { value, ...rest }: Props = $props();
+  const { tint, value, ...rest }: Props = $props();
 
   const flash = onChange(
     () => value,
@@ -36,13 +41,13 @@
   );
 </script>
 
-<output class="flash" {...rest} {@attach flash}>{value}</output>
+<output class="flash" style:--tint={tint} {...rest} {@attach flash}>{value}</output>
 
 <style>
   .flash {
     background: color-mix(
       in oklab,
-      var(--brand) calc(var(--flash, 0) * 70%),
+      var(--tint, var(--brand)) calc(var(--flash, 0) * 70%),
       var(--muted)
     );
     display: inline-block;

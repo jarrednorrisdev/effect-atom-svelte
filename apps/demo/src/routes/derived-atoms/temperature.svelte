@@ -31,6 +31,12 @@
   const celsius = useAtom(celsiusAtom);
   const fahrenheit = useAtom(fahrenheitAtom);
   const feel = useAtomValue(feelAtom);
+
+  // A change of feel flashes blue when cold and red when hot.
+  const tints: Record<string, string> = {
+    cold: "var(--color-sky-500)",
+    hot: "var(--color-red-500)",
+  };
 </script>
 
 <div class="flex flex-col gap-3 sm:flex-row">
@@ -58,7 +64,12 @@
       <Arrow label="get" pulse={celsius.current} />
     </span>
     <Part code label="feelAtom">
-      It feels <FlashValue data-testid="feel" value={feel.current} />.
+      It feels
+      <FlashValue
+        data-testid="feel"
+        tint={tints[feel.current]}
+        value={feel.current}
+      />.
       <p class="mt-2 text-xs text-muted-foreground">Read-only, computed from °C.</p>
     </Part>
   </div>
