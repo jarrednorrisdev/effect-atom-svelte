@@ -19,6 +19,14 @@
   const inUse = $derived(shown ? running.at(-1)?.id : undefined);
   const leaked = $derived(running.filter((timer) => timer.id !== inUse).length);
 
+  // A timer stopped just before the next one started was stopped because the atom computed
+  // again; otherwise the atom was disposed.
+  const reasonOf = (stoppedAt: number | undefined) =>
+    stoppedAt !== undefined &&
+    timers.some((timer) => timer.startedAt >= stoppedAt && timer.startedAt - stoppedAt < 100)
+      ? "everyAtom changed"
+      : "nothing reads ticksAtom";
+
   const stateOf = (id: number, stopped: boolean) => {
     if (stopped) {
       return "stopped";
@@ -49,7 +57,7 @@
           </span>
           <span class="text-xs">
             {#if state === "stopped"}
-              stopped by the finalizer
+              stopped by the finalizer: {reasonOf(timer.stoppedAt)}
             {:else if state === "leaked"}
               leaked: still ticking, nothing uses it
             {:else}

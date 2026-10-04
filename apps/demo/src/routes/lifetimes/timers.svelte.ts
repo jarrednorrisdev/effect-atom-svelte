@@ -7,7 +7,11 @@
 export interface Timer {
   readonly every: number;
   readonly id: number;
+  /** When it started, from `performance.now()`. */
+  readonly startedAt: number;
   stopped: boolean;
+  /** When it was stopped, from `performance.now()`. */
+  stoppedAt: number | undefined;
   ticks: number;
 }
 
@@ -20,7 +24,17 @@ let next = 0;
 export const startTimer = (tick: () => void, every: number): number => {
   next += 1;
   const id = next;
-  queueMicrotask(() => timers.push({ every, id, stopped: false, ticks: 0 }));
+  const startedAt = performance.now();
+  queueMicrotask(() =>
+    timers.push({
+      every,
+      id,
+      startedAt,
+      stopped: false,
+      stoppedAt: undefined,
+      ticks: 0,
+    })
+  );
   handles.set(
     id,
     setInterval(() => {
@@ -38,10 +52,12 @@ export const startTimer = (tick: () => void, every: number): number => {
 export const stopTimer = (id: number) => {
   clearInterval(handles.get(id));
   handles.delete(id);
+  const stoppedAt = performance.now();
   queueMicrotask(() => {
     const timer = timers.find((entry) => entry.id === id);
     if (timer) {
       timer.stopped = true;
+      timer.stoppedAt = stoppedAt;
     }
   });
 };

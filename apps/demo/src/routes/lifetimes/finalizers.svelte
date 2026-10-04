@@ -48,7 +48,8 @@
 
 <div class="flex flex-wrap items-center gap-2">
   <button aria-pressed={shown} onclick={() => (shown = !shown)}>Show the clock</button>
-  <div aria-label="Tick every" class="flex gap-2" role="group">
+  <div aria-label="everyAtom" class="flex items-center gap-2" role="group">
+    <code class="text-xs">everyAtom</code>
     <button
       aria-pressed={every.current === 1000}
       onclick={() => (every.current = 1000)}
