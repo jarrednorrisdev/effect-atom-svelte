@@ -1,7 +1,7 @@
 import { buildDemo } from "../e2e/build.ts";
-import { demoDir, start, viteBin } from "../e2e/servers.ts";
+import { demoDir, portOffset, start, viteBin } from "../e2e/servers.ts";
 
-const origin = "http://localhost:5300";
+const origin = `http://localhost:${5300 + portOffset}`;
 
 /**
  * Builds the site as it is hosted, with the demo API running in the page, then previews it. The

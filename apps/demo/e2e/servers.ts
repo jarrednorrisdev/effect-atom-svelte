@@ -12,6 +12,9 @@ export const viteBin = fileURLToPath(
 );
 
 /** One worker's demo API and preview server. */
+/** Added to every e2e port, for running the suite in two worktrees at once (`E2E_PORT_OFFSET=50`). */
+export const portOffset = Number(process.env.E2E_PORT_OFFSET ?? 0);
+
 export interface Servers {
   /** Origin of the demo API, e.g. `http://localhost:3100`. */
   readonly api: string;
@@ -79,8 +82,10 @@ export const test = base.extend<
     // oxlint-disable-next-line no-empty-pattern -- Playwright requires a destructuring pattern here.
     async ({}, use, workerInfo) => {
       // Away from the dev servers (3010, 5180) and the default preview port (5181).
-      const api = `http://localhost:${3100 + workerInfo.parallelIndex}`;
-      const web = `http://localhost:${5200 + workerInfo.parallelIndex}`;
+      // E2E_PORT_OFFSET moves them, so runs in two worktrees don't share servers.
+      const port = portOffset + workerInfo.parallelIndex;
+      const api = `http://localhost:${3100 + port}`;
+      const web = `http://localhost:${5200 + port}`;
       const apiProcess = await start(
         "bun",
         ["src/main.ts"],
