@@ -116,14 +116,14 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 </script>
 
 <script lang="ts">
-  let showSaved = $state(false);
-  const text = useAtomValue(() => (showSaved ? savedAtom : draftAtom));
+  let followed = $state<"draft" | "saved">("draft");
+  const text = useAtomValue(() => (followed === "saved" ? savedAtom : draftAtom));
 </script>
 ```
 
-<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then turn on Follow savedAtom and type again: the same hook now writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
-Passing `showSaved ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
+Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
 <Aside type="note" title="When updates arrive">
 
