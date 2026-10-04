@@ -61,4 +61,39 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(atomRuns).toHaveText("3");
     await expect(transformRuns).toHaveText("6");
   });
+
+  test("lifetimes: useAtomMount holds an atom nothing reads", async ({
+    page,
+  }) => {
+    await page.goto("/lifetimes");
+    await page.waitForLoadState("networkidle");
+    const entries = page
+      .getByRole("list", { name: "socketAtom" })
+      .getByRole("listitem");
+    const status = page.getByTestId("lifetimes-socketAtom-status");
+    const holders = page.getByLabel("socketAtom holders", { exact: true });
+    await expect(status).toHaveText("not computed yet");
+
+    await page.getByLabel("Show <ChatPanel>").check();
+    await expect(holders).toHaveText("1");
+    await expect(status).toHaveText("mounted");
+    await expect(entries).toHaveText([/socketAtom: computed$/u]);
+
+    await page.getByLabel("Show a <Reader>").check();
+    await expect(page.getByTestId("lifetimes-socketAtom")).toContainText(
+      "Reading connected"
+    );
+    // The panel goes, but the reader still holds the atom.
+    await page.getByLabel("Show <ChatPanel>").uncheck();
+    await page.waitForTimeout(300);
+    await expect(entries).toHaveText([/socketAtom: computed$/u]);
+    await expect(status).toHaveText("mounted");
+
+    await page.getByLabel("Show a <Reader>").uncheck();
+    await expect(status).toHaveText("disposed");
+    await expect(entries).toHaveText([
+      /socketAtom: computed$/u,
+      /socketAtom: disposed$/u,
+    ]);
+  });
 });

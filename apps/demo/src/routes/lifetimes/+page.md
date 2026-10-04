@@ -7,6 +7,9 @@ description: When an atom's value is kept, when it is disposed, and how to clean
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import chatPanelSource from "./chat-panel.svelte?highlight";
+  import KeepMounted from "./keep-mounted.svelte";
+  import keepMountedSource from "./keep-mounted.svelte?highlight";
   import Lifetimes from "./lifetimes.svelte";
   import lifetimesSource from "./lifetimes.svelte?highlight";
   import Reader from "./reader.svelte";
@@ -57,6 +60,10 @@ const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
 Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed.
+
+The live example at the top of the page shows `keepAlive` and an idle TTL. `useAtomMount` is for a component that needs an atom alive without showing it, such as a chat panel that keeps a connection open while it is on screen. Below, `socketAtom` stands in for the connection, and each holder adds one to its count:
+
+<Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: chatPanelSource, name: "chat-panel.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the panel: the socket opens, though nothing reads it. Show a reader too, then hide the panel: the reader still holds it. Hide both and the socket closes."> <KeepMounted /> </Example>
 
 Atoms that run an `Effect` follow the same rules, so `keepAlive` and an idle TTL also make a cache: see [Async atoms](/async-atoms). For atoms made per key, see [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 

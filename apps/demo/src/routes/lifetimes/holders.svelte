@@ -14,12 +14,21 @@
   interface Props {
     readonly atom: Atom.Atom<unknown>;
     readonly children: Snippet;
+    /** What the count counts; "readers" by default. */
+    readonly countLabel?: string;
     readonly events: readonly { readonly atom: string; readonly event: string }[];
     readonly name: string;
     readonly readers: number;
   }
 
-  const { atom, children, events, name, readers }: Props = $props();
+  const {
+    atom,
+    children,
+    countLabel = "readers",
+    events,
+    name,
+    readers,
+  }: Props = $props();
 
   const example = getExampleState();
 
@@ -85,7 +94,7 @@
 <Part
   code
   count={readers}
-  countLabel="readers"
+  {countLabel}
   dashed={last !== "computed"}
   data-testid="lifetimes-{name}"
   label={name}

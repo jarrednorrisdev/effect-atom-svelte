@@ -11,9 +11,18 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly events: readonly { readonly atom: string; readonly event: string }[];
+    /** Shown while the log is empty. */
+    readonly empty?: string;
+    /** The log's caption; "Registry" by default. */
+    readonly label?: string;
   }
 
-  const { events, ...rest }: Props = $props();
+  const {
+    empty = "Nothing yet. Add a reader to an atom.",
+    events,
+    label = "Registry",
+    ...rest
+  }: Props = $props();
 
   const log = new EventLogState();
   let seen = 0;
@@ -31,9 +40,9 @@
 </script>
 
 <EventLog
-  empty="Nothing yet. Add a reader to an atom."
+  {empty}
   entries={log.entries}
-  label="Registry"
+  {label}
   max={8}
   {...rest}
 />
