@@ -39,11 +39,20 @@ const synth = (
     oscillator: { type: oscillator },
   } as Partial<Tone.SynthOptions>);
 
-/** Builds the synths on the context that `sound.ts` started inside the first gesture. */
-export const createEngine = (context: AudioContext): Engine => {
+/**
+ * Builds the synths on the context that `sound.ts` started inside the first gesture, or, without
+ * one, on a context Tone.js makes itself.
+ */
+export const createEngine = (context?: AudioContext): Engine => {
   // No look-ahead: a cue answers a click, so it plays now rather than 0.1 s later. The old
   // context isn't disposed: Firefox throws "Can't close an AudioContext twice" when it is.
-  Tone.setContext(new Tone.Context({ context, lookAhead: 0 }));
+  Tone.setContext(
+    new Tone.Context(
+      context
+        ? { context, lookAhead: 0 }
+        : { latencyHint: "interactive", lookAhead: 0 }
+    )
+  );
 
   const volume = new Tone.Volume(-12).toDestination();
   const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.3 }).connect(volume);

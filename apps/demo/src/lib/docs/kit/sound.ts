@@ -75,7 +75,14 @@ const build = async (): Promise<Engine> => {
     Object.assign(window, { TONE_SILENCE_LOGGING: true });
     const { createEngine } = await import("./sound-engine.ts");
     context ??= new AudioContext({ latencyHint: "interactive" });
-    engine = createEngine(context);
+    try {
+      engine = createEngine(context);
+    } catch {
+      // Firefox's Tone.js rejects a context it didn't make ("param must be an AudioParam"), so
+      // it makes its own. The visitor's earlier click lets that one start outside the gesture.
+      engine = createEngine();
+      engine.start();
+    }
     return engine;
   } catch (error) {
     // A failed download leaves the examples silent; the next cue tries again.

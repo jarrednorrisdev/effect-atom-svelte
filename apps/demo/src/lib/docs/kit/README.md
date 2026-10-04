@@ -81,6 +81,7 @@ Tone.js is about 60 kB gzipped, so it loads lazily. The rules:
 - `sound.ts` is tiny and may be imported anywhere (the header's toggle does). It must never import `tone` or `sound-engine.ts` statically; only its `import("./sound-engine.ts")` loads them.
 - That import happens on the first gesture that would play a cue (a press on an example's control starts it on `pointerdown` through `warm()`, so the click's own cue isn't late), and only while sound is on. With sound off, Tone.js never loads and nothing plays. A cue that waited more than 400 ms for the download is dropped.
 - Audio must start inside the gesture. Before Tone.js has loaded, `sound.ts` creates and resumes a plain `AudioContext` in the gesture and Tone.js adopts it (`Tone.setContext`); afterwards every cue calls `Tone.start()` synchronously before playing.
+- Firefox's Tone.js refuses a context it didn't make ("param must be an AudioParam" while building the synths), and the error is swallowed, so Firefox was silent. `sound.ts` catches that and builds the engine on a context Tone.js makes itself, started with `Tone.start()`; the click that loaded it gave the page the activation that allows it. Test sound in Firefox as well as Chromium.
 - `app.html` has an inline script that marks `<html data-sound="off">` before first paint, so the header shows the right icon before hydration. It reads the same key as `sound-preference.ts`; change both together.
 
 ## Tests
