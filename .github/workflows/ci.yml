@@ -11,10 +11,9 @@ concurrency:
 
 jobs:
   check:
+    # Lint, types and the Vitest suites. The browser tests in the library run in all three engines.
     runs-on: ubuntu-latest
-    # The e2e suite runs about 420 tests in three engines on two cores (13 min before JND-82 added
-    # a third of them).
-    timeout-minutes: 40
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -23,23 +22,75 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run lint
-      - run: bun run build
+      # Only the library: the e2e jobs build the site themselves, as their tests need.
+      - run: bun run --cwd packages/effect-atom-svelte build
       - run: bun run check
-      - run: bun run test
+      - run: bun run --cwd packages/effect-atom-svelte test
+      - run: bunx vitest run
+        working-directory: apps/demo
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-results
+          name: vitest-results
+          path: packages/effect-atom-svelte/.vitest
+          retention-days: 7
+
+  e2e:
+    # The e2e suite, one job per engine (JND-91). It ran as one job of about 420 tests with
+    # Playwright's default of one worker on a two-core runner, which took 19 minutes. A push to
+    # main runs all three engines, which the deploy waits for; a PR runs Chromium only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(github.event_name == 'push' && '["chromium","firefox","webkit"]' || '["chromium"]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps ${{ matrix.engine }}
+      - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bunx playwright test --project=${{ matrix.engine }}
+        working-directory: apps/demo
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-results-${{ matrix.engine }}
           path: |
             apps/demo/test-results
             apps/demo/playwright-report
-            packages/effect-atom-svelte/.vitest
+          retention-days: 7
+
+  hosted:
+    # The site built as it is hosted (the demo API in the page), checked in Chromium.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bunx playwright test -c playwright.hosted.config.ts
+        working-directory: apps/demo
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: hosted-results
+          path: |
+            apps/demo/test-results
+            apps/demo/playwright-report
           retention-days: 7
 
   deploy:
     # Deploys the docs site to atom.jarrednorris.dev (apps/demo/alchemy.run.ts) once main passes.
     # It skips until the Cloudflare secrets exist, so adding them is what puts the site live.
-    needs: check
+    needs: [check, e2e, hosted]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
