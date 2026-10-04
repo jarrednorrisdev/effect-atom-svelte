@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
+  import FontToggle from "./font-toggle.svelte";
   import GitHubButton from "./github-button.svelte";
   import SearchButton from "./search-button.svelte";
   import SoundToggle from "./sound-toggle.svelte";
@@ -16,6 +17,7 @@
   <div class="ml-auto flex items-center gap-1 md:gap-2">
     <SearchButton />
     <GitHubButton />
+    <FontToggle />
     <SoundToggle />
     <ThemeToggle />
   </div>
