@@ -15,7 +15,7 @@
     {reading ? "Remove the reader" : "Add a reader"}
   </button>
 </p>
-<Part dashed={!reading} label="Reader" tone={reading ? "success" : "idle"}>
+<Part code dashed={!reading} label="<Feed>" tone={reading ? "success" : "idle"}>
   {#if reading}
     <Feed />
   {:else}

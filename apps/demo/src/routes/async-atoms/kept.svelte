@@ -9,7 +9,10 @@
   const request = (name: "search" | "settings" | "weather", value: string) =>
     Atom.make((get) =>
       Effect.gen(function* load() {
-        get.registry.update(runsAtom, (runs) => ({ ...runs, [name]: runs[name] + 1 }));
+        get.registry.update(runsAtom, (runs) => ({
+          ...runs,
+          [name]: runs[name] + 1,
+        }));
         yield* Effect.sleep("600 millis");
         return value;
       })
@@ -27,6 +30,7 @@
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+  import BrowserFrame from "#lib/docs/kit/browser-frame.svelte";
   import CacheCard from "./cache-card.svelte";
   import Reader from "./kept-reader.svelte";
 
@@ -35,23 +39,19 @@
   let page = $state<"dashboard" | "help">("help");
 </script>
 
-<p>
-  <button aria-pressed={page === "dashboard"} onclick={() => (page = "dashboard")}>
-    Dashboard
-  </button>
-  <button aria-pressed={page === "help"} onclick={() => (page = "help")}>Help</button>
-</p>
-<div class="mt-3 rounded-md border p-3" data-testid="kept-page">
-  {#if page === "dashboard"}
-    <Reader atom={weatherAtom} label="Weather" />
-    <Reader atom={settingsAtom} label="Settings" />
-    <Reader atom={searchAtom} label="Search" />
-  {:else}
-    <p class="text-sm">The help page reads none of the three atoms.</p>
-  {/if}
-</div>
+<BrowserFrame bind:page pages={["dashboard", "help"]}>
+  <div data-testid="kept-page">
+    {#if page === "dashboard"}
+      <Reader atom={weatherAtom} label="Weather" />
+      <Reader atom={settingsAtom} label="Settings" />
+      <Reader atom={searchAtom} label="Search" />
+    {:else}
+      <p class="m-0 text-sm">The help page reads none of the three atoms.</p>
+    {/if}
+  </div>
+</BrowserFrame>
 
-<!-- What the registry holds for each atom, and how many times its request ran. -->
+<!-- What the registry holds for each atom, and how often its request ran. -->
 <div class="mt-4 grid gap-3 sm:grid-cols-3">
   {#each [
     { atom: weatherAtom, name: "weatherAtom", runs: runs.current.weather },

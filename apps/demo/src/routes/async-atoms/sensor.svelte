@@ -7,7 +7,8 @@
   // Turned on by the toggle below.
   const offlineAtom = Atom.make(false);
 
-  // A sensor reading that takes a moment, and fails while the sensor is offline.
+  // A sensor reading that takes a moment, and fails while the sensor is
+  // offline.
   const temperatureAtom = Atom.make((get) => {
     const offline = get(offlineAtom);
     return Effect.gen(function* readSensor() {
@@ -43,7 +44,7 @@
 
   // The value, or the last one before a failure, or the fallback.
   const lastKnown = $derived(
-    AsyncResult.getOrElse(reading.current, () => "none yet")
+    AsyncResult.getOrElse(reading.current, () => undefined)
   );
 </script>
 
@@ -71,9 +72,11 @@
     <ResultChip
       busy={reading.current.waiting}
       kind="message"
-      tone={lastKnown === "none yet" ? "idle" : "success"}
+      tone={lastKnown === undefined ? "idle" : "success"}
     >
-      <span data-testid="sensor-last">{lastKnown}</span>
+      <span data-testid="sensor-last">
+        {lastKnown === undefined ? "None yet" : `${lastKnown} °C`}
+      </span>
     </ResultChip>
   </Part>
 </div>
