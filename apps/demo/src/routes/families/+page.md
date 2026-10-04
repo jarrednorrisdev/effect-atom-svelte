@@ -7,6 +7,10 @@ description: Create one atom per key, and follow the one your component needs.
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import KeptTallies from "./kept-tallies.svelte";
+  import keptSource from "./kept-tallies.svelte?highlight";
+  import SameKey from "./same-key.svelte";
+  import sameKeySource from "./same-key.svelte?highlight";
   import Tallies from "./tallies.svelte";
   import source from "./tallies.svelte?highlight";
 </script>
@@ -73,6 +77,10 @@ const draftAtom = Atom.family(
 draftAtom({ doc: 1, lang: "en" }) === draftAtom({ doc: 1, lang: "en" }); // true
 ```
 
+Try it below. Every click passes `draftAtom` a new key object, and the family runs its recipe only for contents it hasn't seen:
+
+<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Click Call draftAtom twice: the second call returns the same atom. Then change the document or the language and call it again."> <SameKey /> </Example>
+
 A family holds its atoms through weak references, where the platform supports them, so an atom nothing refers to any more can be garbage collected. If that happens, the next call with that key runs the recipe again and makes a fresh atom.
 
 ## Reading from a family
@@ -107,6 +115,10 @@ const tallyAtom = Atom.family((fruit: string) =>
   Atom.make(0).pipe(Atom.setIdleTTL("5 minutes"))
 );
 ```
+
+Below are three families that differ only in how long they keep their atoms. Add one to each, then pick another fruit, and watch which fruits each family still has in the registry:
+
+<Example files={[{ html: keptSource, name: "kept-tallies.svelte" }]} hint="Add one to each family, then pick pears. plain lets go of apples at once, idle TTL four seconds later, and keepAlive never: pick apples again to find its count."> <KeptTallies /> </Example>
 
 <Aside type="caution" title="keepAlive in a family">
 

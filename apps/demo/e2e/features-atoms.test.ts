@@ -96,4 +96,60 @@ test.describe("Atoms pages: an example for every feature", () => {
       /socketAtom: disposed$/u,
     ]);
   });
+
+  test("families: equal keys return the same atom", async ({ page }) => {
+    await page.goto("/families");
+    await page.waitForLoadState("networkidle");
+    const calls = page
+      .getByRole("list", { name: "Calls" })
+      .getByRole("listitem");
+    const call = page.getByRole("button", { name: "Call draftAtom" });
+    await call.click();
+    await call.click();
+    await page.getByTestId("key-lang").selectOption("fr");
+    await call.click();
+    await page.getByTestId("key-lang").selectOption("en");
+    await call.click();
+    await expect(calls).toHaveText([
+      'draftAtom({ doc: 1, lang: "en" }) new atom: the recipe ran',
+      'draftAtom({ doc: 1, lang: "en" }) same atom as call 1',
+      'draftAtom({ doc: 1, lang: "fr" }) new atom: the recipe ran',
+      'draftAtom({ doc: 1, lang: "en" }) same atom as call 1',
+    ]);
+    await expect(page.getByTestId("key-atoms").locator("output")).toHaveText(
+      "2 / 4 keys called"
+    );
+  });
+
+  test("families: plain, idle TTL and keepAlive families keep their atoms differently", async ({
+    page,
+  }) => {
+    await page.goto("/families");
+    await page.waitForLoadState("networkidle");
+    const entries = (name: string) =>
+      page.getByTestId(`kept-${name}-entries`).locator("output");
+    const addOne = (name: string) =>
+      page.getByRole("button", { name: `${name}: add one` }).click();
+    await addOne("plain");
+    await addOne("idle TTL");
+    await addOne("keepAlive");
+    await expect(page.getByTestId("kept-plain")).toHaveText("1");
+    await expect(page.getByTestId("kept-keepAlive")).toHaveText("1");
+
+    await page.getByTestId("kept-fruit").selectOption("pears");
+    await expect(page.getByTestId("kept-plain")).toHaveText("0");
+    await expect(entries("plain")).toHaveText("1 / 3 in the registry");
+    await expect(entries("idle TTL")).toHaveText("2 / 3 in the registry");
+    await expect(entries("keepAlive")).toHaveText("2 / 3 in the registry");
+    // The idle TTL is four seconds.
+    await expect(entries("idle TTL")).toHaveText("1 / 3 in the registry", {
+      timeout: 8000,
+    });
+    await expect(entries("keepAlive")).toHaveText("2 / 3 in the registry");
+
+    await page.getByTestId("kept-fruit").selectOption("apples");
+    await expect(page.getByTestId("kept-plain")).toHaveText("0");
+    await expect(page.getByTestId("kept-idle TTL")).toHaveText("0");
+    await expect(page.getByTestId("kept-keepAlive")).toHaveText("1");
+  });
 });
