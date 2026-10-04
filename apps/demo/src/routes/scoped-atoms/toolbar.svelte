@@ -9,6 +9,8 @@
 </script>
 
 <Part code label="Toolbar: Draft.use()">
-  <span class="text-sm">{words} {words === 1 ? "word" : "words"}</span>
-  <button onclick={() => (draft.current = "")}>Clear</button>
+  <div class="flex items-center justify-between gap-2">
+    <span class="text-sm">{words} {words === 1 ? "word" : "words"}</span>
+    <button class="mr-0!" onclick={() => (draft.current = "")}>Clear</button>
+  </div>
 </Part>
