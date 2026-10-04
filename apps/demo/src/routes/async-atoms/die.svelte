@@ -4,7 +4,7 @@
 
   class DieDropped extends Data.TaggedError("DieDropped") {}
 
-  // Ticked by the checkbox below.
+  // Turned on by the toggle below.
   const failAtom = Atom.make(false);
 
   // The atom runs the Effect when first read, and again whenever failAtom changes,
@@ -35,9 +35,11 @@
 
 <p>
   <button onclick={roll}>Roll again</button>
-  <label><input bind:checked={fail.current} type="checkbox" /> Drop the die</label>
+  <button aria-pressed={fail.current} onclick={() => (fail.current = !fail.current)}>
+    Drop the die
+  </button>
 </p>
-<div class="flex flex-wrap items-center gap-4">
+<div class="flex flex-wrap items-baseline gap-4">
   {#if die.current._tag === "Success"}
     <ResultChip busy={die.current.waiting} label="dieAtom" tone="success">
       <span data-testid="die">{die.current.value}</span>

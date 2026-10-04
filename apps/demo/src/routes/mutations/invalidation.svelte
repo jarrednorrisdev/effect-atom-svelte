@@ -77,7 +77,12 @@
 
 <div class="mt-4 grid gap-3" data-testid="invalidation">
   <div class="flex flex-col gap-2 sm:flex-row">
-    <Part data-testid="part-create" label="createAtom" tone={live(creating.current)}>
+    <Part
+      code
+      data-testid="part-create"
+      label="createAtom"
+      tone={live(creating.current)}
+    >
       <code>createTodo</code>
     </Part>
     <ArrowRightIcon
@@ -85,6 +90,7 @@
       class="rotate-90 self-center text-muted-foreground sm:rotate-0"
     />
     <Part
+      code
       count={invalidations}
       countLabel="invalidated"
       data-testid="part-key"
@@ -98,6 +104,7 @@
       class="rotate-90 self-center text-muted-foreground sm:rotate-0"
     />
     <Part
+      code
       count={count}
       countLabel="todos"
       data-testid="part-list"
@@ -108,6 +115,7 @@
     </Part>
   </div>
   <EventLog
+    code
     data-testid="invalidation-log"
     empty="Add a todo to see the request travel."
     entries={log.entries}

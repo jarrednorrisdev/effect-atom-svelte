@@ -2,7 +2,7 @@
   @component
   A labeled box in a diagram, as in Effect's Module of the Week posts: an uppercase caption
   (REGISTRY, SERVER, BOUNDARY A), the part's contents, and optionally a counter in the corner that
-  flashes and ticks when it changes (a reference count going 0, 1, 2, 1, 0). Its border takes the
+  flashes when it changes (a reference count going 0, 1, 2, 1, 0). Its border takes the
   tone, and a `dashed` part reads as absent or released. With Motion, its ring breathes while
   running and the part bounces when it settles into another state.
 
@@ -106,6 +106,9 @@
     background: var(--background);
     border: 1.5px solid color-mix(in oklab, var(--mark) 60%, transparent);
     border-radius: var(--radius-lg);
+    /* A column, so a part stretched to its row's height puts the spare room in its body. */
+    display: flex;
+    flex-direction: column;
     min-width: 8rem;
     padding: 0.6rem 0.8rem;
     transition:
@@ -161,6 +164,9 @@
     font-weight: 700;
   }
   .body {
+    /* Parts in a row share the tallest one's height; a shorter body sits in the middle. */
+    align-content: center;
+    flex: 1;
     font-size: 0.875rem;
     margin-top: 0.4rem;
   }

@@ -30,13 +30,13 @@
   let showReader = $state(false);
 </script>
 
-<p class="flex flex-wrap gap-x-4">
-  <label class="whitespace-nowrap">
-    <input bind:checked={showPanel} type="checkbox" /> Show &lt;ChatPanel&gt;
-  </label>
-  <label class="whitespace-nowrap">
-    <input bind:checked={showReader} type="checkbox" /> Show a &lt;Reader&gt;
-  </label>
+<p>
+  <button aria-pressed={showPanel} onclick={() => (showPanel = !showPanel)}>
+    Show &lt;ChatPanel&gt;
+  </button>
+  <button aria-pressed={showReader} onclick={() => (showReader = !showReader)}>
+    Show a &lt;Reader&gt;
+  </button>
 </p>
 <Holders
   atom={socketAtom}
@@ -52,5 +52,6 @@
   data-testid="mount-log"
   empty="Nothing yet. Show the panel or a reader."
   events={events.current}
+  code
   label="socketAtom"
 />

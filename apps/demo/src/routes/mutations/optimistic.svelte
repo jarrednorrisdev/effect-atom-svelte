@@ -11,10 +11,10 @@
     reactivityKeys: ["todos"],
   });
 
-  // Ticked by "Make the next save fail"; the next save unticks it.
+  // Turned on by "Make the next save fail"; the next save turns it off.
   const failNextAtom = Atom.make(false);
 
-  // Toggles a todo over RPC. When failNextAtom is ticked, it fails after a second
+  // Toggles a todo over RPC. When failNextAtom is on, it fails after a second
   // instead, as a dropped connection would, and the server never hears of it.
   const toggleAtom = TodosRpc.runtime.fn(
     (id: number, get) =>
@@ -64,9 +64,12 @@
 </script>
 
 <p class="flex flex-wrap items-center gap-3">
-  <label>
-    <input bind:checked={failNext.current} type="checkbox" /> Make the next save fail
-  </label>
+  <button
+    aria-pressed={failNext.current}
+    onclick={() => (failNext.current = !failNext.current)}
+  >
+    Make the next save fail
+  </button>
   <StateBadge data-testid="optimistic-state" result={saving.current} />
 </p>
 {#if todos.current._tag === "Success"}

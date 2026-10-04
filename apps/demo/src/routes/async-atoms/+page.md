@@ -23,7 +23,7 @@ Most state worth keeping comes from somewhere slow: a server, a database, a file
 
 If you haven't used Effect before, [Effect basics](/effect-basics) covers what this page and the ones after it need.
 
-<Example files={[{ html: source, name: "die.svelte" }]} hint="Click Roll again: the old roll stays on screen, waiting, until the new one arrives. Then tick Drop the die."> <Die /> </Example>
+<Example files={[{ html: source, name: "die.svelte" }]} hint="Click Roll again: the old roll stays on screen, waiting, until the new one arrives. Then turn on Drop the die."> <Die /> </Example>
 
 ## Creating an async atom
 
@@ -48,7 +48,7 @@ To read other atoms first, pass a function that receives `get` and returns the e
 const todoAtom = Atom.make((get) => fetchTodo(get(selectedIdAtom)));
 ```
 
-The live example reads the **Drop the die** checkbox this way. Tick it, and the atom runs its effect again, which now fails.
+The live example reads the **Drop the die** toggle this way. Turn it on, and the atom runs its effect again, which now fails.
 
 ## AsyncResult
 
@@ -127,7 +127,7 @@ const count = $derived(AsyncResult.getOrElse(todos.current, () => []).length);
 
 The live example reads one atom both ways. While the sensor is offline, `match` says so, and `getOrElse` still shows the last reading.
 
-<Example files={[{ html: sensorSource, name: "sensor.svelte" }]} hint="Wait for a reading, then tick Offline: match reports the failure, while getOrElse keeps the last temperature. Click Read again while offline: it still does."> <Sensor /> </Example>
+<Example files={[{ html: sensorSource, name: "sensor.svelte" }]} hint="Wait for a reading, then turn on Offline: match reports the failure, while getOrElse keeps the last temperature. Click Read again while offline: it still does."> <Sensor /> </Example>
 
 [Streams](/streams) uses it to show `starting` until a stream's first item arrives. Other functions in the module:
 

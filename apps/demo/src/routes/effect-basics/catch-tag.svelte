@@ -57,20 +57,20 @@
     });
 </script>
 
-<fieldset class="flex flex-wrap gap-3">
-  <legend class="sr-only">Todo</legend>
+<div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
   {#each [1, 2, 3] as todoId (todoId)}
-    <label>
-      <input bind:group={id.current} name="todo" type="radio" value={todoId} />
+    <button aria-pressed={id.current === todoId} onclick={() => (id.current = todoId)}>
       Todo {todoId}
-    </label>
+    </button>
   {/each}
-</fieldset>
+</div>
 <p>
-  <label>
-    <input bind:checked={recover.current} type="checkbox" />
+  <button
+    aria-pressed={recover.current}
+    onclick={() => (recover.current = !recover.current)}
+  >
     <code>Effect.catchTag("NotFound", …)</code>
-  </label>
+  </button>
 </p>
 <p class="text-sm">
   Error type:

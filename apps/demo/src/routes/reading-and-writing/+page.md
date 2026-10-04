@@ -121,7 +121,7 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 </script>
 ```
 
-<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then tick Follow savedAtom and type again: the same hook now writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then turn on Follow savedAtom and type again: the same hook now writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
 Passing `showSaved ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 

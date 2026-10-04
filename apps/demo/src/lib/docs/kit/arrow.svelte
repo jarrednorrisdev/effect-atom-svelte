@@ -66,6 +66,8 @@
   .arrow {
     --flash: 0;
     align-items: center;
+    /* Centered between parts that stretch to the row's height. */
+    align-self: center;
     /* --flash (0 to 1, animated) turns the arrow from muted to the accent. */
     color: color-mix(
       in oklab,

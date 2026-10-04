@@ -20,6 +20,8 @@
   import { enter } from "./motion.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
+    /** Shows the label as code, in its own case (`socketAtom`), as `Part` does. */
+    readonly code?: boolean;
     /** Shown while there are no entries. */
     readonly empty?: string;
     readonly entries: readonly LogEntry[];
@@ -29,14 +31,21 @@
     readonly max?: number;
   }
 
-  const { empty = "Nothing yet.", entries, label, max = 6, ...rest }: Props = $props();
+  const {
+    code = false,
+    empty = "Nothing yet.",
+    entries,
+    label,
+    max = 6,
+    ...rest
+  }: Props = $props();
 
   const shown = $derived(entries.slice(-max));
   const id = $props.id();
 </script>
 
 <div class="log not-prose" {...rest}>
-  <p class="caption" id="{id}-label">{label}</p>
+  <p class={["caption", code && "code"]} id="{id}-label">{label}</p>
   {#if shown.length === 0}
     <p class="empty">{empty}</p>
   {:else}
@@ -68,6 +77,11 @@
     letter-spacing: 0.06em;
     margin: 0 0 0.4rem;
     text-transform: uppercase;
+  }
+  .caption.code {
+    font-family: var(--font-mono);
+    letter-spacing: normal;
+    text-transform: none;
   }
   .empty {
     color: var(--muted-foreground);

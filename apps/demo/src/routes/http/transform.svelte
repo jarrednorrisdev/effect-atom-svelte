@@ -67,7 +67,7 @@
   <button data-cue="start" onclick={() => getTodo(1)}>Get todo 1</button>
   <button data-cue="start" onclick={() => getTodo(99)}>Get todo 99</button>
 </p>
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-baseline gap-3">
   {#if todo.current._tag === "Success"}
     <ResultChip kind="message" label="getTodoAtom" tone="success">
       <span data-testid="signed-todo">{todo.current.value.title}</span>

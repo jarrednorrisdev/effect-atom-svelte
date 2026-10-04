@@ -50,7 +50,7 @@
     runLabel="Send request"
   />
 </p>
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-baseline gap-3">
   {#if request.current._tag === "Success"}
     <ResultChip kind="message" label="requestAtom" tone="success">
       <span data-testid="request">{request.current.value}</span>

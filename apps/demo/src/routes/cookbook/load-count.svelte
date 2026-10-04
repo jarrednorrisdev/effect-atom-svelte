@@ -11,7 +11,7 @@
   const todos = useAtomValue(todosAtom);
 </script>
 
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap gap-3">
   <Part code label="load">
     <output data-testid="load-count">{loaded ?? "?"}</output> todos
   </Part>

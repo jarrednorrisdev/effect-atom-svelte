@@ -23,7 +23,7 @@ Import each file directly (`#lib/docs/kit/state-badge.svelte`); there is no inde
 | File | Use it for | Don't use it for |
 | --- | --- | --- |
 | `hint.svelte` | The "what to try" line. Usually Example's `hint` prop: `<Example hint="Click Refresh, then watch both values." …>`. One or two sentences: what to click, what to watch. | Explaining the concept; that's the page's prose. |
-| `flash-value.svelte` | A value that changes: `<FlashValue value={count.current} />`. Flashes the accent and ticks up or down, in every place that shows it. Renders an `<output>`. | Values that change on their own many times a second (it would flash constantly). |
+| `flash-value.svelte` | A value that changes: `<FlashValue value={count.current} />`. Flashes the accent in every place that shows it (color only, no movement). Renders an `<output>`. | Values that change on their own many times a second (it would flash constantly). |
 | `state-badge.svelte` | An `AsyncResult`'s state: `<StateBadge result={todo.current} />`. Text is exactly `Initial`, `Success, waiting`, `Failure`, … Plays `success` / `failure` when a run ends. | Sync atoms. |
 | `result-chip.svelte` | One result as a colored tile with a caption: `<ResultChip tone="success" busy={r.waiting} label="dieAtom">`. `kind="message"` for a sentence. Keep the example's own `{#if r._tag === …}` and put a chip in each branch. | Lists or long content. |
 | `result-history.svelte` | The states an `AsyncResult` has been through, timed: `<ResultHistory result={die.current} />`. No logging code in the example. | Results whose sequence doesn't matter to the section. |
@@ -54,7 +54,7 @@ The kit animates with [Motion](https://motion.dev/) (`animate`, springs, `stagge
 - `shake(element)` and `jitter(element)`: Visual Effect's failure shake and its running jitter (the latter returns a stop function to use as an attachment's cleanup).
 - `reducedMotion()`: check it before moving, scaling or rotating anything. Under `prefers-reduced-motion` nothing moves; color changes (flashes, tints) stay.
 
-What moves: `FlashValue` flashes and ticks like an odometer; `ResultChip` jitters while busy, then flashes and pops when a result arrives, and shakes on failure; `StateBadge` bounces and pops its icon on a change of state; `EventLog` entries slide in and `Timeline` dots drop in, staggered; `Part` counters tick, a running part's ring breathes and a part bounces when it settles; `Slots` pop when filled and flash when emptied; `PlayControls` beats its Play icon while playing and spins Restart; `RunControls` pops as Run turns into Interrupt and spins Reset. Spinners and the busy shine stay CSS.
+What moves: `FlashValue` only flashes its color; `ResultChip` jitters while busy, then flashes and pops when a result arrives, and shakes on failure; `StateBadge` bounces and pops its icon on a change of state; `EventLog` entries slide in and `Timeline` dots drop in, staggered; `Part` counters flash, a running part's ring breathes and a part bounces when it settles; `Slots` pop when filled and flash when emptied; `PlayControls` beats its Play icon while playing and spins Restart; `RunControls` pops as Run turns into Interrupt and spins Reset. Spinners and the busy shine stay CSS.
 
 To animate a new component:
 

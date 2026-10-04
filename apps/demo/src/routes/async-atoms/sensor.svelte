@@ -4,7 +4,7 @@
 
   class Offline extends Data.TaggedError("Offline") {}
 
-  // Ticked by the checkbox below.
+  // Turned on by the toggle below.
   const offlineAtom = Atom.make(false);
 
   // A sensor reading that takes a moment, and fails while the sensor is offline.
@@ -49,7 +49,12 @@
 
 <p class="flex flex-wrap items-center gap-3">
   <button onclick={refresh}>Read again</button>
-  <label><input bind:checked={offline.current} type="checkbox" /> Offline</label>
+  <button
+    aria-pressed={offline.current}
+    onclick={() => (offline.current = !offline.current)}
+  >
+    Offline
+  </button>
   <StateBadge data-testid="sensor-state" result={reading.current} />
 </p>
 <div class="grid gap-3 sm:grid-cols-2">

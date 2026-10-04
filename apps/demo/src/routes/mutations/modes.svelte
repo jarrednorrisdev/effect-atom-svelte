@@ -4,7 +4,7 @@
 
   class DiskFull extends Data.TaggedError("DiskFull") {}
 
-  // Ticked by the "Fail the save" checkbox.
+  // Turned on by the "Fail the save" toggle.
   const failAtom = Atom.make(false);
 
   // Saves draft number n after a second and a half, or fails with DiskFull.
@@ -79,7 +79,9 @@
     onclick={() => saveValue(Atom.Interrupt)}>Cancel</button
   >
   <button data-cue="reset" onclick={() => saveValue(Atom.Reset)}>Reset</button>
-  <label><input bind:checked={fail.current} type="checkbox" /> Fail the save</label>
+  <button aria-pressed={fail.current} onclick={() => (fail.current = !fail.current)}>
+    Fail the save
+  </button>
   <StateBadge data-testid="modes-state" result={save.current} />
 </p>
 <EventLog

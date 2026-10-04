@@ -57,7 +57,7 @@
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part label="query listTodos">
+  <Part code label="query listTodos">
     <StateBadge data-testid="rpc-todos-state" result={todos.current} sound={false} />
     {#if todos.current._tag === "Success"}
       <ul
@@ -84,9 +84,14 @@
     {/if}
   </Part>
 
-  <Part label="mutation createTodo">
-    <form onsubmit={submit}>
-      <input bind:value={draft} data-testid="rpc-draft" placeholder="New todo" />
+  <Part code label="mutation createTodo">
+    <form class="flex" onsubmit={submit}>
+      <input
+        bind:value={draft}
+        class="min-w-0 flex-1"
+        data-testid="rpc-draft"
+        placeholder="New todo"
+      />
       <button data-testid="rpc-add" disabled={creating.current.waiting}>Add</button>
     </form>
     <p><StateBadge data-testid="rpc-add-state" result={creating.current} /></p>

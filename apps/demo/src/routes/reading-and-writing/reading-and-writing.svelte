@@ -20,11 +20,13 @@
   const name = useAtom(nameAtom);
 </script>
 
-<div class="flex flex-wrap items-start gap-3">
+<div class="grid gap-3 sm:grid-cols-2">
   <Part code label="useAtom">
-    <button onclick={() => (count.current -= 1)}>−</button>
-    <FlashValue data-testid="count" value={count.current} />
-    <button onclick={() => (count.current += 1)}>+</button>
+    <span class="button-group">
+      <button onclick={() => (count.current -= 1)}>−</button>
+      <FlashValue data-testid="count" value={count.current} />
+      <button onclick={() => (count.current += 1)}>+</button>
+    </span>
   </Part>
   <Part code label="useAtomSet">
     <button onclick={() => setCount((n) => n * 10)}>×10 with an updater</button>

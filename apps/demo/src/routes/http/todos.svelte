@@ -56,7 +56,7 @@
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part label="query todos.list">
+  <Part code label="query todos.list">
     <select bind:value={filter} data-testid="http-filter">
       <option value="all">All</option>
       <option value="false">Open</option>
@@ -72,9 +72,14 @@
     </ul>
   </Part>
 
-  <Part label="mutation todos.create">
-    <form onsubmit={submit}>
-      <input bind:value={draft} data-testid="http-draft" placeholder="New todo" />
+  <Part code label="mutation todos.create">
+    <form class="flex" onsubmit={submit}>
+      <input
+        bind:value={draft}
+        class="min-w-0 flex-1"
+        data-testid="http-draft"
+        placeholder="New todo"
+      />
       <button data-testid="http-add" disabled={creating.current.waiting}>Add</button>
     </form>
     <code>POST /api/todos</code>

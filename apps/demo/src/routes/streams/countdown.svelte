@@ -38,16 +38,16 @@
   const restart = useAtomRefresh(() => countdownAtom(ending));
 </script>
 
-<fieldset class="flex flex-wrap items-center gap-3">
-  <legend class="sr-only">How the stream finishes</legend>
-  {#each [...endings.keys()] as name (name)}
-    <label>
-      <input bind:group={ending} name="ending" type="radio" value={name} />
-      {name}
-    </label>
-  {/each}
+<p class="flex flex-wrap items-center gap-4">
+  <span aria-label="How the stream finishes" class="flex flex-wrap gap-2" role="group">
+    {#each [...endings.keys()] as name (name)}
+      <button aria-pressed={ending === name} onclick={() => (ending = name)}>
+        {name}
+      </button>
+    {/each}
+  </span>
   <button data-cue="start" onclick={restart}>Restart</button>
-</fieldset>
+</p>
 <p class="flex flex-wrap items-center gap-3">
   Latest item:
   <!-- A failure keeps the last item, so getOrElse still shows it. -->

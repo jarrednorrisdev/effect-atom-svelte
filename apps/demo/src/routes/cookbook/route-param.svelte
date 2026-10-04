@@ -25,7 +25,7 @@
     </button>
   {/each}
 </div>
-<div class="mt-4 flex flex-wrap items-center gap-3">
+<div class="mt-4 flex flex-wrap gap-3">
   <Part code label="params">
     <code data-testid="route-params">{`{ id: "${id}" }`}</code>
   </Part>

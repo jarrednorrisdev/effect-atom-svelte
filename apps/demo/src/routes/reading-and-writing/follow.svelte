@@ -20,9 +20,9 @@
 </script>
 
 <p>
-  <label class="whitespace-nowrap">
-    <input bind:checked={showSaved} type="checkbox" /> Follow savedAtom
-  </label>
+  <button aria-pressed={showSaved} onclick={() => (showSaved = !showSaved)}>
+    Follow savedAtom
+  </button>
   <input
     aria-label="Followed text"
     bind:value={text.current}

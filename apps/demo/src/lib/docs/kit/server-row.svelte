@@ -45,7 +45,7 @@
     border-bottom: 1px solid var(--border);
     display: grid;
     gap: 0.5rem 1rem;
-    grid-template-columns: 11rem 1fr;
+    grid-template-columns: 13rem 1fr;
     padding: 0.5rem 0;
   }
   .read {

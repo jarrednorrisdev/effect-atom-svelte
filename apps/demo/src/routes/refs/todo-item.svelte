@@ -20,7 +20,7 @@
 </script>
 
 <li class="flex flex-wrap items-center gap-2">
-  <label class="whitespace-nowrap">
+  <label class="min-w-32 whitespace-nowrap">
     <input
       checked={done.current}
       onchange={(event) => item.prop("done").set(event.currentTarget.checked)}

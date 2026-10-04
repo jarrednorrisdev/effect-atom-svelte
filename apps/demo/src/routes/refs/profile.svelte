@@ -32,15 +32,18 @@
   />
   <button onclick={() => profile.set({ ...profile.value })}>Set an equal copy</button>
 </p>
-<div class="flex flex-wrap items-center gap-3">
-  <Part code label='profile.prop("name")'>
+<!-- profile on top; the name ref and badge both come from it. -->
+<div class="grid w-fit grid-cols-2 gap-x-3 gap-y-1">
+  <div class="col-span-2 grid">
+    <Part code count={notified} countLabel="notifications" label="profile">
+      <FlashValue data-testid="ref-profile" value={JSON.stringify(whole.current)} />
+    </Part>
+  </div>
+  <Arrow both direction="down" label="prop" pulse={name.current} />
+  <Arrow direction="down" label="map" pulse={label.current} />
+  <Part code label="nameRef">
     <FlashValue data-testid="ref-name" value={name.current} />
   </Part>
-  <Arrow both label="prop" pulse={name.current} />
-  <Part code count={notified} countLabel="notifications" label="profile">
-    <FlashValue data-testid="ref-profile" value={JSON.stringify(whole.current)} />
-  </Part>
-  <Arrow label="map" pulse={label.current} />
   <Part code label="badge">
     <FlashValue data-testid="ref-badge" value={label.current} />
   </Part>

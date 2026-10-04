@@ -29,7 +29,7 @@
   </button>
   <button data-cue="reset" onclick={restart}>Start over</button>
 </p>
-<div class="flex flex-wrap items-center gap-4">
+<div class="flex flex-wrap items-baseline gap-4">
   {#if ticks.current._tag === "Success"}
     {@const { done, items } = ticks.current.value}
     <ResultChip busy={ticks.current.waiting} label="ticksAtom" tone="success">

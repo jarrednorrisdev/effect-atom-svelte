@@ -24,7 +24,7 @@
   };
 </script>
 
-<Part data-testid="request-{id}" label="Request {id}" tone="success">
+<Part code data-testid="request-{id}" label="Request {id}" tone="success">
   <p class="m-0">
     cartAtom: <FlashValue aria-label="Request {id} cart" value={cart.current} />
   </p>

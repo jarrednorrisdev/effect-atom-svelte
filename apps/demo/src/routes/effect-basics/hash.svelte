@@ -55,7 +55,7 @@
     <option>MD5</option>
   </select>
 </p>
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap items-baseline gap-3">
   {#if hash.current._tag === "Success"}
     <ResultChip kind="message" label="hashAtom" tone="success">
       <output data-testid="hash" style:word-break="break-all">

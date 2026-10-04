@@ -31,7 +31,7 @@
   const toggle = useAtomSet(toggleAtom);
 </script>
 
-<div class="flex flex-wrap items-center gap-4">
+<div class="flex flex-wrap items-baseline gap-4">
   {#if firstOpen.current._tag === "Success"}
     {@const todo = firstOpen.current.value}
     <ResultChip

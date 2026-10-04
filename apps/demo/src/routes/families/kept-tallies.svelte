@@ -43,7 +43,7 @@
 <div class="grid gap-3 sm:grid-cols-3">
   {#each rows as { family, name, tally } (name)}
     <Part code label={name}>
-      <p>
+      <p class="button-group">
         <button aria-label="{name}: add one" onclick={() => (tally.current += 1)}>
           Add one
         </button>

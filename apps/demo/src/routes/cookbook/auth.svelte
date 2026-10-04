@@ -41,22 +41,18 @@
 </script>
 
 <p class="flex flex-wrap items-center gap-2">
-  <label>
-    <input
-      checked={session.token !== ""}
-      onchange={(event) => {
-        session.token = event.currentTarget.checked ? DEMO_TOKEN : "";
-      }}
-      type="checkbox"
-    />
+  <button
+    aria-pressed={session.token !== ""}
+    onclick={() => (session.token = session.token ? "" : DEMO_TOKEN)}
+  >
     Signed in
-  </label>
+  </button>
   <button disabled={me.current.waiting} onclick={() => sendMe({})}>
     GET /api/me
   </button>
   <StateBadge data-testid="auth-state" result={me.current} />
 </p>
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap gap-3">
   <Part code label="transformClient" tone={session.token ? "success" : "idle"}>
     <code data-testid="auth-header">
       {session.token ? `Authorization: Bearer ${session.token}` : "No header"}

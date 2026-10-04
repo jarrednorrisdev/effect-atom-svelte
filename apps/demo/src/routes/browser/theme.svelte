@@ -19,7 +19,14 @@
   const theme = useAtom(themeAtom);
 </script>
 
-<div class="themed" data-testid="themed" data-theme={theme.current}>
+<div
+  class={[
+    "rounded-md p-3",
+    theme.current === "dark" ? "bg-zinc-900 text-zinc-50" : "bg-zinc-50 text-zinc-900",
+  ]}
+  data-testid="themed"
+  data-theme={theme.current}
+>
   <select aria-label="Theme" bind:value={theme.current} data-testid="theme">
     <option value="light">Light</option>
     <option value="dark">Dark</option>
@@ -28,17 +35,3 @@
   <p>The {theme.current} theme, read from the pref-theme cookie.</p>
 </div>
 
-<style>
-  .themed {
-    border-radius: 0.375rem;
-    padding: 0.75rem;
-  }
-  .themed[data-theme="light"] {
-    background: #fafafa;
-    color: #18181b;
-  }
-  .themed[data-theme="dark"] {
-    background: #18181b;
-    color: #fafafa;
-  }
-</style>

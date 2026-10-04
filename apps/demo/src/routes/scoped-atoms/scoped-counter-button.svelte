@@ -9,7 +9,7 @@
   const count = useAtom(Counter.use());
 </script>
 
-<span class="inline-flex items-center gap-1">
+<span class="button-group">
   <FlashValue aria-label="{label} count" value={count.current} />
   <button aria-label="{label}: add one" onclick={() => (count.current += 1)}>+1</button>
 </span>

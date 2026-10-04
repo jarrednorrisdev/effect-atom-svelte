@@ -55,7 +55,7 @@
     Paste a long title
   </button>
 </form>
-<div class="mt-3 flex flex-wrap items-center gap-3">
+<div class="mt-3 flex flex-wrap items-baseline gap-3">
   {#if result.current._tag === "Success"}
     {@const todo = result.current.value}
     <ResultChip kind="message" label="createAndReadAtom" tone="success">

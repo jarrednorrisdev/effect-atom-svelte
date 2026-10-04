@@ -31,7 +31,7 @@
 </script>
 
 <div class="grid gap-4 sm:grid-cols-2">
-  <Part label="Default">
+  <Part code label="default">
     <button aria-label="Refresh default" onclick={refreshPlain}>Refresh</button>
     <svelte:boundary>
       <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -53,7 +53,7 @@
     <Trace atom={plainAtom} name="plainAtom" read={() => plain.current} />
   </Part>
 
-  <Part label="suspendOnWaiting: true">
+  <Part code label="suspendOnWaiting: true">
     <button aria-label="Refresh suspendOnWaiting" onclick={refreshHeld}>
       Refresh
     </button>

@@ -103,7 +103,7 @@
   <p class="kind">{kind}</p>
   <p class="status" data-testid="cache-{name}-status">{status}</p>
   {#if held && !read && ttl !== undefined}
-    <div class="bar" style:--idle={Math.min(1, idleMs / ttl)}></div>
+    <div class="bar" style:--ttl="{ttl}ms"></div>
   {/if}
 </Part>
 
@@ -116,6 +116,8 @@
   }
   .status {
     font-size: 0.8125rem;
+    /* Digits of one width, so the ticking seconds don't resize the box. */
+    font-variant-numeric: tabular-nums;
     margin: 0.25rem 0 0;
   }
   .bar {
@@ -128,17 +130,21 @@
   }
   /* Fills as the unread time runs towards the TTL. */
   .bar::after {
+    /* One CSS animation over the whole TTL, started when the bar appears, so it fills smoothly
+       instead of stepping with the 100 ms timer behind the status text. */
+    animation: idle-fill var(--ttl) linear forwards;
     background: var(--tone-running);
     content: "";
     inset: 0;
     position: absolute;
-    transform: scaleX(var(--idle));
     transform-origin: left;
-    transition: transform 100ms linear;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .bar::after {
-      transition: none;
+  @keyframes idle-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
     }
   }
 </style>

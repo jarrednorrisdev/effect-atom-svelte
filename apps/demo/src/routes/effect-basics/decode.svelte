@@ -52,7 +52,7 @@
   data-testid="decode-input"
   rows="2"
 ></textarea>
-<div class="mt-2 flex flex-wrap items-center gap-3">
+<div class="mt-2 flex flex-wrap items-baseline gap-3">
   {#if todo.current._tag === "Success"}
     {@const { done, id, title } = todo.current.value}
     <ResultChip kind="message" label="Todo" tone="success">

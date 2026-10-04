@@ -112,7 +112,7 @@
     <StateBadge data-testid="{name}-state" {result} />
   </p>
   <Timeline entries={log.entries} lanes={["atom", "await"]} {now} />
-  <EventLog entries={log.entries} label="{name} since the last refresh" max={5} />
+  <EventLog code entries={log.entries} label="{name} since the last refresh" max={5} />
 </div>
 
 <style>

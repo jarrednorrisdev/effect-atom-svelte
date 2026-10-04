@@ -30,7 +30,7 @@
   const feel = useAtomValue(feelAtom);
 </script>
 
-<div class="flex flex-wrap items-center gap-3">
+<div class="flex flex-wrap gap-3">
   <Part code label="fahrenheitAtom">
     <label>
       °F

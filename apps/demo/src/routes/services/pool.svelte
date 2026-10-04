@@ -18,15 +18,12 @@
     });
 
   // A service that is costly to build, such as a database connection pool.
-  class Pool extends Context.Service<Pool, { readonly id: number }>()("demo/Pool") {
-    // The layer releases the pool when its scope closes.
-    static readonly layer = Layer.effect(
-      Pool,
-      Effect.acquireRelease(openPool, closePool)
-    );
-  }
+  class Pool extends Context.Service<Pool, { readonly id: number }>()("demo/Pool") {}
 
-  const runtime = Atom.runtime(Pool.layer);
+  // The layer releases the pool when its scope closes.
+  const PoolLayer = Layer.effect(Pool, Effect.acquireRelease(openPool, closePool));
+
+  const runtime = Atom.runtime(PoolLayer);
 
   // Two atoms from one runtime share its pool.
   const atoms = {
@@ -59,6 +56,7 @@
 </div>
 <div class="mt-3">
   <Part
+    code
     count={inUse}
     countLabel="atoms in use"
     label="runtime"

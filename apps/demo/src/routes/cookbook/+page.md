@@ -128,7 +128,7 @@ If the server speaks Effect RPC, a procedure declared with `stream: true` gives 
 
 To add a header to every request, give the client a `transformClient` function. It takes the `HttpClient` and returns one that changes each request before it is sent. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
 
-<Example files={[{ html: authSource, name: "auth.svelte" }]} hint="Send GET /api/me: without the header, the server answers 401. Tick Signed in and send it again: the same client now adds the header."> <Auth /> </Example>
+<Example files={[{ html: authSource, name: "auth.svelte" }]} hint="Send GET /api/me: without the header, the server answers 401. Turn on Signed in and send it again: the same client now adds the header."> <Auth /> </Example>
 
 `mapRequest` runs for each request, so the token is read every time and a new one is picked up without rebuilding the client. The example keeps the token in module state, which is safe only because nothing sets it on the server (see the caution below). `RpcClient.layerProtocolHttp` takes a `transformClient` option too, for an `AtomRpc` client.
 

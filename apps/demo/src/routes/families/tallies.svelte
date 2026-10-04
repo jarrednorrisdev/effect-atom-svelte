@@ -30,11 +30,13 @@
   <select aria-label="Fruit" bind:value={fruit} data-testid="fruit">
     {#each fruits as name (name)}<option value={name}>{name}</option>{/each}
   </select>
-  <button onclick={() => (tally.current += 1)}>Count one</button>
-  <FlashValue data-testid="tally" value={tally.current} />
-  <label class="whitespace-nowrap">
-    <input bind:checked={showTotals} type="checkbox" /> Show totals
-  </label>
+  <span class="button-group">
+    <button onclick={() => (tally.current += 1)}>Count one</button>
+    <FlashValue data-testid="tally" value={tally.current} />
+  </span>
+  <button aria-pressed={showTotals} onclick={() => (showTotals = !showTotals)}>
+    Show totals
+  </button>
 </p>
 <!-- While the totals are hidden, only the selected fruit's atom has a reader. -->
 {#if showTotals}

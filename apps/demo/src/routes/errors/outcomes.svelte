@@ -55,17 +55,23 @@
   );
 </script>
 
-<fieldset class="flex flex-wrap gap-x-4 gap-y-1" data-testid="outcome">
-  <legend class="sr-only">How the request ends</legend>
+<div
+  aria-label="How the request ends"
+  class="flex flex-wrap gap-2"
+  data-testid="outcome"
+  role="group"
+>
   {#each choices as [value, text] (value)}
-    <label class="inline-flex items-center gap-1.5">
-      <input bind:group={outcome.current} type="radio" {value} />
+    <button
+      aria-pressed={outcome.current === value}
+      onclick={() => (outcome.current = value)}
+    >
       {text}
-    </label>
+    </button>
   {/each}
-</fieldset>
+</div>
 
-<div class="mt-4 flex flex-wrap items-center gap-4">
+<div class="flex flex-wrap items-baseline gap-4">
   <ResultChip
     kind="message"
     label="todoAtom"

@@ -36,14 +36,13 @@
   const note = useAtomSuspense(() => noteAtom(id));
 </script>
 
-<fieldset class="flex flex-wrap gap-3">
-  <legend class="sr-only">Note</legend>
+<div aria-label="Note" class="flex flex-wrap gap-2" role="group">
   {#each [1, 2, 3] as noteId (noteId)}
-    <label>
-      <input bind:group={id} name="note" type="radio" value={noteId} /> Note {noteId}
-    </label>
+    <button aria-pressed={id === noteId} onclick={() => (id = noteId)}>
+      Note {noteId}
+    </button>
   {/each}
-</fieldset>
+</div>
 <svelte:boundary>
   <div class="mt-3 flex flex-wrap items-center gap-3">
     <ResultChip busy={$effect.pending() > 0} kind="message" tone="success">

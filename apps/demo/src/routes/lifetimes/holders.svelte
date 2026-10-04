@@ -100,19 +100,35 @@
   label={name}
   {tone}
 >
-  <p class="status" data-testid="lifetimes-{name}-status">
-    {status}
-    {#if ttl !== undefined}<span class="ttl">idle TTL {ttl / 1000} s</span>{/if}
-  </p>
-  {#if idle && ttl !== undefined}
-    <div class="bar" style:--idle={Math.min(1, idleMs / ttl)}></div>
-  {/if}
-  {@render children()}
+  <!-- Top-aligned, with room kept for the TTL line and bar, so each atom's buttons line up with
+    its neighbours' as readers come and go. -->
+  <div class="holder">
+    <div class="state">
+      <p class="status" data-testid="lifetimes-{name}-status">
+        {status}
+        {#if ttl !== undefined}<span class="ttl">idle TTL {ttl / 1000} s</span>{/if}
+      </p>
+      {#if idle && ttl !== undefined}
+        <div class="bar" style:--ttl="{ttl}ms"></div>
+      {/if}
+    </div>
+    {@render children()}
+  </div>
 </Part>
 
 <style>
+  .holder {
+    height: 100%;
+  }
+  .state {
+    font-size: 0.75rem;
+    /* Two lines of status and the bar below them. */
+    min-height: calc(2lh + 0.55rem);
+  }
   .status {
     font-family: var(--font-mono);
+    /* Digits of one width, so the ticking seconds don't resize the box. */
+    font-variant-numeric: tabular-nums;
     font-size: 0.75rem;
     margin: 0;
   }
@@ -130,12 +146,21 @@
   }
   /* Fills as the idle time runs towards the TTL. */
   .bar::after {
+    /* One CSS animation over the whole TTL, started when the bar appears, so it fills smoothly
+       instead of stepping with the 100 ms timer behind the status text. */
+    animation: idle-fill var(--ttl) linear forwards;
     background: var(--tone-running);
     content: "";
     inset: 0;
     position: absolute;
-    transform: scaleX(var(--idle));
     transform-origin: left;
-    transition: transform 100ms linear;
+  }
+  @keyframes idle-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
   }
 </style>

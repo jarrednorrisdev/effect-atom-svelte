@@ -33,9 +33,9 @@
 </script>
 
 {#if page.current._tag === "Success"}
-  <ul class="fruit" data-testid="fruit">
+  <ul class="flex list-none flex-wrap gap-1.5 p-0" data-testid="fruit">
     {#each page.current.value.items as item (item)}
-      <li>{item}</li>
+      <li class="m-0"><output>{item}</output></li>
     {/each}
   </ul>
   <p class="flex flex-wrap items-center gap-3">
@@ -57,21 +57,3 @@
 <!-- Each pull adds a chunk: one page of three, or nothing once the stream ends. -->
 <ResultHistory format={describe} label="Pulls" result={page.current} />
 
-<style>
-  .fruit {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    list-style: none;
-    padding: 0;
-  }
-  .fruit li {
-    background: color-mix(in oklab, var(--tone-success) 12%, var(--background));
-    border: 1.5px solid color-mix(in oklab, var(--tone-success) 60%, transparent);
-    border-radius: var(--radius-md);
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    margin: 0;
-    padding: 0.15rem 0.6rem;
-  }
-</style>

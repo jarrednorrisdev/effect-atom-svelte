@@ -38,20 +38,29 @@
 </script>
 
 <!-- loadedAtom picks the runtime's layer, and dieAtom rolls with its Dice. -->
-<div class="diagram">
-  <Part label="loadedAtom">
-    <label><input bind:checked={loaded.current} type="checkbox" /> Loaded dice</label>
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+  <Part code label="loadedAtom">
+    <button
+      aria-pressed={loaded.current}
+      onclick={() => (loaded.current = !loaded.current)}
+    >
+      Loaded dice
+    </button>
   </Part>
-  <span aria-hidden="true" class="arrow">→</span>
-  <Part label="runtime" tone="success">
+  <span aria-hidden="true" class="rotate-90 self-center text-muted-foreground sm:rotate-0">
+    →
+  </span>
+  <Part code label="runtime" tone="success">
     layer
     <FlashValue
       data-testid="service-layer"
       value={loaded.current ? "Dice.loaded" : "Dice.fair"}
     />
   </Part>
-  <span aria-hidden="true" class="arrow">→</span>
-  <Part label="dieAtom" tone={die.current.waiting ? "running" : "success"}>
+  <span aria-hidden="true" class="rotate-90 self-center text-muted-foreground sm:rotate-0">
+    →
+  </span>
+  <Part code label="dieAtom" tone={die.current.waiting ? "running" : "success"}>
     {#if die.current._tag === "Success"}
       <ResultChip busy={die.current.waiting} data-testid="service-die" tone="success">
         {die.current.value}
@@ -66,25 +75,3 @@
   <StateBadge data-testid="service-state" result={die.current} />
 </p>
 
-<style>
-  .diagram {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .arrow {
-    color: var(--muted-foreground);
-  }
-  /* On a phone the parts stack, and the arrows point down. */
-  @media (width < 40rem) {
-    .diagram {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-    .arrow {
-      margin-left: 1.5rem;
-      transform: rotate(90deg);
-    }
-  }
-</style>

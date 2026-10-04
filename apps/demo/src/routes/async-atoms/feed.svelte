@@ -38,7 +38,7 @@
   const refresh = useAtomRefresh(feedAtom);
 </script>
 
-<p class="flex flex-wrap items-center gap-3">
+<p class="flex flex-wrap items-baseline gap-3">
   {#if feed.current._tag === "Success"}
     <ResultChip
       busy={feed.current.waiting}

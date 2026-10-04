@@ -83,7 +83,7 @@ Only success clears `title`, so after a failure the form still holds what the re
 
 The `mode` option decides what calling the setter gives back. Each button below calls the same slow mutation with a different mode, and the log shows what each call gave back:
 
-<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click each Save button. Then tick Fail the save and click them again, or click Cancel during a save."> <div data-testid="modes-example"><Modes /></div> </Example>
+<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click each Save button. Then turn on Fail the save and click them again, or click Cancel during a save."> <div data-testid="modes-example"><Modes /></div> </Example>
 
 | `mode` | The setter returns |
 | --- | --- |
@@ -153,7 +153,7 @@ The `reactivityKeys` option belongs to atoms made by a runtime, so create one wi
 
 A round trip to the server can make the page feel slow. An **optimistic update** shows the result you expect straight away, then replaces it with the real one when the mutation finishes, or rolls it back if the mutation fails.
 
-<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Tick a todo: it changes at once. Then tick Make the next save fail and tick a todo again: a second later it goes back."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
+<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Tick a todo: it changes at once. Then turn on Make the next save fail and tick a todo again: a second later it goes back."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
 
 `Atom.optimistic` wraps the atom to update, and `Atom.optimisticFn` wraps the mutation with a `reducer` that computes the provisional value from the current value and the mutation's argument. Read the optimistic atom instead of the original, and call the wrapped mutation instead of the original one.
 

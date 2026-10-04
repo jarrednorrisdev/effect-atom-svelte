@@ -107,7 +107,7 @@
   .arrow-label {
     font-family: var(--font-mono);
     font-size: 0.65rem;
-    max-width: 5.5rem;
+    max-width: 7.5rem;
     text-align: center;
   }
   @media (width < 40rem) {

@@ -195,6 +195,7 @@ import type { Tone } from './tone.ts';
     color: var(--muted-foreground);
     font-family: var(--font-mono);
     font-size: 0.75rem;
+    line-height: 1rem;
   }
   @keyframes shine {
     from {
