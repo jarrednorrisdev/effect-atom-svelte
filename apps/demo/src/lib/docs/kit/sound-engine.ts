@@ -63,6 +63,13 @@ export const createEngine = (context?: AudioContext): Engine => {
       release: 0.8,
       sustain: 0.1,
     }),
+    // A short square buzz, for a press that can't do anything.
+    blocked: synth("square", {
+      attack: 0.002,
+      decay: 0.06,
+      release: 0.03,
+      sustain: 0,
+    }),
     config: synth("triangle", {
       attack: 0.001,
       decay: 0.05,
@@ -146,6 +153,24 @@ export const createEngine = (context?: AudioContext): Engine => {
     switch (cue) {
       case "tap": {
         synths.config.triggerAttackRelease(nextNote(5), "16n", now, 0.6);
+        break;
+      }
+      case "up": {
+        // Two quick notes going up: more.
+        synths.config.triggerAttackRelease("E5", "32n", now, 0.5);
+        synths.config.triggerAttackRelease("A5", "32n", now + 0.05, 0.6);
+        break;
+      }
+      case "down": {
+        // The same two notes an octave lower, going down: less.
+        synths.config.triggerAttackRelease("A4", "32n", now, 0.6);
+        synths.config.triggerAttackRelease("E4", "32n", now + 0.05, 0.5);
+        break;
+      }
+      case "blocked": {
+        // A low double buzz: no.
+        synths.blocked.triggerAttackRelease("C3", "64n", now, 0.35);
+        synths.blocked.triggerAttackRelease("C3", "64n", now + 0.09, 0.35);
         break;
       }
       case "start": {

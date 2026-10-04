@@ -37,7 +37,9 @@
 </script>
 
 <p>
-  <button onclick={() => (count.current += 1)}>Add one to countAtom</button>
+  <button data-cue="up" onclick={() => (count.current += 1)}>
+    Add one to countAtom
+  </button>
   countAtom is <FlashValue data-testid="shared-count" value={count.current} />
 </p>
 <div class="flex flex-wrap gap-3">

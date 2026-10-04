@@ -23,6 +23,9 @@ import type { Engine } from "./sound-engine.ts";
  * The cues, by what happened:
  *
  * - `tap`: a control was pressed (Example plays it for every button and checkbox).
+ * - `up` and `down`: a control that increments or decrements was pressed: a rising or
+ *   falling pair of notes.
+ * - `blocked`: a control was pressed but its action can't happen, such as at a limit.
  * - `start`: something started running (a Run or Play control).
  * - `success`: something finished with a value. Successes close together form a chord.
  * - `failure`: something failed.
@@ -31,13 +34,16 @@ import type { Engine } from "./sound-engine.ts";
  * - `tick`: a small step, such as a stream item or a counter changing on its own.
  */
 export type Cue =
+  | "blocked"
+  | "down"
   | "failure"
   | "interrupt"
   | "reset"
   | "start"
   | "success"
   | "tap"
-  | "tick";
+  | "tick"
+  | "up";
 
 let engine: Engine | undefined;
 let loading: Promise<Engine> | undefined;

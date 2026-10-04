@@ -44,7 +44,7 @@
   {#each rows as { family, name, tally } (name)}
     <Part code label={name}>
       <p class="button-group">
-        <button aria-label="{name}: add one" onclick={() => (tally.current += 1)}>
+        <button aria-label="{name}: add one" data-cue="up" onclick={() => (tally.current += 1)}>
           Add one
         </button>
         <FlashValue data-testid="kept-{name}" value={tally.current} />

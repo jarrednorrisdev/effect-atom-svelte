@@ -35,7 +35,18 @@
     hint,
   }: { children?: Snippet; files: readonly ExampleFile[]; hint?: string } = $props();
 
-  const cues = new Set<string>(["failure", "interrupt", "reset", "start", "success", "tap", "tick"]);
+  const cues = new Set<string>([
+    "blocked",
+    "down",
+    "failure",
+    "interrupt",
+    "reset",
+    "start",
+    "success",
+    "tap",
+    "tick",
+    "up",
+  ]);
   const isCue = (value: string): value is Cue => cues.has(value);
 
   /** The cue a click on the event's target would play, if any. */

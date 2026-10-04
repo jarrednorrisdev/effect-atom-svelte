@@ -18,7 +18,8 @@
   const setCount = useAtomSet(countAtom);
   // An updater gets the current value. Past Number.MAX_SAFE_INTEGER, + and − would
   // stop changing the count, so it stays put there.
-  const timesTen = (n: number) => (Number.isSafeInteger(n * 10) ? n * 10 : n);
+  const fits = (n: number) => Number.isSafeInteger(n * 10);
+  const timesTen = (n: number) => (fits(n) ? n * 10 : n);
   // bind: assigns .current as you type.
   const name = useAtom(nameAtom);
 </script>
@@ -26,13 +27,18 @@
 <div class="grid gap-3 sm:grid-cols-2">
   <Part code label="useAtom">
     <span class="button-group">
-      <button onclick={() => (count.current -= 1)}>−</button>
+      <button data-cue="down" onclick={() => (count.current -= 1)}>−</button>
       <FlashValue data-testid="count" value={count.current} />
-      <button onclick={() => (count.current += 1)}>+</button>
+      <button data-cue="up" onclick={() => (count.current += 1)}>+</button>
     </span>
   </Part>
   <Part code label="useAtomSet">
-    <button onclick={() => setCount(timesTen)}>×10 with an updater</button>
+    <button
+      data-cue={fits(count.current) ? "up" : "blocked"}
+      onclick={() => setCount(timesTen)}
+    >
+      ×10 with an updater
+    </button>
   </Part>
   <Part code label="useAtomValue">
     The count is <FlashValue data-testid="parity" value={parity.current} />.

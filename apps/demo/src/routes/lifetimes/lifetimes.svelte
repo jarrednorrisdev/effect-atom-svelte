@@ -43,11 +43,15 @@
   {#each atoms as { atom, name } (name)}
     <Holders {atom} events={events.current} {name} readers={readers[name]}>
       <p>
-        <button aria-label="{name}: add a reader" onclick={() => (readers[name] += 1)}>
+        <button
+          aria-label="{name}: add a reader"
+          data-cue="up"
+          onclick={() => (readers[name] += 1)}>
           + Reader
         </button>
         <button
           aria-label="{name}: remove a reader"
+          data-cue="down"
           disabled={readers[name] === 0}
           onclick={() => (readers[name] -= 1)}
         >

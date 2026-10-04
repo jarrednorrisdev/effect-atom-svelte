@@ -31,7 +31,7 @@
 <div class="flex flex-wrap gap-3">
   <Part code label="countAtom">
     <span class="button-group">
-      <button onclick={() => (count.current += 1)}>Add one</button>
+      <button data-cue="up" onclick={() => (count.current += 1)}>Add one</button>
       <FlashValue data-testid="taste-count" value={count.current} />
     </span>
   </Part>

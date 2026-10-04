@@ -17,11 +17,17 @@
 
 <Part {label}>
   <span class="button-group">
-    <button aria-label="{label}: decrement" onclick={() => (count.current -= 1)}>
+    <button
+      aria-label="{label}: decrement"
+      data-cue="down"
+      onclick={() => (count.current -= 1)}>
       −
     </button>
     <FlashValue value={count.current} />
-    <button aria-label="{label}: increment" onclick={() => (count.current += 1)}>
+    <button
+      aria-label="{label}: increment"
+      data-cue="up"
+      onclick={() => (count.current += 1)}>
       +
     </button>
   </span>

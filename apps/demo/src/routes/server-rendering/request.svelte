@@ -29,7 +29,7 @@
     cartAtom: <FlashValue aria-label="Request {id} cart" value={cart.current} />
   </p>
   <p class="mt-2 mb-0">
-    <button onclick={add}>Add to cart</button>
+    <button data-cue="up" onclick={add}>Add to cart</button>
     <button data-cue="reset" onclick={onend}>End request</button>
   </p>
 </Part>
