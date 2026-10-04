@@ -218,6 +218,10 @@
   & :where(a):not(:where([class~="not-prose"] *)):hover {
     text-decoration: none;
   }
+  /* Links to other pages of these docs are underlined in the accent. */
+  & :where(a[href^="/"]):not(:where([class~="not-prose"] *)) {
+    text-decoration-color: var(--brand);
+  }
   & :where(code):not(:where([class~="not-prose"] *, pre *)) {
     background: var(--muted);
     border-radius: var(--radius-md);
@@ -352,6 +356,11 @@ html {
   html {
     scroll-padding-top: 4.5rem;
   }
+}
+
+/* The current page in the sidebar is named in the accent. */
+[data-slot="sidebar"] a[aria-current="page"] {
+  color: var(--brand-text);
 }
 
 /*
