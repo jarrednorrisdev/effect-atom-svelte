@@ -1,57 +1,45 @@
-<script module lang="ts">
-  import { Atom } from "effect/reactivity";
-
-  const logAtom = Atom.make<readonly { atom: string; event: string }[]>([]);
-
-  // Stands in for a connection: opened when computed, closed when disposed.
-  const socketAtom = Atom.make((get) => {
-    const log = (event: string) =>
-      get.registry.update(logAtom, (events) => [
-        ...events,
-        { atom: "socketAtom", event },
-      ]);
-    log("computed");
-    get.addFinalizer(() => log("disposed"));
-    return "connected";
-  });
-</script>
-
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+  import Part from "#lib/docs/kit/part.svelte";
 
-  import ChatPanel from "./chat-panel.svelte";
-  import Holders from "./holders.svelte";
-  import Reader from "./reader.svelte";
+  import ChatPage from "./chat-page.svelte";
+  import KeepSocket from "./keep-socket.svelte";
   import RegistryLog from "./registry-log.svelte";
+  import { logAtom } from "./socket.ts";
 
   const events = useAtomValue(logAtom);
 
-  let showPanel = $state(false);
-  let showReader = $state(false);
+  // A tiny app: a layout around two pages.
+  let page = $state<"inbox" | "chat">("inbox");
+  let holdInLayout = $state(false);
 </script>
 
-<p>
-  <button aria-pressed={showPanel} onclick={() => (showPanel = !showPanel)}>
-    Show &lt;ChatPanel&gt;
-  </button>
-  <button aria-pressed={showReader} onclick={() => (showReader = !showReader)}>
-    Show a &lt;Reader&gt;
-  </button>
-</p>
-<Holders
-  atom={socketAtom}
-  countLabel="holders"
-  events={events.current}
-  name="socketAtom"
-  readers={Number(showPanel) + Number(showReader)}
->
-  {#if showPanel}<ChatPanel socket={socketAtom} />{/if}
-  {#if showReader}<Reader atom={socketAtom} />{/if}
-</Holders>
+<Part code label="+layout.svelte">
+  <p>
+    <button aria-pressed={holdInLayout} onclick={() => (holdInLayout = !holdInLayout)}>
+      Hold socketAtom in the layout
+    </button>
+  </p>
+  <!-- The layout stays while the pages change, so whatever it holds stays too. -->
+  {#if holdInLayout}<KeepSocket />{/if}
+  <div aria-label="Page" class="flex gap-2" role="group">
+    <button aria-pressed={page === "inbox"} onclick={() => (page = "inbox")}>Inbox</button>
+    <button aria-pressed={page === "chat"} onclick={() => (page = "chat")}>Chat</button>
+  </div>
+  <div class="mt-3">
+    <Part code label="{page}/+page.svelte">
+      {#if page === "chat"}
+        <ChatPage />
+      {:else}
+        <p class="m-0">Nothing on this page uses the socket.</p>
+      {/if}
+    </Part>
+  </div>
+</Part>
 <RegistryLog
-  data-testid="mount-log"
-  empty="Nothing yet. Show the panel or a reader."
-  events={events.current}
   code
+  data-testid="mount-log"
+  empty="Nothing yet. Open the chat page."
+  events={events.current}
   label="socketAtom"
 />
