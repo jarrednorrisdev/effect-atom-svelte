@@ -222,6 +222,9 @@
   & :where(a[href^="/"]):not(:where([class~="not-prose"] *)) {
     text-decoration-color: var(--brand);
   }
+  & :where(a[href^="/"]):not(:where([class~="not-prose"] *)):hover {
+    color: var(--brand-text);
+  }
   & :where(code):not(:where([class~="not-prose"] *, pre *)) {
     background: var(--muted);
     border-radius: var(--radius-md);
