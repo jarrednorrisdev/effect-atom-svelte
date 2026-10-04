@@ -94,8 +94,22 @@ When `fruit` changes, `tally` reads and writes the new fruit's atom, and lets go
 
 If you pass `tallyAtom(fruit)` directly instead of a function, the hook reads the atom for `fruit`'s value at the time the component was created, and never moves.
 
-<Aside type="caution" title="Atoms you move away from can be reset">
+## Keeping a family's atoms
 
-Once nothing reads an atom, the registry disposes of its value. In the example above, every count stays because the list at the bottom reads all three. A component that reads only the selected atom would see the other counts start again from zero. To keep each value, wrap the atom in `Atom.keepAlive` inside the family, or give it an idle TTL. See [Lifetimes](/lifetimes).
+A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the example above, every count stays because the list at the bottom reads all three. A component that reads only the selected atom would see the other counts start again from zero.
+
+To keep each value, give the atom an idle TTL inside the family, or wrap it in `Atom.keepAlive`:
+
+**Example** (Counts that outlive their readers)
+
+```ts
+const tallyAtom = Atom.family((fruit: string) =>
+  Atom.make(0).pipe(Atom.setIdleTTL("5 minutes"))
+);
+```
+
+<Aside type="caution" title="keepAlive in a family">
+
+A family creates an atom per key. Combined with `keepAlive`, every key you have ever read stays in the registry. Prefer an idle TTL when the keys are unbounded, such as search terms or ids.
 
 </Aside>

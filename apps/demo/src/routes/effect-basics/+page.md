@@ -145,7 +145,7 @@ const countTodos = Effect.gen(function* () {
 const TodosLive = Layer.succeed(Todos, { count: Effect.succeed(3) });
 ```
 
-The effect can't run until something provides `Todos`. A **layer** builds services, and can depend on other layers. For atoms, `Atom.runtime(layer)` provides one: see [Using services](/async-atoms#using-services). `AtomRpc` and `AtomHttpApi` build their clients as services in the same way.
+The effect can't run until something provides `Todos`. A **layer** builds services, and can depend on other layers. For atoms, `Atom.runtime(layer)` provides one: see [Services and runtimes](/services). `AtomRpc` and `AtomHttpApi` build their clients as services in the same way.
 
 Read more in [Managing Services](https://effect.website/docs/v4/requirements-management/services) and [Managing Layers](https://effect.website/docs/v4/requirements-management/layers).
 

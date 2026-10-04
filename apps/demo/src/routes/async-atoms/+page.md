@@ -40,6 +40,8 @@ To read other atoms first, pass a function that receives `get` and returns the e
 const todoAtom = Atom.make((get) => fetchTodo(get(selectedIdAtom)));
 ```
 
+The live example reads the **Drop the die** checkbox this way. Tick it, and the atom runs its effect again, which now fails.
+
 ## AsyncResult
 
 An async atom's value is an `AsyncResult`, which is one of three states:
@@ -135,26 +137,41 @@ const roll = useAtomRefresh(dieAtom);
 
 While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also keeps the atom mounted for as long as the component lives, so a refresh is never lost because nothing was reading.
 
-## Using services
+## Keeping results
 
-An effect that needs services, such as an HTTP client or a repository, gets them from a **runtime**. `Atom.runtime` builds one from a `Layer`, and its `atom` method makes atoms whose effects can use the layer's services:
+An async atom has the same [lifetime](/lifetimes) as any other: when nothing reads it, the registry disposes of its result, and the next read runs the effect again. To keep a result, use `Atom.keepAlive` or an idle TTL:
 
-**Example** (An atom backed by a service)
+**Example** (A cache that survives navigation)
 
 ```ts
-import { Context, Effect, Layer } from "effect";
-import { Atom } from "effect/reactivity";
+const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
 
-class Dice extends Context.Service<
-  Dice,
-  { readonly roll: Effect.Effect<number> }
->()("Dice") {
-  static readonly layer = Layer.succeed(Dice, { roll: Effect.succeed(4) });
-}
-
-const runtime = Atom.runtime(Dice.layer);
-
-const dieAtom = runtime.atom(Dice.use((dice) => dice.roll));
+const searchAtom = Atom.family((term: string) =>
+  Atom.make(search(term)).pipe(Atom.setIdleTTL("1 minute"))
+);
 ```
 
-The runtime builds its layer when one of its atoms first needs it, and every atom made from it shares the same services. Atoms built with `AtomRpc` and `AtomHttpApi` work this way too: see [RPC](/rpc) and [HTTP API](/http).
+Here the settings load once per registry, which is once per session in the browser. Each search result is kept for a minute after you navigate away, so going back shows it straight away.
+
+## Releasing resources
+
+An async atom's effect runs in a `Scope` that lasts as long as the atom's value. Anything the effect acquires with `Effect.acquireRelease` or `Effect.addFinalizer` is released when the atom is disposed, or before its effect runs again:
+
+**Example** (A connection that closes with the atom)
+
+```ts
+const feedAtom = Atom.make(
+  Effect.gen(function* () {
+    const socket = yield* Effect.acquireRelease(openSocket, (socket) =>
+      Effect.sync(() => socket.close())
+    );
+    return yield* readFirstMessage(socket);
+  })
+);
+```
+
+This is the effect version of `get.addFinalizer`, described in [Lifetimes](/lifetimes#finalizers).
+
+## Services
+
+An effect that needs services, such as an HTTP client or a repository, gets them from a **runtime** built from a `Layer`. See [Services and runtimes](/services).

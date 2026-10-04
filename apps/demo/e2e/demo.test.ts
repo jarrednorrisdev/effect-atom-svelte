@@ -352,6 +352,34 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
   await expect(state).toHaveText("Success, waiting");
   await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
   await expect(state).toHaveText("Success");
+  // The atom reads the checkbox's atom, so ticking it runs the effect again, which fails.
+  await page.getByLabel("Drop the die").check();
+  await expect(state).toHaveText("Success, waiting");
+  await expect(state).toHaveText("Failure");
+  await expect(page.getByTestId("die-failure")).toBeVisible();
+  await page.getByLabel("Drop the die").uncheck();
+  await expect(state).toHaveText("Success");
+  await expect(page.getByTestId("die")).toHaveText(/^[1-6]$/u);
+});
+
+test("services: a runtime's atoms use its layer, and run again when the layer changes", async ({
+  page,
+}) => {
+  await page.goto("/services");
+  await page.waitForLoadState("networkidle");
+  const die = page.getByTestId("service-die");
+  await expect(die).toHaveText(/^[1-6]$/u);
+  await page.getByLabel("Loaded dice").check();
+  await expect(die).toHaveText("6");
+  // A fair die rolls three sixes in a row once in 216 runs; the loaded one always does.
+  const rollAndWait = async () => {
+    await page.getByRole("button", { name: "Roll again" }).click();
+    await expect(die).toHaveAttribute("aria-busy", "true");
+    await expect(die).toHaveAttribute("aria-busy", "false");
+    await expect(die).toHaveText("6");
+  };
+  await rollAndWait();
+  await rollAndWait();
 });
 
 test("suspense: pending, value, refresh and failure", async ({ page }) => {

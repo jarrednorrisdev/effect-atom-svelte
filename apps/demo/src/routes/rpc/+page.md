@@ -7,6 +7,8 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import rpcSource from "../../../../../packages/demo-domain/src/rpc.ts?highlight";
+  import todoSource from "../../../../../packages/demo-domain/src/todo.ts?highlight";
   import Lookup from "./lookup.svelte";
   import lookupSource from "./lookup.svelte?highlight";
   import Ticks from "./ticks.svelte";
@@ -17,9 +19,9 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
 
 If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/rpc), `AtomRpc` gives your components its procedures as atoms. A query is an async atom you read, a mutation is an atom you write, and both keep the RPC's typed payloads and errors.
 
-The examples on this page call a small demo server that keeps a todo list.
+The examples on this page call a small demo server that keeps a todo list. The `rpc.ts` tab shows the server's `RpcGroup`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }]}> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]}> <Todos /> </Example>
 
 ## Defining the client
 
@@ -33,7 +35,7 @@ import { FetchHttpClient } from "effect/http";
 import { AtomRpc } from "effect/reactivity";
 import { RpcClient, RpcSerialization } from "effect/rpc";
 
-import { TodosRpcs } from "./rpcs.ts";
+import { TodosRpcs } from "./rpc.ts";
 
 export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {
   group: TodosRpcs,

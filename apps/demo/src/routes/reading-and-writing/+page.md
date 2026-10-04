@@ -89,17 +89,24 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 
 ## Following a different atom
 
-Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook then follows whichever atom the function returns, and switches when reactive state it reads changes:
+Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
 
-```ts
-let id = $state(1);
-const todo = useAtomValue(() => todoAtom(id));
+```svelte
+<script module lang="ts">
+  const draftAtom = Atom.make("");
+  const savedAtom = Atom.make("");
+</script>
+
+<script lang="ts">
+  let showSaved = $state(false);
+  const text = useAtomValue(() => (showSaved ? savedAtom : draftAtom));
+</script>
 ```
 
-This is how you read from a [family](/families) of atoms.
+Passing `showSaved ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
-## When updates arrive
+<Aside type="note" title="When updates arrive">
 
-The hooks subscribe to the registry through Svelte's `createSubscriber`, and only while something reactive reads `current`. A write from an event handler updates every reader in the same tick, so `count.current += 1` followed by a read of `doubled.current` sees the new value.
+A write from an event handler updates every reader at once, so after `count.current += 1`, reading another atom derived from `count` gives the new value. A change that happens while Svelte is evaluating markup or a `$derived`, such as an atom computed for the first time by that read, reaches the hooks on a microtask instead, because Svelte doesn't allow state to change during that evaluation.
 
-A change that happens while Svelte is evaluating markup or a `$derived` (when reading one atom makes the registry compute another, for example) is delivered on a microtask instead. Svelte doesn't allow state to change during that evaluation.
+</Aside>

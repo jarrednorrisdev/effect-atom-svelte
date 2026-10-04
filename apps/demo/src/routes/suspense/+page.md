@@ -13,7 +13,17 @@ description: Await async atoms in markup, and let a boundary show loading and fa
   import slowSource from "./slow.svelte?highlight";
 </script>
 
-Checking an `AsyncResult`'s `_tag` in every component gets repetitive. With Svelte's experimental async, you can `await` an async atom directly in markup instead. A `<svelte:boundary>` around it shows a loading state until the value arrives, and an error state if it fails.
+Checking an `AsyncResult`'s `_tag` in every component gets repetitive. With Svelte's experimental async, you can `await` an async atom directly in markup instead. A `<svelte:boundary>` around it shows a loading state until the value arrives, and an error state if it fails. React calls this suspense, hence the hook's name, `useAtomSuspense`.
+
+Three hooks read an async atom. Choose by where you want to wait:
+
+| Hook | Waits | Failure |
+| --- | --- | --- |
+| `useAtomValue(atom)` | Never. `current` is the `AsyncResult`, `Initial` until the first result. See [Async atoms](/async-atoms). | A `Failure` result to check. |
+| `useAtomSuspense(atom)` | In markup: `await` its `current` inside a `<svelte:boundary>`. | The boundary's `failed` snippet. |
+| `await useAtomResult(atom)` | In the script, for the first result. Then `current` is a live `AsyncResult`. | A `Failure` result to check. |
+
+On the server, the choice also decides what the first paint contains. See [What the render waits for](/server-rendering#what-the-render-waits-for).
 
 <Example files={[{ html: slowSource, name: "slow.svelte" }]}> <Slow /> </Example>
 
@@ -66,7 +76,7 @@ When the atom's effect fails, the promise rejects with the error, and the bounda
 
 <Aside type="caution" title="SvelteKit hides error details">
 
-SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The hooks from `effect-atom-svelte/sveltekit` keep an Effect error's `_tag`. See [SvelteKit](/sveltekit#errors-in-boundaries).
+SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The example reads `error.message` and `error.tag` because this site installs the hooks from `effect-atom-svelte/sveltekit`, which keep an Effect error's message and `_tag`. Without them, the snippet would show "Internal Error" and no tag. [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install them.
 
 </Aside>
 

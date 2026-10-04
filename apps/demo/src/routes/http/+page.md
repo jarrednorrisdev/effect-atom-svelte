@@ -7,6 +7,8 @@ description: Turn an Effect HttpApi into atoms for its endpoints.
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import httpSource from "../../../../../packages/demo-domain/src/http.ts?highlight";
+  import todoSource from "../../../../../packages/demo-domain/src/todo.ts?highlight";
   import Lookup from "./lookup.svelte";
   import lookupSource from "./lookup.svelte?highlight";
   import Todos from "./todos.svelte";
@@ -15,9 +17,9 @@ description: Turn an Effect HttpApi into atoms for its endpoints.
 
 If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your components its endpoints as atoms. It works like [`AtomRpc`](/rpc): queries are async atoms you read, mutations are atoms you write, and the endpoint's schemas type the path params, query string, payload and errors.
 
-The examples on this page call the same demo server as the RPC page, through its HTTP API.
+The examples on this page call the same demo server as the RPC page, through its HTTP API. The `http.ts` tab shows the server's `HttpApi`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }]}> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]}> <Todos /> </Example>
 
 ## Defining the client
 
@@ -29,12 +31,12 @@ The examples on this page call the same demo server as the RPC page, through its
 import { FetchHttpClient } from "effect/http";
 import { AtomHttpApi } from "effect/reactivity";
 
-import { TodosApi } from "./api.ts";
+import { DemoApi } from "./http.ts";
 
 export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
   "app/TodosHttp",
   {
-    api: TodosApi,
+    api: DemoApi,
     httpClient: FetchHttpClient.layer,
   }
 ) {}

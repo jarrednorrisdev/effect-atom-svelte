@@ -117,7 +117,7 @@ const addAtom = runtime.fn((note: string) => saveNote(note), {
 });
 ```
 
-The `reactivityKeys` option belongs to atoms made by a runtime, so create one with `Atom.runtime`, even if its layer is empty. `AtomRpc` and `AtomHttpApi` queries and mutations take `reactivityKeys` too: see [RPC](/rpc).
+The `reactivityKeys` option belongs to atoms made by a [runtime](/services), so create one with `Atom.runtime`, even if its layer is empty. `AtomRpc` and `AtomHttpApi` queries and mutations take `reactivityKeys` too: see [RPC](/rpc).
 
 ## Optimistic updates
 

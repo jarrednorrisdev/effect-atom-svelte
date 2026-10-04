@@ -25,11 +25,10 @@ export const nav: readonly NavSection[] = [
     pages: [
       { href: "/reading-and-writing", title: "Reading and writing" },
       { href: "/derived-atoms", title: "Derived atoms" },
-      { href: "/families", title: "Families" },
       { href: "/lifetimes", title: "Lifetimes" },
+      { href: "/families", title: "Families" },
       { href: "/refs", title: "AtomRef" },
       { href: "/scoped-atoms", title: "Scoped atoms" },
-      { href: "/browser", title: "Browser atoms" },
     ],
     title: "Atoms",
   },
@@ -37,6 +36,7 @@ export const nav: readonly NavSection[] = [
     pages: [
       { href: "/effect-basics", title: "Effect basics" },
       { href: "/async-atoms", title: "Async atoms" },
+      { href: "/services", title: "Services and runtimes" },
       { href: "/suspense", title: "Suspense" },
       { href: "/mutations", title: "Mutations" },
       { href: "/streams", title: "Streams" },
@@ -55,6 +55,7 @@ export const nav: readonly NavSection[] = [
       { href: "/server-rendering", title: "Server rendering" },
       { href: "/hydration", title: "Hydration" },
       { href: "/sveltekit", title: "SvelteKit" },
+      { href: "/browser", title: "Browser atoms" },
     ],
     title: "Server rendering",
   },

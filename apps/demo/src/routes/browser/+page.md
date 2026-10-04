@@ -16,7 +16,9 @@ description: Keep state in localStorage, cookies or the URL, and react to the br
   import themeSource from "./theme.svelte?highlight";
 </script>
 
-Effect Atom has atoms backed by the browser: storage that survives a reload, the URL's query string, and the tab's visibility. They work the same in Svelte, but a page rendered on the server needs care, because the server has no `localStorage`, no `window` and no idea what the visitor stored. This page shows each of them, and how to render it on the server.
+Effect Atom has atoms backed by the browser: storage that survives a reload, the URL's query string, and the tab's visibility. They work the same in Svelte, but a page rendered on the server needs care, because the server has no `localStorage`, no `window` and no idea what the visitor stored. This page is a set of recipes, one per kind of atom, each showing how to render it on the server.
+
+The recipes build on [Services and runtimes](/services) for the storage layers, and on [Server rendering](/server-rendering) and [Hydration](/hydration) for what the server sends.
 
 ## Persisting to localStorage
 

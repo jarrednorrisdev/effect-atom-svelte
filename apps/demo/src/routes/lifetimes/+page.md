@@ -13,7 +13,7 @@ description: When an atom's value is kept, when it is disposed, and how to clean
   import readerSource from "./reader.svelte?highlight";
 </script>
 
-A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value, stops any effect or stream the atom was running, and runs its finalizers. This keeps memory and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
+A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value and runs the atom's finalizers. This keeps memory, timers and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
 
 Tick a box to mount a component that reads that atom, and untick it to unmount the component. Watch the log:
 
@@ -24,11 +24,10 @@ Tick a box to mount a component that reads that atom, and untick it to unmount t
 An atom is **mounted** while something holds it. Each of these holds an atom:
 
 - A hook whose `current` is being read in markup, `$derived` or `$effect`.
-- `useAtomSet`, `useAtomRefresh` and `useAtomMount`, for as long as their component lives.
+- `useAtomSet` and `useAtomMount`, for as long as their component lives.
 - Another mounted atom that reads it with `get`.
-- A promise from a `"promise"` or `"promiseExit"` setter, until it settles.
 
-When the last of them lets go, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and an async atom runs its effect again.
+When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. Later pages add a few more holders, such as [`useAtomRefresh`](/async-atoms#running-it-again) and a mutation's [promise](/mutations#waiting-for-the-result).
 
 <Aside type="note" title="On the server">
 
@@ -47,25 +46,19 @@ Choose how long an atom outlives its readers:
 | For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider` |
 | For as long as a component lives, without reading it | `useAtomMount(atom)` in that component |
 
-**Example** (A cache that survives navigation)
+**Example** (State that survives navigation)
 
 ```ts
 import { Atom } from "effect/reactivity";
 
-const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
+const sidebarOpenAtom = Atom.make(true).pipe(Atom.keepAlive);
 
-const searchAtom = Atom.family((term: string) =>
-  Atom.make(search(term)).pipe(Atom.setIdleTTL("1 minute"))
-);
+const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the settings load once per registry, which is once per session in the browser. Each search result is kept for a minute after you navigate away, so going back shows it straight away.
+Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed.
 
-<Aside type="caution" title="keepAlive in a family">
-
-A family creates an atom per key. Combined with `keepAlive`, every key you have ever read stays in the registry. Prefer an idle TTL when the keys are unbounded, such as search terms or ids.
-
-</Aside>
+Atoms that run an `Effect` follow the same rules, so `keepAlive` and an idle TTL also make a cache: see [Async atoms](/async-atoms). For atoms made per key, see [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 
 ## Finalizers
 
@@ -81,24 +74,6 @@ const nowAtom = Atom.make((get) => {
 });
 ```
 
-Finalizers run when the atom is disposed, and also before it computes again because something it read changed. Each computation cleans up after itself.
+Finalizers run when the atom is disposed, and also before it computes again because something it read changed. Each computation cleans up after itself. The live example above uses one to log `disposed`.
 
-### Scoped effects
-
-An async atom's effect runs in a `Scope` with the same lifetime, so anything the effect acquires with `Effect.acquireRelease` or `Effect.addFinalizer` is released at the same moments:
-
-**Example** (A connection that closes with the atom)
-
-```ts
-import { Effect } from "effect";
-import { Atom } from "effect/reactivity";
-
-const feedAtom = Atom.make(
-  Effect.gen(function* () {
-    const socket = yield* Effect.acquireRelease(openSocket, (socket) =>
-      Effect.sync(() => socket.close())
-    );
-    return yield* readFirstMessage(socket);
-  })
-);
-```
+An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).
