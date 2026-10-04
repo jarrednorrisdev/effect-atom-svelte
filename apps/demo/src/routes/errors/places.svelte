@@ -1,0 +1,100 @@
+<script module lang="ts">
+  import { Data, Effect } from "effect";
+  import { Atom } from "effect/reactivity";
+
+  class NotFound extends Data.TaggedError("NotFound")<{
+    readonly id: number;
+    readonly message: string;
+  }> {}
+
+  const titles = new Map([
+    [1, "Write the docs"],
+    [2, "Water the plants"],
+  ]);
+
+  const idAtom = Atom.make(1);
+
+  // Fails with NotFound for an id that has no todo.
+  const todoAtom = Atom.make((get) => {
+    const id = get(idAtom);
+    const title = titles.get(id);
+    return title === undefined
+      ? Effect.fail(new NotFound({ id, message: `There is no todo ${id}` }))
+      : Effect.succeed(title);
+  });
+</script>
+
+<script lang="ts">
+  import { Cause, Option } from "effect";
+  import { useAtom, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
+  import Part from "#lib/docs/kit/part.svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
+
+  const id = useAtom(idAtom);
+  // 1. The AsyncResult itself, failures included.
+  const asResult = useAtomValue(todoAtom);
+  // 2. Rejects on failure, so the boundary's failed snippet takes over.
+  const asPromise = useAtomSuspense(todoAtom);
+  // 3. Resolves with the Success or the Failure, and never rejects.
+  const inPlace = useAtomSuspense(todoAtom, { includeFailure: true });
+
+  const typed = (cause: Cause.Cause<NotFound>) =>
+    Option.match(Cause.findErrorOption(cause), {
+      onNone: () => "not a typed error",
+      onSome: (e) => `${e._tag} { id: ${e.id} }`,
+    });
+</script>
+
+<select aria-label="Todo" bind:value={id.current} data-testid="places-id">
+  <option value={1}>Todo 1</option>
+  <option value={2}>Todo 2</option>
+  <option value={7}>Todo 7, which doesn't exist</option>
+</select>
+
+<div class="mt-3 grid gap-3 md:grid-cols-3">
+  <Part code label="useAtomValue">
+    <StateBadge data-testid="places-result-state" result={asResult.current} />
+    <p data-testid="places-result">
+      {#if asResult.current._tag === "Failure"}
+        {typed(asResult.current.cause)}
+      {:else if asResult.current._tag === "Success"}
+        {asResult.current.value}
+      {/if}
+    </p>
+  </Part>
+
+  <Part code label="boundary">
+    <svelte:boundary>
+      <ResultChip kind="message" tone="success">
+        <span data-testid="places-boundary">{await asPromise.current}</span>
+      </ResultChip>
+      {#snippet failed(error, reset)}
+        <!-- What SvelteKit's handleError hook kept: the tag and the message. -->
+        {@const kept = error as App.Error}
+        <ResultChip kind="message" tone="failure">
+          <span data-testid="places-boundary">{kept.tag}: {kept.message}</span>
+        </ResultChip>
+        <p class="text-sm break-all">
+          Received <code data-testid="places-received">{JSON.stringify(kept)}</code>
+        </p>
+        <button onclick={reset}>Try again</button>
+      {/snippet}
+    </svelte:boundary>
+  </Part>
+
+  <Part code label="includeFailure">
+    <svelte:boundary>
+      {@const result = await inPlace.current}
+      {#if result._tag === "Success"}
+        <ResultChip kind="message" tone="success">
+          <span data-testid="places-in-place">{result.value}</span>
+        </ResultChip>
+      {:else}
+        <ResultChip kind="message" tone="failure">
+          <span data-testid="places-in-place">{typed(result.cause)}</span>
+        </ResultChip>
+      {/if}
+    </svelte:boundary>
+  </Part>
+</div>

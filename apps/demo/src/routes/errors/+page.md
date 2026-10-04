@@ -9,6 +9,10 @@ description: Typed errors, defects and interruptions, and every place to handle 
 
   import Outcomes from "./outcomes.svelte";
   import outcomesSource from "./outcomes.svelte?highlight";
+  import Places from "./places.svelte";
+  import placesSource from "./places.svelte?highlight";
+  import Recover from "./recover.svelte";
+  import recoverSource from "./recover.svelte?highlight";
 </script>
 
 A request can fail in ways you expect, such as a missing record, and in ways you don't, such as a bug. Effect keeps the two apart, and the type of an async atom lists every error you expect. This page brings together what the other pages say about failure: what a failure holds, how to tell errors apart, and where to handle them.
@@ -71,7 +75,9 @@ const describe = (cause: Cause.Cause<TodoNotFound | Forbidden>) => {
 
 ## Where to handle failure
 
-Each way of reading an atom hands you failure in its own form.
+Each way of reading an atom hands you failure in its own form. The example reads one atom three ways:
+
+<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Pick todo 7. useAtomValue gets a Failure, the boundary swaps in its failed snippet, and includeFailure gets the typed error, id and all. Then pick todo 1: the boundary stays failed until you click Try again."> <Places /> </Example>
 
 ### With `useAtomValue` or `useAtomResult`
 
@@ -132,7 +138,7 @@ const submit = async () => {
 };
 ```
 
-The mutation's own value is an `AsyncResult` too, so `useAtomValue(createAtom)` also shows the last call's failure. See [Mutations](/mutations#waiting-for-the-result).
+The mutation's own value is an `AsyncResult` too, so `useAtomValue(createAtom)` also shows the last call's failure. The example on [Mutations](/mutations#waiting-for-the-result) calls one mutation in each mode, so you can compare what they give back.
 
 ## SvelteKit's `handleError`
 
@@ -150,7 +156,7 @@ In a SvelteKit app, an error that reaches a boundary's `failed` snippet goes thr
 {/snippet}
 ```
 
-Only the tag and message survive the hook, not the error's other fields. When you need those, use `includeFailure` instead. [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install the hooks.
+Only the tag and message survive the hook, not the error's other fields: in the [example above](#where-to-handle-failure), the boundary receives `NotFound`'s tag and message, but not its `id`. When you need those, use `includeFailure` instead. [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install the hooks.
 
 ## Typed errors from RPC and HTTP APIs
 
@@ -173,23 +179,12 @@ export class TodoNotFound extends Schema.TaggedError<TodoNotFound>()(
 ) {}
 ```
 
+The lookups on the [RPC](/rpc#following-arguments) and [HTTP API](/http#typed-errors) pages fail with this `TodoNotFound` from the demo server: try todo 99 there.
+
 ## Recovering inside the effect
 
 Sometimes an error isn't a failure for the page: a missing profile can just mean "no profile yet". Handle it in the effect, before the atom sees it, and it leaves the atom's error type:
 
-**Example** (A missing todo becomes `null`)
+<Example files={[{ html: recoverSource, name: "recover.svelte" }]} hint="Todo 2 doesn't exist: todoAtom fails, while recoveredAtom succeeds with null. Pick todo 1 and both succeed."> <Recover /> </Example>
 
-```ts
-import { Effect } from "effect";
-import { Atom } from "effect/reactivity";
-
-const todoAtom = Atom.family((id: number) =>
-  Atom.make(
-    fetchTodo(id).pipe(
-      Effect.catchTag("TodoNotFound", () => Effect.succeed(null))
-    )
-  )
-);
-```
-
-`Effect.catchTags` handles several tags at once. Read more about recovering in Effect's [Error Management](https://effect.website/docs/v4/error-management/expected-errors) docs.
+`recoveredAtom`'s error type is `never`, so a reader has nothing to handle but `null`. `Effect.catchTags` handles several tags at once. Read more about recovering in Effect's [Error Management](https://effect.website/docs/v4/error-management/expected-errors) docs.
