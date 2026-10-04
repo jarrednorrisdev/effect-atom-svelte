@@ -7,8 +7,14 @@ description: The parts of Effect these docs use, for Svelte developers who haven
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import CatchTag from "./catch-tag.svelte";
+  import catchTagSource from "./catch-tag.svelte?highlight";
+  import Decode from "./decode.svelte";
+  import decodeSource from "./decode.svelte?highlight";
   import Hash from "./hash.svelte";
   import hashSource from "./hash.svelte?highlight";
+  import Lazy from "./lazy.svelte";
+  import lazySource from "./lazy.svelte?highlight";
   import Request from "./request.svelte";
   import requestSource from "./request.svelte?highlight";
 </script>
@@ -49,6 +55,10 @@ const sum = Effect.gen(function* () {
   return a + b;
 }); // Effect<number, never, never>
 ```
+
+The example creates a promise and an effect when it loads, each rolling a die. The promise has already run, and awaiting it again gives the same number. The effect runs only when something runs it, here `Effect.runPromise`, and each run rolls again.
+
+<Example files={[{ html: lazySource, name: "lazy.svelte" }]} hint="Await the promise a few times: it ran once, when it was created, and keeps its number. Then run the effect a few times: each run rolls again."> <Lazy /> </Example>
 
 Read more in [The Effect Type](https://effect.website/docs/v4/getting-started/the-effect-type) and [Using Generators](https://effect.website/docs/v4/getting-started/using-generators).
 
@@ -108,6 +118,8 @@ const describe = (error: NotFound | Forbidden) => {
 ```
 
 Inside `Effect.gen`, `yield*` a tagged error to fail with it: `return yield* new NotFound({ id })`. `Effect.catchTag("NotFound", ...)` recovers from one kind and leaves the others in the type.
+
+<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3 to see each error. Then tick catchTag: NotFound turns into a value, and only Forbidden is left in the error type."> <CatchTag /> </Example>
 
 Read more in [Expected Errors](https://effect.website/docs/v4/error-management/expected-errors) and [Yieldable Errors](https://effect.website/docs/v4/error-management/yieldable-errors).
 
@@ -176,6 +188,10 @@ type Todo = typeof Todo.Type;
 const decode = Schema.decodeUnknownEffect(Todo);
 // (input: unknown) => Effect<Todo, SchemaError, never>
 ```
+
+The live example decodes JSON text, so it wraps the schema in `Schema.fromJsonString`, which parses the text first.
+
+<Example files={[{ html: decodeSource, name: "decode.svelte" }]} hint="Pick each sample, or edit the JSON: the atom decodes it on every change, and a SchemaError says what doesn't match."> <Decode /> </Example>
 
 Effect RPC and `HttpApi` use schemas for every payload, response and error, so the client and server agree on them. That is how the [RPC](/rpc) and [HTTP API](/http) pages get typed errors from the server. `Schema.TaggedError` defines a tagged error that can be sent over the network.
 

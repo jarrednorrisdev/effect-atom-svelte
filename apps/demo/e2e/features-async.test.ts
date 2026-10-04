@@ -113,3 +113,77 @@ test.describe("Async atoms page", () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe("Effect basics page", () => {
+  test("a promise runs once when created, and an effect each time it runs", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await page.goto("/effect-basics");
+    await page.waitForLoadState("networkidle");
+    const promiseRuns = page.getByLabel("A promise runs");
+    const effectRuns = page.getByLabel("An effect runs");
+    const fromPromise = page.getByTestId("lazy-promise");
+    await expect(promiseRuns).toHaveText("1");
+    await expect(effectRuns).toHaveText("0");
+    await page.getByRole("button", { name: "Await the promise" }).click();
+    await expect(fromPromise).toHaveText(/^[1-6]$/u);
+    const first = await fromPromise.textContent();
+    await page.getByRole("button", { name: "Await the promise" }).click();
+    await expect(fromPromise).toHaveText(first ?? "");
+    await expect(promiseRuns).toHaveText("1");
+    const run = page.getByRole("button", { name: "Run the effect" });
+    await run.click();
+    await expect(effectRuns).toHaveText("1");
+    await expect(page.getByTestId("lazy-effect")).toHaveText(/^[1-6]$/u);
+    await run.click();
+    await run.click();
+    await expect(effectRuns).toHaveText("3");
+    expect(errors).toEqual([]);
+  });
+
+  test("catchTag recovers from one error and leaves the other", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await page.goto("/effect-basics");
+    await page.waitForLoadState("networkidle");
+    const todo = page.getByTestId("catch-tag");
+    const type = page.getByTestId("catch-tag-type");
+    await expect(todo).toHaveText("Write the docs");
+    await expect(type).toHaveText("NotFound | Forbidden");
+    await page.getByLabel("Todo 2").check();
+    await expect(todo).toHaveText("Failed with NotFound");
+    await page.getByLabel("Todo 3").check();
+    await expect(todo).toHaveText("Failed with Forbidden");
+    await page.getByLabel('Effect.catchTag("NotFound", …)').check();
+    await expect(type).toHaveText("Forbidden");
+    await expect(todo).toHaveText("Failed with Forbidden");
+    await page.getByLabel("Todo 2").check();
+    await expect(todo).toHaveText("(there is no todo 2)");
+    expect(errors).toEqual([]);
+  });
+
+  test("a schema decodes valid JSON and explains what doesn't match", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await page.goto("/effect-basics");
+    await page.waitForLoadState("networkidle");
+    const decoded = page.getByTestId("decode");
+    const state = page.getByTestId("decode-state");
+    const input = page.getByTestId("decode-input");
+    await expect(decoded).toHaveText("#1 Write the docs, done: false");
+    await expect(state).toHaveText("Success");
+    await page.getByRole("button", { name: "Not an integer" }).click();
+    await expect(state).toHaveText("Failure");
+    await expect(decoded).toHaveText(/^Expected an integer\s+at \["id"\]$/u);
+    await page.getByRole("button", { name: "Missing title" }).click();
+    await expect(decoded).toContainText('at ["title"]');
+    await input.fill('{ "done": true, "id": 2, "title": "Ship" }');
+    await expect(decoded).toHaveText("#2 Ship, done: true");
+    await input.fill("{ not json");
+    await expect(state).toHaveText("Failure");
+    expect(errors).toEqual([]);
+  });
+});
