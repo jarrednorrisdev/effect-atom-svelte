@@ -7,14 +7,14 @@ export class Weather extends Context.Service<
 >()("app/Weather") {}
 
 // The real service calls a weather API.
-const WeatherLive = Layer.succeed(Weather)({
+const WeatherLayer = Layer.succeed(Weather)({
   today: Effect.promise(async () => {
     const response = await fetch("/api/weather");
     return response.text();
   }),
 });
 
-export const runtime = Atom.runtime(WeatherLive);
+export const runtime = Atom.runtime(WeatherLayer);
 
 export const forecastAtom = runtime.atom(
   Effect.gen(function* forecast() {

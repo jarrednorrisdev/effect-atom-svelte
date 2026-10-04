@@ -17,7 +17,7 @@ description: What happens to atoms when a page renders on the server, and what t
   import waitsSource from "./waits.svelte?highlight";
 </script>
 
-Rendering on the server sends the browser a page that already shows your data. The reading hooks work on the server too; hooks that act only after mount, such as `useAtomMount` and `useAtomSubscribe`, do nothing there. Async atoms you `await` are computed during the request, and the page is sent once they have their values. [Hydration](/hydration) then carries those values to the browser, so it doesn't run the same effects again.
+Rendering on the server sends the browser a page that already shows your data. The reading hooks work on the server too; hooks that act only after mount, such as `useAtomMount` and `useAtomSubscribe`, do nothing there. Async atoms you `await` are computed during the request, and the page is sent once they have their values. [Hydration](/hydration) then sends the results of serializable atoms with the page, so the browser doesn't run those effects again.
 
 You don't need `load` functions or server files for this. A component that awaits an atom is enough.
 
@@ -30,6 +30,8 @@ Server rendering needs Svelte's experimental async and a `RegistryProvider` at t
 ## One registry per request
 
 On the server, `RegistryProvider` creates a fresh registry for each request. Every request computes its own atoms, so two visitors never see each other's state, even though they share the same atom definitions.
+
+A request here means one page rendered on the server, not one visitor. When the same visitor loads another page from the server, that render gets another fresh registry, and nothing carries over from the last one. After the first page, the browser takes over: it has its own registry, which lasts for the rest of the visit, and following links within the app doesn't render on the server, so it creates no server registry at all.
 
 During the render, the hooks hold every atom they read, so nothing is disposed while the render is waiting on something else. When the render ends, the provider disposes of the registry: effects are interrupted and finalizers run.
 

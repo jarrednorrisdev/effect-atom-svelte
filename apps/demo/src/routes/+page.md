@@ -11,19 +11,33 @@ description: Community-built Svelte 5 bindings for Effect Atom.
   import tasteSource from "./taste.svelte?highlight";
 </script>
 
-effect-atom-svelte connects [Effect Atom](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/reactivity) to Svelte 5 components. It is a community project by Jarred Norris: it is not part of Effect, and the Effect team neither makes nor endorses it.
+<Aside type="caution" title="Community project">
+
+effect-atom-svelte is a community project by Jarred Norris. It is not part of Effect, and the Effect team neither makes nor endorses it.
+
+</Aside>
+
+<Aside type="note" title="Written with AI">
+
+Most of effect-atom-svelte, its code and these docs alike, was written with the help of AI (Claude Opus 5.5). The aim is still a library of very high quality, and its behavior is covered by tests in Chromium, Firefox and WebKit.
+
+</Aside>
+
+effect-atom-svelte connects [Effect Atom](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/reactivity) to Svelte 5 components.
 
 Effect Atom (`effect/reactivity`) keeps your application's state in **atoms**: small reactive values that can hold plain data, be derived from other atoms, or run an `Effect` or a `Stream`. This library gives your components hooks to read and write those atoms, and the pieces you need to render them on the server and pick up where the server left off in the browser.
 
 Its API follows the adapters the Effect team maintains, `@effect/atom-react` and `@effect/atom-vue`, but it is a separate project. If you have used atoms in React or Vue, you already know the atoms; only the hooks change.
 
+effect-atom-svelte was inspired by Thomas Foster's [Svelte Atoms pull request](https://github.com/Effect-TS/effect-smol/pull/2443) to effect-smol. The design of the live examples in these docs is inspired by Kit Langton's [Visual Effect](https://effect.kitlangton.com/).
+
 ## A first look
 
-Three atoms: a number you can change, a value derived from it, and an `Effect` that takes half a second. The component reads all three with hooks:
+Three atoms: a number you can change, a value derived from it, and an `Effect` that takes two seconds. The component reads all three with hooks:
 
-<Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Reload the page to watch greetingAtom load."> <Taste /> </Example>
+<Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Click Load again to watch greetingAtom load."> <Taste /> </Example>
 
-Clicking **Add one** writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes.
+Clicking **Add one** writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes. **Load again** refreshes `greetingAtom`, and with `suspendOnWaiting` the markup waits for the new greeting.
 
 ## How it fits together
 

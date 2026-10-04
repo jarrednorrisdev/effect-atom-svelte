@@ -5,6 +5,7 @@ description: Install the package, turn on Svelte's async mode and add a registry
 
 <script>
   import Aside from "#lib/docs/aside.svelte";
+  import InstallCommand from "#lib/docs/install-command.svelte";
 </script>
 
 Setting up takes three steps: install the packages, turn on Svelte's experimental async support, and put a registry at the root of your app.
@@ -13,13 +14,11 @@ Setting up takes three steps: install the packages, turn on Svelte's experimenta
 
 effect-atom-svelte needs `effect` alongside it. Atoms come from `effect/reactivity`, which is part of `effect` itself.
 
-```bash
-npm install effect effect-atom-svelte
-```
+<InstallCommand />
 
 <Aside type="caution" title="Not published yet">
 
-The package is pre-release and not on npm yet, so this command does not work today.
+The package is pre-release and not on npm yet, so these commands do not work today.
 
 </Aside>
 

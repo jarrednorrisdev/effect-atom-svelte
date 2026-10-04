@@ -16,9 +16,9 @@ description: Give atoms' effects the services they need, with Atom.runtime and a
 
 An effect that needs a service, such as an HTTP client or a repository, says so in its type, and can't run until something provides it. For atoms, that something is a **runtime**: an atom that builds a `Layer` and runs other atoms' effects with its services.
 
-[Effect basics](/effect-basics#services-and-layers) introduces services and layers. The example below uses a `Dice` service with two layers, a fair die and a loaded one. Tick **Loaded dice** to switch layers.
+[Effect basics](/effect-basics#services-and-layers) introduces services and layers. The example below uses a `Dice` service with two layers, a fair die and a loaded one. Turn on **Loaded dice** to switch layers.
 
-<Example files={[{ html: source, name: "dice.svelte" }]} hint="Tick Loaded dice: the runtime builds the other layer, and dieAtom rolls again with it. Then roll a few times."> <Dice /> </Example>
+<Example files={[{ html: source, name: "dice.svelte" }]} hint="Turn on Loaded dice: the runtime builds the other layer, and dieAtom rolls again with it. Then roll a few times."> <Dice /> </Example>
 
 ## Making a runtime
 
@@ -33,11 +33,11 @@ import { Atom } from "effect/reactivity";
 class Todos extends Context.Service<
   Todos,
   { readonly count: Effect.Effect<number> }
->()("app/Todos") {
-  static readonly layer = Layer.succeed(Todos, { count: Effect.succeed(3) });
-}
+>()("app/Todos") {}
 
-const runtime = Atom.runtime(Todos.layer);
+const TodosLayer = Layer.succeed(Todos, { count: Effect.succeed(3) });
+
+const runtime = Atom.runtime(TodosLayer);
 
 const countAtom = runtime.atom(Todos.use((todos) => todos.count));
 ```

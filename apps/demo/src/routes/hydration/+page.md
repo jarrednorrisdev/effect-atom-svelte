@@ -24,6 +24,16 @@ description: Send the server's results to the browser, so it doesn't run the sam
 
 When a page rendered on the server starts up in the browser, its atoms start empty. Without help, every async atom would run its effect again, repeating the server's work, and the page would flash a loading state over content it already shows. **Hydration** sends each result the server computed along with the page, and the browser starts from it.
 
+From server to browser, a page load goes like this:
+
+1. A request comes in, and the server creates a registry for it.
+2. The server renders the page with that registry, and encodes the results of the serializable atoms the render waited for.
+3. It sends the HTML with those results, then disposes of its registry. The registry itself never leaves the server.
+4. The browser creates its own registry, puts the server's results into it, and hydrates the page. Atoms without a result from the server compute again.
+5. From then on, everything runs in the browser's registry, including navigation to other pages.
+
+On a prerendered page, steps 1 to 3 happen once, when the site is built.
+
 The atom below records where it was computed. This page was rendered on the server when the site was built, so the browser shows the server's result without computing it. Click **Compute again** to compute it in the browser.
 
 <Example files={[{ html: whereSource, name: "where.svelte" }]} hint="Opened straight from the server, the history starts at Success, with no loading state. Click Compute again and watch the browser run the effect itself."> <Where /> </Example>
@@ -62,6 +72,18 @@ const todosAtom = TodosRpc.query("listTodos", undefined, {
 Two different atoms with the same key on one page make the server render throw. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
 
 </Aside>
+
+## Which atoms to serialize
+
+Make an atom serializable when its value is plain data and the server's result is the one the browser wants: a todo list, a user's profile, the prices on a product page. A schema can encode it, and the browser is spared a second request and a loading state.
+
+Leave it out when the value can't travel or shouldn't:
+
+- **Live resources**, such as a WebSocket, a database connection pool or a stream subscription. There is no way to send them; the browser has to open its own.
+- **Values with behavior**, such as functions or class instances with private state. A schema rebuilds data, not closures.
+- **Values that depend on where they run**, such as the window's width, something read from `localStorage`, or the current time. The server's answer would be wrong in the browser, so let it compute again, or keep the atom off the server with [server values](/server-rendering#server-values).
+
+Leaving out an atom whose value could travel costs nothing but work: the browser computes it again after the page loads, and may show a loading state over content the server already rendered.
 
 ## How the result travels
 

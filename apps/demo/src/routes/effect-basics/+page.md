@@ -119,7 +119,7 @@ const describe = (error: NotFound | Forbidden) => {
 
 Inside `Effect.gen`, `yield*` a tagged error to fail with it: `return yield* new NotFound({ id })`. `Effect.catchTag("NotFound", ...)` recovers from one kind and leaves the others in the type.
 
-<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3 to see each error. Then tick catchTag: NotFound turns into a value, and only Forbidden is left in the error type."> <CatchTag /> </Example>
+<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3 to see each error. Then turn on catchTag: NotFound turns into a value, and only Forbidden is left in the error type."> <CatchTag /> </Example>
 
 Read more in [Expected Errors](https://effect.website/docs/v4/error-management/expected-errors) and [Yieldable Errors](https://effect.website/docs/v4/error-management/yieldable-errors).
 
@@ -154,13 +154,13 @@ class Todos extends Context.Service<
   { readonly count: Effect.Effect<number> }
 >()("app/Todos") {}
 
+// A layer says how to build the service.
+const TodosLayer = Layer.succeed(Todos, { count: Effect.succeed(3) });
+
 const countTodos = Effect.gen(function* () {
   const todos = yield* Todos;
   return yield* todos.count;
 }); // Effect<number, never, Todos>
-
-// A layer says how to build the service.
-const TodosLive = Layer.succeed(Todos, { count: Effect.succeed(3) });
 ```
 
 The effect can't run until something provides `Todos`. A **layer** builds services, and can depend on other layers. For atoms, `Atom.runtime(layer)` provides one: see [Services and runtimes](/services). `AtomRpc` and `AtomHttpApi` build their clients as services in the same way.
