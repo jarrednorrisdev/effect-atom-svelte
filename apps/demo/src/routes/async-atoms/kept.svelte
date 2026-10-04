@@ -13,7 +13,7 @@
           ...runs,
           [name]: runs[name] + 1,
         }));
-        yield* Effect.sleep("600 millis");
+        yield* Effect.sleep("1500 millis");
         return value;
       })
     );
