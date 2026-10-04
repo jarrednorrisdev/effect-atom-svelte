@@ -239,7 +239,8 @@ test.describe("docs shell", () => {
   }) => {
     await page.goto("/reading-and-writing");
     await page.waitForLoadState("networkidle");
-    const example = page.locator("[data-example]");
+    // The page's first example; later sections have their own.
+    const example = page.locator("[data-example]").first();
     await expect(
       example.getByText("reading-and-writing.svelte", { exact: true })
     ).toBeVisible();
