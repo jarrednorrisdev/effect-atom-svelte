@@ -7,6 +7,17 @@ description: Send the server's results to the browser, so it doesn't run the sam
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import HydrationBoundaryExample from "./hydration-boundary.svelte";
+  import hydrationBoundarySource from "./hydration-boundary.svelte?highlight";
+  import pricesRemoteSource from "./prices.remote.ts?highlight";
+  import pricesSource from "./prices.svelte?highlight";
+  import pricesAtomsSource from "./prices.ts?highlight";
+  import Revalidate from "./revalidate.svelte";
+  import revalidateSource from "./revalidate.svelte?highlight";
+  import SavedFilter from "./saved-filter.svelte";
+  import savedFilterSource from "./saved-filter.svelte?highlight";
+  import Travel from "./travel.svelte";
+  import travelSource from "./travel.svelte?highlight";
   import Where from "./where.svelte";
   import whereSource from "./where.svelte?highlight";
 </script>
@@ -62,11 +73,15 @@ A few things follow from that:
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
 
+The example reads three atoms that record where they ran. All three were in the server's HTML, but only the serializable one read by `useAtomResult` kept the server's result: the atom without a key ran again in the browser, and so did the one read with `useAtomValue`, which the server rendered as `Initial`.
+
+<Example files={[{ html: travelSource, name: "travel.svelte" }]} hint="Compare In the HTML with the result now: only the first row still has the server's result. Open another page from the sidebar and come back: all three run in the browser, as only the first page load is hydrated."> <Travel /> </Example>
+
 ## Running again after hydration
 
-A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. The result is milliseconds old, so running the effect again would be wasted work.
+A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. On a page rendered for the request, the result is milliseconds old, so running the effect again would be wasted work. On a prerendered page, it is as old as the build.
 
-To run it again once the page has hydrated, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
+To run it again in the browser, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
 
 ```svelte
 <RegistryProvider revalidateOnHydrate>{@render children()}</RegistryProvider>
@@ -77,6 +92,10 @@ const prices = useAtomSuspense(pricesAtom, { revalidateOnHydrate: true });
 ```
 
 When several components read the same serializable atom, it runs again if any of them asks.
+
+The atom runs again as the page hydrates, and the hook waits for the new result, as for any result it doesn't have yet. Until it arrives, the component keeps showing what the server rendered.
+
+<Example files={[{ html: revalidateSource, name: "revalidate.svelte" }]} hint="Both atoms were in the HTML, computed on the server. The second ran again in the browser: click Reload the page and watch it keep the server's markup until the browser's result arrives."> <Revalidate /> </Example>
 
 <Aside type="note" title="Different from @effect/atom-react">
 
@@ -108,6 +127,10 @@ This happens when the choice depends on state only the browser has, such as a fi
 ```
 
 The first render uses `"all"` on both sides, and hydrates from the server's result. The switch to the saved filter then runs in the browser, like any later switch.
+
+The example saves its filter with `Atom.kvs`, whose server store is in memory, so the server reads `"all"` there too.
+
+<Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Pick Done, then click Reload the page: the list starts at all three todos, from the server, then switches to the saved filter and computes it in the browser."> <SavedFilter /> </Example>
 
 ## HydrationBoundary
 
@@ -145,3 +168,7 @@ export const load = async () => {
 ```
 
 Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
+
+The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
+
+<Example files={[{ html: hydrationBoundarySource, name: "hydration-boundary.svelte" }, { html: pricesRemoteSource, name: "prices.remote.ts" }, { html: pricesAtomsSource, name: "prices.ts" }, { html: pricesSource, name: "prices.svelte" }]} hint="Both atoms came from the remote function, computed on the server. Reload the page and watch pricesWithKeysAtom: it shows the server's result, then runs again in the browser."> <HydrationBoundaryExample /> </Example>

@@ -141,3 +141,92 @@ test.describe("SvelteKit page", () => {
     );
   });
 });
+
+test.describe("Hydration page", () => {
+  test("only a serializable atom read by useAtomResult keeps the server's result", async ({
+    page,
+  }) => {
+    await page.goto("/hydration");
+    for (const [id, html, now] of [
+      ["travel-keyed", "Computed on the server", "Computed on the server"],
+      ["travel-plain", "Computed on the server", "Computed in the browser"],
+      ["travel-value-only", "Initial, waiting", "Computed in the browser"],
+    ] as const) {
+      await expect(page.getByTestId(`${id}-html`)).toHaveText(html);
+      await expect(page.getByTestId(id)).toHaveText(now);
+    }
+  });
+
+  test("revalidateOnHydrate runs the atom again in the browser", async ({
+    page,
+  }) => {
+    await page.goto("/hydration");
+    await expect(page.getByTestId("revalidate-kept-html")).toHaveText(
+      "Computed on the server"
+    );
+    await expect(page.getByTestId("revalidate-fresh-html")).toHaveText(
+      "Computed on the server"
+    );
+    await expect(page.getByTestId("revalidate-fresh-where")).toHaveText(
+      "Computed in the browser"
+    );
+    await expect(page.getByTestId("revalidate-kept-where")).toHaveText(
+      "Computed on the server"
+    );
+  });
+
+  test("a saved filter applies after mounting, without a hydration warning", async ({
+    page,
+  }) => {
+    const warnings: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "warning" || message.type() === "error") {
+        warnings.push(message.text());
+      }
+    });
+    await page.goto("/hydration");
+    await page.waitForLoadState("networkidle");
+    const list = page.getByTestId("filtered-todos").getByRole("listitem");
+    await expect(list).toHaveCount(3);
+    await expect(page.getByTestId("filtered-where")).toHaveText(
+      "Computed on the server"
+    );
+
+    await page.getByTestId("saved-filter").selectOption("done");
+    await expect(list).toHaveText(["Write the docs"]);
+    await expect(page.getByTestId("filtered-where")).toHaveText(
+      "Computed in the browser"
+    );
+
+    // What the example's Reload the page button does.
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("saved-filter")).toHaveValue("done");
+    await expect(list).toHaveText(["Write the docs"]);
+    await expect(page.getByTestId("filtered-where")).toHaveText(
+      "Computed in the browser"
+    );
+    expect(warnings.filter((text) => text.includes("hydrat"))).toEqual([]);
+  });
+
+  test("HydrationBoundary hydrates a remote function's state", async ({
+    page,
+  }) => {
+    const remote: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/_app/remote/")) {
+        remote.push(request.url());
+      }
+    });
+    await page.goto("/hydration");
+    // Wrapped with withReactivity, so Effect's Hydration.hydrate runs it again.
+    await expect(page.getByTestId("pricesWithKeysAtom")).toContainText(
+      "Computed in the browser"
+    );
+    await expect(page.getByTestId("pricesAtom")).toContainText(
+      "Computed on the server"
+    );
+    // The prerendered result was in the page, so the browser didn't call the function.
+    expect(remote).toEqual([]);
+  });
+});

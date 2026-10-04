@@ -81,8 +81,10 @@ export const highlightMarkdown = async (
 
 const query = "?highlight";
 // A virtual id ending in .js, so the Svelte plugin does not compile `Example.svelte?highlight`.
+// The slash keeps SvelteKit from taking `data.remote.ts?highlight` for a remote module, which it
+// recognizes by a name ending in `.remote.` and an extension.
 const prefix = "\0highlight:";
-const suffix = ".js";
+const suffix = "/highlight.js";
 
 /**
  * `import html from "./Example.svelte?highlight"` gives that file's source as highlighted HTML,
