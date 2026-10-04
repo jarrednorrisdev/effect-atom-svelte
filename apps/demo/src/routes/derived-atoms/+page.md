@@ -7,6 +7,8 @@ description: Compute an atom's value from other atoms, and write back through it
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import SharedOrNot from "./shared-or-not.svelte";
+  import sharedSource from "./shared-or-not.svelte?highlight";
   import Temperature from "./temperature.svelte";
   import source from "./temperature.svelte?highlight";
 </script>
@@ -44,6 +46,10 @@ The registry computes a derived atom once and shares the result with every reade
 
 - A **transform** runs inside one hook, for one component. Use it to format a value for display.
 - A **derived atom** lives in the registry, and every component reads the same result. Use it when more than one component needs the value, or when computing it is expensive.
+
+Below, two readers use `doubledAtom` and two hooks use a transform. The corner of each box counts how many times its function has run:
+
+<Example files={[{ html: sharedSource, name: "shared-or-not.svelte" }]} hint="Click Add one to countAtom and watch the counters: doubledAtom runs once per change for both of its readers, the transform once in each hook."> <SharedOrNot /> </Example>
 
 ## Writable derived atoms
 

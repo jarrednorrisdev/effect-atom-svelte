@@ -43,4 +43,22 @@ test.describe("Atoms pages: an example for every feature", () => {
     await page.getByLabel("Follow savedAtom").uncheck();
     await expect(followed).toHaveValue("Draft text");
   });
+
+  test("derived atoms: a derived atom runs once for every reader, a transform once per hook", async ({
+    page,
+  }) => {
+    await page.goto("/derived-atoms");
+    await page.waitForLoadState("networkidle");
+    const atomRuns = page.getByLabel("doubledAtom runs", { exact: true });
+    const transformRuns = page.getByLabel("transform runs", { exact: true });
+    await expect(atomRuns).toHaveText("1");
+    await expect(transformRuns).toHaveText("2");
+    await page.getByRole("button", { name: "Add one to countAtom" }).click();
+    await expect(page.getByTestId("shared-count")).toHaveText("2");
+    await expect(atomRuns).toHaveText("2");
+    await expect(transformRuns).toHaveText("4");
+    await page.getByRole("button", { name: "Add one to countAtom" }).click();
+    await expect(atomRuns).toHaveText("3");
+    await expect(transformRuns).toHaveText("6");
+  });
 });
