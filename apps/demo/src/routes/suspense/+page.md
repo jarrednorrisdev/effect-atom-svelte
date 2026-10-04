@@ -9,6 +9,11 @@ description: Await async atoms in markup, and let a boundary show loading and fa
 
   import Failure from "./failure.svelte";
   import failureSource from "./failure.svelte?highlight";
+  import Follow from "./follow.svelte";
+  import followSource from "./follow.svelte?highlight";
+  import notesSource from "./notes.svelte?highlight";
+  import ScriptAwait from "./script-await.svelte";
+  import scriptAwaitSource from "./script-await.svelte?highlight";
   import Slow from "./slow.svelte";
   import slowSource from "./slow.svelte?highlight";
 </script>
@@ -127,6 +132,10 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 
 The script waits only once. From then on, `todos.current` updates like a `useAtomValue` read, and shows `waiting` while a refresh runs.
 
+In the live example, a `<Notes>` component awaits `useAtomResult` in its script, inside a boundary with a `pending` snippet. The log shows when its script started and when it continued past the `await`.
+
+<Example files={[{ html: scriptAwaitSource, name: "script-await.svelte" }, { html: notesSource, name: "notes.svelte" }]} hint="Click Mount the component: the boundary shows its pending snippet until the script's await resolves. Then click Refresh: current shows waiting, and the script doesn't run again."> <ScriptAwait /> </Example>
+
 On the server, the render waits for the first result too. If the atom has a serialization key, the browser starts from the server's result instead of running the effect again: see [Hydration](/hydration). [RPC](/rpc) shows this with a real query.
 
 ### Awaiting more than one atom
@@ -154,6 +163,8 @@ Both hooks accept a getter, like the other hooks that take an atom. They then fo
 
 - `useAtomSuspense(() => todoAtom(id))` issues a new promise when `id` changes, and the boundary awaits the new atom.
 - `await useAtomResult(() => todoAtom(id))` waits only for the first atom. When `id` changes, `current` moves to the new atom's result, which is usually `Initial` until it loads, and the script's `await` doesn't run again. Use `useAtomSuspense` when a change should wait for the new value.
+
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Pick another note: the boundary keeps the old one on screen while $effect.pending() is 1, and the log shows the new note's effect running. Then pick two notes quickly, one after the other: the first one's effect is interrupted."> <Follow /> </Example>
 
 <Aside type="note" title="Abandoned waits">
 
