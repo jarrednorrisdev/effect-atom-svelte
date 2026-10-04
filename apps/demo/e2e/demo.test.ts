@@ -241,6 +241,10 @@ test("first atom: two counters share one atom", async ({ page }) => {
   await page.getByRole("button", { name: "First counter: increment" }).click();
   await page.getByRole("button", { name: "Second counter: increment" }).click();
   await expect(page.locator("[data-example] output")).toHaveText(["2", "2"]);
+  // Nothing reads the atom while the counters are hidden, so it starts again.
+  await page.getByRole("button", { name: "Hide counters" }).click();
+  await page.getByRole("button", { name: "Show counters" }).click();
+  await expect(page.locator("[data-example] output")).toHaveText(["0", "0"]);
 });
 
 test("reading and writing: read, write, transform, update and bind", async ({

@@ -15,6 +15,14 @@ An `AtomRef` is a reactive value that holds itself. It needs no registry, runs n
 
 <Example files={[{ html: profileSource, name: "profile.svelte" }]}> <Profile /> </Example>
 
+## AtomRef or `$state`
+
+Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when:
+
+- **Code outside Svelte owns the value.** A ref is plain TypeScript with no runes, so a model shared with React or Vue code can hold refs that each framework reads through its own Effect Atom adapter.
+- **Equal values shouldn't notify.** A ref compares values structurally, as described below, so setting an equal copy wakes nobody. `$state` treats a new object as a change.
+- **A child should edit one property.** `prop` hands a child a ref it can read and set without knowing the shape of the parent value.
+
 ## Creating and updating a ref
 
 `AtomRef.make` takes the starting value:
