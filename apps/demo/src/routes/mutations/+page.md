@@ -10,6 +10,9 @@ description: Run an Effect when the user does something, and refresh what it cha
   import AddTodo from "./add-todo.svelte";
   import addTodoSource from "./add-todo.svelte?highlight";
   import Invalidation from "./invalidation.svelte";
+  import RefreshTodos from "./refresh-todos.svelte";
+  import refreshTodosSource from "./refresh-todos.svelte?highlight";
+  import todosSource from "./todos.ts?highlight";
   import Modes from "./modes.svelte";
   import modesSource from "./modes.svelte?highlight";
   import Optimistic from "./optimistic.svelte";
@@ -18,9 +21,9 @@ description: Run an Effect when the user does something, and refresh what it cha
 
 An async atom runs its effect when something reads it. A **mutation** runs its effect when you write to it, such as saving a form or deleting a row. Its state is an `AsyncResult`, so a component can show that a save is in progress, what it returned, or why it failed.
 
-This form adds a todo to the demo server over [RPC](/rpc). The diagram under it follows one request: the mutation runs, succeeds and invalidates the `"todos"` key, and the list, tagged with that key, runs again and brings the new todo.
+This form adds a todo to the demo server over [RPC](/rpc). Under it, the mutation's type lights up the way the last call ended, and its state follows each call:
 
-<Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the button waits, then the new todo arrives in the list. Then click Paste a long title and Add again."> <div data-testid="add-example"><AddTodo /><Invalidation /></div> </Example>
+<Example files={[{ html: addTodoSource, name: "add-todo.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
 ## Creating a mutation
 
@@ -36,13 +39,13 @@ const saveAtom = Atom.fn((todo: Todo) => saveTodo(todo));
 
 Writing an argument to the atom runs the effect. Reading the atom gives its `AsyncResult`: `Initial` before the first call, then `waiting` while a call runs, then `Success` or `Failure`.
 
-If you write again while a call is still running, the new call interrupts the old one. Pass `{ concurrent: true }` as `Atom.fn`'s second argument to let calls run side by side.
+If you write again while a call is still running, the new call interrupts the old one. Pass `{ concurrent: true }` as `Atom.fn`'s second argument to let calls run side by side; the next section shows what the mutation's result is then.
 
-`AtomRpc` and `AtomHttpApi` make mutations for you. The example's `TodosRpc.mutation("createTodo")` is an `Atom.fn` that sends one `createTodo` request per write, with the payload as its argument.
+`AtomRpc` and `AtomHttpApi` make mutations for you. The example's `TodosRpc.mutation("createTodo")`, in `todos.ts`, is an `Atom.fn` that sends one `createTodo` request per write, with the payload as its argument.
 
 ## Calling it from a component
 
-`useAtomSet` returns a function that calls the mutation, and `useAtomValue` reads its state. The example disables its button while `waiting` is true:
+`useAtomSet` returns a function that calls the mutation, and `useAtomValue` reads its state. The example at the top disables its button while `waiting` is true:
 
 ```svelte
 <script lang="ts">
@@ -59,7 +62,7 @@ If you write again while a call is still running, the new call interrupts the ol
 
 ## Showing a typed failure
 
-A form wants to know how its save ended, so it can clear itself or say what went wrong. With `mode: "promiseExit"` the setter returns a promise of the call's `Exit`, which never rejects. The demo server fails `createTodo` with a typed `TitleTooLong` error when the title is over 60 characters, and the example finds it in the `Cause`:
+A form wants to know how its save ended, so it can clear itself or say what went wrong. With `mode: "promiseExit"` the setter returns a promise of the call's `Exit`, which never rejects. The demo server fails `createTodo` with a typed `TitleTooLong` error when the title is over 60 characters. To say what went wrong, find the typed error in the `Cause`:
 
 **Example** (Keeping the input when the save fails)
 
@@ -77,13 +80,13 @@ const submit = async () => {
 };
 ```
 
-Only success clears `title`, so after a failure the form still holds what the reader typed. The mutation's own state is a `Failure` too, which the badge next to the button shows.
+Only success clears `title`, so after a failure the form still holds what the reader typed. The mutation's own state is a `Failure` too: the example at the top shows its cause rather than reading the `Exit`.
 
 ## Waiting for the result
 
-The `mode` option decides what calling the setter gives back. Each button below calls the same slow mutation with a different mode, and the log shows what each call gave back:
+The `mode` option decides what calling the setter gives back. Below, one slow mutation is called three ways, one per column, and each column lists what its calls gave back. The mutation's own state, with Cancel and Reset, is underneath:
 
-<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click each Save button. Then turn on Fail the save and click them again, or click Cancel during a save."> <div data-testid="modes-example"><Modes /></div> </Example>
+<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click Call in each column: save(n) returns at once, the two promises wait a second and a half. Click Call twice: the second call interrupts the first, and both promises settle with the second call's result. Then turn on concurrent: true and call twice again: neither call is interrupted, and both settle, together, with the first call's result."> <div data-testid="modes-example"><Modes /></div> </Example>
 
 | `mode` | The setter returns |
 | --- | --- |
@@ -91,7 +94,7 @@ The `mode` option decides what calling the setter gives back. Each button below 
 | `"promise"` | A promise of the value. It rejects with the error if the effect fails. |
 | `"promiseExit"` | A promise of the `Exit`, which never rejects. |
 
-The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result: click **Save (promise)** twice within a second and both lines resolve with the second draft.
+The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result: click **Call twice** in a promise column and both lines resolve with the second draft. With `{ concurrent: true }`, the first call isn't interrupted: both run to the end. The mutation then settles once every running call has finished, with the result of the oldest, so both promises still get the same value: turn on **concurrent: true** and call twice, and both lines show the first call's draft.
 
 To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted, but the mutation itself keeps running.
 
@@ -112,11 +115,15 @@ setSave(Atom.Interrupt);
 setSave(Atom.Reset);
 ```
 
-After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`.
+After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
 
 ## Refreshing what changed
 
-After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again. That is the path the diagram under the first example draws.
+After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again.
+
+The diagram under this example follows one request: the mutation runs, succeeds and invalidates the `"todos"` key, and the list, tagged with that key, runs again and brings the new todo.
+
+<Example files={[{ html: refreshTodosSource, name: "refresh-todos.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Click Add: createTodo succeeds, invalidates the todos key, and the list runs again with the new todo. Then click Paste a long title and Add: the call fails, so nothing is invalidated and the list stays as it is."> <div data-testid="refresh-example"><RefreshTodos /><Invalidation /></div> </Example>
 
 **Example** (Reading the list again after adding to it)
 
@@ -130,7 +137,7 @@ const createAtom = TodosRpc.mutation("createTodo");
 create({ payload: { title }, reactivityKeys: ["todos"] });
 ```
 
-A failed call invalidates nothing: add a title that is too long, and the list stays as it is. Every atom on the page tagged `"todos"` runs again, including the list in the next example.
+A failed call invalidates nothing. Every atom on the page tagged `"todos"` runs again, including the lists in the next example.
 
 Outside `AtomRpc` and `AtomHttpApi`, tag an atom with `Atom.withReactivity`, and pass `reactivityKeys` to a mutation made by a [runtime](/services):
 
@@ -151,9 +158,9 @@ The `reactivityKeys` option belongs to atoms made by a runtime, so create one wi
 
 ## Optimistic updates
 
-A round trip to the server can make the page feel slow. An **optimistic update** shows the result you expect straight away, then replaces it with the real one when the mutation finishes, or rolls it back if the mutation fails.
+A round trip to the server can make the page feel slow. An **optimistic update** shows the result you expect straight away, then replaces it with the real one when the mutation finishes, or rolls it back if the mutation fails. Below, the left column is what the page shows and the right what the server has; the save takes a second and a half.
 
-<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Tick a todo: it changes at once. Then turn on Make the next save fail and tick a todo again: a second later it goes back."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
+<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Tick a todo: it changes on screen at once, marked provisional, while the server still has the old value. Once the save lands, both agree. Then turn on Make the next save fail and tick a todo again: the save fails, and the screen goes back to what the server has."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
 
 `Atom.optimistic` wraps the atom to update, and `Atom.optimisticFn` wraps the mutation with a `reducer` that computes the provisional value from the current value and the mutation's argument. Read the optimistic atom instead of the original, and call the wrapped mutation instead of the original one.
 

@@ -14,14 +14,15 @@
   // Turned on by "Make the next save fail"; the next save turns it off.
   const failNextAtom = Atom.make(false);
 
-  // Toggles a todo over RPC. When failNextAtom is on, it fails after a second
-  // instead, as a dropped connection would, and the server never hears of it.
+  // Toggles a todo over RPC, on a slow connection: 1.5 seconds. When
+  // failNextAtom is on, it fails instead, as a dropped connection would,
+  // and the server never hears of it.
   const toggleAtom = TodosRpc.runtime.fn(
     (id: number, get) =>
       Effect.gen(function* toggleTodo() {
+        yield* Effect.sleep("1500 millis");
         if (get(failNextAtom)) {
           get.set(failNextAtom, false);
-          yield* Effect.sleep("1 second");
           return yield* new ConnectionLost();
         }
         const client = yield* TodosRpc;
@@ -49,18 +50,28 @@
 </script>
 
 <script lang="ts">
-  import { Option } from "effect";
   import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
-  const todos = useAtomValue(optimisticTodosAtom);
+  // What the page shows, with the provisional change applied while a save runs,
+  // and what the server has.
+  const onScreen = useAtomValue(optimisticTodosAtom);
+  const onServer = useAtomValue(todosAtom);
   const saving = useAtomValue(toggleOptimisticAtom);
   const toggle = useAtomSet(toggleOptimisticAtom);
   const failNext = useAtom(failNextAtom);
 
-  // The typed error of the last save, if it failed.
-  const error = $derived(Option.getOrUndefined(AsyncResult.error(saving.current)));
+  // A todo whose screen state differs from the server's is provisional.
+  const serverDone = $derived(
+    new Map(
+      onServer.current._tag === "Success"
+        ? onServer.current.value.map((todo) => [todo.id, todo.done])
+        : []
+    )
+  );
 </script>
 
 <p class="flex flex-wrap items-center gap-3">
@@ -70,26 +81,54 @@
   >
     Make the next save fail
   </button>
+  {#if saving.current.waiting}
+    <ResultChip duration={1500} kind="message" tone="running">
+      Saving…
+    </ResultChip>
+  {/if}
   <StateBadge data-testid="optimistic-state" result={saving.current} />
 </p>
-{#if todos.current._tag === "Success"}
-  <ul aria-busy={todos.current.waiting} data-testid="optimistic-todos">
-    {#each todos.current.value as todo (todo.id)}
-      <li>
-        <label>
-          <input checked={todo.done} onchange={() => toggle(todo.id)} type="checkbox" />
-          {todo.title}
-        </label>
-      </li>
-    {/each}
-  </ul>
-{:else}
-  <p>Loading the todos…</p>
-{/if}
-{#if error}
-  <ResultChip kind="message" label="toggleOptimisticAtom" tone="failure">
-    <span data-testid="optimistic-error">
-      {error._tag}: the save failed, so the todo went back.
-    </span>
-  </ResultChip>
+<div class="grid gap-3 sm:grid-cols-2">
+  <Part code label="On screen: optimisticTodosAtom" top>
+    {#if onScreen.current._tag === "Success"}
+      <ul class="m-0 grid list-none gap-1 p-0" data-testid="optimistic-todos">
+        {#each onScreen.current.value as todo (todo.id)}
+          <li class="m-0 flex items-center justify-between gap-2">
+            <label>
+              <input
+                checked={todo.done}
+                onchange={() => toggle(todo.id)}
+                type="checkbox"
+              />
+              {todo.title}
+            </label>
+            {#if serverDone.get(todo.id) !== todo.done}
+              <span class="text-xs text-muted-foreground">provisional</span>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="m-0">Loading the todos…</p>
+    {/if}
+  </Part>
+  <Part code label="On the server: todosAtom" top>
+    {#if onServer.current._tag === "Success"}
+      <ul class="m-0 grid list-none gap-1 p-0" data-testid="server-todos">
+        {#each onServer.current.value as todo (todo.id)}
+          <li class="m-0">{todo.done ? "✓" : "○"} {todo.title}</li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="m-0">Loading the todos…</p>
+    {/if}
+  </Part>
+</div>
+{#if saving.current._tag === "Failure"}
+  <CauseView
+    cause={saving.current.cause}
+    code
+    data-testid="optimistic-error"
+    label="toggleOptimisticAtom: the save failed, so the todo went back"
+  />
 {/if}

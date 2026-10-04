@@ -15,7 +15,7 @@
   import { toneOf } from "#lib/docs/kit/tone.ts";
   import type { Tone } from "#lib/docs/kit/tone.ts";
 
-  import { createAtom, todosAtom } from "./add-todo.svelte";
+  import { createAtom, todosAtom } from "./todos.ts";
 
   const creating = useAtomValue(createAtom);
   const todos = useAtomValue(todosAtom);
