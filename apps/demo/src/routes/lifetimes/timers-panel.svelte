@@ -1,5 +1,5 @@
 <!--
-  The finalizers example's timers, drawn from `timers.svelte.ts`: one row per timer ticksAtom
+  The finalizers example's timers, drawn from `timers.svelte.ts`: one row per timer tickCountAtom
   started. The newest running timer is the one the clock uses; any other running timer is leaked,
   because nothing stopped it. Not part of the example's code.
 -->
@@ -24,8 +24,8 @@
   const reasonOf = (stoppedAt: number | undefined) =>
     stoppedAt !== undefined &&
     timers.some((timer) => timer.startedAt >= stoppedAt && timer.startedAt - stoppedAt < 100)
-      ? "everyAtom changed"
-      : "nothing reads ticksAtom";
+      ? "tickIntervalAtom changed"
+      : "nothing reads tickCountAtom";
 
   const stateOf = (id: number, stopped: boolean) => {
     if (stopped) {

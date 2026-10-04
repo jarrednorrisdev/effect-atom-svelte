@@ -88,13 +88,13 @@ test.describe("Atoms pages: an example for every feature", () => {
     // Before computing again, the atom's finalizer stops the old timer.
     await press("0.25 s", true);
     await expect(timers).toHaveText([
-      /timer 1 .*stopped by the finalizer: everyAtom changed$/su,
+      /timer 1 .*stopped by the finalizer: tickIntervalAtom changed$/su,
       /timer 2 · every 0.25 s.*running for the clock$/su,
     ]);
     // Unread, the atom is disposed, and its finalizer stops the last one.
     await press("Show the clock", false);
     await expect(timers.nth(1)).toHaveText(
-      /stopped by the finalizer: nothing reads ticksAtom$/su
+      /stopped by the finalizer: nothing reads tickCountAtom$/su
     );
     await expect(running).toHaveText("0");
 

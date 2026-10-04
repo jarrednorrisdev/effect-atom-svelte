@@ -106,8 +106,8 @@ const nowAtom = Atom.make((get) => {
 
 Finalizers run when the atom is disposed, and also before it computes again because something it read changed. Each computation cleans up after itself.
 
-In the live example, `ticksAtom` starts a timer each time it computes, and its finalizer stops it. Every timer it has started is listed beside the clock. Turn the finalizer off to see what it prevents:
+In the live example, `tickCountAtom` starts a timer each time it computes, and its finalizer stops it. Every timer it has started is listed beside the clock. Turn the finalizer off to see what it prevents:
 
-<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock: ticksAtom starts timer 1. Switch to 0.25 s: ticksAtom depends on everyAtom, so it computes again, and its finalizer stops timer 1 first. Hide the clock: the atom is disposed, and its finalizer stops the last timer. Then turn off Clear in a finalizer and do it all again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
+<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock: tickCountAtom starts timer 1. Switch to 0.25 s: tickCountAtom depends on tickIntervalAtom, so it computes again, and its finalizer stops timer 1 first. Hide the clock: the atom is disposed, and its finalizer stops the last timer. Then turn off Clear in a finalizer and do it all again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
 
 An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).
