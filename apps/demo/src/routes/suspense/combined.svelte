@@ -24,4 +24,8 @@
   const seconds = ((performance.now() - started) / 1000).toFixed(1);
 </script>
 
-<LoadResults results={{ dashboard: dashboard.current }} {seconds} testid="combined" />
+<LoadResults
+  results={{ dashboard: dashboard.current }}
+  {seconds}
+  testid="combined"
+/>
