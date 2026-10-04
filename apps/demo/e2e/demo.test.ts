@@ -747,9 +747,17 @@ test.describe("Mutations page", () => {
     const log = page.getByTestId("modes-log").getByRole("listitem");
     await expect(state).toHaveText("Initial");
 
-    // The second call interrupts the first, so both promises settle with draft 2.
-    await example.getByRole("button", { name: "Save (promise)" }).click();
-    await example.getByRole("button", { name: "Save (promiseExit)" }).click();
+    // The second call interrupts the first, so both promises settle with draft 2. Both clicks
+    // happen in one task: under load, two separate clicks can land more than the save's 1.5 s
+    // apart, and then nothing is interrupted.
+    await example.evaluate((element) => {
+      for (const name of ["Save (promise)", "Save (promiseExit)"]) {
+        const button = [...element.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.trim() === name
+        );
+        button?.click();
+      }
+    });
     await expect(state).toHaveText("Initial, waiting");
     await expect(log).toHaveCount(0);
     await expect(log).toHaveCount(2);
