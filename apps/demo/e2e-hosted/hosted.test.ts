@@ -126,3 +126,33 @@ test("Mutations: add, a typed error and an optimistic rollback in the tab", asyn
   await expect(box).toBeChecked();
   expect(requests).toEqual([]);
 });
+
+test("Cookbook: server-sent events, an auth header and a load function in the tab", async ({
+  page,
+  request,
+}) => {
+  // load ran when the page was prerendered, against the API in the build.
+  const response = await request.get("/cookbook");
+  const html = await response.text();
+  expect(html).toMatch(/data-testid="load-count"[^>]*>2</u);
+
+  const requests = await blockNetworkApi(page);
+  await page.goto("/cookbook");
+  await page.waitForLoadState("networkidle");
+
+  const messages = page.getByTestId("socket-messages").locator("li");
+  await page.getByRole("button", { name: "Connect" }).click();
+  await expect(messages.nth(1)).toHaveText("Message 2");
+  await page.getByRole("button", { name: "Disconnect" }).click();
+  await expect(page.getByTestId("socket-closed")).toBeVisible();
+
+  const send = page.getByRole("button", { name: "GET /api/me" });
+  await send.click();
+  await expect(page.getByTestId("auth-result")).toHaveText(
+    "This route needs an Authorization header."
+  );
+  await page.getByLabel("Signed in").check();
+  await send.click();
+  await expect(page.getByTestId("auth-result")).toHaveText("Signed in as Ada");
+  expect(requests).toEqual([]);
+});

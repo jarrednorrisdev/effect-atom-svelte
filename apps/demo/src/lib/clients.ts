@@ -25,6 +25,11 @@ export const baseUrl = origin || undefined;
 /** The HTTP client layer the demo's clients use, for examples that define a client of their own. */
 export const httpClient = inTabApi ? inTabHttpClient : FetchHttpClient.layer;
 
+/** Where the demo API is, for clients of its HTTP API defined elsewhere (`baseUrl`). */
+export const apiBaseUrl = origin || undefined;
+/** The HTTP client layer that reaches the demo API, in the tab or over the network. */
+export const apiHttpClient = httpClient;
+
 export class TodosRpc extends AtomRpc.Service<TodosRpc>()("demo/TodosRpc", {
   group: TodosRpcs,
   protocol: RpcClient.layerProtocolHttp({ url: `${origin}/api/rpc` }).pipe(

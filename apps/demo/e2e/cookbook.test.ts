@@ -156,6 +156,159 @@ test.describe("Cookbook page", () => {
       timeline.getByRole("list", { name: "search" }).getByRole("listitem")
     ).toHaveText([/search started/u, /1 found/u]);
   });
+
+  test("route param: the page follows params to the next todo", async ({
+    page,
+  }) => {
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const todo = page.getByTestId("route-todo");
+    const params = page.getByTestId("route-params");
+    await expect(todo).toHaveText("Read the Effect Atom source");
+    await expect(params).toHaveText('{ id: "1" }');
+
+    await page.getByRole("button", { name: "/todos/2" }).click();
+    await expect(params).toHaveText('{ id: "2" }');
+    await expect(todo).toHaveText("Write a Svelte adapter");
+    await expect(
+      page.getByRole("button", { name: "/todos/2" })
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // The third address is a typed TodoNotFound until a recipe adds a third item.
+    await page.getByRole("button", { name: "/todos/3" }).click();
+    await expect(todo).toHaveText("There is no todo 3.");
+    await page.getByTestId("new-todo").fill("Third");
+    await page.getByTestId("new-todo-add").click();
+    await expect(page.getByTestId("new-todo-state")).toHaveText("Success");
+    await page.getByRole("button", { name: "/todos/1" }).click();
+    await expect(todo).toHaveText("Read the Effect Atom source");
+    await page.getByRole("button", { name: "/todos/3" }).click();
+    await expect(todo).toHaveText("Third");
+  });
+
+  test("server-sent events: messages arrive while connected, and Disconnect closes the connection", async ({
+    page,
+  }) => {
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const closed: string[] = [];
+    page.on("requestfailed", (request) => {
+      if (request.url().endsWith("/api/events")) {
+        closed.push(request.url());
+      }
+    });
+    const messages = page.getByTestId("socket-messages").locator("li");
+    const connect = page.getByRole("button", { name: "Connect" });
+    await expect(page.getByTestId("socket-closed")).toBeVisible();
+
+    await connect.click();
+    await expect(messages.first()).toHaveText("Message 1");
+    await expect(messages.nth(1)).toHaveText("Message 2");
+    await expect(page.getByTestId("socket-count")).not.toHaveText("0");
+
+    await page.getByRole("button", { name: "Disconnect" }).click();
+    await expect(page.getByTestId("socket-closed")).toBeVisible();
+    // The registry stops the stream once nothing reads it, and the release closes the
+    // EventSource.
+    await expect.poll(() => closed.length).toBe(1);
+
+    // A new connection counts from 1 again.
+    await connect.click();
+    await expect(messages.first()).toHaveText("Message 1");
+  });
+
+  test("auth headers: a 401 without the token, then transformClient adds it", async ({
+    page,
+  }) => {
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const send = page.getByRole("button", { name: "GET /api/me" });
+    const state = page.getByTestId("auth-state");
+    const result = page.getByTestId("auth-result");
+    await expect(state).toHaveText("Initial");
+    await expect(page.getByTestId("auth-header")).toHaveText("No header");
+
+    const first = page.waitForRequest("**/api/me");
+    await send.click();
+    const without = await first;
+    expect(without.headers().authorization).toBeUndefined();
+    await expect(state).toHaveText("Failure");
+    await expect(result).toHaveText(
+      "This route needs an Authorization header."
+    );
+
+    await page.getByLabel("Signed in").check();
+    await expect(page.getByTestId("auth-header")).toHaveText(
+      "Authorization: Bearer demo-token"
+    );
+    const second = page.waitForRequest("**/api/me");
+    await send.click();
+    const withToken = await second;
+    expect(withToken.headers().authorization).toBe("Bearer demo-token");
+    await expect(state).toHaveText("Success");
+    await expect(result).toHaveText("Signed in as Ada");
+    const history = page.getByTestId("auth-history").getByRole("listitem");
+    await expect(history.filter({ hasText: "Failure" })).not.toHaveCount(0);
+    await expect(history.last()).toContainText("Success Ada");
+  });
+
+  test("outside components: a .svelte.ts class saves a todo with its hooks", async ({
+    page,
+  }) => {
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const count = page.getByTestId("class-count");
+    await expect(count).toHaveText("2");
+    await page.getByTestId("class-title").fill("Saved by a class");
+    await page
+      .getByRole("button", { exact: true, name: "Save" })
+      .first()
+      .click();
+    await expect(page.getByTestId("class-state")).toHaveText("Success");
+    await expect(count).toHaveText("3");
+    await expect(page.getByTestId("class-title")).toHaveValue("");
+    // The mutation invalidated "todos", so the other recipes' lists have it too.
+    await expect(page.getByTestId("new-todo-list")).toContainText(
+      "Saved by a class"
+    );
+  });
+
+  test("outside components: a plain function writes through the registry", async ({
+    page,
+  }) => {
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const draft = page.getByTestId("registry-draft");
+    const history = page.getByTestId("registry-history").locator("li");
+    await draft.fill("First draft");
+    await draft.press("Enter");
+    await expect(history).toHaveText(["First draft"]);
+    await expect(draft).toHaveValue("");
+    await draft.fill("Second draft");
+    await draft.press("Enter");
+    await expect(history).toHaveText(["First draft", "Second draft"]);
+    await expect(page.getByTestId("registry-count")).toHaveText("2");
+  });
+
+  test("outside components: load's count is rendered once, todosAtom's follows", async ({
+    page,
+    request,
+  }) => {
+    const response = await request.get("/cookbook");
+    const html = await response.text();
+    expect(html).toMatch(/data-testid="load-count"[^>]*>2</u);
+
+    await page.goto("/cookbook");
+    await page.waitForLoadState("networkidle");
+    const loaded = page.getByTestId("load-count");
+    const live = page.getByTestId("load-live-count");
+    await expect(loaded).toHaveText("2");
+    await expect(live).toHaveText("2");
+    await page.getByTestId("new-todo").fill("One more");
+    await page.getByTestId("new-todo-add").click();
+    await expect(live).toHaveText("3");
+    await expect(loaded).toHaveText("2");
+  });
 });
 
 test.describe("Testing page", () => {

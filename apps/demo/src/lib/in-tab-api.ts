@@ -30,6 +30,102 @@ const inTabFetch: typeof fetch = async (input, init) => {
   return handle(new Request(input, init));
 };
 
+/**
+ * Enough of `EventSource` for the examples, reading server-sent events from the in-tab handler:
+ * `open`, a `message` event with each event's data, and `error` when the request fails or the
+ * stream ends. Unlike the browser's, it doesn't reconnect.
+ */
+class InTabEventSource extends EventTarget {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
+
+  readyState: number = InTabEventSource.CONNECTING;
+  readonly url: string;
+  readonly withCredentials = false;
+  readonly #abort = new AbortController();
+  #reader: ReadableStreamDefaultReader<string> | undefined;
+
+  constructor(url: string | URL) {
+    super();
+    this.url = new URL(url, inTabOrigin).href;
+    void this.#connect();
+  }
+
+  close() {
+    this.readyState = InTabEventSource.CLOSED;
+    this.#abort.abort();
+    void this.#cancel();
+  }
+
+  /** Stops the response's stream, which stops the handler sending events. */
+  async #cancel() {
+    try {
+      await this.#reader?.cancel();
+    } catch {
+      // The stream had already failed; there is nothing left to stop.
+    }
+  }
+
+  async #connect() {
+    try {
+      const response = await inTabFetch(this.url, {
+        headers: { accept: "text/event-stream" },
+        signal: this.#abort.signal,
+      });
+      if (!response.ok || !response.body || this.#closed()) {
+        throw new Error(`GET ${this.url} answered ${response.status}`);
+      }
+      this.#reader = response.body
+        .pipeThrough(new TextDecoderStream())
+        .getReader();
+      this.readyState = InTabEventSource.OPEN;
+      this.dispatchEvent(new Event("open"));
+      await this.#read(this.#reader, "");
+    } catch {
+      // Reported below, as the browser's EventSource reports a failed connection.
+    }
+    if (!this.#closed()) {
+      this.readyState = InTabEventSource.CLOSED;
+      this.dispatchEvent(new Event("error"));
+    }
+  }
+
+  #closed() {
+    return this.readyState === InTabEventSource.CLOSED;
+  }
+
+  /** Dispatches each complete event in the stream, keeping a partial one for the next chunk. */
+  async #read(
+    reader: ReadableStreamDefaultReader<string>,
+    pending: string
+  ): Promise<void> {
+    const { done, value } = await reader.read();
+    if (done || this.#closed()) {
+      return;
+    }
+    const blocks = (pending + value).split("\n\n");
+    const rest = blocks.pop() ?? "";
+    for (const block of blocks) {
+      const data = block
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice("data:".length).trimStart())
+        .join("\n");
+      this.dispatchEvent(new MessageEvent("message", { data }));
+    }
+    return this.#read(reader, rest);
+  }
+}
+
+/**
+ * The browser's `EventSource`, except in the hosted build, where the demo API runs in this tab and
+ * a network connection couldn't reach it: there it is a stand-in that reads from the in-tab API.
+ */
+export const EventSource: typeof globalThis.EventSource = inTabApi
+  ? (InTabEventSource as unknown as typeof globalThis.EventSource)
+  : globalThis.EventSource;
+
 /** An `HttpClient` that sends every request to the in-tab handler instead of the network. */
 export const inTabHttpClient: Layer.Layer<HttpClient.HttpClient> = Layer.effect(
   HttpClient.HttpClient,

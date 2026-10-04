@@ -1,8 +1,9 @@
 import { Context, Duration, Effect, Layer, Schedule, Stream } from "effect";
-import { HttpRouter, HttpServer } from "effect/http";
+import { HttpRouter, HttpServer, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 
+import { Account, DEMO_TOKEN, Unauthorized } from "./account.ts";
 import { DemoApi } from "./http.ts";
 import { TodosRpcs } from "./rpc.ts";
 import { TITLE_MAX_LENGTH, TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
@@ -108,11 +109,56 @@ const HttpHandlers = HttpApiBuilder.group(DemoApi, "todos", (handlers) =>
   })
 );
 
-/** Serves the demo API over HTTP at /api/todos and RPC at /api/rpc from one in-memory store. */
+// GET /api/me answers only with the demo token, so a client has to add the header itself.
+const accountHandlers = (options: ServerOptions) =>
+  HttpApiBuilder.group(DemoApi, "account", (handlers) =>
+    handlers.handle("me", ({ request }) =>
+      (request.headers.authorization === `Bearer ${DEMO_TOKEN}`
+        ? Effect.succeed(new Account({ name: "Ada" }))
+        : Effect.fail(
+            new Unauthorized({
+              message: request.headers.authorization
+                ? "That token isn't valid."
+                : "This route needs an Authorization header.",
+            })
+          )
+      ).pipe(Effect.delay(Duration.fromInputUnsafe(options.latency ?? 0)))
+    )
+  );
+
+const encoder = new TextEncoder();
+
+/**
+ * Server-sent events at GET /api/events: a numbered message every 600 milliseconds, starting at
+ * 1 for each connection, until the client disconnects.
+ */
+const EventsRoute = HttpRouter.add(
+  "GET",
+  "/api/events",
+  Effect.sync(() =>
+    HttpServerResponse.stream(
+      Stream.fromSchedule(Schedule.spaced("600 millis")).pipe(
+        Stream.map((n) => encoder.encode(`data: ${n + 1}\n\n`))
+      ),
+      {
+        contentType: "text/event-stream",
+        headers: { "cache-control": "no-cache" },
+      }
+    )
+  )
+);
+
+/**
+ * Serves the demo API over HTTP at /api/todos and /api/me, RPC at /api/rpc and server-sent events
+ * at /api/events, from one in-memory store.
+ */
 export const makeDemoHandler = (options: ServerOptions = {}) =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(
-      HttpApiBuilder.layer(DemoApi).pipe(Layer.provide(HttpHandlers)),
+      HttpApiBuilder.layer(DemoApi).pipe(
+        Layer.provide([HttpHandlers, accountHandlers(options)])
+      ),
+      EventsRoute,
       RpcServer.layerHttp({
         group: TodosRpcs,
         path: "/api/rpc",

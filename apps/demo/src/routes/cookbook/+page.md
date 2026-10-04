@@ -7,6 +7,22 @@ description: Recipes for common tasks, from route params and infinite scroll to 
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
+  import Auth from "./auth.svelte";
+  import authSource from "./auth.svelte?highlight";
+  import DraftHistory from "./draft-history.svelte";
+  import draftHistorySource from "./draft-history.svelte?highlight";
+  import historySource from "./history.ts?highlight";
+  import LoadCount from "./load-count.svelte";
+  import loadCountSource from "./load-count.svelte?highlight";
+  import loadSource from "./+page.server.ts?highlight";
+  import messagesSource from "./messages.svelte?highlight";
+  import RouteParam from "./route-param.svelte";
+  import Socket from "./socket.svelte";
+  import socketSource from "./socket.svelte?highlight";
+  import TodoForm from "./todo-form.svelte";
+  import todoFormSource from "./todo-form.svelte?highlight";
+  import todoFormClassSource from "./todo-form.svelte.ts?highlight";
+  import todoPageSource from "./todo-page.svelte?highlight";
   import Feed from "./feed.svelte";
   import feedSource from "./feed.svelte?highlight";
   import FirstOpen from "./first-open.svelte";
@@ -24,36 +40,13 @@ Each recipe on this page solves one common task with the pieces from the rest of
 
 ## A route param that picks the query
 
-A page such as `/todos/[id]` shows one item, chosen by the URL. Read the param inside a getter, so the hook follows it:
+A page such as `/todos/[id]` shows one item, chosen by the URL. SvelteKit gives every page its route's params as the `params` prop. Read them inside a getter, so the hook follows them. Here the addresses stand in for the router:
 
-**Example** (A todo page driven by its route param)
+<Example files={[{ html: todoPageSource, name: "todo-page.svelte" }]} hint="Pick an address: params.id changes, the getter returns the query for that todo, and the boundary awaits it. /todos/3 doesn't exist until you add a todo below."> <RouteParam /> </Example>
 
-```svelte
-<!-- src/routes/todos/[id]/+page.svelte -->
-<script lang="ts">
-  import { page } from "$app/state";
-  import { useAtomSuspense } from "effect-atom-svelte";
+When you navigate from `/todos/1` to `/todos/2`, SvelteKit keeps the page component and changes its `params`. The getter then returns the query for the new id, and the boundary awaits it while the old todo stays on screen. A query called with the same arguments returns the same atom, so going back to `/todos/1` reuses that atom if it is still in the registry.
 
-  import { TodosRpc } from "../../clients.ts";
-
-  const todo = useAtomSuspense(() =>
-    TodosRpc.query(
-      "getTodo",
-      { id: Number(page.params.id) },
-      { serializationKey: `todo-${page.params.id}` }
-    )
-  );
-</script>
-
-<svelte:boundary>
-  <h1>{(await todo.current).title}</h1>
-  {#snippet pending()}<p>Loading…</p>{/snippet}
-</svelte:boundary>
-```
-
-When you navigate from `/todos/1` to `/todos/2`, SvelteKit keeps the page component and changes `page.params`. The getter then returns the query for the new id, and the boundary awaits it. A query called with the same arguments returns the same atom, so going back to `/todos/1` reuses that atom if it is still in the registry.
-
-For atoms of your own, put the param into an [`Atom.family`](/families) the same way: `useAtomSuspense(() => todoAtom(Number(page.params.id)))`. The [RPC page](/rpc#following-arguments) has a live version driven by a `<select>`.
+`params` is the same object as `page.params` from `$app/state`, which any component can read. For atoms of your own, put the param into an [`Atom.family`](/families) the same way: `useAtomSuspense(() => todoAtom(Number(params.id)))`. The [RPC page](/rpc#following-arguments) has a version driven by a `<select>`.
 
 ## Dependent queries
 
@@ -99,14 +92,17 @@ The timer runs only while something reads the polled atom. When the last reader 
 
 ## A WebSocket or server-sent events
 
-A socket pushes messages whenever it likes. `Stream.callback` turns that into a stream: it hands you a queue, and you offer each message to it. An atom made from the stream holds the latest value:
+A socket pushes messages whenever it likes. `Stream.callback` turns that into a stream: it hands you a queue, and you offer each message to it. An atom made from the stream holds the latest value. This one listens to server-sent events from the demo server with an `EventSource`:
 
-**Example** (Collecting a socket's messages)
+<Example files={[{ html: messagesSource, name: "messages.svelte" }, { html: socketSource, name: "socket.svelte" }]} hint="Click Connect: a message arrives every 600 milliseconds. Disconnect, then connect again: a new connection counts from 1."> <Socket /> </Example>
+
+The connection opens when something first reads `messagesAtom`. When the last reader goes, the registry stops the stream, which closes the scope, and the release closes the `EventSource`. `Stream.scan` keeps every message so far rather than only the latest. `Atom.withServerValueInitial` keeps the connection closed on the server, where it has nothing to show.
+
+A WebSocket works the same way. Its stream can also end, by ending the queue when the socket closes:
+
+**Example** (Collecting a WebSocket's messages)
 
 ```ts
-import { Effect, Queue, Stream } from "effect";
-import { Atom } from "effect/reactivity";
-
 const messages = Stream.callback<string>((queue) =>
   Effect.acquireRelease(
     Effect.sync(() => {
@@ -120,20 +116,7 @@ const messages = Stream.callback<string>((queue) =>
     (socket) => Effect.sync(() => socket.close())
   )
 );
-
-export const messagesAtom = Atom.make(
-  messages.pipe(
-    Stream.scan(
-      () => [] as string[],
-      (all, message) => [...all, message]
-    )
-  )
-).pipe(Atom.withServerValueInitial);
 ```
-
-The socket opens when something first reads `messagesAtom`. When the last reader goes, the registry stops the stream, which closes the scope, and the release closes the socket. `Stream.scan` keeps every message so far rather than only the latest. `Atom.withServerValueInitial` keeps the socket closed on the server, where it has nothing to show.
-
-Server-sent events work the same way with an `EventSource`: listen for `message`, offer `event.data`, and call `source.close()` in the release.
 
 <Aside type="tip" title="Streaming RPC">
 
@@ -143,30 +126,11 @@ If the server speaks Effect RPC, a procedure declared with `stream: true` gives 
 
 ## Auth headers
 
-To add a header to every request, give the client a `transformClient` function. It takes the `HttpClient` and returns one that changes each request before it is sent:
+To add a header to every request, give the client a `transformClient` function. It takes the `HttpClient` and returns one that changes each request before it is sent. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
 
-**Example** (A bearer token on every HTTP API request)
+<Example files={[{ html: authSource, name: "auth.svelte" }]} hint="Send GET /api/me: without the header, the server answers 401. Tick Signed in and send it again: the same client now adds the header."> <Auth /> </Example>
 
-```ts
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
-import { AtomHttpApi } from "effect/reactivity";
-
-import { TodosApi } from "./api.ts";
-import { readToken } from "./auth.ts";
-
-export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
-  "app/TodosHttp",
-  {
-    api: TodosApi,
-    httpClient: FetchHttpClient.layer,
-    transformClient: HttpClient.mapRequest((request) =>
-      HttpClientRequest.bearerToken(request, readToken())
-    ),
-  }
-) {}
-```
-
-`mapRequest` runs for each request, so `readToken` is called every time and a new token is picked up without rebuilding the client. `RpcClient.layerProtocolHttp` takes a `transformClient` option too, for an `AtomRpc` client.
+`mapRequest` runs for each request, so the token is read every time and a new one is picked up without rebuilding the client. The example keeps the token in module state, which is safe only because nothing sets it on the server (see the caution below). `RpcClient.layerProtocolHttp` takes a `transformClient` option too, for an `AtomRpc` client.
 
 To add a header to one request only, pass `headers`. RPC queries and mutations take it, and so does an HTTP API request.
 
@@ -192,76 +156,22 @@ Atoms are plain values, so you can define them in any module. Their state lives 
 
 The hooks need a component's context, but not its markup. A class that calls them in its constructor works, as long as a component creates it while it initializes:
 
-**Example** (A form's state and actions in a class)
-
-```ts
-// todo-form.svelte.ts
-import { Exit } from "effect";
-import { useAtomSet, useAtomValue } from "effect-atom-svelte";
-
-import { TodosRpc } from "./clients.ts";
-
-const createAtom = TodosRpc.mutation("createTodo");
-
-export class TodoForm {
-  title = $state("");
-  readonly saving = useAtomValue(createAtom);
-  readonly #create = useAtomSet(createAtom, { mode: "promiseExit" });
-
-  submit = async () => {
-    const exit = await this.#create({ payload: { title: this.title } });
-    if (Exit.isSuccess(exit)) {
-      this.title = "";
-    }
-  };
-}
-```
-
-```svelte
-<script lang="ts">
-  import { TodoForm } from "./todo-form.svelte.ts";
-
-  const form = new TodoForm();
-</script>
-```
+<Example files={[{ html: todoFormClassSource, name: "todo-form.svelte.ts" }, { html: todoFormSource, name: "todo-form.svelte" }]} hint="Save a todo: the class's hooks show the save and the new count, and the lists in the recipes above fetch it too."> <TodoForm /> </Example>
 
 Create it at the top level of the script, not in an event handler or after an `await` inside a function, for the same reason as any hook.
 
 ### The registry itself
 
-`getRegistry()` returns the registry the hooks use. Call it while the component initializes, and keep the result for later, for example to read or write an atom from code that isn't reactive:
+`getRegistry()` returns the registry the hooks use. Call it while the component initializes, and keep the result for later, for example to read or write atoms from code that isn't reactive:
 
-```ts
-const registry = getRegistry();
-
-const save = () => {
-  const draft = registry.get(draftAtom);
-  registry.update(historyAtom, (history) => [...history, draft]);
-};
-```
+<Example files={[{ html: historySource, name: "history.ts" }, { html: draftHistorySource, name: "draft-history.svelte" }]} hint="Type a draft and save it: save, a plain function, writes both atoms through the registry, and the hooks show the change."> <DraftHistory /> </Example>
 
 It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing mounts is disposed shortly afterwards. See [Lifetimes](/lifetimes).
 
 ### In a load function
 
-A `load` function runs outside any component, so it makes a registry of its own, and disposes of it when it is done. `AtomRegistry.getResult` waits for an async atom's result as an `Effect`:
+A `load` function runs outside any component, so it makes a registry of its own, and disposes of it when it is done. `AtomRegistry.getResult` waits for an async atom's result as an `Effect`. This page's own `+page.server.ts` counts the todos:
 
-```ts
-// src/routes/todos/+page.server.ts
-import { Effect } from "effect";
-import { AtomRegistry } from "effect/reactivity";
+<Example files={[{ html: loadSource, name: "+page.server.ts" }, { html: loadCountSource, name: "load-count.svelte" }]} hint="Add a todo in one of the forms above: todosAtom's count follows, while load's stays at what it found when the page was rendered."> <LoadCount /> </Example>
 
-export const load = async () => {
-  const registry = AtomRegistry.make();
-  try {
-    const todos = await Effect.runPromise(
-      AtomRegistry.getResult(registry, todosAtom)
-    );
-    return { count: todos.length };
-  } finally {
-    registry.dispose();
-  }
-};
-```
-
-To hand the results to the browser's registry rather than returning plain data, dehydrate the registry and render a `HydrationBoundary`. See [Hydration](/hydration#hydrationboundary).
+What `load` returns is plain data, rendered once: it changes only when the page loads again. To hand the results to the browser's registry instead, dehydrate the registry and render a `HydrationBoundary`. See [Hydration](/hydration#hydrationboundary).
