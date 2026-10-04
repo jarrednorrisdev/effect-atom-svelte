@@ -12,8 +12,6 @@ description: Keep state in localStorage, cookies or the URL, and react to the br
   import draftSource from "./draft.svelte?highlight";
   import Focus from "./focus.svelte";
   import focusSource from "./focus.svelte?highlight";
-  import Search from "./search.svelte";
-  import searchSource from "./search.svelte?highlight";
   import Theme from "./theme.svelte";
   import themeSource from "./theme.svelte?highlight";
 </script>
@@ -76,9 +74,15 @@ A page that reads cookies depends on the request, so it can't be prerendered. Th
 
 ## The URL's query string
 
-`Atom.searchParam` reads and writes one parameter of the URL's query string. `Atom.debounce` follows another atom, but only once it has stopped changing for a while, which suits a search box:
+`Atom.searchParam` reads and writes one parameter of the URL's query string:
 
-<Example files={[{ html: searchSource, name: "search.svelte" }]}> <Search /> </Example>
+```ts
+const queryAtom = Atom.searchParam("q");
+
+const query = useAtom(queryAtom); // bind:value={query.current} keeps ?q= in step
+```
+
+The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses it in a live search box.
 
 Writes to the URL are batched, and land half a second after the last change, with `history.pushState`. An empty value removes the parameter.
 

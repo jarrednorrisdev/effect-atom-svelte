@@ -62,6 +62,9 @@ export const nav: readonly NavSection[] = [
     pages: [
       { href: "/errors", title: "Errors" },
       { href: "/testing", title: "Testing" },
+      { href: "/cookbook", title: "Cookbook" },
+      { href: "/migrating-from-react", title: "Migrating from atom-react" },
+      { href: "/troubleshooting", title: "Troubleshooting" },
     ],
     title: "Guides",
   },

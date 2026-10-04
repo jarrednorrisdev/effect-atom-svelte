@@ -515,14 +515,6 @@ test("browser atoms: refreshOnWindowFocus computes again when the tab is shown",
   await expect(lastSeen).not.toHaveText(first ?? "");
 });
 
-test("browser atoms: searchParam drives the URL", async ({ page }) => {
-  await page.goto("/browser");
-  await page.waitForLoadState("networkidle");
-  await page.getByTestId("search").fill("atoms");
-  await expect(page).toHaveURL(/\?q=atoms/u);
-  await expect(page.getByTestId("debounced")).toHaveText("atoms");
-});
-
 test("lifetimes: plain atoms are disposed on unmount, keepAlive atoms are not", async ({
   page,
 }) => {

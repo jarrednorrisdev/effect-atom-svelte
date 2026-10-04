@@ -126,23 +126,7 @@ A hook can't be called after an `await` inside a function of your own, such as a
 
 </Aside>
 
-### Event handlers after an await
-
-In Svelte 5.57, a production build attaches event handlers before the script has finished its top-level awaits. A handler that a hook returns after an `await` is still `undefined` at that point, so `onclick={refresh}` does nothing. Development builds don't show the problem.
-
-**Example** (A refresh button that works)
-
-```svelte
-<script lang="ts">
-  // Called before the await, so `refresh` exists when the button is set up.
-  const refresh = useAtomRefresh(todosAtom);
-  const todos = await useAtomResult(todosAtom);
-</script>
-
-<button onclick={refresh}>Refresh</button>
-```
-
-Either call such hooks before the first `await`, or wrap the handler in an arrow function, `onclick={() => refresh()}`, which looks `refresh` up when the button is clicked.
+A button whose handler comes from a hook called after an `await` can do nothing in a production build. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
 ## Following a different atom
 

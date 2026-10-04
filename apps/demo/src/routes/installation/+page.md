@@ -23,11 +23,7 @@ The package is pre-release and not on npm yet, so this command does not work tod
 
 </Aside>
 
-<Aside type="caution" title="One copy of effect">
-
-In a monorepo, a workspace package compiled from source can get its own copy of `effect`. Two copies have separate schemas and service tags, which then stop matching. Make sure the bundler loads one copy, for example with `resolve: { dedupe: ["effect"] }` in `vite.config.ts`.
-
-</Aside>
+The app must load one copy of `effect`. See [Two copies of effect](/troubleshooting#two-copies-of-effect) if a monorepo gives it two.
 
 ## Turn on async mode
 
