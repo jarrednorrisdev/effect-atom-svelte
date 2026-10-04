@@ -14,6 +14,6 @@
     aria-label="Draft"
     bind:value={draft.current}
     class="w-full"
-    placeholder="Write a note"
+    placeholder="Try *italic* or **bold**"
   />
 </Part>
