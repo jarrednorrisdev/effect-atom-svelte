@@ -25,7 +25,7 @@ Three hooks read an async atom. Choose by where you want to wait:
 
 On the server, the choice also decides what the first paint contains. See [What the render waits for](/server-rendering#what-the-render-waits-for).
 
-<Example files={[{ html: slowSource, name: "slow.svelte" }]}> <Slow /> </Example>
+<Example files={[{ html: slowSource, name: "slow.svelte" }]} hint="Click Refresh on each side, then compare the timelines. The default await resolves at once with the old value; the suspendOnWaiting one waits for the new value, while $effect.pending() counts 1."> <Slow /> </Example>
 
 <Aside type="note" title="Needs async mode">
 
@@ -59,14 +59,22 @@ The promise stays the same object while the atom's result is unchanged, so Svelt
 
 ## Refreshing
 
-Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load. Use `$effect.pending()` if you want to show that something is loading.
+Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load, and `$effect.pending()` inside the boundary counts the awaits it is still waiting for. Use it to show that something is loading.
 
 What a refresh does to the promise depends on `suspendOnWaiting`:
 
-- **By default**, a refresh resolves straight away with the value the atom already has, then again with the new value once it arrives.
-- **With `suspendOnWaiting: true`**, a refreshing atom counts as loading, so the promise waits until the new value is ready.
+- **By default**, a refreshing atom still has its value, so the promise resolves straight away with that value. The boundary has nothing to wait for, and `$effect.pending()` stays 0. When the new value arrives, `current` is a new promise, which resolves with it.
+- **With `suspendOnWaiting: true`**, a refreshing atom counts as loading, so the promise waits until the new value is ready. The boundary keeps showing the old value, and `$effect.pending()` is 1 until the new one arrives.
 
-The live example reads one atom both ways. Click **Refresh** and watch when each line changes.
+The live example reads two copies of one slow atom, one each way. Under each side, the timeline and the log show the atom's own `AsyncResult` and what the side's `await` resolved with, timed from the refresh. On both sides the atom is `Success, waiting` from the moment you click. On the default side, the `await` resolves a few milliseconds later with the old value, then again with the new one at about 800 ms. On the `suspendOnWaiting` side it resolves once, at about 800 ms, with the new value.
+
+<Aside type="caution" title="One update waits for all of its awaits">
+
+Svelte shows an update only once every `await` it changed, in every boundary already showing content, has resolved. A refresh of one atom changes all of its reads in the same update, so if one atom is read both ways, the `suspendOnWaiting` read holds back the default one too, along with anything else the refresh changed, such as a `waiting` spinner from `useAtomValue`. That is why the example uses two atoms.
+
+</Aside>
+
+Choose the default to keep the page responsive: the old value stays on screen, and the rest of the update, such as a spinner from `waiting`, shows at once. Choose `suspendOnWaiting` when old and new data must never appear together, such as a total next to the list it adds up: the update lands all at once, when the new value is ready.
 
 ## Handling failure
 

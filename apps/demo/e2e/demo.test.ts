@@ -553,14 +553,69 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   await rollAndWait();
 });
 
+/** The time of a log entry, `<n> ms …`. */
+const entryTime = async (entry: ReturnType<Page["getByRole"]>) => {
+  const text = await entry.textContent();
+  return Number(/^\s*(?<ms>\d+) ms/u.exec(text ?? "")?.groups?.ms);
+};
+
 test("suspense: pending, value, refresh and failure", async ({ page }) => {
   await page.goto("/suspense");
   const value = page.getByTestId("suspense-value");
-  await expect(value).toContainText("Loaded");
+  await expect(value).toHaveText("Loaded 1 time");
+  await expect(page.getByTestId("held-value")).toHaveText("Loaded 1 time");
   await page.waitForLoadState("networkidle");
-  const first = await value.textContent();
-  await page.getByRole("button", { name: "Refresh" }).click();
-  await expect(value).not.toHaveText(first ?? "");
+  const log = (name: string) =>
+    page
+      .getByRole("list", { name: `${name} since the last refresh` })
+      .getByRole("listitem");
+  const plain = log("plainAtom");
+  const held = log("heldAtom");
+  // The first load: both awaits wait for the first value.
+  await expect(plain).toHaveText([
+    /^0 ms\s*atom\s*Initial, waiting$/u,
+    /^\d+ ms\s*atom\s*Success$/u,
+    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
+  ]);
+
+  // By default, a refresh's await resolves at once with the old value, then with the new one.
+  await page.getByRole("button", { name: "Refresh default" }).click();
+  await expect(page.getByTestId("plainAtom-state")).toHaveText(
+    "Success, waiting"
+  );
+  await expect(page.getByTestId("plain-pending")).toHaveText("0");
+  await expect(value).toHaveText("Loaded 1 time");
+  await expect(plain).toHaveText([
+    /^0 ms\s*atom\s*Success, waiting$/u,
+    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
+  ]);
+  expect(await entryTime(plain.nth(1))).toBeLessThan(400);
+  await expect(value).toHaveText("Loaded 2 times");
+  await expect(plain).toHaveText([
+    /^0 ms\s*atom\s*Success, waiting$/u,
+    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
+    /^\d+ ms\s*atom\s*Success$/u,
+    /^\d+ ms\s*await\s*resolved with Loaded 2 times$/u,
+  ]);
+
+  // With suspendOnWaiting, the await waits for the new value; the boundary counts it as pending.
+  await page.getByRole("button", { name: "Refresh suspendOnWaiting" }).click();
+  await expect(page.getByTestId("heldAtom-state")).toHaveText(
+    "Success, waiting"
+  );
+  await expect(page.getByTestId("held-pending")).toHaveText("1");
+  await expect(page.getByTestId("held-value")).toHaveText("Loaded 1 time");
+  await expect(held).toHaveText([/^0 ms\s*atom\s*Success, waiting$/u]);
+  await expect(page.getByTestId("held-value")).toHaveText("Loaded 2 times");
+  await expect(page.getByTestId("held-pending")).toHaveText("0");
+  await expect(held).toHaveText([
+    /^0 ms\s*atom\s*Success, waiting$/u,
+    /^\d+ ms\s*atom\s*Success$/u,
+    /^\d+ ms\s*await\s*resolved with Loaded 2 times$/u,
+  ]);
+  // The atom takes 800 ms; the log starts a moment after the click.
+  expect(await entryTime(held.nth(2))).toBeGreaterThan(600);
+
   await expect(page.getByTestId("suspense-failed")).toHaveText(
     "This atom always fails"
   );

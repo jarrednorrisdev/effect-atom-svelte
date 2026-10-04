@@ -11,6 +11,9 @@
 
   Entries come from an `EventLogState`; give each a `lane`. Without `lanes`, every entry goes on
   one unlabeled row. The axis runs from 0 to `span` ms, or to the last entry plus a margin.
+
+  Pass `now` (milliseconds on the same clock as the entries) to draw a cursor across the tracks
+  while something is in progress, such as a refresh that hasn't settled; leave it out otherwise.
 -->
 <script lang="ts">
   import type { HTMLAttributes } from "svelte/elements";
@@ -22,11 +25,13 @@
     readonly entries: readonly LogEntry[];
     /** Row names, top to bottom, matching the entries' `lane`. */
     readonly lanes?: readonly string[];
+    /** Where to draw a "now" cursor, in milliseconds; no cursor when left out. */
+    readonly now?: number | undefined;
     /** The length of the axis in milliseconds; fits the entries by default. */
     readonly span?: number;
   }
 
-  const { entries, lanes, span, ...rest }: Props = $props();
+  const { entries, lanes, now, span, ...rest }: Props = $props();
 
   const rows = $derived(lanes ?? [undefined]);
   const length = $derived(
@@ -38,19 +43,24 @@
 <div class={["timeline not-prose", lanes !== undefined && "with-lanes"]} {...rest}>
   {#each rows as lane (lane)}
     {#if lane !== undefined}<span class="lane">{lane}</span>{/if}
-    <ol aria-label={lane ?? "Timeline"} class="track">
-      {#each entries.filter((entry) => lane === undefined || entry.lane === lane) as entry (entry.id)}
-        <li
-          class="dot"
-          data-tone={entry.tone}
-          style:left={left(entry.at)}
-          title="{entry.label} at {entry.at} ms"
-          {@attach enter({ scale: [0, 1], y: [-10, 0] })}
-        >
-          <span class="sr-only">{entry.label} at {entry.at} ms</span>
-        </li>
-      {/each}
-    </ol>
+    <div class="track-box">
+      <ol aria-label={lane ?? "Timeline"} class="track">
+        {#each entries.filter((entry) => lane === undefined || entry.lane === lane) as entry (entry.id)}
+          <li
+            class="dot"
+            data-tone={entry.tone}
+            style:left={left(entry.at)}
+            title="{entry.label} at {entry.at} ms"
+            {@attach enter({ scale: [0, 1], y: [-10, 0] })}
+          >
+            <span class="sr-only">{entry.label} at {entry.at} ms</span>
+          </li>
+        {/each}
+      </ol>
+      {#if now !== undefined}
+        <span aria-hidden="true" class="cursor" style:left={left(now)}></span>
+      {/if}
+    </div>
   {/each}
   <div aria-hidden="true" class="axis">
     <span>0 ms</span>
@@ -87,6 +97,18 @@
     margin: 0;
     padding: 0;
     position: relative;
+  }
+  .track-box {
+    position: relative;
+  }
+  /* The "now" cursor: a thin line in the running color over the track. */
+  .cursor {
+    background: var(--tone-running);
+    bottom: -0.3rem;
+    pointer-events: none;
+    position: absolute;
+    top: -0.3rem;
+    width: 2px;
   }
   .dot {
     --mark: var(--tone-idle);
