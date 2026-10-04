@@ -13,7 +13,7 @@ description: A reactive value you can read and update by property, without a reg
 
 An `AtomRef` holds a reactive value itself, with no registry. It runs no effects and is never disposed: you create it, read it, and set it. It suits plain local data that several components edit, such as a form draft or a document in an editor, where you want to read and update single properties.
 
-<Example files={[{ html: profileSource, name: "profile.svelte" }]}> <Profile /> </Example>
+<Example files={[{ html: profileSource, name: "profile.svelte" }]} hint="Type a name: the name ref sets profile, and badge, mapped from profile, follows. Then click Set an equal copy: the copy equals the current value, so nobody is notified."> <Profile /> </Example>
 
 ## AtomRef or `$state`
 
@@ -37,7 +37,7 @@ profile.set({ name: "Grace", role: "Admiral" });
 profile.update((current) => ({ ...current, role: "Rear admiral" }));
 ```
 
-A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody.
+A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody. In the example above, **Set an equal copy** sets `{ ...profile.value }`, and the notifications count, kept by a listener added with `profile.subscribe`, stays where it was.
 
 ### Properties
 

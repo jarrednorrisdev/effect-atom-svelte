@@ -21,18 +21,41 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import Arrow from "#lib/docs/kit/arrow.svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import Part from "#lib/docs/kit/part.svelte";
 
   const celsius = useAtom(celsiusAtom);
   const fahrenheit = useAtom(fahrenheitAtom);
   const feel = useAtomValue(feelAtom);
 </script>
 
-<p>
-  <label>
-    °C <input bind:value={celsius.current} data-testid="celsius" type="number" />
-  </label>
-  <label>
-    °F <input bind:value={fahrenheit.current} data-testid="fahrenheit" type="number" />
-  </label>
-</p>
-<p>It feels <output data-testid="feel">{feel.current}</output>.</p>
+<div class="flex flex-wrap items-center gap-3">
+  <Part code label="fahrenheitAtom">
+    <label>
+      °F
+      <input
+        bind:value={fahrenheit.current}
+        class="w-24"
+        data-testid="fahrenheit"
+        type="number"
+      />
+    </label>
+  </Part>
+  <Arrow both label="get, set" pulse={celsius.current} />
+  <Part code label="celsiusAtom">
+    <label>
+      °C
+      <input
+        bind:value={celsius.current}
+        class="w-24"
+        data-testid="celsius"
+        type="number"
+      />
+    </label>
+  </Part>
+  <Arrow label="get" pulse={celsius.current} />
+  <Part code label="feelAtom">
+    It feels <FlashValue data-testid="feel" value={feel.current} />.
+  </Part>
+</div>

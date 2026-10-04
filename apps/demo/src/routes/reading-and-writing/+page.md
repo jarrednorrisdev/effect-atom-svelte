@@ -21,7 +21,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 
 The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomSubscribe` and `useAtomInitialValues`.
 
-<Example files={[{ html: source, name: "reading-and-writing.svelte" }]}> <ReadingAndWriting /> </Example>
+<Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click + or ×10 and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
 ## Reading
 

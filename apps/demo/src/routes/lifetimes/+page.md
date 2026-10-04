@@ -15,9 +15,9 @@ description: When an atom's value is kept, when it is disposed, and how to clean
 
 A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value and runs the atom's finalizers. This keeps memory, timers and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
 
-Tick a box to mount a component that reads that atom, and untick it to unmount the component. Watch the log:
+Each box below is an atom, with the number of `<Reader>` components reading it in its corner. **+ Reader** mounts one more and **− Reader** unmounts one. The registry computes an atom for its first reader and disposes of it once its last reader has gone, unless the atom is kept alive or has an idle TTL:
 
-<Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]}> <Lifetimes /> </Example>
+<Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Add two readers to plain, then remove them one at a time: plain is disposed only when its count reaches 0. Then do the same with keepAlive and idle TTL."> <Lifetimes /> </Example>
 
 ## Mounted atoms
 

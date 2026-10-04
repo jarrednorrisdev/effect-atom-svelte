@@ -34,7 +34,7 @@ The value you pass in (here, the id) is called the **key**. It can be any value 
 
 Try it below. The family makes one counter per fruit, so the fruit's name is the key. Pick a fruit and count: only that fruit's total changes, because each fruit has its own atom.
 
-<Example files={[{ html: source, name: "tallies.svelte" }]}> <Tallies /> </Example>
+<Example files={[{ html: source, name: "tallies.svelte" }]} hint="Pick a fruit and count. Then untick Show totals and pick another fruit: the one you left has no reader, so its atom leaves the registry and its count starts again from 0."> <Tallies /> </Example>
 
 ## New keys make new atoms
 
@@ -96,7 +96,7 @@ If you pass `tallyAtom(fruit)` directly instead of a function, the hook reads th
 
 ## Keeping a family's atoms
 
-A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the example above, every count stays because the list at the bottom reads all three. A component that reads only the selected atom would see the other counts start again from zero.
+A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the example above, every count stays while the totals are shown, because they read all three. Untick **Show totals** and only the selected fruit's atom has a reader: pick another fruit, and the registry disposes of the one you left, so its count starts again from zero.
 
 To keep each value, give the atom an idle TTL inside the family, or wrap it in `Atom.keepAlive`:
 

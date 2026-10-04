@@ -2,7 +2,7 @@
   import ScopedCounter from "./scoped-counter.svelte";
 </script>
 
-<div style="display: flex; gap: 1rem">
+<div class="flex flex-wrap gap-3">
   <ScopedCounter label="Left" start={0} />
   <ScopedCounter label="Right" start={100} />
 </div>

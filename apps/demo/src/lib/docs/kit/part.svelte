@@ -12,6 +12,9 @@
   </Part>
   ```
 
+  Set `code` when the label is a name from the code (`countAtom`, `useAtomSet`): it then keeps its
+  case instead of being shown in capitals.
+
   Other attributes go on the box; the counter is an `<output>` named by `countLabel`.
 -->
 <script lang="ts">
@@ -26,6 +29,8 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly children?: Snippet;
+    /** Shows the label as code, in its own case. */
+    readonly code?: boolean;
     /** A number shown in the corner, such as a reference count. */
     readonly count?: number;
     /** What `count` counts, such as "readers"; names the counter. */
@@ -38,6 +43,7 @@
 
   const {
     children,
+    code = false,
     count,
     countLabel = "count",
     dashed = false,
@@ -81,7 +87,7 @@
   {@attach glow}
 >
   <div class="head">
-    <span class="label">{label}</span>
+    <span class={["label", code && "code"]}>{label}</span>
     {#if count !== undefined}
       <span class="count">
         <FlashValue aria-label="{label} {countLabel}" value={count} />
@@ -140,6 +146,11 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+  }
+  .label.code {
+    font-size: 0.75rem;
+    letter-spacing: normal;
+    text-transform: none;
   }
   .count {
     align-items: center;

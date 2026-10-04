@@ -21,9 +21,9 @@ Its API follows the adapters the Effect team maintains, `@effect/atom-react` and
 
 Three atoms: a number you can change, a value derived from it, and an `Effect` that takes half a second. The component reads all three with hooks:
 
-<Example files={[{ html: tasteSource, name: "taste.svelte" }]}> <Taste /> </Example>
+<Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Reload the page to watch greetingAtom load."> <Taste /> </Example>
 
-Clicking the button writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes.
+Clicking **Add one** writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes.
 
 ## How it fits together
 

@@ -7,6 +7,8 @@
 
 <script lang="ts">
   import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import Part from "#lib/docs/kit/part.svelte";
 
   // Read and write through .current.
   const count = useAtom(countAtom);
@@ -18,14 +20,25 @@
   const name = useAtom(nameAtom);
 </script>
 
-<p>
-  <button onclick={() => (count.current -= 1)}>−</button>
-  <output data-testid="count">{count.current}</output>
-  <button onclick={() => (count.current += 1)}>+</button>
-  <button onclick={() => setCount((n) => n * 10)}>×10 with an updater</button>
-</p>
-<p>The count is <output data-testid="parity">{parity.current}</output>.</p>
-<p>
-  <input bind:value={name.current} data-testid="name" />
-  <output data-testid="greeting">Hello, {name.current || "nobody"}!</output>
-</p>
+<div class="flex flex-wrap items-start gap-3">
+  <Part code label="useAtom">
+    <button onclick={() => (count.current -= 1)}>−</button>
+    <FlashValue data-testid="count" value={count.current} />
+    <button onclick={() => (count.current += 1)}>+</button>
+  </Part>
+  <Part code label="useAtomSet">
+    <button onclick={() => setCount((n) => n * 10)}>×10 with an updater</button>
+  </Part>
+  <Part code label="useAtomValue">
+    The count is <FlashValue data-testid="parity" value={parity.current} />.
+  </Part>
+  <Part code label="bind:value">
+    <input
+      aria-label="Name"
+      bind:value={name.current}
+      class="w-32"
+      data-testid="name"
+    />
+    <FlashValue data-testid="greeting" value="Hello, {name.current || 'nobody'}!" />
+  </Part>
+</div>

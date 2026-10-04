@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Part from "#lib/docs/kit/part.svelte";
+
   import { Counter } from "./counter-scope.ts";
   import ScopedCounterButton from "./scoped-counter-button.svelte";
 
@@ -7,8 +9,7 @@
   Counter.provide(start);
 </script>
 
-<div style="border: 1px dashed #a1a1aa; padding: 0.5rem">
-  <strong>{label}</strong>
-  <ScopedCounterButton />
-  <ScopedCounterButton />
-</div>
+<Part code label="{label}: Counter.provide({start})">
+  <ScopedCounterButton label="{label}, first" />
+  <ScopedCounterButton label="{label}, second" />
+</Part>

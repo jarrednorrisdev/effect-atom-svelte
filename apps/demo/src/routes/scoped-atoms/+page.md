@@ -16,9 +16,9 @@ description: Give each part of the page its own atom, without passing it down by
 
 An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a counter per panel or a draft per open dialog, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
-Each panel below provides its own counter. Both buttons in a panel share it, and the two panels don't affect each other:
+Each panel below provides its own counter. Both counters in a panel share it, and the two panels don't affect each other:
 
-<Example files={[{ html: scopeSource, name: "counter-scope.ts" }, { html: counterSource, name: "scoped-counter.svelte" }, { html: buttonSource, name: "scoped-counter-button.svelte" }, { html: panelsSource, name: "panels.svelte" }]}> <Panels /> </Example>
+<Example files={[{ html: scopeSource, name: "counter-scope.ts" }, { html: counterSource, name: "scoped-counter.svelte" }, { html: buttonSource, name: "scoped-counter-button.svelte" }, { html: panelsSource, name: "panels.svelte" }]} hint="Click +1 in the left panel: both of its values change, and the right panel's stay at 100."> <Panels /> </Example>
 
 ## Defining a scoped atom
 

@@ -331,6 +331,26 @@ test("hydration: the browser uses the server's result until it computes again", 
   await expect(history.nth(2)).toContainText("Success the browser");
 });
 
+test("introduction: a count, its double and an Effect's greeting", async ({
+  page,
+}) => {
+  // The server renders the boundary's pending state; the browser runs the Effect.
+  expect(await serverHtml(page, "/")).toMatch(
+    /data-tone="running"[^>]*><span class="content[^"]*">(?:<!---->)*Loading…/u
+  );
+  await page.goto("/");
+  await expect(page.getByTestId("taste-greeting")).toHaveText(
+    "Hello from an Effect"
+  );
+  await page.waitForLoadState("networkidle");
+  const add = page.getByRole("button", { name: "Add one" });
+  await add.click();
+  await add.click();
+  await expect(page.getByTestId("taste-count")).toHaveText("2");
+  // doubledAtom follows countAtom.
+  await expect(page.getByTestId("taste-doubled")).toHaveText("4");
+});
+
 test("first atom: two counters share one atom", async ({ page }) => {
   await page.goto("/first-atom");
   await page.waitForLoadState("networkidle");
@@ -360,6 +380,8 @@ test("reading and writing: read, write, transform, update and bind", async ({
   await expect(page.getByTestId("count")).toHaveText("20");
   await page.getByTestId("name").fill("Effect");
   await expect(page.getByTestId("greeting")).toHaveText("Hello, Effect!");
+  await page.getByTestId("name").fill("");
+  await expect(page.getByTestId("greeting")).toHaveText("Hello, nobody!");
 });
 
 test("derived atoms: a read-only and a writable derived atom", async ({
@@ -391,6 +413,20 @@ test("families: a getter follows the selected key's atom", async ({ page }) => {
   await expect(page.getByTestId("total-pears")).toHaveText("1");
   await page.getByTestId("fruit").selectOption("apples");
   await expect(page.getByTestId("tally")).toHaveText("2");
+  // The slots show which fruits have an atom in the registry.
+  const entries = page.getByTestId("family-entries").locator("output");
+  await expect(entries).toHaveText("3 / 3 fruits in the registry");
+  // With the totals hidden, only the selected fruit's atom has a reader.
+  await page.getByLabel("Show totals").uncheck();
+  await expect(entries).toHaveText("1 / 3 fruits in the registry");
+  await page.getByTestId("fruit").selectOption("pears");
+  // Pears lost its atom, and its count, when the totals were hidden.
+  await expect(page.getByTestId("tally")).toHaveText("0");
+  await expect(entries).toHaveText("1 / 3 fruits in the registry");
+  await page.getByLabel("Show totals").check();
+  await expect(page.getByTestId("total-apples")).toHaveText("0");
+  await expect(page.getByTestId("total-pears")).toHaveText("0");
+  await expect(entries).toHaveText("3 / 3 fruits in the registry");
 });
 
 test("effect basics: tryPromise hashes the text, and a rejection is a typed error", async ({
@@ -751,19 +787,40 @@ test("AtomRef: a property ref updates the ref and its derived ref", async ({
 }) => {
   await page.goto("/refs");
   await page.waitForLoadState("networkidle");
+  const notified = page.getByLabel("profile notifications", { exact: true });
+  await expect(notified).toHaveText("0");
   await page.getByRole("textbox", { name: "Name" }).fill("Grace");
   await expect(page.getByTestId("ref-name")).toHaveText("Grace");
   await expect(page.getByTestId("ref-badge")).toHaveText("Grace · Engineer");
+  await expect(page.getByTestId("ref-profile")).toHaveText(
+    '{"name":"Grace","role":"Engineer"}'
+  );
+  await expect(notified).toHaveText("1");
+  // An equal copy is no change, so the ref notifies nobody.
+  await page.getByRole("button", { name: "Set an equal copy" }).click();
+  await page.waitForTimeout(200);
+  await expect(notified).toHaveText("1");
+  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
+  await expect(notified).toHaveText("2");
+  await expect(page.getByTestId("ref-badge")).toHaveText("Ada · Engineer");
 });
 
 test("scoped atoms: each provider has its own atom", async ({ page }) => {
   await page.goto("/scoped-atoms");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "0" }).first().click();
-  await expect(
-    page.getByRole("button", { exact: true, name: "1" })
-  ).toHaveCount(2);
-  await expect(page.getByRole("button", { name: "100" })).toHaveCount(2);
+  const count = (name: string) =>
+    page.getByLabel(`${name} count`, { exact: true });
+  await page.getByRole("button", { name: "Left, first: add one" }).click();
+  // Both counters below the left provider share its atom.
+  await expect(count("Left, first")).toHaveText("1");
+  await expect(count("Left, second")).toHaveText("1");
+  await expect(count("Right, first")).toHaveText("100");
+  await expect(count("Right, second")).toHaveText("100");
+  await page.getByRole("button", { name: "Right, second: add one" }).click();
+  await expect(count("Right, first")).toHaveText("101");
+  await expect(count("Right, second")).toHaveText("101");
+  await expect(count("Left, first")).toHaveText("1");
+  await expect(count("Left, second")).toHaveText("1");
 });
 
 test("browser atoms: localStorage kvs survives a reload, the server renders its default", async ({
@@ -835,26 +892,56 @@ test("browser atoms: refreshOnWindowFocus computes again when the tab is shown",
   await expect(lastSeen).not.toHaveText(first ?? "");
 });
 
-test("lifetimes: plain atoms are disposed on unmount, keepAlive atoms are not", async ({
+test("lifetimes: an atom is disposed when its last reader goes, unless it is kept", async ({
   page,
 }) => {
   await page.goto("/lifetimes");
   await page.waitForLoadState("networkidle");
   const log = page.getByTestId("lifetimes-log");
-  await page.getByLabel("plain", { exact: true }).check();
-  await expect(log).toContainText("plain: computed");
-  await page.getByLabel("plain", { exact: true }).uncheck();
-  await expect(log).toContainText("plain: disposed");
-  await page.getByLabel("keepAlive", { exact: true }).check();
-  await page.getByLabel("keepAlive", { exact: true }).uncheck();
-  await page.waitForTimeout(500);
+  const entries = page
+    .getByRole("list", { name: "Registry" })
+    .getByRole("listitem");
+  const button = (name: string) =>
+    page.getByRole("button", { exact: true, name });
+  const readers = (name: string) =>
+    page.getByLabel(`${name} readers`, { exact: true });
+  const status = (name: string) => page.getByTestId(`lifetimes-${name}-status`);
+
+  await expect(status("plain")).toHaveText("not computed yet");
+  await button("plain: add a reader").click();
+  await button("plain: add a reader").click();
+  await expect(readers("plain")).toHaveText("2");
+  await expect(page.getByText("Reading plain")).toHaveCount(2);
+  await expect(status("plain")).toHaveText("mounted");
+  // Two readers share one computation.
+  await expect(entries).toHaveText([/^\d+ ms\s*plain: computed$/u]);
+  // One reader is left, so the atom stays.
+  await button("plain: remove a reader").click();
+  await expect(readers("plain")).toHaveText("1");
+  await page.waitForTimeout(300);
+  await expect(log).not.toContainText("plain: disposed");
+  await button("plain: remove a reader").click();
+  await expect(readers("plain")).toHaveText("0");
+  await expect(status("plain")).toHaveText("disposed");
+  await expect(entries).toHaveText([
+    /^\d+ ms\s*plain: computed$/u,
+    /^\d+ ms\s*plain: disposed$/u,
+  ]);
+
+  await button("keepAlive: add a reader").click();
   await expect(log).toContainText("keepAlive: computed");
+  await button("keepAlive: remove a reader").click();
+  await page.waitForTimeout(500);
+  await expect(status("keepAlive")).toHaveText("no readers, kept alive");
   await expect(log).not.toContainText("keepAlive: disposed");
+
   // An idle TTL keeps the atom for three seconds after its reader goes.
-  await page.getByLabel("idle TTL", { exact: true }).check();
+  await button("idle TTL: add a reader").click();
   await expect(log).toContainText("idle TTL: computed");
-  await page.getByLabel("idle TTL", { exact: true }).uncheck();
+  await button("idle TTL: remove a reader").click();
   await page.waitForTimeout(1000);
+  await expect(status("idle TTL")).toContainText(/no readers for \d\.\d s/u);
   await expect(log).not.toContainText("idle TTL: disposed");
   await expect(log).toContainText("idle TTL: disposed", { timeout: 5000 });
+  await expect(status("idle TTL")).toContainText("disposed");
 });
