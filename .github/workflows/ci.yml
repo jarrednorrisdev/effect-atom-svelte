@@ -12,7 +12,9 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The e2e suite runs about 420 tests in three engines on two cores (13 min before JND-82 added
+    # a third of them).
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
