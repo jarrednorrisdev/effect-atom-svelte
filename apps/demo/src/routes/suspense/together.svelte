@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useAtomResult } from "effect-atom-svelte";
 
+  import LoadResults from "./load-results.svelte";
   import { together } from "./slow-pairs.ts";
 
   const started = performance.now();
@@ -12,7 +13,8 @@
   const seconds = ((performance.now() - started) / 1000).toFixed(1);
 </script>
 
-<p class="m-0">
-  Ready after <output data-testid="together">{seconds} s</output>
-  ({todos.current._tag}, {user.current._tag})
-</p>
+<LoadResults
+  results={{ todos: todos.current, user: user.current }}
+  {seconds}
+  testid="together"
+/>

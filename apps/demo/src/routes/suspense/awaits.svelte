@@ -68,7 +68,7 @@
       <Timeline
         entries={side.log.entries}
         lanes={["todos", "user"]}
-        span={2500}
+        span={3500}
       />
     </Part>
   {/each}

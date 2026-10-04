@@ -4,13 +4,13 @@ import { Atom } from "effect/reactivity";
 import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
 /**
- * The loads behind the "Awaiting more than one atom" example, each taking one second, with a log
+ * The loads behind the "Awaiting more than one atom" example, each taking 1.5 s, with a log
  * per side for its timeline: one lane per load, a dot when it starts and when it ends. Not part
  * of the example's code.
  */
 class TodosUnavailable extends Data.TaggedError("TodosUnavailable") {}
 
-// The example's switch: the todos load fails after 0.4 seconds.
+// The example's switch: the todos load fails after 0.6 seconds.
 let todosFail = false;
 
 /** Makes the todos load fail, from the next mount on. */
@@ -35,9 +35,9 @@ const side = () => {
         Effect.suspend(() =>
           name === "todos" && todosFail
             ? Effect.fail(new TodosUnavailable()).pipe(
-                Effect.delay("400 millis")
+                Effect.delay("600 millis")
               )
-            : Effect.succeed(name).pipe(Effect.delay("1 second"))
+            : Effect.succeed(name).pipe(Effect.delay("1500 millis"))
         )
       ),
       Effect.tap(() => mark(name, `${name} done`, "success")),

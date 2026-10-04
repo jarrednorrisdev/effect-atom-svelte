@@ -16,13 +16,12 @@
 <script lang="ts">
   import { useAtomResult } from "effect-atom-svelte";
 
+  import LoadResults from "./load-results.svelte";
+
   const started = performance.now();
   // One atom, so the script awaits once.
   const dashboard = await useAtomResult(dashboardAtom);
   const seconds = ((performance.now() - started) / 1000).toFixed(1);
 </script>
 
-<p class="m-0">
-  Ready after <output data-testid="combined">{seconds} s</output>
-  ({dashboard.current._tag})
-</p>
+<LoadResults results={{ dashboard: dashboard.current }} {seconds} testid="combined" />
