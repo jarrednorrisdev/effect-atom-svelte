@@ -18,7 +18,12 @@ const apiOrigin = (): string => {
     : "";
 };
 const origin = apiOrigin();
-const httpClient = inTabApi ? inTabHttpClient : FetchHttpClient.layer;
+
+/** The demo API's origin for `AtomHttpApi`'s `baseUrl`; undefined for the page's own origin. */
+export const baseUrl = origin || undefined;
+
+/** The HTTP client layer the demo's clients use, for examples that define a client of their own. */
+export const httpClient = inTabApi ? inTabHttpClient : FetchHttpClient.layer;
 
 export class TodosRpc extends AtomRpc.Service<TodosRpc>()("demo/TodosRpc", {
   group: TodosRpcs,
@@ -31,7 +36,7 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
   "demo/TodosHttp",
   {
     api: DemoApi,
-    baseUrl: origin || undefined,
+    baseUrl,
     httpClient,
   }
 ) {}

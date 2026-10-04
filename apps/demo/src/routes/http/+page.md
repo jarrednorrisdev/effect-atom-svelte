@@ -12,6 +12,8 @@ description: Turn an Effect HttpApi into atoms for its endpoints.
   import Lookup from "./lookup.svelte";
   import lookupSource from "./lookup.svelte?highlight";
   import Todos from "./todos.svelte";
+  import Transform from "./transform.svelte";
+  import transformSource from "./transform.svelte?highlight";
   import todosSource from "./todos.svelte?highlight";
 </script>
 
@@ -42,7 +44,13 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 ) {}
 ```
 
-Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there. Use `transformClient` to add things like authentication to every request.
+Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there.
+
+Use `transformClient` to add things like authentication to every request. It takes the `HttpClient` and returns another, so any of `HttpClient`'s combinators work there. The example adds a header and logs each request and its status:
+
+<Example files={[{ html: transformSource, name: "transform.svelte" }]} hint="Get todo 1, then todo 99: each request carries the x-reader header, and the log shows the 200 and the 404."> <Transform /> </Example>
+
+The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint, so `runtime.fn` can call it directly, as the example does. Every query and mutation goes through the same transformed client.
 
 ## Queries
 

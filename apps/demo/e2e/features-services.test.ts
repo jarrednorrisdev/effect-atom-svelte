@@ -89,3 +89,29 @@ test("RPC: one effect creates a todo, then reads it back with the client", async
   await expect(page.getByTestId("create-read-state")).toHaveText("Failure");
   await expect(calls).toHaveText([/createTodo sent$/u]);
 });
+
+test("HTTP API: transformClient adds a header to every request and sees each status", async ({
+  page,
+}) => {
+  await page.goto("/http");
+  await page.waitForLoadState("networkidle");
+  const log = page.getByTestId("signed-log").getByRole("listitem");
+  const sent = page.waitForRequest("**/api/todos/1");
+  await page.getByRole("button", { name: "Get todo 1" }).click();
+  const request = await sent;
+  expect(request.headers()["x-reader"]).toBe("docs");
+  await expect(page.getByTestId("signed-todo")).toHaveText(
+    "Read the Effect Atom source"
+  );
+  await page.getByRole("button", { name: "Get todo 99" }).click();
+  await expect(page.getByTestId("signed-todo")).toHaveText(
+    "Failed with TodoNotFound"
+  );
+  await expect(page.getByTestId("signed-state")).toHaveText("Failure");
+  await expect(log).toHaveText([
+    /GET \/api\/todos\/1, x-reader: docs$/u,
+    /200$/u,
+    /GET \/api\/todos\/99, x-reader: docs$/u,
+    /404$/u,
+  ]);
+});
