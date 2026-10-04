@@ -49,7 +49,7 @@ Choose how long an atom outlives its readers:
 | For as long as the registry lives | `atom.pipe(Atom.keepAlive)` |
 | For a while after the last reader goes | `atom.pipe(Atom.setIdleTTL("5 minutes"))` |
 | For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider` |
-| For as long as a component lives, without reading it | `useAtomMount(atom)` in that component |
+| For as long as a component is mounted, even if nothing reads it | `useAtomMount(atom)` in that component: see [Holding an atom from a component](#holding-an-atom-from-a-component) |
 
 **Example** (State that survives navigation)
 
@@ -61,9 +61,28 @@ const sidebarOpenAtom = Atom.make(true).pipe(Atom.keepAlive);
 const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed.
+Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
 
-The live example at the top of the page shows `keepAlive` and an idle TTL. `useAtomMount` is for a component that needs an atom alive without showing it, such as a layout that keeps a chat's messages while the visitor moves between pages. Below, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`:
+### Holding an atom from a component
+
+`useAtomMount(atom)` keeps an atom alive for as long as the component that calls it is mounted, even when no component reads the atom. Call it in a component that outlives the readers, such as a layout, and the atom keeps its value while the pages that read it come and go.
+
+**Example** (Keeping a chat's messages while the visitor moves between pages)
+
+```svelte
+<!-- +layout.svelte -->
+<script lang="ts">
+  import { useAtomMount } from "effect-atom-svelte";
+  import { messagesAtom } from "$lib/chat";
+
+  // Held until the layout unmounts, whichever page is open.
+  useAtomMount(messagesAtom);
+</script>
+```
+
+The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. Mounting an atom that hasn't been computed also computes it: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
+
+In the live example, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`. The panel beside the app shows what holds the atom at each moment:
 
 <Example files={[{ html: keepMountedSource, name: "keep-mounted.svelte" }, { html: chatSource, name: "chat.ts" }, { html: chatPageSource, name: "chat-page.svelte" }, { html: keepMessagesSource, name: "keep-messages.svelte" }]} hint="Open Chat and send a message or two. Go to Inbox: nothing holds messagesAtom any more, so the registry disposes of it and the messages are gone. Turn on useAtomMount(messagesAtom) in the layout bar, send some more, and switch pages again: the layout still holds it, so they stay."> <KeepMounted /> </Example>
 

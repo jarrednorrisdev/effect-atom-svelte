@@ -302,9 +302,11 @@ export const useAtom = <R, W>(
 };
 
 /**
- * Keeps an atom mounted while the component lives, without reading it.
+ * Keeps an atom alive for as long as this component is mounted, even when no component reads
+ * it. Use it in a component that outlives the readers, such as a layout, so the atom keeps its
+ * value while they come and go. Mounting an atom that hasn't been computed also computes it.
  *
- * **Example** (Keeping a connection open while a component lives)
+ * **Example** (Keeping a connection open while a component is mounted)
  *
  * ```ts
  * import { useAtomMount } from "effect-atom-svelte";
