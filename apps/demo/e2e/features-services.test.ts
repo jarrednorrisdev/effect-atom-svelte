@@ -115,3 +115,44 @@ test("HTTP API: transformClient adds a header to every request and sees each sta
     /404$/u,
   ]);
 });
+
+test("browser atoms: searchParam writes the URL once typing stops, and follows Back", async ({
+  page,
+}) => {
+  await page.goto("/browser");
+  await page.waitForLoadState("networkidle");
+  const filter = page.getByTestId("filter");
+  const url = page.getByTestId("filter-url");
+  await expect(url).toHaveText("(no query string)");
+
+  // Quick key presses: one write each, and one URL update after the last.
+  await filter.pressSequentially("blue");
+  await expect(page).toHaveURL(/\/browser\?filter=blue$/u);
+  await expect(url).toHaveText("?filter=blue");
+  await expect(page.getByTestId("filter-writes")).toHaveText("4");
+  await expect(page.getByTestId("filter-updates")).toHaveText("1");
+
+  // An empty value removes the parameter.
+  await filter.fill("");
+  await expect(page).toHaveURL(/\/browser\?$/u);
+  await expect(url).toHaveText("(no query string)");
+
+  // Back restores the URL, and the atom follows it.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/browser\?filter=blue$/u);
+  await expect(filter).toHaveValue("blue");
+});
+
+test("browser atoms: searchParam reads the URL in the browser, and an empty string on the server", async ({
+  page,
+}) => {
+  const response = await page.request.get("/browser?filter=red");
+  const html = await response.text();
+  // The server has no window, so it reads "" whatever the URL says.
+  expect(html).toContain('value="" data-testid="filter"');
+  expect(html).not.toContain('value="red"');
+  await page.goto("/browser?filter=red");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("filter")).toHaveValue("red");
+  await expect(page.getByTestId("filter-url")).toHaveText("?filter=red");
+});

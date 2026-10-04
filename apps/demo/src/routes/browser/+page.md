@@ -12,6 +12,8 @@ description: Keep state in localStorage, cookies or the URL, and react to the br
   import draftSource from "./draft.svelte?highlight";
   import Focus from "./focus.svelte";
   import focusSource from "./focus.svelte?highlight";
+  import SearchParam from "./search-param.svelte";
+  import searchParamSource from "./search-param.svelte?highlight";
   import Theme from "./theme.svelte";
   import themeSource from "./theme.svelte?highlight";
 </script>
@@ -84,23 +86,11 @@ A page that reads cookies depends on the request, so it can't be prerendered. Th
 
 ## The URL's query string
 
-`Atom.searchParam` reads and writes one parameter of the URL's query string:
+`Atom.searchParam` reads and writes one parameter of the URL's query string. Bind an input to it, and the parameter follows what you type:
 
-```ts
-// In a module
-import { Atom } from "effect/reactivity";
+<Example files={[{ html: searchParamSource, name: "search-param.svelte" }]} hint="Type a word and watch the timeline: the atom changes on every key, the URL once, half a second after you stop. Then clear the box: the parameter goes away."> <SearchParam /> </Example>
 
-const queryAtom = Atom.searchParam("q");
-
-// In a component's script
-import { useAtom } from "effect-atom-svelte";
-
-const query = useAtom(queryAtom); // bind:value={query.current} keeps ?q= in step
-```
-
-The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses it in a live search box.
-
-Writes to the URL are batched, and land half a second after the last change, with `history.pushState`. An empty value removes the parameter.
+Writes to the URL are batched, and land half a second after the last change, with `history.pushState`. An empty value removes the parameter. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
 
 <Aside type="caution" title="The server reads an empty string">
 
