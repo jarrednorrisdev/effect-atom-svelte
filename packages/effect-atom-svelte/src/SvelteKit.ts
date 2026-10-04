@@ -69,7 +69,8 @@ const body = (
  * `{ status: 500, message: "Internal Error" }`. It logs those errors like SvelteKit's default
  * hook, and leaves `error(...)` and SvelteKit's own errors as they are.
  *
- * @example
+ * **Example** (Using it as the client hook)
+ *
  * ```ts
  * // src/hooks.client.ts
  * export { handleClientError as handleError } from "effect-atom-svelte/sveltekit";
@@ -97,7 +98,8 @@ export const handleClientError = (
  * message stays SvelteKit's `"Internal Error"`. It logs errors with `console.error`.
  * Server errors reach a boundary's `failed` snippet when it renders on the server.
  *
- * @example
+ * **Example** (Using it as the server hook)
+ *
  * ```ts
  * // src/hooks.server.ts
  * export { handleServerError as handleError } from "effect-atom-svelte/sveltekit";

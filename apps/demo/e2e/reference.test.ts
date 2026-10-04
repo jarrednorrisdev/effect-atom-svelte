@@ -26,6 +26,19 @@ test.describe("API reference", () => {
       await expect(headings).toHaveText(
         module.exports.map((entry) => entry.name)
       );
+      // Another package's modules are listed once each, linked to their source, not as headings.
+      const reExported = module.reExports.flatMap((group) => group.modules);
+      const rows = page.getByRole("article").locator("tbody tr");
+      await expect(rows.locator("td:first-child")).toHaveText(
+        reExported.map((entry) => entry.name)
+      );
+      expect(
+        await rows
+          .getByRole("link")
+          .evaluateAll((links) =>
+            links.map((link) => link.getAttribute("href"))
+          )
+      ).toEqual(reExported.map((entry) => entry.source));
       // By address: the guide pages have a SvelteKit link too.
       await expect(
         page.locator(`[data-slot=sidebar] a[href="${module.href}"]`)

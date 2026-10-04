@@ -31,6 +31,16 @@ let browserRegistry: AtomRegistry.AtomRegistry | undefined;
  * In the browser a shared default registry is used when none is provided. On the server there is
  * no default: one module-level registry would share atom state between concurrent requests.
  *
+ * **Example** (Writing an atom from code that is not reactive)
+ *
+ * ```ts
+ * import { getRegistry } from "effect-atom-svelte";
+ * import { countAtom } from "./atoms.ts";
+ *
+ * const registry = getRegistry(); // while the component initializes
+ * const reset = () => registry.set(countAtom, 0);
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category registry
@@ -103,6 +113,16 @@ export type ProvideRegistryOptions =
  *
  * A registry created here is owned by the component and disposed with it, which on the server
  * means at the end of the request. A registry passed in is left for the caller to dispose.
+ *
+ * **Example** (Giving the app a registry from the root layout)
+ *
+ * ```ts
+ * import { provideRegistry } from "effect-atom-svelte";
+ *
+ * // In src/routes/+layout.svelte: one registry per server request,
+ * // disposed of when the request ends
+ * provideRegistry();
+ * ```
  *
  * @stability unstable
  * @since 0.1.0

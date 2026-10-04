@@ -30,6 +30,16 @@ export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
 /**
  * Creates a scoped atom from a factory, which runs once per providing component.
  *
+ * **Example** (A counter per subtree, started from an input)
+ *
+ * ```ts
+ * import { ScopedAtom } from "effect-atom-svelte";
+ * import { Atom } from "effect/reactivity";
+ *
+ * export const Counter = ScopedAtom.make((start: number) => Atom.make(start));
+ * // A parent's script calls Counter.provide(0); descendants call Counter.use()
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category constructors

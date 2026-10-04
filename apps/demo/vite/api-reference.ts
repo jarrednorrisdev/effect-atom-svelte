@@ -1,4 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import { Marked } from "marked";
@@ -16,15 +17,40 @@ import { highlight } from "./highlight.ts";
  * checks), with its JSDoc, and a signature printed by the type checker for values.
  */
 
+/** An example: a fenced code block, titled by Effect's `**Example** (Title)` label. */
+export interface ApiExample {
+  readonly code: string;
+  readonly title?: string | undefined;
+}
+
 /** An exported name and its JSDoc. Text fields are Markdown; `signature` is TypeScript. */
 export interface ApiExport {
   readonly category: string;
   readonly description: string;
-  readonly examples: readonly string[];
+  readonly examples: readonly ApiExample[];
   /** For `export * from`: the page of the module it re-exports. */
   readonly module?: string | undefined;
   readonly name: string;
   readonly signature: string;
+  readonly since: string;
+  readonly stability?: string | undefined;
+}
+
+/** A module of another package that the library re-exports, and the address of its source. */
+export interface ApiReExportedModule {
+  readonly name: string;
+  readonly source: string;
+}
+
+/**
+ * One `export { A, B } from "package"` statement. Its JSDoc describes the whole group, so the
+ * reference lists the names once instead of repeating the description for each.
+ */
+export interface ApiReExports {
+  readonly category: string;
+  readonly description: string;
+  readonly from: string;
+  readonly modules: readonly ApiReExportedModule[];
   readonly since: string;
   readonly stability?: string | undefined;
 }
@@ -43,6 +69,7 @@ export interface ApiModule {
   readonly href: string;
   readonly import: ApiImport;
   readonly name: string;
+  readonly reExports: readonly ApiReExports[];
 }
 
 /** A JSDoc comment: the text before the first tag, and the text of each tag. */
@@ -87,6 +114,44 @@ const parseDoc = (comment: string): Doc => {
     }
   }
   return { description: blocks[0]?.lines.join("\n").trim() ?? "", tags };
+};
+
+const exampleLabel = /^\*\*Example\*\*(?: \((?<title>.+)\))?$/u;
+
+/**
+ * Takes Effect's examples out of a description: a `**Example** (Title)` line, then one fenced
+ * block. The page shows them after the signature, where docgen shows `@example` tags.
+ */
+const extractExamples = (description: string, where: string) => {
+  const kept: string[] = [];
+  const examples: ApiExample[] = [];
+  const lines = description.split("\n");
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    const label = exampleLabel.exec(line);
+    if (label) {
+      let start = index + 1;
+      while (lines[start] === "") {
+        start += 1;
+      }
+      const end = lines.findIndex(
+        (other, at) => at > start && other.startsWith("```")
+      );
+      if (!lines[start]?.startsWith("```") || end === -1) {
+        throw new Error(`${where}: ${line} needs a fenced code block after it`);
+      }
+      examples.push({
+        code: lines.slice(start, end + 1).join("\n"),
+        title: label.groups?.title,
+      });
+      index = end + 1;
+    } else {
+      kept.push(line);
+      index += 1;
+    }
+  }
+  return { description: kept.join("\n").trim(), examples };
 };
 
 /** The JSDoc comment closest before a node, which is the one TypeScript attaches to it. */
@@ -175,6 +240,17 @@ const readEntryPoints = async (packageDir: string) => {
   );
 };
 
+/** The version of Effect the library is built against, for links to Effect's source. */
+const readEffectVersion = async (packageDir: string) => {
+  const manifest = createRequire(path.join(packageDir, "package.json")).resolve(
+    "effect/package.json"
+  );
+  const { version } = JSON.parse(await readFile(manifest, "utf-8")) as {
+    readonly version: string;
+  };
+  return version;
+};
+
 /** Where an app imports `file` from: its own entry point, or the index that re-exports it. */
 const importOf = (
   file: string,
@@ -247,18 +323,26 @@ export const readApiReference = async (
   };
   const entryPoints = await readEntryPoints(packageDir);
   const index = sourceOf("index.ts");
+  const effectVersion = await readEffectVersion(packageDir);
+
+  /** Effect's source for a module re-exported from `effect/<path>`, at the installed version. */
+  const sourceUrl = (specifier: string, name: string) => {
+    const subpath = /^effect\/(?<path>.+)$/u.exec(specifier)?.groups?.path;
+    if (subpath === undefined) {
+      throw new Error(
+        `The API reference can only link re-exports from effect/*, not from ${specifier}`
+      );
+    }
+    return `https://github.com/Effect-TS/effect/blob/effect%40${effectVersion}/packages/effect/src/${subpath}/${name}.ts`;
+  };
 
   const readModule = async (file: string): Promise<ApiModule> => {
     const source = sourceOf(file);
     const exports: ApiExport[] = [];
+    const reExports: ApiReExports[] = [];
     const seen = new Set<string>();
 
-    const add = (
-      node: ts.Node,
-      name: string,
-      signature: string,
-      extra: Partial<ApiExport> = {}
-    ) => {
+    const tagsOf = (node: ts.Node, name: string) => {
       const doc = docOf(node, source);
       const tag = (key: string) => doc?.tags.get(key)?.[0];
       const since = tag("since");
@@ -266,15 +350,35 @@ export const readApiReference = async (
       if (since === undefined || category === undefined) {
         throw new Error(`${file}: export ${name} needs @since and @category`);
       }
+      return { category, doc, since, stability: tag("stability") };
+    };
+
+    const add = (
+      node: ts.Node,
+      name: string,
+      signature: string,
+      extra: Partial<ApiExport> = {}
+    ) => {
+      const { category, doc, since, stability } = tagsOf(node, name);
+      const text = extractExamples(
+        extra.description ?? doc?.description ?? "",
+        `${file}: ${name}`
+      );
+      // docgen's rule: an `@example` tag that is not a fenced block is TypeScript.
+      const tagged = (doc?.tags.get("example") ?? []).map((example) => ({
+        code: example.startsWith("```")
+          ? example
+          : `\`\`\`ts\n${example}\n\`\`\``,
+      }));
       exports.push({
         category,
-        description: doc?.description ?? "",
-        examples: doc?.tags.get("example") ?? [],
         name,
         signature,
         since,
-        stability: tag("stability"),
+        stability,
         ...extra,
+        description: text.description,
+        examples: [...text.examples, ...tagged],
       });
     };
 
@@ -309,6 +413,32 @@ export const readApiReference = async (
       }
     };
 
+    // Another package's modules, re-exported by name, are listed together under one description.
+    const addPackageReExports = (
+      node: ts.ExportDeclaration,
+      clause: ts.NamedExports,
+      specifier: string
+    ) => {
+      const { category, doc, since, stability } = tagsOf(
+        node,
+        clause.elements.map((element) => element.name.text).join(", ")
+      );
+      reExports.push({
+        category,
+        description: doc?.description ?? "",
+        from: specifier,
+        modules: clause.elements.map((element) => ({
+          name: element.name.text,
+          source: sourceUrl(
+            specifier,
+            element.propertyName?.text ?? element.name.text
+          ),
+        })),
+        since,
+        stability,
+      });
+    };
+
     const addReExports = async (node: ts.ExportDeclaration) => {
       const specifier =
         node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)
@@ -330,10 +460,14 @@ export const readApiReference = async (
         );
         return;
       }
+      if (local === undefined) {
+        addPackageReExports(node, clause, specifier);
+        return;
+      }
       for (const element of clause.elements) {
         const name = element.name.text;
         const original = element.propertyName?.text ?? name;
-        if (local?.endsWith(".svelte") && original === "default") {
+        if (local.endsWith(".svelte") && original === "default") {
           // oxlint-disable-next-line eslint/no-await-in-loop -- one file per component, in order
           const component = await readComponent(path.join(src, local));
           add(node, name, component.signature, {
@@ -378,6 +512,7 @@ export const readApiReference = async (
       href: moduleHref(file),
       import: importOf(file, entryPoints, index),
       name: moduleName(file),
+      reExports,
     };
   };
 
@@ -391,20 +526,29 @@ export interface ApiExportHtml extends Omit<
   "description" | "examples" | "signature"
 > {
   readonly description: string;
-  readonly examples: readonly string[];
+  readonly examples: readonly {
+    readonly html: string;
+    readonly title?: string | undefined;
+  }[];
   readonly signature: string;
+}
+
+/** A group of re-exports as a page shows it, its description rendered. */
+export interface ApiReExportsHtml extends Omit<ApiReExports, "description"> {
+  readonly description: string;
 }
 
 /** A module as a page shows it, its exports grouped by category. */
 export interface ApiModuleHtml extends Omit<
   ApiModule,
-  "description" | "exports"
+  "description" | "exports" | "reExports"
 > {
   readonly categories: readonly {
     readonly exports: readonly ApiExportHtml[];
     readonly title: string;
   }[];
   readonly description: string;
+  readonly reExports: readonly ApiReExportsHtml[];
 }
 
 /** A code token with its highlighted HTML, added before rendering. */
@@ -439,13 +583,11 @@ const renderSignature = async (signature: string) => {
 const renderExport = async (entry: ApiExport): Promise<ApiExportHtml> => ({
   ...entry,
   description: await renderMarkdown(entry.description),
-  // docgen's rule: an example that is not a fenced block is TypeScript.
   examples: await Promise.all(
-    entry.examples.map((example) =>
-      renderMarkdown(
-        example.startsWith("```") ? example : `\`\`\`ts\n${example}\n\`\`\``
-      )
-    )
+    entry.examples.map(async ({ code, title }) => ({
+      html: await renderMarkdown(code),
+      title,
+    }))
   ),
   signature: await renderSignature(entry.signature),
 });
@@ -461,6 +603,12 @@ const renderApiModule = async (module: ApiModule): Promise<ApiModuleHtml> => {
       title,
     })),
     description: await renderMarkdown(module.description),
+    reExports: await Promise.all(
+      module.reExports.map(async (group) => ({
+        ...group,
+        description: await renderMarkdown(group.description),
+      }))
+    ),
   };
 };
 

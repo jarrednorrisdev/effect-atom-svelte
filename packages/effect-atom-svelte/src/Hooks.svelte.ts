@@ -247,6 +247,16 @@ const subscribedReader = <A>(
  * Reads an atom, optionally through a transform. The atom stays mounted while something reactive
  * reads `.current`, and is released when nothing does.
  *
+ * **Example** (Reading an atom through a transform)
+ *
+ * ```ts
+ * import { useAtomValue } from "effect-atom-svelte";
+ * import { countAtom } from "./atoms.ts";
+ *
+ * const doubled = useAtomValue(countAtom, (count) => count * 2);
+ * // In the markup: {doubled.current}
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -267,6 +277,16 @@ export function useAtomValue<A, B>(
 /**
  * Reads and writes a writable atom through `.current`, so `bind:value={state.current}` works.
  *
+ * **Example** (Binding an input to an atom)
+ *
+ * ```ts
+ * import { useAtom } from "effect-atom-svelte";
+ * import { nameAtom } from "./atoms.ts";
+ *
+ * const name = useAtom(nameAtom);
+ * // In the markup: <input bind:value={name.current} />
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -284,6 +304,16 @@ export const useAtom = <R, W>(
 /**
  * Keeps an atom mounted while the component lives, without reading it.
  *
+ * **Example** (Keeping a connection open while a component lives)
+ *
+ * ```ts
+ * import { useAtomMount } from "effect-atom-svelte";
+ * import { socketAtom } from "./atoms.ts";
+ *
+ * // Not disposed while this component lives, even though nothing reads it.
+ * useAtomMount(socketAtom);
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -298,6 +328,16 @@ export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
  * Returns a setter. The atom is mounted for the component's lifetime, so an `Atom.fn` keeps its
  * state between calls and is not disposed between set and read. In `promise` and `promiseExit`
  * modes the setter waits for the atom's next settled result.
+ *
+ * **Example** (Updating an atom from its current value)
+ *
+ * ```ts
+ * import { useAtomSet } from "effect-atom-svelte";
+ * import { countAtom } from "./atoms.ts";
+ *
+ * const setCount = useAtomSet(countAtom);
+ * // In the markup: <button onclick={() => setCount((n) => n + 1)}>+</button>
+ * ```
  *
  * @stability unstable
  * @since 0.1.0
@@ -361,6 +401,16 @@ export function useAtomSet(
 /**
  * Returns a function that recomputes the atom. The atom is mounted so the refresh is not lost.
  *
+ * **Example** (Running an atom again on click)
+ *
+ * ```ts
+ * import { useAtomRefresh } from "effect-atom-svelte";
+ * import { dieAtom } from "./atoms.ts";
+ *
+ * const roll = useAtomRefresh(dieAtom);
+ * // In the markup: <button onclick={roll}>Roll</button>
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -377,6 +427,15 @@ export const useAtomRefresh = (
 /**
  * Calls `f` on every change while the component lives, and with the current value first when
  * `immediate` is set.
+ *
+ * **Example** (Saving every change)
+ *
+ * ```ts
+ * import { useAtomSubscribe } from "effect-atom-svelte";
+ * import { draftAtom } from "./atoms.ts";
+ *
+ * useAtomSubscribe(draftAtom, (draft) => localStorage.setItem("draft", draft));
+ * ```
  *
  * @stability unstable
  * @since 0.1.0
@@ -428,6 +487,17 @@ const initialValuesApplied = new WeakMap<
 /**
  * Sets starting values once per registry, before anything reads the atoms.
  *
+ * **Example** (Starting an atom from a prop)
+ *
+ * ```ts
+ * import { useAtomInitialValues, useAtomValue } from "effect-atom-svelte";
+ * import { countAtom } from "./atoms.ts";
+ *
+ * const { start } = $props();
+ * useAtomInitialValues([[countAtom, start]]);
+ * const count = useAtomValue(countAtom);
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -451,6 +521,16 @@ export const useAtomInitialValues = (
 
 /**
  * Reads an `AtomRef`, following it when the getter returns a different ref.
+ *
+ * **Example** (Reading a ref)
+ *
+ * ```ts
+ * import { useAtomRef } from "effect-atom-svelte";
+ * import { profile } from "./refs.ts";
+ *
+ * const current = useAtomRef(profile);
+ * // In the markup: {current.current.name}
+ * ```
  *
  * @stability unstable
  * @since 0.1.0
@@ -483,6 +563,16 @@ export const useAtomRef = <A>(
 /**
  * Returns the `AtomRef` for one property of an `AtomRef`.
  *
+ * **Example** (Writing one property of a ref)
+ *
+ * ```ts
+ * import { useAtomRefProp } from "effect-atom-svelte";
+ * import { profile } from "./refs.ts";
+ *
+ * const name = useAtomRefProp(profile, "name");
+ * const rename = (next: string) => name.set(next); // profile.value.name changes too
+ * ```
+ *
  * @stability unstable
  * @since 0.1.0
  * @category hooks
@@ -494,6 +584,16 @@ export const useAtomRefProp = <A, K extends keyof A>(
 
 /**
  * Reads one property of an `AtomRef`.
+ *
+ * **Example** (Reading one property of a ref)
+ *
+ * ```ts
+ * import { useAtomRefPropValue } from "effect-atom-svelte";
+ * import { profile } from "./refs.ts";
+ *
+ * const name = useAtomRefPropValue(profile, "name");
+ * // In the markup: {name.current}
+ * ```
  *
  * @stability unstable
  * @since 0.1.0
@@ -743,12 +843,15 @@ export interface ResultOptions {
  * current result (often `Initial`), and the component's await does not run again. On the server,
  * an atom with a `withServerValue` override reads as that value and is never computed.
  *
- * @example
- * ```svelte
- * <script>
- *   const todos = await useAtomResult(todosAtom);
- *   const user = await useAtomResult(() => userAtom(id));
- * </script>
+ * **Example** (Awaiting an atom picked by a prop)
+ *
+ * ```ts
+ * import { useAtomResult } from "effect-atom-svelte";
+ * import { todoAtom } from "./atoms.ts";
+ *
+ * const { id } = $props();
+ * const todo = await useAtomResult(() => todoAtom(id));
+ * // todo.current is the AsyncResult, a Success or a Failure by now
  * ```
  *
  * @stability unstable
@@ -964,6 +1067,16 @@ const sharedWait = (
  * the `Failure` when `includeFailure` is set. On the server, an atom with a `withServerValue`
  * override resolves from that value and is never computed; if the value is `Initial`, the promise
  * rejects, so read it inside a `<svelte:boundary>` with a `pending` snippet.
+ *
+ * **Example** (Awaiting an atom in the markup)
+ *
+ * ```ts
+ * import { useAtomSuspense } from "effect-atom-svelte";
+ * import { todosAtom } from "./atoms.ts";
+ *
+ * const todos = useAtomSuspense(todosAtom);
+ * // In the markup, inside a <svelte:boundary>: {#each await todos.current as todo}
+ * ```
  *
  * @stability unstable
  * @since 0.1.0

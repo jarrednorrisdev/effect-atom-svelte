@@ -44,12 +44,42 @@
       {/if}
       {@html entry.signature}
       {#each entry.examples as example, index (index)}
-        <p><strong>Example</strong></p>
-        {@html example}
+        <p>
+          <strong>Example</strong>{#if example.title}&nbsp;({example.title}){/if}
+        </p>
+        {@html example.html}
       {/each}
-      <p class="text-sm text-muted-foreground">
-        Since v{entry.since}{#if entry.stability}&ensp;·&ensp;{capitalize(entry.stability)}{/if}
-      </p>
+      {@render since(entry)}
     {/each}
   {/each}
+
+  <!-- Another package's modules, re-exported together: one description, then the names. -->
+  {#each module.reExports as group (group.from)}
+    <h2 id={slug(group.category)}>{capitalize(group.category)}</h2>
+    {@html group.description}
+    <p>
+      Re-exported from <code>{group.from}</code>. Each links to its source in Effect, where it is
+      documented.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Module</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        {#each group.modules as entry (entry.name)}
+          <tr id={entry.name}>
+            <td><code>{entry.name}</code></td>
+            <td><a href={entry.source}>{group.from}/{entry.name}.ts</a></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    {@render since(group)}
+  {/each}
 </div>
+
+{#snippet since(entry: { since: string; stability?: string | undefined })}
+  <p class="text-sm text-muted-foreground">
+    Since v{entry.since}{#if entry.stability}&ensp;·&ensp;{capitalize(entry.stability)}{/if}
+  </p>
+{/snippet}
