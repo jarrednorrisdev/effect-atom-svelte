@@ -85,15 +85,23 @@ A family holds its atoms through weak references, where the platform supports th
 
 ## Reading from a family
 
-Pass a hook a function that calls the family. The hook follows whichever atom the function returns, and moves to a new atom when the reactive state it reads changes:
+A family isn't an atom, so a hook can't read it directly. Instead, pass the hook a function that calls the family with a key. The hook follows whichever atom the function returns, and moves to a new atom when the reactive state it reads changes. Here `tallyAtom` is the family from the example above, defined in the component's module script:
 
 **Example** (Following the selected key)
 
 ```svelte
+<script module lang="ts">
+  import { Atom } from "effect/reactivity";
+
+  // The family: one counter atom per fruit.
+  const tallyAtom = Atom.family((fruit: string) => Atom.make(0));
+</script>
+
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
 
   let fruit = $state("apples");
+  // The atom for whichever fruit is selected.
   const tally = useAtom(() => tallyAtom(fruit));
 </script>
 ```
