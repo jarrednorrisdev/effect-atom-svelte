@@ -4,6 +4,41 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
+/*
+ * Libron (github.com/nicoverbruggen/libron, SIL Open Font License; see src/lib/fonts/libron) is
+ * the optional text font: the header's font switch sets `<html data-font="libron">` to use it
+ * instead of Inter; see src/lib/docs/font-preference.ts. Libron has only regular and bold, so
+ * medium and semibold text uses the nearer of the two.
+ */
+@font-face {
+  font-display: swap;
+  font-family: "Libron";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./lib/fonts/libron/Libron-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-display: swap;
+  font-family: "Libron";
+  font-style: italic;
+  font-weight: 400;
+  src: url("./lib/fonts/libron/Libron-Italic.woff2") format("woff2");
+}
+@font-face {
+  font-display: swap;
+  font-family: "Libron";
+  font-style: normal;
+  font-weight: 700;
+  src: url("./lib/fonts/libron/Libron-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-display: swap;
+  font-family: "Libron";
+  font-style: italic;
+  font-weight: 700;
+  src: url("./lib/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
+}
+
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -126,7 +161,8 @@
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* The text font, Libron or Inter; html sets --font-text below. */
+  --font-sans: var(--font-text);
   --font-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -182,7 +218,11 @@
     @apply bg-background text-foreground antialiased;
   }
   html {
+    --font-text: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
     @apply font-sans;
+  }
+  html[data-font="libron"] {
+    --font-text: "Libron", ui-serif, Georgia, serif;
   }
 }
 
