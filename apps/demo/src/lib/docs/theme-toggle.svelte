@@ -9,6 +9,6 @@
 
 <!-- The icon follows the `dark` class, so it is right before hydration without any state. -->
 <Button aria-label="Toggle theme" onclick={toggleTheme} size="icon-sm" variant="ghost">
-  <SunIcon class="text-brand-text dark:hidden" />
+  <SunIcon class="text-brand dark:hidden" />
   <MoonIcon class="hidden text-sky-400 dark:block" />
 </Button>

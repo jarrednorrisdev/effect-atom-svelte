@@ -35,7 +35,7 @@
   title={on ? "Sound effects on" : "Sound effects off"}
   variant="ghost"
 >
-  <Volume2Icon class="sound-on-icon text-brand-text" />
+  <Volume2Icon class="sound-on-icon text-brand" />
   <VolumeXIcon class="sound-off-icon" />
 </Button>
 
