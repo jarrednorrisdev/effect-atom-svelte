@@ -71,6 +71,7 @@ Motion is about 20 kB gzipped. Only kit components import it, and only pages wit
 `sound.ts` plays short cues made with [Tone.js](https://tonejs.github.io/), on Visual Effect's synths (`sound-engine.ts` copies its `TaskSounds` oscillators, envelopes, notes, reverb and volume): `tap` (its configuration chime, walking the pentatonic scale), `start` (its running blip), `success` (its triad chord), `failure` (its bass), `interrupt` (its two-beep alert), `reset` (its G to C), `tick` (its ref-update blip). You rarely call it:
 
 - `Example` plays `tap` for every button, checkbox and radio inside the result. Set `data-cue="start"` (or any cue) on a control to play another, or `data-cue="none"` for silence. `RunControls` and `PlayControls` set theirs.
+- Counters use `data-cue="up"` and `"down"`. A control whose press can't do anything right now takes `data-cue="blocked"` (computed, such as `data-cue={fits(n) ? "up" : "blocked"}`): Example then plays a buzz and `refuse()` (`motion.ts`) flashes the control red and shakes it.
 - `StateBadge` plays `success` or `failure` when a run ends, but only after the reader has touched that example, so a page's own first load is silent. Pass `sound={false}` if something else in the example plays the outcome.
 - Call `play("tick")` yourself only for steps that matter, and never on a timer that runs without the reader.
 

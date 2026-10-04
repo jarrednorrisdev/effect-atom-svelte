@@ -391,6 +391,20 @@ html {
   & button:disabled {
     opacity: 0.5;
   }
+  /* A press that was refused (a blocked cue): a failure flash that fades. See kit/motion.ts. */
+  & :where(button, select, input) {
+    transition:
+      background-color 300ms,
+      border-color 300ms,
+      color 300ms;
+  }
+  /* :is(:hover, *) outranks the hover background, since the pointer is still on the button. */
+  & :is(button, select, input)[data-blocked]:is(:hover, *) {
+    background: color-mix(in oklab, var(--tone-failure) 18%, var(--background));
+    border-color: var(--tone-failure);
+    color: var(--tone-failure-text);
+    transition: none;
+  }
   /* A switch that is on, such as the page a switcher shows. */
   & button[aria-pressed="true"] {
     background: var(--accent);

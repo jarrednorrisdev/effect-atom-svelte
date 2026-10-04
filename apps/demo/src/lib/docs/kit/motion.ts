@@ -156,6 +156,20 @@ export const shake = async (
 };
 
 /**
+ * Shows that a press was refused (a `blocked` cue): the control flashes the failure color, through
+ * `data-blocked` and the `.demo` styles in app.css, and shakes its head from side to side. With
+ * reduced motion it only flashes.
+ */
+export const refuse = (element: HTMLElement) => {
+  element.dataset.blocked = "";
+  setTimeout(() => delete element.dataset.blocked, 400);
+  if (reducedMotion()) {
+    return;
+  }
+  animate(element, { x: [0, -5, 5, -4, 4, -2, 0] }, { duration: 0.4, ease: "easeInOut" });
+};
+
+/**
  * Jitters an element while something runs, as effect.kitlangton.com's running effects do: small
  * random tilts and nudges until the returned function is called, which settles it back. Use it in
  * an attachment and return the stop function as its cleanup. Does nothing with reduced motion.

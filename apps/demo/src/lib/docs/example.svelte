@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
   import Hint from "#lib/docs/kit/hint.svelte";
+  import { refuse } from "#lib/docs/kit/motion.ts";
   import { play, warm } from "#lib/docs/kit/sound.ts";
   import type { Cue } from "#lib/docs/kit/sound.ts";
   import { setExampleState } from "#lib/docs/kit/tone.ts";
@@ -49,19 +50,21 @@
   ]);
   const isCue = (value: string): value is Cue => cues.has(value);
 
-  /** The cue a click on the event's target would play, if any. */
-  const cueOf = (event: Event): Cue | undefined => {
+  /** The control a click on the event's target presses, if any. */
+  const controlOf = (event: Event): HTMLElement | undefined => {
     if (!(event.target instanceof Element)) {
       return undefined;
     }
     const control = event.target.closest<HTMLElement>(
       "[data-cue], button, input[type=checkbox], input[type=radio]"
     );
-    if (!control || control.matches(":disabled")) {
-      return undefined;
-    }
-    const cue = control.dataset.cue ?? "tap";
-    return isCue(cue) ? cue : undefined;
+    return control && !control.matches(":disabled") ? control : undefined;
+  };
+
+  /** The cue a click on the event's target would play, if any. */
+  const cueOf = (event: Event): Cue | undefined => {
+    const cue = controlOf(event)?.dataset.cue ?? "tap";
+    return controlOf(event) && isCue(cue) ? cue : undefined;
   };
 
   const example = setExampleState({ touched: false });
@@ -75,11 +78,18 @@
     }
   };
 
-  /** One delegated listener plays every control's cue, so examples need no sound code. */
+  /**
+   * One delegated listener plays every control's cue, so examples need no sound code. A `blocked`
+   * press is shown too, not only heard.
+   */
   const onclick = (event: MouseEvent) => {
     const cue = cueOf(event);
     if (cue) {
       play(cue);
+    }
+    const control = controlOf(event);
+    if (cue === "blocked" && control) {
+      refuse(control);
     }
   };
 
