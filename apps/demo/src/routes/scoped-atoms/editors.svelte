@@ -1,18 +1,27 @@
 <script lang="ts">
   import NoteEditor from "./note-editor.svelte";
 
-  let shared = $state(false);
+  let kind = $state<"scoped" | "module">("scoped");
 </script>
 
-<p>
-  <button aria-pressed={shared} onclick={() => (shared = !shared)}>
-    Use one module atom instead
+<div aria-label="Draft" class="flex flex-wrap gap-2" role="group">
+  <button
+    aria-pressed={kind === "scoped"}
+    onclick={() => (kind = "scoped")}
+  >
+    Scoped atom
   </button>
-</p>
-<!-- Providers run once, so the editors start again when the switch changes. -->
-{#key shared}
-  <div class="grid gap-3 sm:grid-cols-2">
-    <NoteEditor name="Note A" {shared} />
-    <NoteEditor name="Note B" {shared} />
+  <button
+    aria-pressed={kind === "module"}
+    onclick={() => (kind = "module")}
+  >
+    Module atom
+  </button>
+</div>
+<!-- Providers run once, so the editors start again on a new choice. -->
+{#key kind}
+  <div class="mt-3 grid gap-3 sm:grid-cols-2">
+    <NoteEditor {kind} name="Note A" />
+    <NoteEditor {kind} name="Note B" />
   </div>
 {/key}

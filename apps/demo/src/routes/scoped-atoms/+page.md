@@ -21,9 +21,9 @@ description: Give each part of the page its own atom, without passing it down by
 
 An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a counter per panel or a draft per open dialog, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
-Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. The switch swaps the scoped atom for one module atom, to show what the scope prevents:
+Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **Module atom** to give both editors one atom made at module level instead, and see what the scope prevents:
 
-<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textAreaSource, name: "text-area.svelte" }, { html: previewSource, name: "preview.svelte" }, { html: editorsSource, name: "editors.svelte" }]} hint="Write in Note A: its word count and preview follow, and Note B stays empty. Then turn on Use one module atom instead and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
+<Example files={[{ html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textAreaSource, name: "text-area.svelte" }, { html: previewSource, name: "preview.svelte" }, { html: draftScopeSource, name: "draft-scope.ts" }]} hint="Write in Note A: its word count and preview follow, and Note B stays empty. Then pick Module atom and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
 
 ## Defining a scoped atom
 

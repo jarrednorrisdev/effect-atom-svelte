@@ -6,11 +6,11 @@
   import TextArea from "./text-area.svelte";
   import Toolbar from "./toolbar.svelte";
 
-  const { name, shared }: { name: string; shared: boolean } = $props();
+  const { kind, name }: { kind: "scoped" | "module"; name: string } = $props();
 
   // Every component below finds this editor's draft with Draft.use(), no props.
   // svelte-ignore state_referenced_locally
-  Draft.provide(shared);
+  Draft.provide(kind);
 </script>
 
 <Part code label="{name}: Draft.provide()">
