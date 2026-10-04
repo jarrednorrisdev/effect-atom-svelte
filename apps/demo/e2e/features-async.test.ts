@@ -118,7 +118,15 @@ test.describe("Async atoms page", () => {
     await page.waitForLoadState("networkidle");
     const log = logEntries(page, "Socket server");
     await expect(page.getByTestId("feed-gone")).toBeVisible();
-    await page.getByRole("button", { name: "Add a reader" }).click();
+    // Under load, Firefox has taken this click before hydration and ignored it, so it is repeated
+    // until the reader appears. Once it has, the button says "Remove the reader" instead.
+    const add = page.getByRole("button", { name: "Add a reader" });
+    await expect(async () => {
+      if (await add.isVisible()) {
+        await add.click();
+      }
+      await expect(page.getByTestId("feed-gone")).toBeHidden({ timeout: 1000 });
+    }).toPass();
     await expect(page.getByTestId("feed")).toHaveText(
       "First message on socket 1"
     );
