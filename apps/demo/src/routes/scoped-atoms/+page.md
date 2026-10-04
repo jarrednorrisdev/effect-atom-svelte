@@ -10,18 +10,20 @@ description: Give each part of the page its own atom, without passing it down by
   import counterPanelSource from "./counter-panel.svelte?highlight";
   import NestedPanels from "./nested-panels.svelte";
   import nestedSource from "./nested-panels.svelte?highlight";
-  import Panels from "./panels.svelte";
-  import panelsSource from "./panels.svelte?highlight";
-  import scopeSource from "./counter-scope.ts?highlight";
-  import counterSource from "./scoped-counter.svelte?highlight";
-  import buttonSource from "./scoped-counter-button.svelte?highlight";
+  import draftScopeSource from "./draft-scope.ts?highlight";
+  import Editors from "./editors.svelte";
+  import editorsSource from "./editors.svelte?highlight";
+  import noteEditorSource from "./note-editor.svelte?highlight";
+  import previewSource from "./preview.svelte?highlight";
+  import textAreaSource from "./text-area.svelte?highlight";
+  import toolbarSource from "./toolbar.svelte?highlight";
 </script>
 
 An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a counter per panel or a draft per open dialog, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
-Each panel below provides its own counter. Both counters in a panel share it, and the two panels don't affect each other:
+Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. The switch swaps the scoped atom for one module atom, to show what the scope prevents:
 
-<Example files={[{ html: scopeSource, name: "counter-scope.ts" }, { html: counterSource, name: "scoped-counter.svelte" }, { html: buttonSource, name: "scoped-counter-button.svelte" }, { html: panelsSource, name: "panels.svelte" }]} hint="Click +1 in the left panel: both of its values change, and the right panel's stay at 100."> <Panels /> </Example>
+<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textAreaSource, name: "text-area.svelte" }, { html: previewSource, name: "preview.svelte" }, { html: editorsSource, name: "editors.svelte" }]} hint="Write in Note A: its word count and preview follow, and Note B stays empty. Then turn on Use one module atom instead and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
 
 ## Defining a scoped atom
 
