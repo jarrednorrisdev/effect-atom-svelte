@@ -60,9 +60,9 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
 
 interface ProvideRegistryCommon {
   /**
-   * Fetch server-rendered async atoms again once hydration is done. Defaults to `false`: the
+   * Run server-rendered async atoms again once the page has hydrated. Defaults to `false`: the
    * server's value is milliseconds old. Children inherit it; the async hooks' own option overrides
-   * it. `@effect/atom-react` fetches again for atoms wrapped by `withReactivity` and similar.
+   * it. `@effect/atom-react` runs atoms wrapped by `withReactivity` and similar again.
    */
   readonly revalidateOnHydrate?: boolean | undefined;
 }
@@ -76,7 +76,7 @@ interface ProvideRegistryCommon {
  * @category models
  */
 export interface ProvideExistingRegistry extends ProvideRegistryCommon {
-  /** An existing registry to provide instead of creating one. The caller disposes it. */
+  /** An existing registry to provide instead of creating one. The caller disposes of it. */
   readonly registry: AtomRegistry.AtomRegistry;
   readonly initialValues?: undefined;
   readonly scheduleTask?: undefined;
@@ -111,8 +111,8 @@ export type ProvideRegistryOptions =
 /**
  * Puts a registry in context for this component and its children.
  *
- * A registry created here is owned by the component and disposed with it, which on the server
- * means at the end of the request. A registry passed in is left for the caller to dispose.
+ * A registry created here is owned by the component and disposed of with it, which on the server
+ * means at the end of the request. A registry passed in is left for the caller to dispose of.
  *
  * **Example** (Giving the app a registry from the root layout)
  *

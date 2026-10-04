@@ -10,8 +10,8 @@ export const setRevalidateOnHydrate = (value: boolean): void => {
 };
 
 /**
- * Whether a hook fetches again after hydration: its own option, else the nearest provider's, else
- * no (JND-19). Call during component init.
+ * Whether a hook runs its atom again once the page has hydrated: its own option, else the nearest
+ * provider's, else no (JND-19). Call during component init.
  */
 export const revalidatesOnHydrate = (option: boolean | undefined): boolean =>
   option ?? (hasDefault() ? getDefault() : false);

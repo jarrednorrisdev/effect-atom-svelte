@@ -2,7 +2,7 @@
   @component
   Puts an atom registry in context for its children: one per request on the server, one for the
   session in the browser. Takes the AtomRegistry.make options, or an existing `registry`, and
-  `revalidateOnHydrate` to fetch server-rendered async atoms again after hydration.
+  `revalidateOnHydrate` to run server-rendered async atoms again once the page has hydrated.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";

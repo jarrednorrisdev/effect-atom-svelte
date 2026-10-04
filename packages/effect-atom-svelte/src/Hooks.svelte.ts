@@ -23,7 +23,7 @@ import { getRegistry } from "./RegistryContext.ts";
 export type AtomInput<A> = A | (() => A);
 
 /**
- * A reactive read-only value. Read `.current` in a template, `$derived` or `$effect` to track it.
+ * A reactive read-only value. Read `.current` in markup, `$derived` or `$effect` to track it.
  *
  * @stability unstable
  * @since 0.1.0
@@ -245,7 +245,7 @@ const subscribedReader = <A>(
 
 /**
  * Reads an atom, optionally through a transform. The atom stays mounted while something reactive
- * reads `.current`, and is released when nothing does.
+ * reads `.current`, and unmounted when nothing does.
  *
  * **Example** (Reading an atom through a transform)
  *
@@ -399,7 +399,7 @@ export function useAtomSet(
 }
 
 /**
- * Returns a function that recomputes the atom. The atom is mounted so the refresh is not lost.
+ * Returns a function that runs the atom again. The atom is mounted so the refresh is not lost.
  *
  * **Example** (Running an atom again on click)
  *
@@ -829,7 +829,7 @@ export interface ResultOptions {
   /** Treat a refreshing result as pending, so the first await also waits for the refresh. */
   readonly suspendOnWaiting?: boolean | undefined;
   /**
-   * Fetch a server-rendered atom again once hydration is done. Overrides `RegistryProvider`'s
+   * Run a server-rendered atom again once the page has hydrated. Overrides `RegistryProvider`'s
    * `revalidateOnHydrate`, which defaults to `false`.
    */
   readonly revalidateOnHydrate?: boolean | undefined;
@@ -837,11 +837,12 @@ export interface ResultOptions {
 
 /**
  * Awaits an async atom's first result, then returns a live handle to its `AsyncResult`. Use it as
- * a top-level `await` in a component script; SSR waits for it, and with a serialization key the
- * result is reused during hydration instead of fetched again. With a getter, only the first atom
- * is awaited: when the getter picks another atom the handle follows it, starting from that atom's
- * current result (often `Initial`), and the component's await does not run again. On the server,
- * an atom with a `withServerValue` override reads as that value and is never computed.
+ * a top-level `await` in a component script; server rendering waits for it, and with a
+ * serialization key the browser starts from the server's result instead of running the atom
+ * again. With a getter, only the first atom is awaited: when the getter picks another atom the
+ * handle follows it, starting from that atom's current result (often `Initial`), and the
+ * component's await does not run again. On the server, an atom with a `withServerValue` override
+ * reads as that value and is never computed.
  *
  * **Example** (Awaiting an atom picked by a prop)
  *
@@ -913,7 +914,7 @@ export interface SuspenseOptions {
   /** Resolve with the Success or Failure result instead of the value, rather than rejecting. */
   readonly includeFailure?: boolean | undefined;
   /**
-   * Fetch a server-rendered atom again once hydration is done. Overrides `RegistryProvider`'s
+   * Run a server-rendered atom again once the page has hydrated. Overrides `RegistryProvider`'s
    * `revalidateOnHydrate`, which defaults to `false`.
    */
   readonly revalidateOnHydrate?: boolean | undefined;
