@@ -3,7 +3,7 @@
   import { HttpClient, HttpClientRequest } from "effect/http";
   import { AtomHttpApi } from "effect/reactivity";
 
-  import { apiBaseUrl, apiHttpClient } from "#lib/clients.ts";
+  import { baseUrl, httpClient } from "#lib/clients.ts";
 
   // The visitor's token, as your sign-in code would keep it. Only the
   // browser sets it.
@@ -13,8 +13,8 @@
   // moment.
   class Authed extends AtomHttpApi.Service<Authed>()("demo/Authed", {
     api: DemoApi,
-    baseUrl: apiBaseUrl,
-    httpClient: apiHttpClient,
+    baseUrl,
+    httpClient,
     transformClient: HttpClient.mapRequest((request) =>
       session.token
         ? HttpClientRequest.bearerToken(request, session.token)
