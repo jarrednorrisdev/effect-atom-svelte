@@ -32,10 +32,16 @@
 
   const { cause, code = false, label = "Cause", ...rest }: Props = $props();
 
-  /** A tagged error as `NotFound { id: 7 }`, anything else as its string. */
+  /**
+   * A tagged error with a message as `SchemaError: Expected …`, one without as
+   * `NotFound { id: 7 }`, anything else as its string.
+   */
   const show = (value: unknown): string => {
     if (typeof value !== "object" || value === null || !("_tag" in value)) {
       return String(value);
+    }
+    if ("message" in value && typeof value.message === "string" && value.message !== "") {
+      return `${String(value._tag)}: ${value.message}`;
     }
     const fields = Object.entries(value).filter(([key]) => key !== "_tag");
     const body = fields.map(([key, field]) => `${key}: ${JSON.stringify(field)}`);
@@ -172,6 +178,7 @@
     width: 1rem;
   }
   .text {
+    white-space: pre-wrap;
     color: var(--foreground);
     font-family: var(--font-mono);
     overflow-wrap: anywhere;

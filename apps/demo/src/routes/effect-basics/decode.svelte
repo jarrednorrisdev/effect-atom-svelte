@@ -24,46 +24,54 @@
 </script>
 
 <script lang="ts">
-  import { Cause, Option } from "effect";
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import EffectType from "#lib/docs/kit/effect-type.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const text = useAtom(textAtom);
   const todo = useAtomValue(todoAtom);
-
-  // A SchemaError's message says what is wrong, and where.
-  const describe = (cause: Cause.Cause<Schema.SchemaError>) =>
-    Option.match(Cause.findErrorOption(cause), {
-      onNone: () => Cause.pretty(cause),
-      onSome: (error) => error.message,
-    });
 </script>
 
-<p class="flex flex-wrap gap-2">
+<div aria-label="Sample" class="flex flex-wrap gap-2" role="group">
   {#each samples as [name, sample] (name)}
-    <button onclick={() => (text.current = sample)}>{name}</button>
+    <button
+      aria-pressed={text.current === sample}
+      onclick={() => (text.current = sample)}
+    >
+      {name}
+    </button>
   {/each}
-</p>
-<textarea
-  aria-label="JSON"
-  bind:value={text.current}
-  class="w-full font-mono text-sm"
-  data-testid="decode-input"
-  rows="2"
-></textarea>
-<div class="mt-2 flex flex-wrap items-baseline gap-3">
-  {#if todo.current._tag === "Success"}
-    {@const { done, id, title } = todo.current.value}
-    <ResultChip kind="message" label="Todo" tone="success">
-      <span data-testid="decode">#{id} {title}, done: {done}</span>
-    </ResultChip>
-  {:else if todo.current._tag === "Failure"}
-    <ResultChip kind="message" label="SchemaError" tone="failure">
-      <span data-testid="decode" class="whitespace-pre-wrap">
-        {describe(todo.current.cause)}
-      </span>
-    </ResultChip>
-  {/if}
-  <StateBadge data-testid="decode-state" result={todo.current} />
 </div>
+<div class="mt-3">
+  <textarea
+    aria-label="JSON"
+    bind:value={text.current}
+    class="w-full font-mono text-sm"
+    data-testid="decode-input"
+    rows="2"
+  ></textarea>
+</div>
+<p class="mt-2 mb-3 flex flex-wrap items-center gap-3">
+  <EffectType
+    error="SchemaError"
+    name="decode(text)"
+    result={todo.current}
+    success="Todo"
+  />
+  <StateBadge data-testid="decode-state" result={todo.current} />
+</p>
+{#if todo.current._tag === "Success"}
+  {@const { done, id, title } = todo.current.value}
+  <ResultChip kind="message" label="todoAtom" tone="success">
+    <span data-testid="decode">#{id} {title}, done: {done}</span>
+  </ResultChip>
+{:else if todo.current._tag === "Failure"}
+  <CauseView
+    cause={todo.current.cause}
+    code
+    data-testid="decode-cause"
+    label="todoAtom"
+  />
+{/if}
