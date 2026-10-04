@@ -18,10 +18,16 @@
     });
 
   // A service that is costly to build, such as a database connection pool.
-  class Pool extends Context.Service<Pool, { readonly id: number }>()("demo/Pool") {}
+  class Pool extends Context.Service<
+    Pool,
+    { readonly id: number }
+  >()("demo/Pool") {}
 
   // The layer releases the pool when its scope closes.
-  const PoolLayer = Layer.effect(Pool, Effect.acquireRelease(openPool, closePool));
+  const PoolLayer = Layer.effect(
+    Pool,
+    Effect.acquireRelease(openPool, closePool)
+  );
 
   const runtime = Atom.runtime(PoolLayer);
 
@@ -40,13 +46,19 @@
   // Whether each atom has a reader on the page.
   const reading = $state({ ordersAtom: false, usersAtom: false });
   const inUse = $derived(Object.values(reading).filter(Boolean).length);
+  // The open pool, from the log's latest entry ("pool 2 built").
+  const latest = $derived(log.entries.at(-1)?.label ?? "");
+  const open = $derived(/^pool (?<id>\d+) built$/u.exec(latest)?.groups?.id);
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
   {#each ["usersAtom", "ordersAtom"] as const as name (name)}
     <Part code dashed={!reading[name]} label={name}>
-      <button onclick={() => (reading[name] = !reading[name])}>
-        {reading[name] ? "Remove" : "Add"} a reader of {name}
+      <button
+        aria-pressed={reading[name]}
+        onclick={() => (reading[name] = !reading[name])}
+      >
+        Read {name}
       </button>
       {#if reading[name]}
         <Reader atom={atoms[name]} {name} />
@@ -62,6 +74,19 @@
     label="runtime"
     tone={inUse > 0 ? "success" : "idle"}
   >
-    <EventLog empty="No pool yet." entries={log.entries} label="Pool" max={8} />
+    <p class="m-0" data-testid="pool-status">
+      {#if open !== undefined}
+        Holds pool {open}, shared by {inUse} {inUse === 1 ? "atom" : "atoms"}
+      {:else}
+        No pool open
+      {/if}
+    </p>
+    <EventLog
+      code
+      empty="No pool yet."
+      entries={log.entries}
+      label="PoolLayer"
+      max={8}
+    />
   </Part>
 </div>

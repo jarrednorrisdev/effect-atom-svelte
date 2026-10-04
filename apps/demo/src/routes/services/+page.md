@@ -58,7 +58,7 @@ Layers are built once per registry. On the server, each request has its own regi
 
 In the live example, the runtime's layer builds a pretend connection pool with `Effect.acquireRelease`, and two atoms made from the runtime say which pool they got.
 
-<Example files={[{ html: poolSource, name: "pool.svelte" }, { html: poolReaderSource, name: "pool-reader.svelte" }]} hint="Add a reader of usersAtom: the runtime builds pool 1. Add a reader of ordersAtom: it shares pool 1. Remove both: the pool is released. Add one again: pool 2 is built."> <Pool /> </Example>
+<Example files={[{ html: poolSource, name: "pool.svelte" }, { html: poolReaderSource, name: "pool-reader.svelte" }]} hint="Turn on Read usersAtom: the runtime builds pool 1. Turn on Read ordersAtom: it shares pool 1. Turn both off: the pool is released. Turn one on again: pool 2 is built."> <Pool /> </Example>
 
 ## Choosing a layer with `get`
 
