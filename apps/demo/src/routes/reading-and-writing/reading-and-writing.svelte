@@ -34,10 +34,11 @@
   </Part>
   <Part code label="useAtomSet">
     <button
+      aria-label="Multiply by 10"
       data-cue={fits(count.current) ? "up" : "blocked"}
       onclick={() => setCount(timesTen)}
     >
-      ×10 with an updater
+      ×10
     </button>
   </Part>
   <Part code label="useAtomValue">
