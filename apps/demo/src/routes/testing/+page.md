@@ -46,7 +46,7 @@ Atoms are defined at module level, but their values aren't: each test's registry
 
 ### Holding an atom with `mount`
 
-A registry drops an atom that nothing reads once the current task ends, as it does when the last component reading it unmounts. The next read starts from the initial value again, which is what the second test shows. In a component the hooks hold the atoms they read. In a test, `registry.mount(atom)` does the same and returns a function that lets go.
+A registry drops an atom that nothing reads once the current task ends, as it does when the last component reading it unmounts. The next read starts from the initial value again, which is what the second test shows. In a component the hooks hold the atoms they read. In a test, `registry.mount(atom)` does the same and returns a function that unmounts the atom.
 
 Within one synchronous block you don't need it: a `set` followed by a `get` sees the new value.
 

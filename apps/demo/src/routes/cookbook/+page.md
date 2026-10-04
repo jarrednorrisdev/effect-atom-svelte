@@ -83,7 +83,7 @@ This form adds a todo. It shows the todo straight away, shows the server's typed
 
 Three pieces work together:
 
-- **`Atom.optimistic` and `Atom.optimisticFn`** show the provisional list while the mutation runs. When it succeeds, the optimistic atom fetches `todosAtom` again, so the mutation doesn't need `reactivityKeys`. See [Optimistic updates](/mutations#optimistic-updates).
+- **`Atom.optimistic` and `Atom.optimisticFn`** show the provisional list while the mutation runs. When it succeeds, the optimistic atom reads `todosAtom` again, so the mutation doesn't need `reactivityKeys`. See [Optimistic updates](/mutations#optimistic-updates).
 - **`mode: "promiseExit"`** gives the submit handler the mutation's `Exit`, which never rejects.
 - **`Cause.findErrorOption`** takes the first typed error out of the cause. Its type is the procedure's errors plus `RpcClientError`, so checking `_tag` narrows it to `TitleTooLong` and its `maxLength`.
 
@@ -91,7 +91,7 @@ To check a form before sending anything, decode its fields with a `Schema` in th
 
 ## Polling
 
-To fetch something again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
+To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
 
 <Example files={[{ html: pollingSource, name: "polling.svelte" }]}> <Polling /> </Example>
 

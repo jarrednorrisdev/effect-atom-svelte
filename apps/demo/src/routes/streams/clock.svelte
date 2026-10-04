@@ -4,9 +4,9 @@
 
   // Counts the seconds since something started reading it. withServerValueInitial
   // keeps it off the server, which would otherwise run it until the render ended.
-  const clockAtom = Atom.withServerValueInitial(
-    Atom.make(Stream.tick("1 second").pipe(Stream.scan(() => 0, (n) => n + 1)))
-  );
+  const clockAtom = Atom.make(
+    Stream.tick("1 second").pipe(Stream.scan(() => 0, (n) => n + 1))
+  ).pipe(Atom.withServerValueInitial);
 </script>
 
 <script lang="ts">

@@ -8,8 +8,10 @@
 </script>
 
 <script lang="ts">
-  import { useAtomRef, useAtomRefPropValue } from "effect-atom-svelte";
+  import { useAtomRef, useAtomRefProp, useAtomRefPropValue } from "effect-atom-svelte";
 
+  // The name property's own ref: setting it updates profile and badge too.
+  const nameRef = useAtomRefProp(profile, "name");
   const name = useAtomRefPropValue(profile, "name");
   const whole = useAtomRef(profile);
   const label = useAtomRef(badge);
@@ -18,7 +20,7 @@
 <p>
   <input
     aria-label="Name"
-    oninput={(event) => profile.prop("name").set(event.currentTarget.value)}
+    oninput={(event) => nameRef.set(event.currentTarget.value)}
     value={name.current}
   />
 </p>

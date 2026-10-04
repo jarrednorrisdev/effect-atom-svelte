@@ -19,10 +19,10 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
 | None | `await useAtomResult(atom)` in the script |
 | `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe`, `useAtomInitialValues` | The same |
-| `useAtomRef(ref)`, `useAtomRefPropValue(ref, prop)` | The same, read as `.current` |
+| `useAtomRef(ref)`, `useAtomRefPropValue(ref, prop)` | The same, read through `current` |
 | `useAtomRefProp(ref, prop)` | The same |
 
-### `.current` instead of a value
+### `current` instead of a value
 
 A React hook returns the value for this render, and React renders again when it changes. A Svelte hook returns an object whose `current` reads the atom. Read it in markup, `$derived` or `$effect`, and Svelte updates whatever read it.
 
@@ -37,6 +37,8 @@ return <button onClick={() => setCount((n) => n + 1)}>{count}</button>;
 ```svelte
 <!-- Svelte -->
 <script lang="ts">
+  import { useAtom } from "effect-atom-svelte";
+
   const count = useAtom(countAtom);
 </script>
 
@@ -99,9 +101,9 @@ With React, you dehydrate a registry on the server and pass the state to a `Hydr
 
 `HydrationBoundary` exists here too, with the same `state` prop, for data that comes from a `load` function or a remote function. See [HydrationBoundary](/hydration#hydrationboundary).
 
-<Aside type="caution" title="No fetch after hydration by default">
+<Aside type="caution" title="Nothing runs again after hydration by default">
 
-In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, the hooks fetch nothing again unless you set `revalidateOnHydrate`, on `RegistryProvider` or on the hook. `HydrationBoundary` goes through `Hydration.hydrate`, so it behaves like React's. See [Fetching again after hydration](/hydration#fetching-again-after-hydration).
+In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, the hooks run nothing again unless you set `revalidateOnHydrate`, on `RegistryProvider` or on the hook. `HydrationBoundary` goes through `Hydration.hydrate`, so it behaves like React's. See [Running again after hydration](/hydration#running-again-after-hydration).
 
 </Aside>
 

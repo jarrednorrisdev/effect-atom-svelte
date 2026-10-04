@@ -11,7 +11,7 @@ description: A reactive value you can read and update by property, without a reg
   import profileSource from "./profile.svelte?highlight";
 </script>
 
-An `AtomRef` is a reactive value that holds itself. It needs no registry, runs no effects and is never disposed: you create it, read it, and set it. It suits plain local data that several components edit, such as a form draft or a document in an editor, where you want to read and update single properties.
+An `AtomRef` holds a reactive value itself, with no registry. It runs no effects and is never disposed: you create it, read it, and set it. It suits plain local data that several components edit, such as a form draft or a document in an editor, where you want to read and update single properties.
 
 <Example files={[{ html: profileSource, name: "profile.svelte" }]}> <Profile /> </Example>
 
@@ -46,7 +46,7 @@ A ref compares the new value with the current one using Effect's structural equa
 ```ts
 const name = profile.prop("name");
 
-name.set("Grace"); // profile.value.name is now "Grace"
+name.set("Grace Hopper"); // profile.value.name is now "Grace Hopper"
 ```
 
 Property refs nest, `profile.prop("address").prop("city")`, and work on arrays by index.
@@ -82,7 +82,7 @@ todos.value[0]?.prop("done").set(true);
 
 <Aside type="danger" title="Module-level refs are shared on the server">
 
-A ref has no registry, so nothing gives each server request its own copy. A ref created at module level is shared by every request the server handles, and one visitor's changes show up in another visitor's page. Create refs that hold per-user data inside a component, and pass them down, or only write to them in the browser.
+A ref has no registry, so it gets none of the [per-request isolation](/server-rendering#one-registry-per-request) atoms get. A ref created at module level is shared by every request the server handles. Create refs that hold per-user data inside a component, and pass them down, or only write to them in the browser.
 
 </Aside>
 

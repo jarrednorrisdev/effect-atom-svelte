@@ -3,9 +3,10 @@
 
   // Computed again whenever the tab becomes visible. It listens on window, so the
   // server gets a value of its own instead.
-  const lastSeenAtom = Atom.refreshOnWindowFocus(
-    Atom.make(() => new Date().toLocaleTimeString())
-  ).pipe(Atom.withServerValue(() => "not yet"));
+  const lastSeenAtom = Atom.make(() => new Date().toLocaleTimeString()).pipe(
+    Atom.refreshOnWindowFocus,
+    Atom.withServerValue(() => "not yet")
+  );
 </script>
 
 <script lang="ts">

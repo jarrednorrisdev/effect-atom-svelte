@@ -64,11 +64,11 @@ An atom doesn't hold a value itself. It describes how to compute one, and an **a
 <RegistryProvider>{@render children()}</RegistryProvider>
 ```
 
-On the server, the provider creates a registry for each request and disposes it when the request has finished rendering. In the browser, one registry lives for the whole session.
+In the browser, one registry lives for the whole session. On the server, the provider creates one for each request, so visitors never see each other's state: see [One registry per request](/server-rendering#one-registry-per-request).
 
 <Aside type="danger" title="Always provide a registry when you render on the server">
 
-Without a provider, the browser falls back to a shared default registry, but the server throws `No AtomRegistry in context`. A registry shared at module level on the server would leak one visitor's state into another visitor's page.
+Without a provider, the browser falls back to a shared default registry, but the server throws `No AtomRegistry in context`.
 
 </Aside>
 
@@ -81,6 +81,6 @@ Most apps need no options. Two are worth knowing from the start:
 | `initialValues` | Starting values, as `[atom, value]` pairs, such as data from a `load` function. |
 | `registry` | An existing registry to provide instead of creating one. You dispose it yourself, and the other options don't apply to it. |
 
-The rest come up later: `defaultIdleTTL` in [Lifetimes](/lifetimes#keeping-atoms-alive) and `revalidateOnHydrate` in [Hydration](/hydration#fetching-again-after-hydration). [RegistryProvider](/reference#RegistryProvider) in the API reference lists them all. The provider reads its props once. Changing them later doesn't create a new registry.
+The rest come up later: `defaultIdleTTL` in [Lifetimes](/lifetimes#keeping-atoms-alive) and `revalidateOnHydrate` in [Hydration](/hydration#running-again-after-hydration). [RegistryProvider](/reference#RegistryProvider) in the API reference lists them all. The provider reads its props once. Changing them later doesn't create a new registry.
 
 To provide a registry from a component's script instead of its markup, call `provideRegistry` with the same options. It returns the registry.

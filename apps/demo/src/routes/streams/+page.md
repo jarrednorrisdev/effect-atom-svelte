@@ -37,14 +37,23 @@ When a page renders on the server, every atom it reads starts and keeps running 
 
 ## Pull atoms
 
-`Atom.pull` reads the first chunk of a stream straight away, and the next chunk each time you write to the atom. Its value is a `Success` with `items`, every item pulled so far, and `done`, which is `true` once the stream has ended:
+A stream hands over its items in **chunks**: groups of items that are ready at the same time. `Atom.pull` reads the first chunk straight away, and the next chunk each time you write to the atom. Once the first chunk arrives, the atom's value is a `Success` whose `value` has two fields:
+
+- `items`: every item pulled so far.
+- `done`: whether the stream has ended.
 
 <Example files={[{ html: fruitSource, name: "fruit.svelte" }]}> <Fruit /> </Example>
 
 **Example** (Loading the next page)
 
 ```ts
+// In a module
+import { Atom } from "effect/reactivity";
+
 const fruitAtom = Atom.pull(fruitStream);
+
+// In a component's script
+import { useAtomSet, useAtomValue } from "effect-atom-svelte";
 
 const page = useAtomValue(fruitAtom);
 const loadMore = useAtomSet(fruitAtom);
@@ -52,12 +61,12 @@ const loadMore = useAtomSet(fruitAtom);
 loadMore(); // pulls the next chunk
 ```
 
-A pull takes one **chunk**, not one item. `Stream.paginate` emits each page as a chunk, so here each pull loads one page of three. A stream whose source sends items faster than you pull can hand over several at once, as a [streaming RPC](/rpc#streaming-procedures) does over HTTP.
+So a pull takes a chunk, not one item. `Stream.paginate` emits each page as a chunk, so here each pull loads one page of three. When a stream's source sends items faster than you pull, a chunk can hold several, as with a [streaming RPC](/rpc#streaming-procedures) over HTTP.
 
 <Aside type="note" title="The end shows up one pull late">
 
-A pull atom finds out that a stream has ended only when it pulls and nothing comes back. After the last page, `done` is still `false`. The next pull brings no new items and sets `done` to `true`, which is when the example's button changes to **No more fruit**.
+A pull atom finds out that a stream has ended only when it pulls and nothing comes back. After the last page, `done` is still `false`. The next pull adds no items and sets `done` to `true`, which is when the example's button changes to **No more fruit**.
 
 </Aside>
 
-To keep only the latest chunk instead of every item so far, pass `{ disableAccumulation: true }` as `Atom.pull`'s second argument.
+To keep only the latest chunk in `items` instead of every item so far, pass `{ disableAccumulation: true }` as `Atom.pull`'s second argument.

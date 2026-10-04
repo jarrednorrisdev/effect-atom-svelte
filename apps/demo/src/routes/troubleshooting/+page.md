@@ -41,7 +41,7 @@ If Vitest has a config of its own, it needs the same setting. To see how many co
 
 ## "hydratable_missing_but_required"
 
-While the page hydrates, a hook asked for the server's result for an atom the server never rendered. Svelte throws this in development. A production build only warns, then fetches in the browser, and the markup can mismatch.
+While the page hydrates, a hook asked for the server's result for an atom the server never rendered. Svelte throws this in development. A production build only warns, then runs the atom in the browser, and the markup can mismatch.
 
 It happens when a hook's getter picks a different serializable atom in the browser than it did on the server, usually because the choice depends on state only the browser has, such as `localStorage`. Base the first choice on state the server also has, or keep the server's choice until the component has mounted. See [A getter must pick the same atom](/hydration#a-getter-must-pick-the-same-atom).
 
@@ -53,6 +53,8 @@ In Svelte 5.57, a production build attaches event handlers before the script has
 
 ```svelte
 <script lang="ts">
+  import { useAtomRefresh, useAtomResult } from "effect-atom-svelte";
+
   // Called before the await, so `refresh` exists when the button is set up.
   const refresh = useAtomRefresh(todosAtom);
   const todos = await useAtomResult(todosAtom);
@@ -89,6 +91,13 @@ Give the server an absolute URL when you build the client:
 **Example** (An absolute URL on the server)
 
 ```ts
+import { Layer } from "effect";
+import { FetchHttpClient } from "effect/http";
+import { AtomRpc } from "effect/reactivity";
+import { RpcClient, RpcSerialization } from "effect/rpc";
+
+import { TodosRpcs } from "./rpc.ts";
+
 const origin = import.meta.env.SSR ? "http://localhost:3010" : "";
 
 export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {

@@ -1,6 +1,6 @@
 ---
 title: Hydration
-description: Send the server's results to the browser, so it doesn't fetch them again.
+description: Send the server's results to the browser, so it doesn't run the same effects again.
 ---
 
 <script>
@@ -11,7 +11,7 @@ description: Send the server's results to the browser, so it doesn't fetch them 
   import whereSource from "./where.svelte?highlight";
 </script>
 
-When a page rendered on the server starts up in the browser, its atoms start empty. Without help, every async atom would fetch again what the server just fetched, and the page would flash a loading state over content it already shows. **Hydration** sends each result the server computed along with the page, and the browser starts from it.
+When a page rendered on the server starts up in the browser, its atoms start empty. Without help, every async atom would run its effect again, repeating the server's work, and the page would flash a loading state over content it already shows. **Hydration** sends each result the server computed along with the page, and the browser starts from it.
 
 The atom below records where it was computed. This page was rendered on the server when the site was built, so the browser shows the server's result without computing it. Click **Compute again** to compute it in the browser.
 
@@ -59,14 +59,14 @@ Two different atoms with the same key on one page make the server render throw. 
 A few things follow from that:
 
 - **Only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
-- **Only the first page load is hydrated.** After the browser navigates to another page, atoms fetch as usual.
+- **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
 
-## Fetching again after hydration
+## Running again after hydration
 
-A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. The result is milliseconds old, so fetching it again would be wasted work.
+A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. The result is milliseconds old, so running the effect again would be wasted work.
 
-To fetch again once the page has hydrated, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
+To run it again once the page has hydrated, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
 
 ```svelte
 <RegistryProvider revalidateOnHydrate>{@render children()}</RegistryProvider>
@@ -76,17 +76,17 @@ To fetch again once the page has hydrated, set `revalidateOnHydrate`. On `Regist
 const prices = useAtomSuspense(pricesAtom, { revalidateOnHydrate: true });
 ```
 
-When several components read the same serializable atom, it is fetched again if any of them asks.
+When several components read the same serializable atom, it runs again if any of them asks.
 
 <Aside type="note" title="Different from @effect/atom-react">
 
-In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, no atom is fetched again unless you set `revalidateOnHydrate`.
+In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, no atom runs again unless you set `revalidateOnHydrate`.
 
 </Aside>
 
 ## A getter must pick the same atom
 
-The browser can only use the server's result for the atom the server rendered. When a hook takes a getter, its first choice in the browser must match the server's. If the browser picks a different serializable atom, there is no result for it. Svelte throws `hydratable_missing_but_required` in development. A production build warns, fetches in the browser, and the markup can mismatch.
+The browser can only use the server's result for the atom the server rendered. When a hook takes a getter, its first choice in the browser must match the server's. If the browser picks a different serializable atom, there is no result for it. Svelte throws `hydratable_missing_but_required` in development. A production build warns, runs the atom in the browser, and the markup can mismatch.
 
 This happens when the choice depends on state only the browser has, such as a filter saved in `localStorage`. Either base the first choice on state the server also has (the URL, a cookie, page data), or keep the server's choice until the component has mounted:
 
@@ -95,6 +95,7 @@ This happens when the choice depends on state only the browser has, such as a fi
 ```svelte
 <script lang="ts">
   import { onMount } from "svelte";
+  import { useAtomSuspense, useAtomValue } from "effect-atom-svelte";
 
   // Atom.kvs over localStorage, with withServerValue(() => "all") for the server.
   const saved = useAtomValue(savedFilterAtom);
@@ -106,7 +107,7 @@ This happens when the choice depends on state only the browser has, such as a fi
 </script>
 ```
 
-The first render uses `"all"` on both sides, and hydrates from the server's result. The switch to the saved filter then fetches in the browser, like any later switch.
+The first render uses `"all"` on both sides, and hydrates from the server's result. The switch to the saved filter then runs in the browser, like any later switch.
 
 ## HydrationBoundary
 
@@ -143,4 +144,4 @@ export const load = async () => {
 </HydrationBoundary>
 ```
 
-Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of fetching wrapped atoms again.
+Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.

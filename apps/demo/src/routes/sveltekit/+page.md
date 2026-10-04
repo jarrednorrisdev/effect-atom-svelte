@@ -90,7 +90,7 @@ A page with `export const prerender = true` is rendered once, at build time. Its
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build.
 
-<Aside type="note">
+<Aside type="note" title="This site">
 
 This site's pages are prerendered where they can be. On the [Hydration](/hydration) page, "Computed on the server" means computed when the site was built.
 

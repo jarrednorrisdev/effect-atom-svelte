@@ -27,7 +27,7 @@ On the server, the choice also decides what the first paint contains. See [What 
 
 <Example files={[{ html: slowSource, name: "slow.svelte" }]}> <Slow /> </Example>
 
-<Aside type="note">
+<Aside type="note" title="Needs async mode">
 
 The hooks on this page need `experimental.async` turned on in Svelte's compiler options. See [Installation](/installation#turn-on-async-mode).
 
@@ -117,7 +117,9 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 {/if}
 ```
 
-The await happens once. After that, `todos.current` updates like any other read, including `waiting` while a refresh runs. On the server, rendering waits for it. If the atom has a serialization key, the browser reuses the server's result when it hydrates rather than running the effect again. See [Hydration](/hydration). [RPC](/rpc) shows this with a real query.
+The script waits only once. From then on, `todos.current` updates like a `useAtomValue` read, and shows `waiting` while a refresh runs.
+
+On the server, the render waits for the first result too. If the atom has a serialization key, the browser starts from the server's result instead of running the effect again: see [Hydration](/hydration). [RPC](/rpc) shows this with a real query.
 
 ### Awaiting more than one atom
 
@@ -145,9 +147,9 @@ Both hooks accept a getter, like the other hooks that take an atom. They then fo
 - `useAtomSuspense(() => todoAtom(id))` issues a new promise when `id` changes, and the boundary awaits the new atom.
 - `await useAtomResult(() => todoAtom(id))` waits only for the first atom. When `id` changes, `current` moves to the new atom's result, which is usually `Initial` until it loads, and the script's `await` doesn't run again. Use `useAtomSuspense` when a change should wait for the new value.
 
-<Aside type="note" title="Abandoned reads let go">
+<Aside type="note" title="Abandoned waits">
 
-When a getter moves to another atom while the old one is still loading, or the component is destroyed, the old wait stops holding its atom. The registry then disposes of the atom and interrupts its request. The abandoned promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
+When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
 
 A promise from `useAtomSuspense` that you await outside markup, `$derived` or `$effect`, such as at the top level of the script or in an event handler, is held until the component is destroyed.
 

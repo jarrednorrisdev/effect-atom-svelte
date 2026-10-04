@@ -48,7 +48,8 @@ Atoms make that fix once, for all state. An atom is a description and holds no v
 // user.ts
 import { Atom } from "effect/reactivity";
 
-export const userAtom = Atom.make({ name: "" });
+// keepAlive keeps the starting value until a component reads it.
+export const userAtom = Atom.make({ name: "" }).pipe(Atom.keepAlive);
 ```
 
 ```svelte
@@ -72,9 +73,9 @@ Any component reads it with `useAtomValue(userAtom)`, with no context key or get
 Per-request isolation is the problem a module can't solve. The rest is work you would otherwise write by hand:
 
 - **Async state with loading and errors.** An atom built from an `Effect` holds an `AsyncResult`: `Initial` before the first value, `Success` or `Failure` after, with the error typed by the effect. The hooks hand that to `<svelte:boundary>`, or let you match on it. See [Async atoms](/async-atoms).
-- **Derived values.** `Atom.make((get) => ...)` reads other atoms, and the registry recomputes it only when one of them changes. See [Derived atoms](/derived-atoms).
+- **Derived values.** `Atom.make((get) => ...)` reads other atoms, and the registry computes it again only when one of them changes. See [Derived atoms](/derived-atoms).
 - **Cleanup.** When nothing reads an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. A component that unmounts mid-request cancels that request. See [Lifetimes](/lifetimes).
-- **Server data in the browser.** Serializable async atoms awaited during server rendering pass their results to the browser, which uses them instead of fetching again. See [Hydration](/hydration).
+- **Server data in the browser.** Serializable async atoms awaited during server rendering pass their results to the browser, which uses them instead of running the effects again. See [Hydration](/hydration).
 - **Effect services.** An atom can use services from a `Layer`, and `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into typed queries and mutations. See [RPC](/rpc) and [HTTP API](/http).
 
 ## Compared with other tools
@@ -92,7 +93,7 @@ Per-request isolation is the problem a module can't solve. The rest is work you 
 - **Apps without Effect.** Atoms are part of Effect. If you don't use Effect and don't plan to, learning it only for shared state costs more than the alternatives above.
 - **Route data that doesn't change on the page.** A `load` function is enough.
 
-<Aside type="note">
+<Aside type="note" title="Mixing them">
 
 You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms only for the state they share.
 

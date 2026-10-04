@@ -52,7 +52,7 @@ Call `use` in any component below it to get the same atom, then read it with the
 
 If a component is inside more than one provider, `use` returns the nearest one's atom.
 
-<Aside type="caution">
+<Aside type="caution" title="use needs a provider above it">
 
 `use` throws if no component above it called `provide`. Like any Svelte context, both must run while the component initializes, at the top level of its script.
 

@@ -11,7 +11,7 @@ description: Compute an atom's value from other atoms, and write back through it
   import source from "./temperature.svelte?highlight";
 </script>
 
-A derived atom computes its value from other atoms. The registry tracks which atoms it reads and recomputes it when any of them change, so it never goes stale and you never update it by hand.
+A derived atom computes its value from other atoms. The registry tracks which atoms it reads and computes it again when any of them change, so it never goes stale and you never update it by hand.
 
 <Example files={[{ html: source, name: "temperature.svelte" }]}> <Temperature /> </Example>
 
@@ -34,7 +34,7 @@ The registry computes a derived atom once and shares the result with every reade
 
 <Aside type="tip" title="Shorthand for one dependency">
 
-`Atom.map(countAtom, (n) => n * 2)` computes the same value. When the source is writable, so is the mapped atom: writing to it writes the source.
+`countAtom.pipe(Atom.map((n) => n * 2))` computes the same value. When the source is writable, so is the mapped atom: writing to it writes the source.
 
 </Aside>
 
@@ -60,4 +60,4 @@ const fahrenheitAtom = Atom.writable(
 );
 ```
 
-Only `celsiusAtom` holds a value. Writing to `fahrenheitAtom` writes to `celsiusAtom`, and `fahrenheitAtom` then recomputes from it. In the live example above, both inputs use `bind:` and stay in step whichever one you type into.
+Only `celsiusAtom` holds a value. Writing to `fahrenheitAtom` writes to `celsiusAtom`, and `fahrenheitAtom` then computes again from it. In the live example above, both inputs use `bind:` and stay in step whichever one you type into.

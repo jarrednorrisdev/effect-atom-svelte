@@ -11,7 +11,7 @@ description: Run an Effect in an atom and read its progress as an AsyncResult.
   import source from "./die.svelte?highlight";
 </script>
 
-Most state worth keeping comes from somewhere slow: a server, a database, a file. An async atom runs an `Effect` to get its value, and tells you where it has got to, so a component can show a loading state, the value, or what went wrong.
+Most state worth keeping comes from somewhere slow: a server, a database, a file. An async atom runs an `Effect` to get its value. Its value also says whether the effect is still running, succeeded or failed, so a component can show a loading state, the value, or what went wrong.
 
 If you haven't used Effect before, [Effect basics](/effect-basics) covers what this page and the ones after it need.
 

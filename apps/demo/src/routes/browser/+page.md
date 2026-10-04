@@ -26,7 +26,7 @@ The recipes build on [Services and runtimes](/services) for the storage layers, 
 
 <Example files={[{ html: draftSource, name: "draft.svelte" }]}> <Draft /> </Example>
 
-`KeyValueStore.layerStorage(() => localStorage)` throws on the server, where `localStorage` doesn't exist. So the example gives the server an in-memory store instead, and the server renders the default value, an empty draft. Once the page hydrates, the browser reads the saved draft and shows it.
+`KeyValueStore.layerStorage(() => localStorage)` throws on the server, where `localStorage` doesn't exist. So the example gives the server an in-memory store instead, and the server renders the default value, an empty draft. Once the page has hydrated, the browser reads the saved draft and shows it.
 
 <Aside type="caution" title="The first paint shows the default">
 
@@ -61,6 +61,14 @@ export const load = ({ cookies }) => ({
 
 ```svelte
 <!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { RegistryProvider } from "effect-atom-svelte";
+
+  import { preferenceCookiesAtom } from "#lib/preferences.ts";
+
+  const { children, data } = $props();
+</script>
+
 <RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
   {@render children()}
 </RegistryProvider>
@@ -68,7 +76,7 @@ export const load = ({ cookies }) => ({
 
 <Aside type="caution" title="initialValues need keepAlive">
 
-The registry disposes of an atom nobody reads, `initialValues` included. Without `Atom.keepAlive`, `preferenceCookiesAtom` could be swept, and its cookies lost, before a component reads a preference.
+The registry disposes of an atom nobody reads, `initialValues` included. Without `Atom.keepAlive`, `preferenceCookiesAtom` could be disposed of, and its cookies lost, before a component reads a preference.
 
 </Aside>
 
@@ -79,7 +87,13 @@ A page that reads cookies depends on the request, so it can't be prerendered. Th
 `Atom.searchParam` reads and writes one parameter of the URL's query string:
 
 ```ts
+// In a module
+import { Atom } from "effect/reactivity";
+
 const queryAtom = Atom.searchParam("q");
+
+// In a component's script
+import { useAtom } from "effect-atom-svelte";
 
 const query = useAtom(queryAtom); // bind:value={query.current} keeps ?q= in step
 ```
@@ -96,7 +110,7 @@ Writes to the URL are batched, and land half a second after the last change, wit
 
 ## Refreshing when the tab comes back
 
-`Atom.refreshOnWindowFocus` computes an atom again whenever the tab becomes visible, so data that may have changed while the visitor was away is fetched again:
+`Atom.refreshOnWindowFocus` computes an atom again whenever the tab becomes visible, so it catches up with anything that changed while the visitor was away:
 
 <Example files={[{ html: focusSource, name: "focus.svelte" }]}> <Focus /> </Example>
 

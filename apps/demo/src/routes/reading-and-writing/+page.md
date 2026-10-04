@@ -38,7 +38,7 @@ The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/s
 <p>{label}</p>
 ```
 
-The hook only subscribes while something reads `current`. When nothing does, it lets go of the atom and the registry can dispose of it.
+The hook only subscribes while something reads `current`. When nothing does, it unsubscribes, and the registry can dispose of the atom.
 
 ### Transforming the value
 
@@ -48,7 +48,7 @@ Pass a function as the second argument to read a value computed from the atom:
 const parity = useAtomValue(countAtom, (n) => (n % 2 === 0 ? "even" : "odd"));
 ```
 
-The transform runs for this hook only. To share a computed value between components, make a [derived atom](/derived-atoms) instead.
+The transform runs for this hook only. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
 
 ## Reading and writing
 
@@ -81,7 +81,7 @@ setCount((n) => n * 10);
 
 The component doesn't read the atom, so it doesn't update when the value changes. It does keep the atom mounted for as long as the component lives, so a value you set is not disposed before something reads it.
 
-<Aside type="tip">
+<Aside type="tip" title="Setters that return a promise">
 
 For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a promise of the result. See [Mutations](/mutations).
 
@@ -93,6 +93,8 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 
 ```svelte
 <script module lang="ts">
+  import { Atom } from "effect/reactivity";
+
   const draftAtom = Atom.make("");
   const savedAtom = Atom.make("");
 </script>

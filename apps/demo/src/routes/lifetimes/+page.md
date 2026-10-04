@@ -31,7 +31,7 @@ When the last of them stops holding it, the registry disposes of the atom shortl
 
 <Aside type="note" title="On the server">
 
-While a page renders on the server, the hooks hold every atom they read until the render ends. Then the request's registry is disposed, and every atom in it with it.
+While a page renders on the server, the hooks hold every atom they read until the render ends. Then the request's registry is disposed, and every atom in it with it. See [Server rendering](/server-rendering#one-registry-per-request).
 
 </Aside>
 
@@ -41,8 +41,8 @@ Choose how long an atom outlives its readers:
 
 | To keep it | Use |
 | --- | --- |
-| For as long as the registry lives | `Atom.keepAlive(atom)` |
-| For a while after the last reader goes | `Atom.setIdleTTL(atom, "5 minutes")` |
+| For as long as the registry lives | `atom.pipe(Atom.keepAlive)` |
+| For a while after the last reader goes | `atom.pipe(Atom.setIdleTTL("5 minutes"))` |
 | For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider` |
 | For as long as a component lives, without reading it | `useAtomMount(atom)` in that component |
 

@@ -17,7 +17,7 @@ description: Turn an Effect HttpApi into atoms for its endpoints.
 
 If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your components its endpoints as atoms. It works like [`AtomRpc`](/rpc): queries are async atoms you read, mutations are atoms you write, and the endpoint's schemas type the path params, query string, payload and errors.
 
-The examples on this page call the same demo server as the RPC page, through its HTTP API. The `http.ts` tab shows the server's `HttpApi`, and `todo.ts` the schemas it uses.
+The examples on this page call the [demo API](/#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]}> <Todos /> </Example>
 
@@ -75,8 +75,11 @@ Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in yo
 `mutation` takes a group name and an endpoint name, and returns an [`Atom.fn`](/mutations). Write the request to call it, with `reactivityKeys` to invalidate once it succeeds:
 
 ```ts
-// POST /api/todos
+// In a module: POST /api/todos
 const createAtom = TodosHttp.mutation("todos", "create");
+
+// In a component's script
+import { useAtomSet } from "effect-atom-svelte";
 
 const create = useAtomSet(createAtom, { mode: "promiseExit" });
 await create({

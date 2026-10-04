@@ -3,7 +3,7 @@
 
   const celsiusAtom = Atom.make(20);
 
-  // Read-only: recomputed when celsiusAtom changes.
+  // Read-only: computed again when celsiusAtom changes.
   const feelAtom = Atom.make((get) => {
     const celsius = get(celsiusAtom);
     if (celsius < 10) {

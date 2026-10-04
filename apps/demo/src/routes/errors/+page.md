@@ -91,6 +91,8 @@ To handle typed errors next to the value rather than in a boundary, pass `includ
 
 ```svelte
 <script lang="ts">
+  import { useAtomSuspense } from "effect-atom-svelte";
+
   const todo = useAtomSuspense(() => todoAtom(id), { includeFailure: true });
 </script>
 
@@ -119,6 +121,9 @@ Prefer `"promiseExit"` when the mutation has typed errors to show:
 **Example** (Showing a typed error from a form)
 
 ```ts
+import { Exit } from "effect";
+import { useAtomSet } from "effect-atom-svelte";
+
 const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
 const submit = async () => {

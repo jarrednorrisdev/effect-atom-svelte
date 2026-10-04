@@ -90,7 +90,7 @@ Pass a hook a function that calls the family. The hook follows whichever atom th
 </script>
 ```
 
-When `fruit` changes, `tally` reads and writes the new fruit's atom, and lets go of the old one.
+When `fruit` changes, `tally` reads and writes the new fruit's atom, and unsubscribes from the old one.
 
 If you pass `tallyAtom(fruit)` directly instead of a function, the hook reads the atom for `fruit`'s value at the time the component was created, and never moves.
 
