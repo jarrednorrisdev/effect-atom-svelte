@@ -80,33 +80,61 @@ test.describe("Async atoms page", () => {
     const errors = pageErrors(page);
     await page.goto("/async-atoms");
     await page.waitForLoadState("networkidle");
-    for (const name of ["plain", "keepAlive", "idle TTL"]) {
-      await expect(page.getByTestId(`kept-${name}`)).toHaveText(
-        "Loaded 1 time"
-      );
-    }
-    const toggle = async (name: string) => {
-      await page.getByRole("button", { name: `Hide reader: ${name}` }).click();
-      await expect(page.getByTestId(`kept-${name}`)).toHaveCount(0);
-      await page.getByRole("button", { name: `Show reader: ${name}` }).click();
+    const example = page
+      .locator("[data-example]")
+      .filter({ hasText: "kept.svelte" });
+    const runs = (name: string) =>
+      page.getByTestId(`cache-${name}`).getByLabel("runs");
+    const status = (name: string) => page.getByTestId(`cache-${name}-status`);
+    const value = (label: string) => page.getByTestId(`kept-${label}`);
+    const go = async (to: "Dashboard" | "Help") => {
+      await example.getByRole("button", { exact: true, name: to }).click();
+      await expect(
+        example.getByRole("button", { exact: true, name: to })
+      ).toHaveAttribute("aria-pressed", "true");
     };
-    await toggle("plain");
-    await expect(page.getByTestId("kept-plain")).toHaveText("Loaded 2 times");
-    await toggle("keepAlive");
-    await expect(page.getByTestId("kept-keepAlive")).toHaveText(
-      "Loaded 1 time"
+
+    // The help page reads nothing, so nothing has run yet.
+    for (const name of ["weatherAtom", "settingsAtom", "searchAtom"]) {
+      await expect(runs(name)).toHaveText("0");
+      await expect(status(name)).toHaveText("nothing yet");
+    }
+    await go("Dashboard");
+    await expect(value("Weather")).toHaveText("18 °C, light rain");
+    await expect(value("Settings")).toHaveText("Dark theme");
+    await expect(value("Search")).toHaveText("3 results for “atoms”");
+    for (const name of ["weatherAtom", "settingsAtom", "searchAtom"]) {
+      await expect(runs(name)).toHaveText("1");
+    }
+
+    // Leaving: plain is disposed at once, keepAlive is kept, the idle TTL counts down.
+    await go("Help");
+    await expect(status("weatherAtom")).toHaveText(
+      "disposed: the next read runs it again"
     );
-    // Back within 3 seconds: the result was kept.
-    await toggle("idle TTL");
-    await expect(page.getByTestId("kept-idle TTL")).toHaveText("Loaded 1 time");
-    // Away for longer: the result was disposed, and the effect runs again.
-    await page.getByRole("button", { name: "Hide reader: idle TTL" }).click();
+    await expect(status("settingsAtom")).toHaveText("held: kept alive");
+    await expect(status("searchAtom")).toContainText("held, unread for");
+
+    // Back within 3 seconds: only plain runs again.
+    await go("Dashboard");
+    await expect(value("Weather")).toHaveText("18 °C, light rain");
+    await expect(runs("weatherAtom")).toHaveText("2");
+    await expect(runs("settingsAtom")).toHaveText("1");
+    await expect(runs("searchAtom")).toHaveText("1");
+
+    // Away for longer than the TTL: the search result is disposed and runs again.
+    await go("Help");
     // The registry checks idle atoms once a second, so a 3 second TTL ends within 4.
-    await page.waitForTimeout(4500);
-    await page.getByRole("button", { name: "Show reader: idle TTL" }).click();
-    await expect(page.getByTestId("kept-idle TTL")).toHaveText(
-      "Loaded 2 times"
+    await expect(status("searchAtom")).toHaveText(
+      "disposed: the next read runs it again",
+      { timeout: 6000 }
     );
+    await expect(status("settingsAtom")).toHaveText("held: kept alive");
+    await go("Dashboard");
+    await expect(value("Search")).toHaveText("3 results for “atoms”");
+    await expect(runs("searchAtom")).toHaveText("2");
+    await expect(runs("weatherAtom")).toHaveText("3");
+    await expect(runs("settingsAtom")).toHaveText("1");
     expect(errors).toEqual([]);
   });
 

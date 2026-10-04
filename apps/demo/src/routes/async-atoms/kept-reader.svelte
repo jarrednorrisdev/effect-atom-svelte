@@ -4,23 +4,24 @@
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   interface Props {
-    readonly atom: Atom.Atom<AsyncResult.AsyncResult<number>>;
-    readonly name: string;
+    readonly atom: Atom.Atom<AsyncResult.AsyncResult<string>>;
+    readonly label: string;
   }
 
-  const { atom, name }: Props = $props();
+  const { atom, label }: Props = $props();
   // svelte-ignore state_referenced_locally
-  const loads = useAtomValue(atom);
+  const result = useAtomValue(atom);
 </script>
 
-<p class="mt-3">
-  {#if loads.current._tag === "Success"}
+<p class="my-1 flex items-center gap-3">
+  <span class="w-16 text-sm">{label}</span>
+  {#if result.current._tag === "Success"}
     <ResultChip kind="message" tone="success">
-      <span data-testid="kept-{name}">
-        Loaded {loads.current.value} time{loads.current.value === 1 ? "" : "s"}
-      </span>
+      <span data-testid="kept-{label}">{result.current.value}</span>
     </ResultChip>
   {:else}
-    <ResultChip kind="message" tone="running">Loading…</ResultChip>
+    <ResultChip kind="message" tone="running">
+      <span data-testid="kept-{label}">Loading…</span>
+    </ResultChip>
   {/if}
 </p>

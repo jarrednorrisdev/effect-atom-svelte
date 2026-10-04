@@ -165,9 +165,9 @@ const searchAtom = Atom.family((term: string) =>
 
 Here the settings load once per registry, which is once per session in the browser. Each search result is kept for a minute after you navigate away, so going back shows it straight away.
 
-The live example has one atom of each kind, each counting how many times its effect has run. Hiding a reader is like navigating away.
+The live example has one atom of each kind on a dashboard, and a help page that reads none of them. The cards below the pages count how many times each request has run, and show what the registry holds for each atom.
 
-<Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Hide each reader and show it again. plain loads again, keepAlive never does, and idle TTL loads again only if it stayed hidden for longer than its 3 seconds."> <Kept /> </Example>
+<Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Open the dashboard, then go to Help and back. weatherAtom loads again every time, settingsAtom never does, and searchAtom loads again only if you stayed away longer than its 3 seconds."> <Kept /> </Example>
 
 ## Releasing resources
 

@@ -2,52 +2,62 @@
   import { Effect } from "effect";
   import { Atom } from "effect/reactivity";
 
-  // An atom whose effect takes a moment, and counts how many times it has run.
-  const slowLoad = () => {
-    let loads = 0;
-    return Atom.make(
-      Effect.sync(() => (loads += 1)).pipe(Effect.delay("600 millis"))
-    );
-  };
+  // How many times each request below has run, for the cards under the pages.
+  const runsAtom = Atom.make({ search: 0, settings: 0, weather: 0 });
 
-  const atoms = [
-    { atom: slowLoad(), idle: "disposed at once", name: "plain" },
-    { atom: slowLoad().pipe(Atom.keepAlive), idle: "kept", name: "keepAlive" },
-    {
-      atom: slowLoad().pipe(Atom.setIdleTTL("3 seconds")),
-      idle: "kept for 3 seconds",
-      name: "idle TTL",
-    },
-  ] as const;
+  // A request that takes a moment, and counts each time it runs.
+  const request = (name: "search" | "settings" | "weather", value: string) =>
+    Atom.make((get) =>
+      Effect.gen(function* load() {
+        get.registry.update(runsAtom, (runs) => ({ ...runs, [name]: runs[name] + 1 }));
+        yield* Effect.sleep("600 millis");
+        return value;
+      })
+    );
+
+  // Fresh on every visit.
+  const weatherAtom = request("weather", "18 °C, light rain");
+  // Loaded once per session.
+  const settingsAtom = request("settings", "Dark theme").pipe(Atom.keepAlive);
+  // Kept for 3 seconds after the last reader leaves.
+  const searchAtom = request("search", "3 results for “atoms”").pipe(
+    Atom.setIdleTTL("3 seconds")
+  );
 </script>
 
 <script lang="ts">
-  import Part from "#lib/docs/kit/part.svelte";
+  import { useAtomValue } from "effect-atom-svelte";
+  import CacheCard from "./cache-card.svelte";
   import Reader from "./kept-reader.svelte";
 
-  // Whether each atom has a reader on the page.
-  const shown = $state({ "idle TTL": true, keepAlive: true, plain: true });
+  const runs = useAtomValue(runsAtom);
+  // The page being shown. Only the dashboard reads the three atoms.
+  let page = $state<"dashboard" | "help">("help");
 </script>
 
-<div class="grid gap-3 sm:grid-cols-3">
-  {#each atoms as { atom, idle, name } (name)}
-    <Part
-      code
-      dashed={!shown[name]}
-      label={name}
-      tone={shown[name] ? "success" : "idle"}
-    >
-      <button
-        aria-label="{shown[name] ? 'Hide' : 'Show'} reader: {name}"
-        onclick={() => (shown[name] = !shown[name])}
-      >
-        {shown[name] ? "Hide reader" : "Show reader"}
-      </button>
-      {#if shown[name]}
-        <Reader {atom} {name} />
-      {:else}
-        <p class="mt-3 text-sm">Nothing reads it: {idle}.</p>
-      {/if}
-    </Part>
+<p>
+  <button aria-pressed={page === "dashboard"} onclick={() => (page = "dashboard")}>
+    Dashboard
+  </button>
+  <button aria-pressed={page === "help"} onclick={() => (page = "help")}>Help</button>
+</p>
+<div class="mt-3 rounded-md border p-3" data-testid="kept-page">
+  {#if page === "dashboard"}
+    <Reader atom={weatherAtom} label="Weather" />
+    <Reader atom={settingsAtom} label="Settings" />
+    <Reader atom={searchAtom} label="Search" />
+  {:else}
+    <p class="text-sm">The help page reads none of the three atoms.</p>
+  {/if}
+</div>
+
+<!-- What the registry holds for each atom, and how many times its request ran. -->
+<div class="mt-4 grid gap-3 sm:grid-cols-3">
+  {#each [
+    { atom: weatherAtom, name: "weatherAtom", runs: runs.current.weather },
+    { atom: settingsAtom, name: "settingsAtom", runs: runs.current.settings },
+    { atom: searchAtom, name: "searchAtom", runs: runs.current.search },
+  ] as card (card.name)}
+    <CacheCard {...card} read={page === "dashboard"} />
   {/each}
 </div>
