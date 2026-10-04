@@ -152,4 +152,34 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(page.getByTestId("kept-idle TTL")).toHaveText("0");
     await expect(page.getByTestId("kept-keepAlive")).toHaveText("1");
   });
+
+  test("AtomRef: a collection notifies an item's readers and the list's", async ({
+    page,
+  }) => {
+    await page.goto("/refs");
+    await page.waitForLoadState("networkidle");
+    const listCount = page.getByLabel("todos notifications", { exact: true });
+    const itemCount = (title: string) =>
+      page.getByLabel(`${title} notifications`, { exact: true });
+    const open = page.getByTestId("todos-open");
+    await expect(open).toHaveText("1 of 2 open");
+    await expect(listCount).toHaveText("0");
+
+    await page.getByRole("checkbox", { name: "Write the docs" }).check();
+    await expect(open).toHaveText("0 of 2 open");
+    await expect(itemCount("Write the docs")).toHaveText("1");
+    await expect(listCount).toHaveText("1");
+    await expect(itemCount("Fix the bug")).toHaveText("0");
+
+    await page.getByRole("textbox", { name: "New todo" }).fill("Ship it");
+    await page.getByRole("button", { name: "Add todo" }).click();
+    await expect(open).toHaveText("1 of 3 open");
+    await expect(listCount).toHaveText("2");
+    await expect(itemCount("Ship it")).toHaveText("0");
+
+    await page.getByRole("button", { name: "Remove Fix the bug" }).click();
+    await expect(open).toHaveText("1 of 2 open");
+    await expect(listCount).toHaveText("3");
+    await expect(itemCount("Write the docs")).toHaveText("1");
+  });
 });

@@ -9,6 +9,9 @@ description: A reactive value you can read and update by property, without a reg
 
   import Profile from "./profile.svelte";
   import profileSource from "./profile.svelte?highlight";
+  import todoItemSource from "./todo-item.svelte?highlight";
+  import Todos from "./todos.svelte";
+  import todosSource from "./todos.svelte?highlight";
 </script>
 
 An `AtomRef` holds a reactive value itself, with no registry. It runs no effects and is never disposed: you create it, read it, and set it. It suits plain local data that several components edit, such as a form draft or a document in an editor, where you want to read and update single properties.
@@ -79,6 +82,10 @@ const todos = AtomRef.collection([{ done: false, title: "Write the docs" }]);
 todos.push({ done: false, title: "Ship it" });
 todos.value[0]?.prop("done").set(true);
 ```
+
+Below, each `<TodoItem>` gets its item's ref, and the numbers count notifications: the list's in the corner, each item's beside it.
+
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Tick a todo: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
 
 <Aside type="danger" title="Module-level refs are shared on the server">
 
