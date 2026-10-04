@@ -12,6 +12,12 @@
  * Design tokens from the Effect docs (effect.website). Their site already uses shadcn's variable
  * names, so most values are copied as-is; the extra ones (prose, navigation, subtle, brand) are
  * theirs too. Code block values come from their Expressive Code config.
+ *
+ * The accent is the amber of jarrednorris.dev (Tailwind's amber scale) rather than Effect's green.
+ * `--brand` is for marks (borders, underlines, checkboxes, focus rings, tints), which need 3:1
+ * against the page; `--brand-text` is for text and small icons, which need 4.5:1. In light mode
+ * that is amber-600 for marks (3.2:1 on white) and the darker amber-700 for text (5.1:1); in dark
+ * mode amber-500 passes both (9.3:1).
  */
 :root {
   color-scheme: light;
@@ -38,8 +44,9 @@
   --border: oklch(0.92 0.004 286.32);
   --border-strong: oklch(0.871 0.006 286.286);
   --input: oklch(0.871 0.006 286.286);
-  --ring: oklch(0.696 0.17 162.48);
-  --brand: oklch(0.696 0.17 162.48);
+  --ring: oklch(0.666 0.179 58.318);
+  --brand: oklch(0.666 0.179 58.318);
+  --brand-text: oklch(0.555 0.163 48.998);
   --featured: #f7f7f8;
   --featured-hover: #f4f4f5;
   --radius: 0.5rem;
@@ -82,8 +89,9 @@
   --border: oklch(0.274 0.006 286.033);
   --border-strong: oklch(0.37 0.013 285.805);
   --input: oklch(0.37 0.013 285.805);
-  --ring: oklch(0.765 0.177 163.223);
-  --brand: oklch(0.765 0.177 163.223);
+  --ring: oklch(0.769 0.188 70.08);
+  --brand: oklch(0.769 0.188 70.08);
+  --brand-text: oklch(0.769 0.188 70.08);
   --featured: #141315;
   --featured-hover: #0f0f11;
   --code-background: oklch(0.21 0.006 285.885 / 60%);
@@ -132,6 +140,7 @@
   --color-featured-hover: var(--featured-hover);
   --color-featured: var(--featured);
   --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border-strong: var(--border-strong);
@@ -317,7 +326,7 @@
     display: none;
   }
   &[data-copied] .copied-icon {
-    color: var(--brand);
+    color: var(--brand-text);
     display: block;
   }
   &:hover,

@@ -87,7 +87,7 @@
 <style>
   .search-excerpt :global(mark) {
     background: transparent;
-    color: var(--brand);
+    color: var(--brand-text);
     font-weight: 600;
   }
 </style>
