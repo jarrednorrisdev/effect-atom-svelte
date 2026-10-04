@@ -7,9 +7,8 @@ description: Give each part of the page its own atom, without passing it down by
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
-  import counterPanelSource from "./counter-panel.svelte?highlight";
-  import NestedPanels from "./nested-panels.svelte";
-  import nestedSource from "./nested-panels.svelte?highlight";
+  import NestedEditors from "./nested-editors.svelte";
+  import nestedSource from "./nested-editors.svelte?highlight";
   import draftScopeSource from "./draft-scope.ts?highlight";
   import Editors from "./editors.svelte";
   import editorsSource from "./editors.svelte?highlight";
@@ -19,7 +18,7 @@ description: Give each part of the page its own atom, without passing it down by
   import toolbarSource from "./toolbar.svelte?highlight";
 </script>
 
-An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a counter per panel or a draft per open dialog, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
+An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a draft per open editor, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
 Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **Module atom** to give both editors one atom made at module level instead, and see what the scope prevents:
 
@@ -33,7 +32,7 @@ Below, each note editor provides its own draft. Its toolbar, text area and previ
 import { ScopedAtom } from "effect-atom-svelte";
 import { Atom } from "effect/reactivity";
 
-export const Counter = ScopedAtom.make((start: number) => Atom.make(start));
+export const Draft = ScopedAtom.make((initial: string) => Atom.make(initial));
 ```
 
 ## Providing and using it
@@ -42,8 +41,8 @@ Call `provide` in the component that owns the atom. It runs the function once fo
 
 ```svelte
 <script lang="ts">
-  const { start } = $props();
-  Counter.provide(start);
+  const { initial } = $props();
+  Draft.provide(initial);
 </script>
 ```
 
@@ -51,13 +50,13 @@ Call `use` in any component below it to get the same atom, then read it with the
 
 ```svelte
 <script lang="ts">
-  const count = useAtom(Counter.use());
+  const draft = useAtom(Draft.use());
 </script>
 ```
 
-If a component is inside more than one provider, `use` returns the nearest one's atom. Below, the inner panel sits inside the outer one, and both provide `Counter` with the same input, `0`:
+If a component is inside more than one provider, `use` returns the nearest one's atom. Below, the same note editor is nested, as a reply inside a post, and both provide `Draft`. Each part's label names the editor whose draft it got:
 
-<Example files={[{ html: counterPanelSource, name: "counter-panel.svelte" }, { html: nestedSource, name: "nested-panels.svelte" }]} hint="Click +1 in the outer panel, then in the inner one: each button finds the nearest provider's atom, so the two counts move on their own."> <NestedPanels /> </Example>
+<Example files={[{ html: nestedSource, name: "nested-editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: draftScopeSource, name: "draft-scope.ts" }]} hint="Write in the post, then in the reply: every part calls the same Draft.use(), but the reply's parts get the reply's draft, so the two never mix."> <NestedEditors /> </Example>
 
 <Aside type="caution" title="use needs a provider above it">
 

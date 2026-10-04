@@ -3,11 +3,13 @@
   import Part from "#lib/docs/kit/part.svelte";
 
   import { Draft } from "./draft-scope.ts";
+  import { providerOf } from "./providers.ts";
 
-  const draft = useAtom(Draft.use());
+  const atom = Draft.use();
+  const draft = useAtom(atom);
 </script>
 
-<Part code label="TextField: Draft.use()">
+<Part code label="TextField: Draft.use() → {providerOf(atom)}">
   <input
     aria-label="Draft"
     bind:value={draft.current}
