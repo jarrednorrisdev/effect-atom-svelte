@@ -287,6 +287,9 @@ test.describe("docs shell", () => {
     await page.addInitScript(() => {
       const counter = window as unknown as { notes: number };
       counter.notes = 0;
+      if (!("OscillatorNode" in window)) {
+        return;
+      }
       const original = OscillatorNode.prototype.start;
       OscillatorNode.prototype.start = function start(
         this: OscillatorNode,
@@ -310,6 +313,12 @@ test.describe("docs shell", () => {
     });
     await page.goto("/first-atom");
     await page.waitForLoadState("networkidle");
+    // Playwright's WebKit on Windows is built without Web Audio, so the examples stay silent there.
+    // Safari and Linux WebKit (CI) have it.
+    test.skip(
+      !(await page.evaluate(() => "AudioContext" in window)),
+      "This browser build has no Web Audio"
+    );
     const toggle = page.getByRole("button", { name: "Sound effects" });
     const increment = page.getByRole("button", {
       name: "First counter: increment",
@@ -317,6 +326,10 @@ test.describe("docs shell", () => {
     // On by default, but Tone.js waits for the first click that plays a note.
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(toneLoads).toBe(0);
+    await increment.click();
+    await expect.poll(() => toneLoads).toBe(1);
+    // The first click's own cue is dropped if Tone.js took over 400 ms to download (as under
+    // load), so the next click is the one that must play.
     await increment.click();
     await expect.poll(notes).toBeGreaterThan(0);
     expect(toneLoads).toBe(1);
@@ -333,9 +346,12 @@ test.describe("docs shell", () => {
     // While sound is off, Tone.js never loads.
     expect(toneLoads).toBe(1);
 
-    // Turning it back on plays a note to confirm, and is remembered too.
+    // Turning it back on loads Tone.js to play a confirming note (dropped if the download is
+    // slow), and examples play again. It is remembered too.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => toneLoads).toBe(2);
+    await increment.click();
     await expect.poll(notes).toBeGreaterThan(0);
     await page.reload();
     await page.waitForLoadState("networkidle");
