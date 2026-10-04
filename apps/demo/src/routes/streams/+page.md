@@ -9,6 +9,8 @@ description: Follow a Stream's latest value, or pull its items when you want the
 
   import Clock from "./clock.svelte";
   import clockSource from "./clock.svelte?highlight";
+  import Countdown from "./countdown.svelte";
+  import countdownSource from "./countdown.svelte?highlight";
   import secondsSource from "./seconds.svelte?highlight";
   import Fruit from "./fruit.svelte";
   import fruitSource from "./fruit.svelte?highlight";
@@ -26,7 +28,11 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
 - `Initial` until the first item arrives.
 - `Success` with the latest item, and `waiting` set while the stream is still running.
-- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`.
+- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom still has an item from an earlier run, which it then keeps as a `Success`.
+
+A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
+
+<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails, and Emits nothing, and compare the cause and the history."> <Countdown /> </Example>
 
 The stream starts when something first reads the atom, and stops when the last reader goes away.
 

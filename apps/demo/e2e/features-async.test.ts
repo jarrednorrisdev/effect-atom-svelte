@@ -371,3 +371,44 @@ test.describe("Suspense page", () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe("Streams page", () => {
+  test("a stream atom ends as a Success, fails keeping its last item, or fails empty", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await page.goto("/streams");
+    await page.waitForLoadState("networkidle");
+    const latest = page.getByTestId("countdown");
+    const state = page.getByTestId("countdown-state");
+    const reasons = page.getByTestId("countdown-cause").getByRole("listitem");
+    const history = logEntries(page, "Countdown");
+    // 3, 2, 1, then the stream ends: a Success that is no longer waiting.
+    await expect(state).toHaveText("Success", { timeout: 5000 });
+    await expect(latest).toHaveText("1");
+    await expect(history.last()).toHaveText(/^\d+ ms\s*Success 1$/u);
+    await expect(reasons).toHaveCount(0);
+    // A failure after some items keeps the last one.
+    await page.getByLabel("Fails").check();
+    await expect(state).toHaveText("Failure", { timeout: 5000 });
+    await expect(latest).toHaveText("1");
+    await expect(reasons).toHaveAttribute("data-reason", "Fail");
+    await expect(reasons).toContainText("SignalLost");
+    // A stream that emits nothing has no item to keep.
+    await page.getByLabel("Emits nothing").check();
+    await expect(state).toHaveText("Failure", { timeout: 5000 });
+    await expect(latest).toHaveText("none");
+    await expect(reasons).toContainText("NoSuchElementError");
+    // Restarting runs the stream again from the beginning.
+    await page.getByLabel("Ends", { exact: true }).check();
+    await expect(state).toHaveText("Success", { timeout: 5000 });
+    await page.getByRole("button", { name: "Restart" }).click();
+    await expect(history).toContainText([
+      /Success 1$/u,
+      /Success 3, waiting$/u,
+    ]);
+    await expect(state).toHaveText("Success", { timeout: 5000 });
+    await expect(latest).toHaveText("1");
+    expect(errors).toEqual([]);
+  });
+});
