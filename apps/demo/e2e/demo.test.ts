@@ -415,39 +415,40 @@ test("derived atoms: a read-only and a writable derived atom", async ({
   await expect(feel).toHaveText("cold");
 });
 
-test("families: a getter follows the selected key's atom", async ({ page }) => {
+test("families: a list and a details panel share each todo's atom", async ({
+  page,
+}) => {
   await page.goto("/families");
   await page.waitForLoadState("networkidle");
-  const count = page.getByRole("button", { name: "Count one" });
-  await count.click();
-  await count.click();
-  await page.getByTestId("fruit").selectOption("pears");
-  await expect(page.getByTestId("tally")).toHaveText("0");
-  await count.click();
-  await expect(page.getByTestId("total-apples")).toHaveText("2");
-  await expect(page.getByTestId("total-pears")).toHaveText("1");
-  await page.getByTestId("fruit").selectOption("apples");
-  await expect(page.getByTestId("tally")).toHaveText("2");
-  // The slots show which fruits have an atom in the registry.
-  const entries = page.getByTestId("family-entries").locator("output");
-  await expect(entries).toHaveText("3 / 3 fruits in the registry");
-  // With the totals hidden, only the selected fruit's atom has a reader.
+  const title = page.getByTestId("details-title");
+  const status = page.getByTestId("details-status");
+  await expect(title).toHaveText("Buy milk");
+  await expect(status).toHaveText("open");
+  // Ticking the row writes todoAtom(1), which the panel reads too.
+  await page.getByRole("checkbox", { name: "Buy milk done" }).check();
+  await expect(status).toHaveText("done");
+  // Opening another todo moves the panel to that todo's atom.
+  await page.getByRole("button", { name: "Walk the dog" }).click();
+  await expect(title).toHaveText("Walk the dog");
+  await expect(status).toHaveText("open");
   await setPressed(
-    page.getByRole("button", { exact: true, name: "Show totals" }),
-    false
-  );
-  await expect(entries).toHaveText("1 / 3 fruits in the registry");
-  await page.getByTestId("fruit").selectOption("pears");
-  // Pears lost its atom, and its count, when the totals were hidden.
-  await expect(page.getByTestId("tally")).toHaveText("0");
-  await expect(entries).toHaveText("1 / 3 fruits in the registry");
-  await setPressed(
-    page.getByRole("button", { exact: true, name: "Show totals" }),
+    page.getByRole("button", { exact: true, name: "Done" }),
     true
   );
-  await expect(page.getByTestId("total-apples")).toHaveText("0");
-  await expect(page.getByTestId("total-pears")).toHaveText("0");
-  await expect(entries).toHaveText("3 / 3 fruits in the registry");
+  await expect(
+    page.getByRole("checkbox", { name: "Walk the dog done" })
+  ).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Buy milk done" })
+  ).toBeChecked();
+  // A new id gets a new atom.
+  await page.getByRole("textbox", { name: "New todo" }).fill("Call mum");
+  await page.getByRole("button", { exact: true, name: "Add" }).click();
+  await expect(title).toHaveText("Call mum");
+  await expect(status).toHaveText("open");
+  await expect(
+    page.getByRole("checkbox", { name: "Call mum done" })
+  ).not.toBeChecked();
 });
 
 test("effect basics: tryPromise hashes the text, and a rejection is a typed error", async ({

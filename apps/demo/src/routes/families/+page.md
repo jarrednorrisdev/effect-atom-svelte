@@ -11,8 +11,12 @@ description: Create one atom per key, and follow the one your component needs.
   import keptSource from "./kept-tallies.svelte?highlight";
   import SameKey from "./same-key.svelte";
   import sameKeySource from "./same-key.svelte?highlight";
-  import Tallies from "./tallies.svelte";
-  import source from "./tallies.svelte?highlight";
+  import TodoApp from "./todo-app.svelte";
+  import appSource from "./todo-app.svelte?highlight";
+  import detailsSource from "./todo-details.svelte?highlight";
+  import listSource from "./todo-list.svelte?highlight";
+  import rowSource from "./todo-row.svelte?highlight";
+  import todosSource from "./todos.ts?highlight";
 </script>
 
 Say you're building a todo app, and each todo needs its own piece of state. With one todo, you'd write one atom:
@@ -36,15 +40,15 @@ The family remembers the atoms it has made. The first time you call `todoAtom(1)
 
 The value you pass in (here, the id) is called the **key**. It can be any value that identifies the thing: an id, a search query, a document name.
 
-Try it below. The family makes one counter per fruit, so the fruit's name is the key. Pick a fruit and count: only that fruit's total changes, because each fruit has its own atom.
+Try it below. The list and the details panel are separate components that pass no state between them: each row calls `todoAtom` with its todo's id, and the panel calls it with the id of the todo you opened. When both use the same id, they read the same atom.
 
-<Example files={[{ html: source, name: "tallies.svelte" }]} hint="Pick a fruit and count. Then turn off Show totals and pick another fruit: the one you left has no reader, so its atom leaves the registry and its count starts again from 0."> <Tallies /> </Example>
+<Example files={[{ html: todosSource, name: "todos.ts" }, { html: rowSource, name: "todo-row.svelte" }, { html: detailsSource, name: "todo-details.svelte" }, { html: listSource, name: "todo-list.svelte" }, { html: appSource, name: "todo-app.svelte" }]} hint="Tick Buy milk in the list: the details panel shows it done too, because both read todoAtom(1). Open another todo and mark it done from the panel. Then add a todo: its new id gets a new atom, starting open."> <TodoApp /> </Example>
 
 ## New keys make new atoms
 
 You never register keys with a family or create their atoms yourself. The function you pass to `Atom.family` is a recipe: the family runs it the first time it sees a key, and keeps the atom it returns.
 
-So when the user adds a new todo, there's nothing to set up. Call the family with the new id, and the atom exists from then on:
+So when the user adds a new todo, there's nothing to set up. In the app above, **Add** only pushes a new id onto the list. The new row calls `todoAtom` with it, and the atom exists from then on:
 
 **Example** (A todo the family hasn't seen yet)
 
@@ -85,34 +89,29 @@ A family holds its atoms through weak references, where the platform supports th
 
 ## Reading from a family
 
-A family isn't an atom, so a hook can't read it directly. Instead, pass the hook a function that calls the family with a key. The hook follows whichever atom the function returns, and moves to a new atom when the reactive state it reads changes. Here `tallyAtom` is the family from the example above, defined in the component's module script:
+A family isn't an atom, so a hook can't read it directly. Instead, pass the hook a function that calls the family with a key. The hook follows whichever atom the function returns, and moves to a new atom when the reactive state it reads changes. This is how the details panel in the app above follows the todo you open:
 
 **Example** (Following the selected key)
 
 ```svelte
-<script module lang="ts">
-  import { Atom } from "effect/reactivity";
-
-  // The family: one counter atom per fruit.
-  const tallyAtom = Atom.family((fruit: string) => Atom.make(0));
-</script>
-
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
 
-  let fruit = $state("apples");
-  // The atom for whichever fruit is selected.
-  const tally = useAtom(() => tallyAtom(fruit));
+  import { todoAtom } from "./todos.ts";
+
+  const { id }: { id: number } = $props();
+  // The atom for whichever todo is open.
+  const todo = useAtom(() => todoAtom(id));
 </script>
 ```
 
-When `fruit` changes, `tally` reads and writes the new fruit's atom, and unsubscribes from the old one.
+When `id` changes, `todo` reads and writes the new todo's atom, and unsubscribes from the old one.
 
-If you pass `tallyAtom(fruit)` directly instead of a function, the hook reads the atom for `fruit`'s value at the time the component was created, and never moves.
+If you pass `todoAtom(id)` directly instead of a function, the hook reads the atom for `id`'s value at the time the component was created, and never moves: the panel would keep showing the first todo you opened.
 
 ## Keeping a family's atoms
 
-A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the example above, every count stays while the totals are shown, because they read all three. Turn off **Show totals** and only the selected fruit's atom has a reader: pick another fruit, and the registry disposes of the one you left, so its count starts again from zero.
+A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. But a component that reads only the selected key holds one atom at a time: pick another key, and the registry disposes of the one you left, so its value starts again from the recipe.
 
 To keep each value, give the atom an idle TTL inside the family, or wrap it in `Atom.keepAlive`:
 

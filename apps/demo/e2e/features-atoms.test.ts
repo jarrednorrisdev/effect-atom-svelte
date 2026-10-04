@@ -69,6 +69,35 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(transformRuns).toHaveText("6");
   });
 
+  test("lifetimes: a finalizer clears each computation's interval", async ({
+    page,
+  }) => {
+    await page.goto("/lifetimes");
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    const press = (name: string, on: boolean) =>
+      setPressed(page.getByRole("button", { exact: true, name }), on);
+    const log = page.getByTestId("finalizer-log").getByRole("listitem");
+    const running = page.getByLabel("ticksAtom intervals running", {
+      exact: true,
+    });
+
+    await press("Show the clock", true);
+    await expect(log).toHaveText([/interval 1 started, every 1000 ms$/u]);
+    await expect(running).toHaveText("1");
+    // Before computing again, the atom's finalizer clears the old interval.
+    await press("0.25 s", true);
+    await expect(log).toHaveText([
+      /interval 1 started, every 1000 ms$/u,
+      /interval 1 cleared$/u,
+      /interval 2 started, every 250 ms$/u,
+    ]);
+    await expect(running).toHaveText("1");
+    // Unread, the atom is disposed, and its finalizer clears the last one.
+    await press("Show the clock", false);
+    await expect(log.last()).toHaveText(/interval 2 cleared$/u);
+    await expect(running).toHaveText("0");
+  });
+
   test("lifetimes: a layout's useAtomMount keeps an atom across pages", async ({
     page,
   }) => {

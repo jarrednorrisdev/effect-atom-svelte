@@ -16,6 +16,8 @@ description: When an atom's value is kept, when it is disposed, and how to clean
   import Reader from "./reader.svelte";
   import readerSource from "./reader.svelte?highlight";
   import chatSource from "./chat.ts?highlight";
+  import Finalizers from "./finalizers.svelte";
+  import finalizersSource from "./finalizers.svelte?highlight";
 </script>
 
 A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value and runs the atom's finalizers. This keeps memory, timers and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
@@ -102,6 +104,10 @@ const nowAtom = Atom.make((get) => {
 });
 ```
 
-Finalizers run when the atom is disposed, and also before it computes again because something it read changed. Each computation cleans up after itself. The live example above uses one to log `disposed`.
+Finalizers run when the atom is disposed, and also before it computes again because something it read changed. Each computation cleans up after itself.
+
+In the live example, `ticksAtom` starts an interval each time it computes, and its finalizer clears it. The counter in the corner is the number of intervals running:
+
+<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock: an interval starts. Switch to 0.25 s: the atom read everyAtom, so the finalizer clears the old interval before it computes again with a new one. Hide the clock: nothing reads ticksAtom, so it is disposed and the finalizer clears the last interval. Intervals running never goes above 1."> <Finalizers /> </Example>
 
 An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).
