@@ -49,7 +49,7 @@
       if (now.tag === "Success") {
         play("success");
       } else if (now.tag === "Failure") {
-        play("failure");
+        play(tone === "interrupted" ? "interrupt" : "failure");
       }
     }
   });
@@ -91,7 +91,11 @@
   {#if result.waiting}
     <span aria-hidden="true" class="spinner"><LoaderIcon strokeWidth={2.5} /></span>
   {/if}
-  <span>{result._tag}{result.waiting ? ", waiting" : ""}</span>
+  <span
+    >{result._tag}{tone === "interrupted" ? ", interrupted" : ""}{result.waiting
+      ? ", waiting"
+      : ""}</span
+  >
 </output>
 
 <style>
@@ -124,6 +128,11 @@
   .badge[data-tone="failure"] {
     --mark: var(--tone-failure);
     --text: var(--tone-failure-text);
+  }
+  .badge[data-tone="interrupted"] {
+    --mark: var(--tone-interrupted);
+    --text: var(--tone-interrupted-text);
+    border-style: dashed;
   }
   .badge[data-tone="running"] {
     --mark: var(--tone-running);

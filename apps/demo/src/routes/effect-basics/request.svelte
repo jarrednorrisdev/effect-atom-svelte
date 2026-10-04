@@ -68,7 +68,12 @@
       </span>
     </ResultChip>
   {:else if request.current.waiting}
-    <ResultChip kind="message" label="requestAtom" tone="running">
+    <ResultChip
+      duration={2000}
+      kind="message"
+      label="requestAtom"
+      tone="running"
+    >
       Waiting…
     </ResultChip>
   {:else}

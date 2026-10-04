@@ -34,12 +34,22 @@ import type { Tone } from './tone.ts';
     readonly children: Snippet;
     /** `value` (the default) shows a short value large; `message` suits a sentence. */
     readonly kind?: "message" | "value";
+    /** While running, a bar fills across the tile over this many milliseconds. */
+    readonly duration?: number | undefined;
     /** A caption under the tile, such as the atom's name. */
     readonly label?: string;
     readonly tone: Tone;
   }
 
-  const { busy = false, children, kind = "value", label, tone, ...rest }: Props = $props();
+  const {
+    busy = false,
+    children,
+    duration,
+    kind = "value",
+    label,
+    tone,
+    ...rest
+  }: Props = $props();
 
   const example = getExampleState();
 
@@ -98,6 +108,9 @@ import type { Tone } from './tone.ts';
     {@attach run}
   >
     <span class="content">{@render children()}</span>
+    {#if duration !== undefined && tone === "running"}
+      <span aria-hidden="true" class="progress" style:--duration="{duration}ms"></span>
+    {/if}
   </span>
   {#if label}
     <span class="caption">{label}</span>
@@ -190,6 +203,24 @@ import type { Tone } from './tone.ts';
     content: "";
     inset: 0;
     position: absolute;
+  }
+  /* The time a running result takes, filling from the left. */
+  .progress {
+    animation: fill var(--duration) linear forwards;
+    background: var(--tone-running);
+    bottom: 0;
+    height: 3px;
+    left: 0;
+    position: absolute;
+    transform-origin: left;
+  }
+  @keyframes fill {
+    from {
+      width: 0;
+    }
+    to {
+      width: 100%;
+    }
   }
   .caption {
     color: var(--muted-foreground);

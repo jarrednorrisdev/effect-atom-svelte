@@ -4,12 +4,16 @@
  * border once interrupted. The colors are the `--tone-*` variables in `app.css`.
  */
 
+import { Cause } from "effect";
 import type { AsyncResult } from "effect/reactivity";
 import { getContext, setContext } from "svelte";
 
 export type Tone = "failure" | "idle" | "interrupted" | "running" | "success";
 
-/** The tone of an `AsyncResult`: running while `waiting` with no value yet, otherwise its tag. */
+/**
+ * The tone of an `AsyncResult`: running while `waiting` with no value yet, otherwise its tag, and
+ * interrupted for a Failure whose cause is only an interruption.
+ */
 export const toneOf = (
   result: AsyncResult.AsyncResult<unknown, unknown>
 ): Tone => {
@@ -18,7 +22,7 @@ export const toneOf = (
       return "success";
     }
     case "Failure": {
-      return "failure";
+      return Cause.hasInterruptsOnly(result.cause) ? "interrupted" : "failure";
     }
     default: {
       return result.waiting ? "running" : "idle";
