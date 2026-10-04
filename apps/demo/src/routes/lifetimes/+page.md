@@ -108,6 +108,6 @@ Finalizers run when the atom is disposed, and also before it computes again beca
 
 In the live example, `ticksAtom` starts an interval each time it computes, and its finalizer clears it. The counter in the corner is the number of intervals running:
 
-<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock: an interval starts. Switch to 0.25 s: the atom read everyAtom, so the finalizer clears the old interval before it computes again with a new one. Hide the clock: nothing reads ticksAtom, so it is disposed and the finalizer clears the last interval. Intervals running never goes above 1."> <Finalizers /> </Example>
+<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock: an interval starts. Switch to 0.25 s: ticksAtom depends on everyAtom, so it computes again, and its finalizer clears the old interval first. Hide the clock: nothing reads ticksAtom, so it is disposed and the finalizer clears the last interval. Intervals running never goes above 1."> <Finalizers /> </Example>
 
 An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).
