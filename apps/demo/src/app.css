@@ -373,7 +373,10 @@ html {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   height: auto;
+  /* Its top border lies under the frame's, so the active tab's accent line meets the frame's
+     edge; its bottom covers the bar's lower border. */
   margin-bottom: -1px;
+  margin-top: -1px;
   padding: 0.4rem 0.9rem;
   position: relative;
 }

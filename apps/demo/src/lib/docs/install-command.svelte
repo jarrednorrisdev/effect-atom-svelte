@@ -47,7 +47,11 @@
 <figure class="install-command">
   <div class="not-prose flex items-end overflow-x-auto rounded-t-lg border bg-muted/40">
     <Tabs.Root bind:value={manager.current}>
-      <Tabs.List aria-label="Package manager" class="h-auto w-max gap-0 p-0" variant="line">
+      <Tabs.List
+        aria-label="Package manager"
+        class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto"
+        variant="line"
+      >
         {#each managers as name (name)}
           <Tabs.Trigger class="example-tab after:hidden" value={name}>{name}</Tabs.Trigger>
         {/each}

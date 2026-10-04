@@ -136,7 +136,7 @@
   >
     {#if files.length > 1}
       <Tabs.Root bind:value={selected}>
-        <Tabs.List class="h-auto w-max gap-0 p-0" variant="line">
+        <Tabs.List class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto" variant="line">
           {#each files as entry (entry.name)}
             <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
           {/each}
