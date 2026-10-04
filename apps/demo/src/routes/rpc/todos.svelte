@@ -15,6 +15,9 @@
   import { Cause, Exit, Match, Option } from "effect";
   import type { RpcClientError } from "effect/rpc";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import Part from "#lib/docs/kit/part.svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   // Server rendering waits for the list.
   const todos = await useAtomResult(todosAtom);
@@ -53,28 +56,44 @@
   };
 </script>
 
-{#if todos.current._tag === "Success"}
-  <ul data-testid="rpc-todos" aria-busy={todos.current.waiting}>
-    {#each todos.current.value as todo (todo.id)}
-      <li>
-        <label>
-          <input
-            checked={todo.done}
-            onchange={() =>
-              toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
-            type="checkbox"
-          />
-          {todo.title}
-        </label>
-      </li>
-    {/each}
-  </ul>
-{:else if todos.current._tag === "Failure"}
-  <p>Could not load the todos: {Cause.pretty(todos.current.cause)}</p>
-{/if}
+<div class="grid gap-3 sm:grid-cols-2">
+  <Part label="query listTodos">
+    <StateBadge data-testid="rpc-todos-state" result={todos.current} sound={false} />
+    {#if todos.current._tag === "Success"}
+      <ul
+        aria-busy={todos.current.waiting}
+        class="mt-2 grid gap-1"
+        data-testid="rpc-todos"
+      >
+        {#each todos.current.value as todo (todo.id)}
+          <li>
+            <label>
+              <input
+                checked={todo.done}
+                onchange={() =>
+                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+                type="checkbox"
+              />
+              {todo.title}
+            </label>
+          </li>
+        {/each}
+      </ul>
+    {:else if todos.current._tag === "Failure"}
+      <p>Could not load the todos: {Cause.pretty(todos.current.cause)}</p>
+    {/if}
+  </Part>
 
-<form onsubmit={submit}>
-  <input bind:value={draft} data-testid="rpc-draft" placeholder="New todo" />
-  <button data-testid="rpc-add" disabled={creating.current.waiting}>Add</button>
-</form>
-{#if error}<p data-testid="rpc-error">{error}</p>{/if}
+  <Part label="mutation createTodo">
+    <form onsubmit={submit}>
+      <input bind:value={draft} data-testid="rpc-draft" placeholder="New todo" />
+      <button data-testid="rpc-add" disabled={creating.current.waiting}>Add</button>
+    </form>
+    <p><StateBadge data-testid="rpc-add-state" result={creating.current} /></p>
+    {#if error}
+      <ResultChip kind="message" tone="failure">
+        <span data-testid="rpc-error">{error}</span>
+      </ResultChip>
+    {/if}
+  </Part>
+</div>

@@ -24,13 +24,18 @@
     <option value="light">Light</option>
     <option value="dark">Dark</option>
   </select>
-  <p>Pick a theme, then reload: the server renders it straight away.</p>
+  <button onclick={() => location.reload()}>Reload the page</button>
+  <p>The {theme.current} theme, read from the pref-theme cookie.</p>
 </div>
 
 <style>
   .themed {
     border-radius: 0.375rem;
     padding: 0.75rem;
+  }
+  .themed[data-theme="light"] {
+    background: #fafafa;
+    color: #18181b;
   }
   .themed[data-theme="dark"] {
     background: #18181b;

@@ -21,7 +21,7 @@ If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main
 
 The examples on this page call the [demo API](/#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]}> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Add a todo and watch listTodos: the mutation invalidates the todos key, so the query fetches again. Then try a title longer than 60 characters."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -76,7 +76,7 @@ A third argument takes options:
 
 `query` returns the same atom whenever you pass the same arguments, compared by value. So you can call it inside a getter, and the hook moves to a new query whenever the arguments change:
 
-<Example files={[{ html: lookupSource, name: "lookup.svelte" }]}> <Lookup /> </Example>
+<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Pick another todo: the old one stays on screen, dimmed, until the new one arrives. Todo 99 comes back as the typed TodoNotFound."> <Lookup /> </Example>
 
 ## Mutations
 
@@ -104,13 +104,15 @@ A procedure's errors arrive typed. In `promiseExit` mode, the `Exit`'s cause hol
 
 A procedure declared with `stream: true` becomes a **pull atom**. It reads the first chunk of the stream, then the next chunk each time you write to it, and its `value` holds every item so far and whether the stream is `done`:
 
-<Example files={[{ html: ticksSource, name: "ticks.svelte" }]}> <Ticks /> </Example>
+<Example files={[{ html: ticksSource, name: "ticks.svelte" }]} hint="Click Start over, then Pull next, quickly and then slowly. Each pull brings every number that has arrived since the last one, so a slow pull brings several."> <Ticks /> </Example>
 
 <Aside type="note" title="A pull can bring more than one item">
 
 Over HTTP, the server doesn't wait for the client to ask: it sends items as they are ready, and they queue up in the browser. A pull takes everything that has arrived since the last pull, so wait a second before clicking **Pull next** and several numbers appear at once.
 
 </Aside>
+
+**Start over** refreshes the atom with `useAtomRefresh`, which calls the procedure again and starts a new stream. Until its first item arrives, the atom keeps the old items, `waiting`.
 
 [Streams](/streams) covers pull atoms in general.
 

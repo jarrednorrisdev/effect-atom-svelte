@@ -19,13 +19,17 @@
 <script lang="ts">
   import type { TitleTooLong } from "@demo/domain";
   import { Cause, Exit, Match, Option } from "effect";
-  import { useAtomSet, useAtomSuspense } from "effect-atom-svelte";
+  import { useAtomSet, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
+  import Part from "#lib/docs/kit/part.svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   let filter = $state<Filter>("all");
   let draft = $state("");
   let error = $state("");
 
   const todos = useAtomSuspense(() => todosFor(filter));
+  const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
   // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
@@ -51,21 +55,34 @@
   };
 </script>
 
-<select bind:value={filter} data-testid="http-filter">
-  <option value="all">All</option>
-  <option value="false">Open</option>
-  <option value="true">Done</option>
-</select>
+<div class="grid gap-3 sm:grid-cols-2">
+  <Part label="query todos.list">
+    <select bind:value={filter} data-testid="http-filter">
+      <option value="all">All</option>
+      <option value="false">Open</option>
+      <option value="true">Done</option>
+    </select>
+    <code>GET /api/todos{filter === "all" ? "" : `?done=${filter}`}</code>
 
-<!-- No pending snippet, so server rendering waits for the list. -->
-<ul data-testid="http-todos">
-  {#each await todos.current as todo (todo.id)}
-    <li>{todo.done ? "✔" : "○"} {todo.title}</li>
-  {/each}
-</ul>
+    <!-- No pending snippet, so server rendering waits for the list. -->
+    <ul class="mt-2 grid gap-1" data-testid="http-todos">
+      {#each await todos.current as todo (todo.id)}
+        <li>{todo.done ? "✔" : "○"} {todo.title}</li>
+      {/each}
+    </ul>
+  </Part>
 
-<form onsubmit={submit}>
-  <input bind:value={draft} data-testid="http-draft" placeholder="New todo" />
-  <button data-testid="http-add">Add</button>
-</form>
-{#if error}<p data-testid="http-error">{error}</p>{/if}
+  <Part label="mutation todos.create">
+    <form onsubmit={submit}>
+      <input bind:value={draft} data-testid="http-draft" placeholder="New todo" />
+      <button data-testid="http-add" disabled={creating.current.waiting}>Add</button>
+    </form>
+    <code>POST /api/todos</code>
+    <p><StateBadge data-testid="http-add-state" result={creating.current} /></p>
+    {#if error}
+      <ResultChip kind="message" tone="failure">
+        <span data-testid="http-error">{error}</span>
+      </ResultChip>
+    {/if}
+  </Part>
+</div>

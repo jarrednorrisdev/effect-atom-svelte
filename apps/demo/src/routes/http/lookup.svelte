@@ -2,6 +2,7 @@
   import type { TodoNotFound } from "@demo/domain";
   import { Cause, Match, Option } from "effect";
   import { useAtomSuspense } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosHttp } from "#lib/clients.ts";
 
@@ -33,12 +34,24 @@
 
 <svelte:boundary>
   {@const result = await todo.current}
-  <p data-testid="http-found">
+  <!-- $effect.pending() counts the boundary's unfinished awaits: the next todo. -->
+  {@const busy = $effect.pending() > 0}
+  <p>
     {#if result._tag === "Success"}
-      {result.value.title}
+      <ResultChip {busy} kind="message" label="GET /api/todos/:id" tone="success">
+        <span data-testid="http-found">{result.value.title}</span>
+      </ResultChip>
     {:else}
-      {describe(result.cause)}
+      <ResultChip {busy} kind="message" label="GET /api/todos/:id" tone="failure">
+        <span data-testid="http-found">{describe(result.cause)}</span>
+      </ResultChip>
     {/if}
   </p>
-  {#snippet pending()}<p>Loading…</p>{/snippet}
+  {#snippet pending()}
+    <p>
+      <ResultChip kind="message" label="GET /api/todos/:id" tone="running">
+        Loading…
+      </ResultChip>
+    </p>
+  {/snippet}
 </svelte:boundary>

@@ -115,9 +115,42 @@ test.describe("RPC page", () => {
     await page.getByTestId("rpc-draft").fill("Slow todo");
     await page.getByTestId("rpc-add").click();
     await expect(page.getByTestId("rpc-add")).toBeDisabled();
+    await expect(page.getByTestId("rpc-add-state")).toHaveText(
+      "Initial, waiting"
+    );
     held.resolve(undefined);
     await expect(page.getByTestId("rpc-add")).toBeEnabled();
+    await expect(page.getByTestId("rpc-add-state")).toHaveText("Success");
     await expect(page.getByTestId("rpc-todos")).toContainText("Slow todo");
+  });
+
+  test("a mutation's reactivity key sends the query to waiting, then back", async ({
+    page,
+  }) => {
+    await page.goto("/rpc");
+    await page.waitForLoadState("networkidle");
+    const state = page.getByTestId("rpc-todos-state");
+    await expect(state).toHaveText("Success");
+    // Hold the list's refetch, so its waiting state stays on screen.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/rpc{,/}", async (route) => {
+      if (route.request().postData()?.includes('"tag":"listTodos"')) {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.getByTestId("rpc-draft").fill("Invalidate the list");
+    await page.getByTestId("rpc-add").click();
+    await expect(state).toHaveText("Success, waiting");
+    await expect(page.getByTestId("rpc-todos")).toHaveAttribute(
+      "aria-busy",
+      "true"
+    );
+    held.resolve(undefined);
+    await expect(state).toHaveText("Success");
+    await expect(page.getByTestId("rpc-todos")).toContainText(
+      "Invalidate the list"
+    );
   });
 
   test("add, typed error, toggle and the query family", async ({ page }) => {
@@ -136,6 +169,7 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-error")).toHaveText(
       "TitleTooLong: the limit is 60 characters"
     );
+    await expect(page.getByTestId("rpc-add-state")).toHaveText("Failure");
 
     const checkbox = list.locator("li").first().getByRole("checkbox");
     const checked = await checkbox.isChecked();
@@ -175,6 +209,17 @@ test.describe("RPC page", () => {
       shown = next;
     }
     expect(shown).toBe(done);
+    await expect(pull).toBeDisabled();
+    // Each pull shows in the history, the last one with every item.
+    const pulls = page.getByTestId("ticks-history").getByRole("listitem");
+    await expect(pulls.last()).toContainText("Success 0, 1, 2, 3, 4");
+
+    // Start over calls the procedure again: a new stream, from 0.
+    const { calls } = watch(page);
+    await page.getByRole("button", { name: "Start over" }).click();
+    await expect(ticks).toHaveText(/^0(?:, \d)*$/u);
+    await expect(pull).toBeEnabled();
+    expect(calls).toContain("rpc ticks");
   });
 });
 
@@ -202,6 +247,33 @@ test.describe("HTTP API page", () => {
     await expect(done).toHaveCount(0);
   });
 
+  test("a slow create disables Add and shows waiting until it settles", async ({
+    page,
+  }) => {
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/todos", async (route) => {
+      if (route.request().method() === "POST") {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.goto("/http");
+    await page.waitForLoadState("networkidle");
+    const add = page.getByTestId("http-add");
+    const state = page.getByTestId("http-add-state");
+    await expect(state).toHaveText("Initial");
+    await page.getByTestId("http-draft").fill("Slow over HTTP");
+    await add.click();
+    await expect(add).toBeDisabled();
+    await expect(state).toHaveText("Initial, waiting");
+    held.resolve(undefined);
+    await expect(add).toBeEnabled();
+    await expect(state).toHaveText("Success");
+    await expect(page.getByTestId("http-todos")).toContainText(
+      "Slow over HTTP"
+    );
+  });
+
   test("create refreshes the list, and a typed 404", async ({ page }) => {
     await page.goto("/http");
     await page.waitForLoadState("networkidle");
@@ -210,11 +282,13 @@ test.describe("HTTP API page", () => {
     await page.getByTestId("http-draft").fill("Added over HTTP");
     await page.getByTestId("http-add").click();
     await expect(list).toContainText("Added over HTTP");
+    await expect(page.getByTestId("http-add-state")).toHaveText("Success");
     await page.getByTestId("http-draft").fill("y".repeat(80));
     await page.getByTestId("http-add").click();
     await expect(page.getByTestId("http-error")).toHaveText(
       "TitleTooLong: the limit is 60 characters"
     );
+    await expect(page.getByTestId("http-add-state")).toHaveText("Failure");
 
     await page.getByTestId("http-id").fill("999");
     await expect(page.getByTestId("http-found")).toHaveText(
@@ -233,12 +307,28 @@ test("hydration: the browser uses the server's result until it computes again", 
   await page.goto("/hydration");
   await page.waitForLoadState("networkidle");
   const where = page.getByTestId("computed-on");
+  const history = page.getByTestId("where-history").getByRole("listitem");
   await expect(where).toHaveText("the server");
+  await expect(page.getByTestId("where-server")).toContainText(
+    "Rendered on the server"
+  );
+  await expect(page.getByTestId("where-browser")).toContainText(
+    "Hydrated, not computed"
+  );
   // Give a refetch, if there were one, time to land.
   await page.waitForTimeout(600);
   await expect(where).toHaveText("the server");
+  // Hydrated, the atom never had a loading state: its history starts at Success.
+  await expect(history).toHaveCount(1);
+  await expect(history.first()).toHaveText(/^0 ms\s*Success the server$/u);
   await page.getByRole("button", { name: "Compute again" }).click();
   await expect(where).toHaveText("the browser");
+  await expect(page.getByTestId("where-state")).toHaveText("Success");
+  await expect(page.getByTestId("where-browser")).toContainText(
+    "Computed in the browser"
+  );
+  await expect(history.nth(1)).toContainText("Success the server, waiting");
+  await expect(history.nth(2)).toContainText("Success the browser");
 });
 
 test("first atom: two counters share one atom", async ({ page }) => {
@@ -330,15 +420,35 @@ test("errors: typed errors match on _tag, and a defect is told apart", async ({
   await page.waitForLoadState("networkidle");
   const message = page.getByTestId("outcome-message");
   const outcome = page.getByTestId("outcome");
+  const state = page.getByTestId("outcome-state");
+  // The cause's reasons: Fail for a typed error, Die for a defect, Interrupt.
+  const reasons = page.getByTestId("outcome-cause").getByRole("listitem");
   await expect(message).toHaveText("NotFound: there is no todo 7");
-  await outcome.selectOption("forbidden");
+  await expect(state).toHaveText("Failure");
+  await expect(reasons).toHaveCount(1);
+  await expect(reasons).toHaveAttribute("data-reason", "Fail");
+  await expect(reasons).toContainText("NotFound { id: 7 }");
+  await outcome.getByRole("radio", { name: "Fail with Forbidden" }).check();
   await expect(message).toHaveText("Forbidden: you can't see this todo");
-  await outcome.selectOption("defect");
+  await expect(reasons).toHaveAttribute("data-reason", "Fail");
+  await expect(reasons).toContainText("Forbidden");
+  await outcome.getByRole("radio", { name: "Die with a defect" }).check();
   await expect(message).toHaveText(
     "Something went wrong: Error: todos is undefined"
   );
-  await outcome.selectOption("success");
+  await expect(reasons).toHaveAttribute("data-reason", "Die");
+  await expect(reasons).toContainText("Error: todos is undefined");
+  await expect(reasons).toContainText("defect, not in the type");
+  await outcome.getByRole("radio", { name: "Be interrupted" }).check();
+  await expect(message).toHaveText(/^Something went wrong: /u);
+  await expect(reasons).toHaveAttribute("data-reason", "Interrupt");
+  await outcome.getByRole("radio", { name: "Succeed" }).check();
   await expect(message).toHaveText("Write the docs");
+  await expect(state).toHaveText("Success");
+  await expect(reasons).toHaveCount(0);
+  await expect(page.getByTestId("outcome-cause")).toContainText(
+    "No failure, so no cause."
+  );
 });
 
 test("async atoms: initial, success and a refresh that keeps the value", async ({
@@ -663,9 +773,14 @@ test("browser atoms: localStorage kvs survives a reload, the server renders its 
   await page.goto("/browser");
   await page.waitForLoadState("networkidle");
   await page.getByTestId("draft").fill("hello");
-  await page.reload();
+  await expect(page.getByTestId("draft-saved")).toHaveText("hello");
+  // The example's own Reload button reloads the whole page.
+  const reloaded = page.waitForEvent("load");
+  await page.getByRole("button", { name: "Reload the page" }).first().click();
+  await reloaded;
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("draft")).toHaveValue("hello");
+  await expect(page.getByTestId("draft-saved")).toHaveText("hello");
 
   // The server cannot read localStorage, so it renders the default and the browser fills it in.
   const html = await serverHtml(page, "/browser");
@@ -684,9 +799,17 @@ test("browser atoms: a cookie-backed theme is right in the server's markup", asy
   const html = await serverHtml(page, "/browser");
   expect(html).toContain('data-theme="dark"');
 
-  await page.reload();
+  const reloaded = page.waitForEvent("load");
+  await page
+    .getByTestId("themed")
+    .getByRole("button", { name: "Reload the page" })
+    .click();
+  await reloaded;
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("theme")).toHaveValue("dark");
+  await expect(page.getByTestId("themed")).toContainText(
+    "The dark theme, read from the pref-theme cookie."
+  );
   await expect(page.getByTestId("themed")).toHaveAttribute(
     "data-theme",
     "dark"

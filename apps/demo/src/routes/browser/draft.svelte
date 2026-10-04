@@ -23,10 +23,12 @@
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
 
   const draft = useAtom(draftAtom);
 </script>
 
 <textarea bind:value={draft.current} data-testid="draft" placeholder="Type, then reload"
 ></textarea>
-<p>Saved draft: <output data-testid="draft-saved">{draft.current}</output></p>
+<p>Saved draft: <FlashValue data-testid="draft-saved" value={draft.current} /></p>
+<p><button onclick={() => location.reload()}>Reload the page</button></p>

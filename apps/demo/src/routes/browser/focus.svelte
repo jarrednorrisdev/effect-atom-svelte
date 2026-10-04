@@ -11,8 +11,9 @@
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
 
   const lastSeen = useAtomValue(lastSeenAtom);
 </script>
 
-<p>Last computed: <output data-testid="last-seen">{lastSeen.current}</output></p>
+<p>Last computed: <FlashValue data-testid="last-seen" value={lastSeen.current} /></p>

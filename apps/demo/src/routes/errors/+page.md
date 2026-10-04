@@ -13,7 +13,7 @@ description: Typed errors, defects and interruptions, and every place to handle 
 
 A request can fail in ways you expect, such as a missing record, and in ways you don't, such as a bug. Effect keeps the two apart, and the type of an async atom lists every error you expect. This page brings together what the other pages say about failure: what a failure holds, how to tell errors apart, and where to handle them.
 
-<Example files={[{ html: outcomesSource, name: "outcomes.svelte" }]}> <Outcomes /> </Example>
+<Example files={[{ html: outcomesSource, name: "outcomes.svelte" }]} hint="Pick each outcome. The two typed errors get their own messages from their _tag; a defect and an interruption both reach onDefect, and only the cause tells them apart."> <Outcomes /> </Example>
 
 ## Three kinds of failure
 

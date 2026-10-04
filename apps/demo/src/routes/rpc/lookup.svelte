@@ -3,6 +3,7 @@
   import { Cause, Match, Option } from "effect";
   import type { RpcClientError } from "effect/rpc";
   import { useAtomSuspense } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosRpc } from "#lib/clients.ts";
 
@@ -37,12 +38,22 @@
 
 <svelte:boundary>
   {@const result = await todo.current}
-  <p data-testid="rpc-selected">
+  <!-- $effect.pending() counts the boundary's unfinished awaits: the next todo. -->
+  {@const busy = $effect.pending() > 0}
+  <p>
     {#if result._tag === "Success"}
-      {result.value.title}
+      <ResultChip {busy} kind="message" label="getTodo" tone="success">
+        <span data-testid="rpc-selected">{result.value.title}</span>
+      </ResultChip>
     {:else}
-      {describe(result.cause)}
+      <ResultChip {busy} kind="message" label="getTodo" tone="failure">
+        <span data-testid="rpc-selected">{describe(result.cause)}</span>
+      </ResultChip>
     {/if}
   </p>
-  {#snippet pending()}<p>Loading…</p>{/snippet}
+  {#snippet pending()}
+    <p>
+      <ResultChip kind="message" label="getTodo" tone="running">Loading…</ResultChip>
+    </p>
+  {/snippet}
 </svelte:boundary>

@@ -19,7 +19,7 @@ If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your com
 
 The examples on this page call the [demo API](/#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]}> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Switch the filter: each request is its own query atom. Then add a todo, or try a title longer than 60 characters for the typed 422."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -68,7 +68,7 @@ An endpoint's declared errors come back as typed failures. A `TodoNotFound` decl
 
 Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in your markup. [Errors](/errors) covers the other ways.
 
-<Example files={[{ html: lookupSource, name: "lookup.svelte" }]}> <Lookup /> </Example>
+<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Type 99: the 404 comes back as a typed TodoNotFound, which the markup matches on."> <Lookup /> </Example>
 
 ## Mutations
 

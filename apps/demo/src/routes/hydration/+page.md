@@ -15,7 +15,7 @@ When a page rendered on the server starts up in the browser, its atoms start emp
 
 The atom below records where it was computed. This page was rendered on the server when the site was built, so the browser shows the server's result without computing it. Click **Compute again** to compute it in the browser.
 
-<Example files={[{ html: whereSource, name: "where.svelte" }]}> <Where /> </Example>
+<Example files={[{ html: whereSource, name: "where.svelte" }]} hint="Opened straight from the server, the history starts at Success, with no loading state. Click Compute again and watch the browser run the effect itself."> <Where /> </Example>
 
 ## Serializable atoms
 

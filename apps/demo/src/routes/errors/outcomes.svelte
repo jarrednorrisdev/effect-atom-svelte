@@ -5,15 +5,24 @@
   class NotFound extends Data.TaggedError("NotFound")<{ readonly id: number }> {}
   class Forbidden extends Data.TaggedError("Forbidden") {}
 
-  type Outcome = "success" | "notFound" | "forbidden" | "defect";
+  type Outcome = "success" | "notFound" | "forbidden" | "defect" | "interrupt";
 
   // Stand-ins for a request, one for each way it can end.
   const requests: Record<Outcome, Effect.Effect<string, NotFound | Forbidden>> = {
     defect: Effect.die(new Error("todos is undefined")),
     forbidden: Effect.fail(new Forbidden()),
+    interrupt: Effect.interrupt,
     notFound: Effect.fail(new NotFound({ id: 7 })),
     success: Effect.succeed("Write the docs"),
   };
+
+  const choices: readonly (readonly [Outcome, string])[] = [
+    ["success", "Succeed"],
+    ["notFound", "Fail with NotFound"],
+    ["forbidden", "Fail with Forbidden"],
+    ["defect", "Die with a defect"],
+    ["interrupt", "Be interrupted"],
+  ];
 
   const outcomeAtom = Atom.make<Outcome>("notFound");
   const todoAtom = Atom.make((get) => requests[get(outcomeAtom)]);
@@ -23,6 +32,9 @@
   import { Match } from "effect";
   import { AsyncResult } from "effect/reactivity";
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const outcome = useAtom(outcomeAtom);
   const todo = useAtomValue(todoAtom);
@@ -43,12 +55,27 @@
   );
 </script>
 
-<p>
-  <select bind:value={outcome.current} data-testid="outcome">
-    <option value="success">Succeed</option>
-    <option value="notFound">Fail with NotFound</option>
-    <option value="forbidden">Fail with Forbidden</option>
-    <option value="defect">Die with a defect</option>
-  </select>
-</p>
-<p><output data-testid="outcome-message">{message}</output></p>
+<fieldset class="flex flex-wrap gap-x-4 gap-y-1" data-testid="outcome">
+  <legend class="sr-only">How the request ends</legend>
+  {#each choices as [value, text] (value)}
+    <label class="inline-flex items-center gap-1.5">
+      <input bind:group={outcome.current} type="radio" {value} />
+      {text}
+    </label>
+  {/each}
+</fieldset>
+
+<div class="mt-4 flex flex-wrap items-center gap-4">
+  <ResultChip
+    kind="message"
+    label="todoAtom"
+    tone={todo.current._tag === "Success" ? "success" : "failure"}
+  >
+    <span data-testid="outcome-message">{message}</span>
+  </ResultChip>
+  <StateBadge data-testid="outcome-state" result={todo.current} />
+</div>
+<CauseView
+  cause={todo.current._tag === "Failure" ? todo.current.cause : undefined}
+  data-testid="outcome-cause"
+/>

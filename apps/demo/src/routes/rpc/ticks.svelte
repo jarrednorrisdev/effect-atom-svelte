@@ -6,22 +6,43 @@
 </script>
 
 <script lang="ts">
-  import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+  import { useAtomRefresh, useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import ResultHistory from "#lib/docs/kit/result-history.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const ticks = useAtomValue(ticksAtom);
   const pull = useAtomSet(ticksAtom);
+  // Runs the atom again: a new call, and the stream starts over.
+  const restart = useAtomRefresh(ticksAtom);
 </script>
 
-{#if ticks.current._tag === "Success"}
-  <p data-testid="ticks">
-    {ticks.current.value.items.join(", ")}{ticks.current.value.done ? " (done)" : ""}
-  </p>
+<p>
   <button
-    disabled={ticks.current.value.done || ticks.current.waiting}
+    disabled={ticks.current._tag !== "Success" ||
+      ticks.current.value.done ||
+      ticks.current.waiting}
     onclick={() => pull()}
   >
     Pull next
   </button>
-{:else}
-  <p>{ticks.current._tag}</p>
-{/if}
+  <button data-cue="reset" onclick={restart}>Start over</button>
+</p>
+<div class="flex flex-wrap items-center gap-4">
+  {#if ticks.current._tag === "Success"}
+    {@const { done, items } = ticks.current.value}
+    <ResultChip busy={ticks.current.waiting} label="ticksAtom" tone="success">
+      <span data-testid="ticks">{items.join(", ")}{done ? " (done)" : ""}</span>
+    </ResultChip>
+  {:else}
+    <ResultChip kind="message" label="ticksAtom" tone="running">Starting…</ResultChip>
+  {/if}
+  <StateBadge result={ticks.current} />
+</div>
+<!-- Each pull's items, timed: wait before a pull and several arrive at once. -->
+<ResultHistory
+  data-testid="ticks-history"
+  label="Pulls"
+  result={ticks.current.pipe(AsyncResult.map(({ items }) => items.join(", ")))}
+/>
