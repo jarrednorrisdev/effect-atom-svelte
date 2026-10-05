@@ -92,7 +92,7 @@ A family holds its atoms through weak references, where the platform supports th
 
 ## Reading from a family
 
-A family isn't an atom, so a hook can't read it directly. Instead, pass the hook a function that calls the family with a key. The hook follows whichever atom the function returns, and moves to a new atom when the reactive state it reads changes. This is how the details panel in the app above follows the todo you open:
+A family isn't an atom, so a hook can't read it directly. Pass the hook a [getter](/reading-and-writing#following-a-different-atom) that calls the family with a key, and the hook follows the atom for whichever key the getter reads. This is how the details panel in the app above follows the todo you open:
 
 **Example** (Following the selected key)
 
@@ -108,13 +108,9 @@ A family isn't an atom, so a hook can't read it directly. Instead, pass the hook
 </script>
 ```
 
-When `id` changes, `todo` reads and writes the new todo's atom, and unsubscribes from the old one.
-
-If you pass `todoAtom(id)` directly instead of a function, the hook reads the atom for `id`'s value at the time the component was created, and never moves: the panel would keep showing the first todo you opened.
-
 ## Keeping a family's atoms
 
-A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. The draft editor above is different: it reads only the current key's atom. Switch to another language and the draft you left has no reader, so the registry disposes of it, and coming back runs the recipe again for an empty draft. That's why its drafts used `Atom.keepAlive`.
+A family's atoms follow the usual [lifetimes](/lifetimes): once nothing [holds](/reading-and-writing#reading) one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. The draft editor above is different: it reads only the current key's atom. Switch to another language and the draft you left has no reader, so the registry disposes of its value. Coming back gets the same atom from the family, but the registry starts it again from its initial value: an empty draft. That's why its drafts used `Atom.keepAlive`.
 
 To keep each value, give the atom an idle TTL inside the family, or wrap it in `Atom.keepAlive`:
 
