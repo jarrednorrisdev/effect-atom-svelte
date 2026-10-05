@@ -504,8 +504,8 @@ export const useAtomRefresh = (
 
 /**
  * Calls `f` on every change while the component lives, and with the current value first when
- * `immediate` is set. The atom is computed when the hook starts, so a derived or effect atom that
- * nothing else reads still runs and reports its changes. A change raised while another component
+ * `immediate` is set. The atom is computed once the component mounts, and never on the server, so a
+ * derived or effect atom that nothing else reads still runs and reports its changes. A change raised while another component
  * is reading an atom reaches `f` on a microtask, so `f` can write `$state` (Svelte forbids that
  * during a read); other changes reach it synchronously.
  *
