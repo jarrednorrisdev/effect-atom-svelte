@@ -16,12 +16,6 @@ effect-atom-svelte needs `effect` 4.0.x alongside it. Atoms come from `effect/re
 
 <InstallCommand />
 
-<Aside type="caution" title="Not published yet">
-
-The package is pre-release and not on npm yet, so these commands do not work today.
-
-</Aside>
-
 The app must load one copy of `effect`. See [Two copies of effect](/troubleshooting#two-copies-of-effect) if a monorepo gives it two.
 
 ## Turn on async mode

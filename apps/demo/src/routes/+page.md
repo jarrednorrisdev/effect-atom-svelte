@@ -11,9 +11,9 @@ description: Community-built Svelte 5 bindings for Effect Atom.
   import tasteSource from "./taste.svelte?highlight";
 </script>
 
-<Aside type="caution" title="Pre-release community project">
+<Aside type="caution" title="Community project at 0.x">
 
-effect-atom-svelte is not on npm yet, and its API may change before 0.1.0. It is a community project by Jarred Norris, not part of Effect, and the Effect team neither makes nor endorses it. Most of its code and these docs were written with the help of AI (Claude Opus 5.5); its behavior is covered by tests in Chromium, Firefox and WebKit.
+effect-atom-svelte is at 0.x, so a minor release can change its API: see the [changelog](https://github.com/jarrednorrisdev/effect-atom-svelte/blob/main/packages/effect-atom-svelte/CHANGELOG.md). It is a community project by Jarred Norris, not part of Effect, and the Effect team neither makes nor endorses it. Most of its code and these docs were written with the help of AI (Claude Opus 5.5); its behavior is covered by tests in Chromium, Firefox and WebKit.
 
 </Aside>
 
