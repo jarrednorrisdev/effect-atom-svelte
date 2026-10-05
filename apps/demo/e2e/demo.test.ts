@@ -188,8 +188,9 @@ test.describe("RPC page", () => {
 
     await page.getByTestId("rpc-draft").fill("x".repeat(80));
     await page.getByTestId("rpc-add").click();
-    await expect(page.getByTestId("rpc-error")).toHaveText(
-      "TitleTooLong: the limit is 60 characters"
+    // The failure shows as its Cause: the procedure's typed error, with its fields.
+    await expect(page.getByTestId("rpc-error")).toContainText(
+      "TitleTooLong { maxLength: 60 }"
     );
     await expect(page.getByTestId("rpc-add-state")).toHaveText("Failure");
 
@@ -201,13 +202,15 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-selected")).toContainText(
       "Read the Effect Atom source"
     );
-    await page.getByTestId("rpc-select").selectOption("2");
+    const lookup = page.getByRole("group", { name: "Todo" });
+    await lookup.getByRole("button", { exact: true, name: "Todo 2" }).click();
     await expect(page.getByTestId("rpc-selected")).toContainText(
       "Write a Svelte adapter"
     );
-    await page.getByTestId("rpc-select").selectOption("99");
-    await expect(page.getByTestId("rpc-selected")).toHaveText(
-      "TodoNotFound: there is no todo 99"
+    // includeFailure hands the typed TodoNotFound to the markup, shown as its Cause.
+    await lookup.getByRole("button", { exact: true, name: "Todo 99" }).click();
+    await expect(page.getByTestId("rpc-selected")).toContainText(
+      "TodoNotFound { id: 99 }"
     );
   });
 
@@ -215,31 +218,39 @@ test.describe("RPC page", () => {
     await page.goto("/rpc");
     await page.waitForLoadState("networkidle");
     const ticks = page.getByTestId("ticks");
+    // One list item per pull, with an <output> for each number that pull brought.
+    const pulls = ticks.getByRole("listitem");
+    const numbers = ticks.locator("output");
     const pull = page.getByRole("button", { name: "Pull next" });
+    const all = ["0", "1", "2", "3", "4"];
     // HTTP RPC has no acks, so the server streams ahead and a pull takes every item that has
     // arrived since the last one, the first pull included. Each must add items in order.
-    const done = "0, 1, 2, 3, 4 (done)";
-    await expect(ticks).toHaveText(/^0/u);
-    let shown = (await ticks.textContent()) ?? "";
-    expect(done.startsWith(shown.replace(" (done)", ""))).toBe(true);
-    for (let click = 0; click < 5 && shown !== done; click += 1) {
+    await expect(numbers.first()).toHaveText("0");
+    let shown = await numbers.allTextContents();
+    expect(all.slice(0, shown.length)).toEqual(shown);
+    // The ticks are half a second apart, and the pull that finds the end brings nothing.
+    let ended = false;
+    for (let click = 0; click < 6 && !ended; click += 1) {
+      const before = await pulls.count();
+      await expect(pull).toBeEnabled();
       await pull.click();
-      await expect(ticks).not.toHaveText(shown);
-      const next = (await ticks.textContent()) ?? "";
-      expect(next.startsWith(shown), `${next} extends ${shown}`).toBe(true);
-      expect(done.startsWith(next.replace(" (done)", ""))).toBe(true);
+      await expect(pulls).toHaveCount(before + 1);
+      const next = await numbers.allTextContents();
+      expect(next.slice(0, shown.length)).toEqual(shown);
+      expect(all.slice(0, next.length)).toEqual(next);
       shown = next;
+      const last = await pulls.last().textContent();
+      ended = last?.includes("nothing") ?? false;
     }
-    expect(shown).toBe(done);
+    expect(shown).toEqual(all);
+    await expect(pulls.last()).toContainText("nothing: done");
     await expect(pull).toBeDisabled();
-    // Each pull shows in the history, the last one with every item.
-    const pulls = page.getByTestId("ticks-history").getByRole("listitem");
-    await expect(pulls.last()).toContainText("Success 0, 1, 2, 3, 4");
 
-    // Start over calls the procedure again: a new stream, from 0.
+    // Start over calls the procedure again: a new stream, from 0, and the pulls count afresh.
     const { calls } = watch(page);
     await page.getByRole("button", { name: "Start over" }).click();
-    await expect(ticks).toHaveText(/^0(?:, \d)*$/u);
+    await expect(pulls.first()).toHaveText(/^pull 1 0/u);
+    await expect(pulls).toHaveCount(1);
     await expect(pull).toBeEnabled();
     expect(calls).toContain("rpc ticks");
   });
@@ -261,10 +272,11 @@ test.describe("HTTP API page", () => {
     // otherwise satisfy "no open items" on its own.
     const done = list.locator("li").filter({ hasText: "✔" });
     const open = list.locator("li").filter({ hasText: "○" });
-    await page.getByTestId("http-filter").selectOption("true");
+    const filter = page.getByRole("group", { name: "Filter" });
+    await filter.getByRole("button", { exact: true, name: "Done" }).click();
     await expect(done.first()).toBeVisible({ timeout: 15_000 });
     await expect(open).toHaveCount(0);
-    await page.getByTestId("http-filter").selectOption("false");
+    await filter.getByRole("button", { exact: true, name: "Open" }).click();
     await expect(open.first()).toBeVisible({ timeout: 15_000 });
     await expect(done).toHaveCount(0);
   });
@@ -307,8 +319,9 @@ test.describe("HTTP API page", () => {
     await expect(page.getByTestId("http-add-state")).toHaveText("Success");
     await page.getByTestId("http-draft").fill("y".repeat(80));
     await page.getByTestId("http-add").click();
-    await expect(page.getByTestId("http-error")).toHaveText(
-      "TitleTooLong: the limit is 60 characters"
+    // The endpoint's typed 422, shown as its Cause.
+    await expect(page.getByTestId("http-error")).toContainText(
+      "TitleTooLong { maxLength: 60 }"
     );
     await expect(page.getByTestId("http-add-state")).toHaveText("Failure");
 

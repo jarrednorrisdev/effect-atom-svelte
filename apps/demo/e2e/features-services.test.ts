@@ -85,9 +85,19 @@ test("RPC: one effect creates a todo, then reads it back with the client", async
   // A failed createTodo ends the effect: getTodo is never sent.
   await page.getByRole("button", { name: "Paste a long title" }).last().click();
   await page.getByRole("button", { name: "Create and read" }).click();
-  await expect(result).toHaveText("TitleTooLong: the effect stopped there");
+  await expect(result).toContainText("TitleTooLong { maxLength: 60 }");
   await expect(page.getByTestId("create-read-state")).toHaveText("Failure");
-  await expect(calls).toHaveText([/createTodo sent$/u]);
+  await expect(calls).toHaveText([
+    /createTodo sent$/u,
+    /createTodo failed: TitleTooLong$/u,
+  ]);
+  // The effect's type lights up the error member the failure carries.
+  await expect(page.locator('[data-member="TitleTooLong"]')).toHaveClass(
+    /failed/u
+  );
+  await expect(page.locator('[data-member="TodoNotFound"]')).not.toHaveClass(
+    /failed/u
+  );
 });
 
 test("HTTP API: transformClient adds a header to every request and sees each status", async ({
@@ -104,8 +114,9 @@ test("HTTP API: transformClient adds a header to every request and sees each sta
     "Read the Effect Atom source"
   );
   await page.getByRole("button", { name: "Get todo 99" }).click();
-  await expect(page.getByTestId("signed-todo")).toHaveText(
-    "Failed with TodoNotFound"
+  // The 404 arrives as the endpoint's typed TodoNotFound, shown as its Cause.
+  await expect(page.getByTestId("signed-todo")).toContainText(
+    "TodoNotFound { id: 99 }"
   );
   await expect(page.getByTestId("signed-state")).toHaveText("Failure");
   await expect(log).toHaveText([
