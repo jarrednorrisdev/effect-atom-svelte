@@ -92,7 +92,7 @@ The `mode` option decides what calling the setter gives back. Below, one slow mu
 | --- | --- |
 | `"value"` (default) | Nothing. Read the atom to see how the call goes. |
 | `"promise"` | A promise of the value. It rejects with the error if the effect fails. |
-| `"promiseExit"` | A promise of the `Exit`, which never rejects. |
+| `"promiseExit"` | A promise of the `Exit`, the effect's success or its failure with a [`Cause`](/effect-basics#exit-and-cause), which never rejects. |
 
 The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result: click **Call twice** in a promise column and both lines resolve with the second draft. With `{ concurrent: true }`, the first call isn't interrupted: both run to the end. The mutation then settles once every running call has finished, with the result of the oldest, so both promises still get the same value: turn on **concurrent: true** and call twice, and both lines show the first call's draft.
 

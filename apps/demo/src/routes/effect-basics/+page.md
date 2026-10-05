@@ -123,7 +123,7 @@ Inside `Effect.gen`, `yield*` a tagged error to fail with it: `return yield* new
 
 Read more in [Expected Errors](https://effect.website/docs/v4/error-management/expected-errors) and [Yieldable Errors](https://effect.website/docs/v4/error-management/yieldable-errors).
 
-## Cause
+## Exit and Cause
 
 An effect can fail in three ways, and only the first is in its type:
 
@@ -131,14 +131,31 @@ An effect can fail in three ways, and only the first is in its type:
 - **A defect**, an exception nobody expected, such as a bug that throws inside `Effect.gen` or `Effect.sync`, or an `Effect.die`.
 - **An interruption**, when something stops the effect before it finishes.
 
-A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`, and the example above reads it with two functions:
+A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`; the failures in the examples above show one. Two functions read it:
 
 - `Cause.findErrorOption(cause)` gives the typed error, as an `Option`. It is `None` when the effect died or was interrupted.
 - `Cause.pretty(cause)` renders the whole cause as text, for logs and for failures you didn't expect.
 
+Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It is what a settled promise is to a promise, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
+
+**Example** (Reading how an effect ended)
+
+```ts
+import { Cause, Effect, Exit } from "effect";
+
+const exit = await Effect.runPromiseExit(getTodo(2));
+// Exit<string, NotFound | Forbidden>
+
+if (Exit.isSuccess(exit)) {
+  console.log(exit.value);
+} else {
+  console.log(Cause.pretty(exit.cause));
+}
+```
+
 [Errors](/errors) covers handling each kind in a component.
 
-Read more in [Cause](https://effect.website/docs/v4/data-types/cause).
+Read more in [Exit](https://effect.website/docs/v4/data-types/exit) and [Cause](https://effect.website/docs/v4/data-types/cause).
 
 ## Services and layers
 

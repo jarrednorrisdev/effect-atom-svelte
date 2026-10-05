@@ -29,7 +29,7 @@ An effect can end without a value in three ways:
 | **Defect** | An exception thrown inside the effect, or `Effect.die`. Usually a bug. | No. |
 | **Interruption** | Something stopped the effect, such as the registry disposing of an atom nobody reads. | No. |
 
-Handle typed errors where they happen, because they are part of what the user can do: a todo can be missing, a title can be too long. Defects and interruptions are rarely something a component can fix, so show a general message and log them. [Effect basics](/effect-basics#cause) introduces these with Effect's own docs.
+Handle typed errors where they happen, because they are part of what the user can do: a todo can be missing, a title can be too long. Defects and interruptions are rarely something a component can fix, so show a general message and log them. [Effect basics](/effect-basics#exit-and-cause) introduces these with Effect's own docs.
 
 ## What a Failure holds
 
