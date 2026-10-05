@@ -10,6 +10,7 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import type { AtomValue } from "../src/index.ts";
+import CityWeather from "./fixtures/city-weather.svelte";
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
@@ -373,6 +374,46 @@ describe("useAtomSuspense", () => {
     registry.refresh(atom);
     expect(await Promise.all([plain.current, waiting.current])).toEqual([1, 2]);
     await expect.poll(text(screen)).toBe("2");
+  });
+
+  test("refreshes after an abandoned getter switch reach the boundary, failures included (JND-93)", async () => {
+    const registry = AtomRegistry.make();
+    let failNext = false;
+    const loads: Record<string, number> = {};
+    const weather = Atom.family((city: string) =>
+      Atom.make(
+        Effect.gen(function* load() {
+          yield* Effect.sleep("100 millis");
+          if (failNext) {
+            failNext = false;
+            return yield* Effect.fail(new Error(`no weather for ${city}`));
+          }
+          loads[city] = (loads[city] ?? 0) + 1;
+          return `${city.toLowerCase()}${loads[city]}`;
+        })
+      )
+    );
+    const screen = await render(CityWeather, { registry, weather });
+    const click = (label: string) =>
+      [...screen.container.querySelectorAll("button")]
+        .find((button) => button.textContent === label)
+        ?.click();
+    const shown = () => screen.container.querySelector("output")?.textContent;
+    await expect.poll(shown).toBe("Paris: paris1");
+    click("Tokyo");
+    await expect.poll(shown).toBe("Tokyo: tokyo1");
+    // Lima's load is abandoned and interrupted.
+    click("Lima");
+    await sleep("20 millis");
+    click("Paris");
+    await expect.poll(shown).toBe("Paris: paris2");
+    // A render with both switches rolled back reads Tokyo after the render that picks Paris; the
+    // hook must still follow Paris, or neither refresh below reaches the page.
+    click("Reload");
+    await expect.poll(shown).toBe("Paris: paris3");
+    failNext = true;
+    click("Reload");
+    await expect.poll(shown).toBe("failed: no weather for Paris");
   });
 });
 
