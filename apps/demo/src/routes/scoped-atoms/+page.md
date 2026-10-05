@@ -14,15 +14,16 @@ description: Give each part of the page its own atom, without passing it down by
   import editorsSource from "./editors.svelte?highlight";
   import noteEditorSource from "./note-editor.svelte?highlight";
   import previewSource from "./preview.svelte?highlight";
+  import sharedEditorSource from "./shared-editor.svelte?highlight";
   import textFieldSource from "./text-field.svelte?highlight";
   import toolbarSource from "./toolbar.svelte?highlight";
 </script>
 
 An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a draft per open editor, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
-Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **One draft for both** to provide a single draft above both editors instead. Every part then finds that one, as they would find an atom defined at module level, and you can see what the scope prevents:
+Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **One draft for both** to provide a single draft above both editors instead, with editors that provide none. Every part then finds that one, as they would find an atom defined at module level, and you can see what the scope prevents:
 
-<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textFieldSource, name: "text-field.svelte" }, { html: previewSource, name: "preview.svelte" }]} hint="Write in Note A, putting one or two asterisks around a word for italic or bold: its word count and preview follow, and Note B stays empty. Then pick One draft for both and write again: both editors use the draft provided above them, so each change shows in both."> <Editors /> </Example>
+<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textFieldSource, name: "text-field.svelte" }, { html: previewSource, name: "preview.svelte" }, { html: sharedEditorSource, name: "shared-editor.svelte" }]} hint="Write in Note A, putting one or two asterisks around a word for italic or bold: its word count and preview follow, and Note B stays empty. Then pick One draft for both and write again: both editors use the draft provided above them, so each change shows in both."> <Editors /> </Example>
 
 ## Defining a scoped atom
 
@@ -77,4 +78,6 @@ Both give you more than one atom from one definition. Choose by where the atom b
 - A [family](/families) is keyed by a value. Any component can ask for `todoAtom(1)` and gets the same atom wherever it asks.
 - A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested panels above show.
 
-Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply. Atoms made per instance have no serialization key, so their values aren't sent from the server to the browser: see [Hydration](/hydration).
+Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
+
+A scoped atom can't take a fixed serialization key. Every provider makes its own atom, so two providers on one page would share the key, and the async hooks throw `Two different atoms share the serialization key`. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).

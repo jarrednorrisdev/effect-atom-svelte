@@ -24,12 +24,11 @@
         return { style: "plain", text: part };
       });
 
-  const atom = Draft.use();
   // A transform: the preview reads the draft already split into styled parts.
-  const segments = useAtomValue(atom, emphasis);
+  const segments = useAtomValue(Draft.use(), emphasis);
 </script>
 
-<DraftPart {atom} name="Preview">
+<DraftPart name="Preview">
   {#if segments.current.every((segment) => segment.text.trim() === "")}
     <span class="text-sm text-muted-foreground">Nothing written yet.</span>
   {:else}
