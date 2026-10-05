@@ -56,9 +56,8 @@ test.describe("Async atoms page", () => {
     const state = page.getByTestId("sensor-state");
     await expect(state).toHaveText("Success");
     await expect(match).toHaveText(/^\d+ °C$/u);
-    // The temperature without its unit, as getOrElse shows it.
-    const text = await match.textContent();
-    const reading = text?.replace(" °C", "") ?? "";
+    // getOrElse shows the same reading, "21 °C".
+    const reading = (await match.textContent()) ?? "";
     await expect(last).toHaveText(reading);
     await setPressed(
       page.getByRole("button", { exact: true, name: "Offline" }),
@@ -98,7 +97,7 @@ test.describe("Async atoms page", () => {
       await example.getByRole("button", { exact: true, name: to }).click();
       await expect(
         example.getByRole("button", { exact: true, name: to })
-      ).toHaveAttribute("aria-pressed", "true");
+      ).toHaveAttribute("aria-current", "page");
     };
 
     // The help page reads nothing, so nothing has run yet.
@@ -194,24 +193,32 @@ test.describe("Effect basics page", () => {
     const errors = pageErrors(page);
     await page.goto("/effect-basics");
     await page.waitForLoadState("networkidle");
-    const promiseRuns = page.getByLabel("A promise runs");
-    const effectRuns = page.getByLabel("An effect runs");
-    const fromPromise = page.getByTestId("lazy-promise");
-    await expect(promiseRuns).toHaveText("1");
-    await expect(effectRuns).toHaveText("0");
-    await page.getByRole("button", { name: "Await the promise" }).click();
-    await expect(fromPromise).toHaveText(/^[1-6]$/u);
-    const first = await fromPromise.textContent();
-    await page.getByRole("button", { name: "Await the promise" }).click();
-    await expect(fromPromise).toHaveText(first ?? "");
-    await expect(promiseRuns).toHaveText("1");
+    const promiseRolls = page.getByTestId("promise-rolls");
+    const effectRolls = page.getByTestId("effect-rolls");
+    // Each click adds what it got back to the list under its button.
+    const fromPromise = page.getByTestId("lazy-promise").getByRole("listitem");
+    const fromEffect = page.getByTestId("lazy-effect").getByRole("listitem");
+    // The promise's die was rolled when the page loaded; the effect's not yet.
+    await expect(promiseRolls).toHaveText("1");
+    await expect(effectRolls).toHaveText("0");
+    const awaitPromise = page.getByRole("button", {
+      name: "Await the promise",
+    });
+    await awaitPromise.click();
+    await expect(fromPromise).toHaveText([/^[1-6]$/u]);
+    const first = (await fromPromise.first().textContent()) ?? "";
+    // Awaiting it again gives back the same settled value, without rolling again.
+    await awaitPromise.click();
+    await expect(fromPromise).toHaveText([first, first]);
+    await expect(promiseRolls).toHaveText("1");
     const run = page.getByRole("button", { name: "Run the effect" });
     await run.click();
-    await expect(effectRuns).toHaveText("1");
-    await expect(page.getByTestId("lazy-effect")).toHaveText(/^[1-6]$/u);
+    await expect(effectRolls).toHaveText("1");
+    await expect(fromEffect).toHaveText([/^[1-6]$/u]);
     await run.click();
     await run.click();
-    await expect(effectRuns).toHaveText("3");
+    await expect(effectRolls).toHaveText("3");
+    await expect(fromEffect).toHaveCount(3);
     expect(errors).toEqual([]);
   });
 
@@ -221,20 +228,31 @@ test.describe("Effect basics page", () => {
     const errors = pageErrors(page);
     await page.goto("/effect-basics");
     await page.waitForLoadState("networkidle");
+    // The success's text, or the CauseView of a failure.
     const todo = page.getByTestId("catch-tag");
-    const type = page.getByTestId("catch-tag-type");
+    // The atom's type, Effect<string, NotFound | Forbidden>: one element per error member, and
+    // the member a failure carries is marked failed.
+    const type = page
+      .locator("[data-example]")
+      .filter({ hasText: "catch-tag.svelte" })
+      .getByTestId("effect-type");
+    const members = type.locator("[data-member]");
+    const failed = type.locator(".failed");
     await expect(todo).toHaveText("Write the docs");
-    await expect(type).toHaveText("NotFound | Forbidden");
+    await expect(members).toHaveText(["NotFound", "Forbidden"]);
+    await expect(failed).toHaveCount(0);
     await setPressed(
       page.getByRole("button", { exact: true, name: "Todo 2" }),
       true
     );
-    await expect(todo).toHaveText("Failed with NotFound");
+    await expect(todo).toContainText("NotFound { id: 2 }");
+    await expect(failed).toHaveAttribute("data-member", "NotFound");
     await setPressed(
       page.getByRole("button", { exact: true, name: "Todo 3" }),
       true
     );
-    await expect(todo).toHaveText("Failed with Forbidden");
+    await expect(todo).toContainText("Forbidden");
+    await expect(failed).toHaveAttribute("data-member", "Forbidden");
     await setPressed(
       page.getByRole("button", {
         exact: true,
@@ -242,13 +260,16 @@ test.describe("Effect basics page", () => {
       }),
       true
     );
-    await expect(type).toHaveText("Forbidden");
-    await expect(todo).toHaveText("Failed with Forbidden");
+    // catchTag takes NotFound out of the type, and leaves Forbidden failing.
+    await expect(members).toHaveText(["Forbidden"]);
+    await expect(todo).toContainText("Forbidden");
+    await expect(failed).toHaveAttribute("data-member", "Forbidden");
     await setPressed(
       page.getByRole("button", { exact: true, name: "Todo 2" }),
       true
     );
     await expect(todo).toHaveText("(there is no todo 2)");
+    await expect(failed).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 
@@ -259,17 +280,30 @@ test.describe("Effect basics page", () => {
     await page.goto("/effect-basics");
     await page.waitForLoadState("networkidle");
     const decoded = page.getByTestId("decode");
+    // A failure's SchemaError, in a CauseView.
+    const cause = page.getByTestId("decode-cause");
     const state = page.getByTestId("decode-state");
     const input = page.getByTestId("decode-input");
+    const sample = (name: string) =>
+      page
+        .getByRole("group", { name: "Sample" })
+        .getByRole("button", { exact: true, name });
     await expect(decoded).toHaveText("#1 Write the docs, done: false");
     await expect(state).toHaveText("Success");
-    await page.getByRole("button", { name: "Not an integer" }).click();
+    await setPressed(sample("Not an integer"), true);
     await expect(state).toHaveText("Failure");
-    await expect(decoded).toHaveText(/^Expected an integer\s+at \["id"\]$/u);
-    await page.getByRole("button", { name: "Missing title" }).click();
-    await expect(decoded).toContainText('at ["title"]');
+    await expect(cause).toContainText(
+      /SchemaError: Expected an integer\s+at \["id"\]/u
+    );
+    await setPressed(sample("Missing title"), true);
+    await expect(cause).toContainText('at ["title"]');
+    // Editing the JSON by hand decodes it too, and no sample matches it any more.
     await input.fill('{ "done": true, "id": 2, "title": "Ship" }');
     await expect(decoded).toHaveText("#2 Ship, done: true");
+    await expect(sample("Missing title")).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
     await input.fill("{ not json");
     await expect(state).toHaveText("Failure");
     expect(errors).toEqual([]);
@@ -283,36 +317,33 @@ test.describe("Services page", () => {
     const errors = pageErrors(page);
     await page.goto("/services");
     await page.waitForLoadState("networkidle");
-    const log = logEntries(page, "Pool");
+    const log = logEntries(page, "PoolLayer");
     const inUse = page.getByLabel("runtime atoms in use");
+    const status = page.getByTestId("pool-status");
+    const read = (name: string) =>
+      page.getByRole("button", { exact: true, name: `Read ${name}` });
     await expect(page.getByText("No pool yet.", { exact: true })).toBeVisible();
-    await page
-      .getByRole("button", { name: "Add a reader of usersAtom" })
-      .click();
+    await expect(status).toHaveText("No pool open");
+    await setPressed(read("usersAtom"), true);
     await expect(page.getByTestId("pool-usersAtom")).toHaveText("Uses pool 1");
-    await page
-      .getByRole("button", { name: "Add a reader of ordersAtom" })
-      .click();
+    await setPressed(read("ordersAtom"), true);
     await expect(page.getByTestId("pool-ordersAtom")).toHaveText("Uses pool 1");
     await expect(inUse).toHaveText("2");
+    await expect(status).toHaveText("Holds pool 1, shared by 2 atoms");
     await expect(log).toHaveText([/^0 ms\s*pool 1 built$/u]);
     // One atom still uses the runtime, so the pool stays.
-    await page
-      .getByRole("button", { name: "Remove a reader of usersAtom" })
-      .click();
+    await setPressed(read("usersAtom"), false);
     await expect(inUse).toHaveText("1");
     await page.waitForTimeout(300);
     await expect(log).toHaveText([/^0 ms\s*pool 1 built$/u]);
-    await page
-      .getByRole("button", { name: "Remove a reader of ordersAtom" })
-      .click();
+    await expect(status).toHaveText("Holds pool 1, shared by 1 atom");
+    await setPressed(read("ordersAtom"), false);
     await expect(log).toHaveText([
       /^0 ms\s*pool 1 built$/u,
       /^\d+ ms\s*pool 1 released$/u,
     ]);
-    await page
-      .getByRole("button", { name: "Add a reader of ordersAtom" })
-      .click();
+    await expect(status).toHaveText("No pool open");
+    await setPressed(read("ordersAtom"), true);
     await expect(page.getByTestId("pool-ordersAtom")).toHaveText("Uses pool 2");
     await expect(log).toHaveText([
       /^0 ms\s*pool 1 built$/u,

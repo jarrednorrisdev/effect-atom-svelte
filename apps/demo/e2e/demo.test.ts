@@ -471,20 +471,26 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
   await page.goto("/effect-basics");
   await page.waitForLoadState("networkidle");
   const hash = page.getByTestId("hash");
-  // SHA-256 of "Hello, Effect".
-  await expect(hash).toHaveText(
-    "f8cd9e3207ac367ea0e7c10ad4a0bd0551f73dd1e2ddbe556b74850a2db39b70"
-  );
+  const algorithm = page.getByRole("group", { name: "Algorithm" });
+  // The first 16 hex digits of the SHA-256 of "Hello, Effect".
+  await expect(hash).toHaveText("f8cd9e3207ac367e…");
   await page.getByTestId("hash-text").fill("abc");
-  await expect(hash).toHaveText(
-    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-  );
+  await expect(hash).toHaveText("ba7816bf8f01cfea…");
   await expect(page.getByTestId("hash-state")).toHaveText("Success");
-  await page.getByTestId("hash-algorithm").selectOption("MD5");
-  await expect(hash).toHaveText("UnsupportedAlgorithm: Web Crypto has no MD5");
+  await setPressed(
+    algorithm.getByRole("button", { exact: true, name: "MD5" }),
+    true
+  );
+  // Web Crypto rejects MD5, and tryPromise's catch turns that into the typed error.
+  await expect(page.getByTestId("hash-cause")).toContainText(
+    'UnsupportedAlgorithm { algorithm: "MD5" }'
+  );
   await expect(page.getByTestId("hash-state")).toHaveText("Failure");
-  await page.getByTestId("hash-algorithm").selectOption("SHA-1");
-  await expect(hash).toHaveText("a9993e364706816aba3e25717850c26c9cd0d89d");
+  await setPressed(
+    algorithm.getByRole("button", { exact: true, name: "SHA-1" }),
+    true
+  );
+  await expect(hash).toHaveText("a9993e364706816a…");
 });
 
 test("effect basics: removing the reader aborts the request's signal", async ({
@@ -629,13 +635,14 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   await page.goto("/services");
   await page.waitForLoadState("networkidle");
   const die = page.getByTestId("service-die");
-  await expect(die).toHaveText(/^[1-6]$/u);
-  await expect(page.getByTestId("service-layer")).toHaveText("Dice.fair");
+  // The chip's text keeps the whitespace around the value, so the pattern allows it.
+  await expect(die).toHaveText(/^\s*[1-6]\s*$/u);
+  await expect(page.getByTestId("service-layer")).toHaveText("FairDiceLayer");
   await setPressed(
     page.getByRole("button", { exact: true, name: "Loaded dice" }),
     true
   );
-  await expect(page.getByTestId("service-layer")).toHaveText("Dice.loaded");
+  await expect(page.getByTestId("service-layer")).toHaveText("LoadedDiceLayer");
   await expect(die).toHaveText("6");
   await expect(page.getByTestId("service-state")).toHaveText("Success");
   // A fair die rolls three sixes in a row once in 216 runs; the loaded one always does.
