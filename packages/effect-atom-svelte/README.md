@@ -11,7 +11,7 @@ This is a community project by Jarred Norris. It is not part of Effect, and the 
 Once it is published:
 
 ```sh
-npm install effect effect-atom-svelte
+npm install "effect@~4.0.0" effect-atom-svelte
 ```
 
 ## Documentation
