@@ -1,6 +1,14 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { searchShortcut } from "#lib/docs/search-shortcut.svelte.ts";
+
+  const shortcut = searchShortcut();
 </script>
+
+<svelte:head>
+  <!-- Search engines leave error pages out. The root layout sets the title from the status. -->
+  <meta content="noindex" name="robots" />
+</svelte:head>
 
 <!-- Rendered inside the root layout, so the header, sidebar and search stay available. -->
 <div class="prose prose-effect max-w-none">
@@ -13,6 +21,6 @@
   {/if}
   <p>
     Go to the <a href="/">introduction</a>, pick a page from the sidebar, or press
-    <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd> to search.
+    <kbd>{shortcut.current}</kbd> to search.
   </p>
 </div>

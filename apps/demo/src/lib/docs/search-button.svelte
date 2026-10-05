@@ -3,6 +3,8 @@
   import { Kbd } from "#lib/components/ui/kbd/index.ts";
   import type { Component } from "svelte";
 
+  import { searchShortcut } from "./search-shortcut.svelte.ts";
+
   /**
    * The header's search button and its Ctrl K / ⌘K shortcut. The dialog (a command palette) is most
    * of the search code and few visits open it, so it loads on first use: when the pointer or focus
@@ -26,13 +28,7 @@
     open = true;
   };
 
-  // The server can't know the platform, so it renders Ctrl and Macs switch to ⌘ after hydration.
-  let shortcut = $state("Ctrl K");
-  $effect(() => {
-    if (/Mac|iPhone|iPad/u.test(navigator.userAgent)) {
-      shortcut = "⌘K";
-    }
-  });
+  const shortcut = searchShortcut();
 
   const onkeydown = (event: KeyboardEvent) => {
     if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
@@ -59,7 +55,7 @@
   <SearchIcon class="size-4" />
   <!-- Phones get the icon alone, so the header fits; the button's label stays "Search". -->
   <span class="hidden flex-1 text-left sm:inline">Search</span>
-  <Kbd class="hidden sm:inline-flex">{shortcut}</Kbd>
+  <Kbd class="hidden sm:inline-flex">{shortcut.current}</Kbd>
 </button>
 
 {#if SearchDialog}

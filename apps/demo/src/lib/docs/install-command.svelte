@@ -45,8 +45,8 @@
 </script>
 
 <figure class="install-command">
-  <div class="not-prose flex items-end overflow-x-auto rounded-t-lg border bg-muted/40">
-    <Tabs.Root bind:value={manager.current}>
+  <Tabs.Root bind:value={manager.current} class="gap-0">
+    <div class="not-prose flex items-end overflow-x-auto rounded-t-lg border bg-muted/40">
       <Tabs.List
         aria-label="Package manager"
         class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto"
@@ -56,14 +56,14 @@
           <Tabs.Trigger class="example-tab after:hidden" value={name}>{name}</Tabs.Trigger>
         {/each}
       </Tabs.List>
-    </Tabs.Root>
-  </div>
-  <!-- All three are rendered and the others hidden: hydration keeps the server's {@html}, so
-       swapping one block's HTML would not show a choice stored in the browser. Highlighted at
-       build time by vite/highlight.ts, copy button included. -->
-  {#each managers as name (name)}
-    <div hidden={manager.current !== name} role="tabpanel">{@html commands[name]}</div>
-  {/each}
+    </div>
+    <!-- All three are rendered and the others hidden: hydration keeps the server's {@html}, so
+         swapping one block's HTML would not show a choice stored in the browser. Highlighted at
+         build time by vite/highlight.ts, copy button included. -->
+    {#each managers as name (name)}
+      <Tabs.Content value={name}>{@html commands[name]}</Tabs.Content>
+    {/each}
+  </Tabs.Root>
 </figure>
 
 <style>

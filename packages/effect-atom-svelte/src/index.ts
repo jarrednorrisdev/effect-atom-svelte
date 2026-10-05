@@ -1,5 +1,6 @@
 /**
- * Svelte 5 bindings for Effect Atom.
+ * Svelte 5 bindings for Effect Atom: the hooks, components and registry an app uses, scoped atoms,
+ * and Effect Atom's own modules.
  *
  * @since 0.1.0
  */

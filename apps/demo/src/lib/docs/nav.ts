@@ -48,7 +48,7 @@ export const nav: readonly NavSection[] = [
       { href: "/rpc", title: "RPC" },
       { href: "/http", title: "HTTP API" },
     ],
-    title: "Effect services",
+    title: "Remote APIs",
   },
   {
     pages: [
@@ -57,7 +57,7 @@ export const nav: readonly NavSection[] = [
       { href: "/sveltekit", title: "SvelteKit" },
       { href: "/browser", title: "Browser atoms" },
     ],
-    title: "Server rendering",
+    title: "Server and browser",
   },
   {
     pages: [
@@ -73,7 +73,7 @@ export const nav: readonly NavSection[] = [
     // Generated from the library's source by vite/api-reference.ts, which fails the build if a
     // module is missing here.
     pages: [
-      { href: "/reference", title: "Overview" },
+      { href: "/reference", title: "API overview" },
       { href: "/reference/Hooks", title: "Hooks" },
       { href: "/reference/RegistryContext", title: "RegistryContext" },
       { href: "/reference/ScopedAtom", title: "ScopedAtom" },

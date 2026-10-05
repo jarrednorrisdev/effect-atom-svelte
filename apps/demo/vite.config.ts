@@ -8,6 +8,7 @@ import rehypeSlug from "rehype-slug";
 import { defineConfig } from "vite";
 
 import { apiReference } from "./vite/api-reference.ts";
+import { headingLinks } from "./vite/heading-links.ts";
 import { highlightImports, highlightMarkdown } from "./vite/highlight.ts";
 import { pagefindIndex } from "./vite/pagefind.ts";
 
@@ -34,8 +35,8 @@ export default defineConfig({
           layout: fileURLToPath(
             new URL("src/lib/docs/markdown-layout.svelte", import.meta.url)
           ),
-          // Heading ids, for the table of contents and links to a section.
-          rehypePlugins: [rehypeSlug],
+          // Heading ids, for the table of contents and links to a section, then the links.
+          rehypePlugins: [rehypeSlug, headingLinks],
         }),
       ],
     }),

@@ -1,6 +1,7 @@
 /**
- * Pagefind, loaded on demand from the index `vite/pagefind.ts` writes after prerendering. Only
- * prerendered pages are indexed, and the index only exists in a build: `vite dev` has none.
+ * Pagefind, loaded on demand from the index `vite/pagefind.ts` writes after prerendering. It
+ * indexes the prerendered pages, and the sidebar's other pages from their Markdown. The index only
+ * exists in a build: `vite dev` has none.
  */
 
 /** A part of a page under one heading. */

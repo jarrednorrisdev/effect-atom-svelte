@@ -74,6 +74,7 @@ test.describe("docs shell", () => {
       "Mutations",
       "Streaming procedures",
       "Calling the client yourself",
+      "On the server",
     ]);
     await toc.getByRole("link", { name: "Streaming procedures" }).click();
     await expect(page).toHaveURL(/#streaming-procedures$/u);
@@ -343,59 +344,59 @@ test.describe("docs shell", () => {
     const increment = page.getByRole("button", {
       name: "First counter: increment",
     });
-    // On by default, but Tone.js waits for the first click that plays a note.
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(toneLoads).toBe(0);
+    const output = page.locator("[data-example] output").first();
+    // Off by default: a click plays nothing, and Tone.js never loads.
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
     await increment.click();
+    await expect(output).toHaveText("1");
+    await page.waitForTimeout(200);
+    expect(await notes()).toBe(0);
+    expect(toneLoads).toBe(0);
+
+    // Turning it on loads Tone.js to play a confirming note (dropped if the download is slow).
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => toneLoads).toBe(1);
-    // The first click's own cue is dropped if Tone.js took over 400 ms to download (as under
-    // load), so the next click is the one that must play. Building the synths starts notes of
-    // its own, so count from just before that click: in Firefox the build once failed after
-    // starting some, and every cue was silent.
+    // Building the synths starts notes of its own, so count from just before the click: in
+    // Firefox the build once failed after starting some, and every cue was silent.
     await page.waitForTimeout(500);
     const before = await notes();
     await increment.click();
     await expect.poll(notes).toBeGreaterThan(before);
     expect(toneLoads).toBe(1);
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
+    // Turning it off again silences the examples, and that is remembered too.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
     await page.reload();
     await page.waitForLoadState("networkidle");
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
     await increment.click();
-    await expect(page.locator("[data-example] output").first()).toHaveText("1");
+    await expect(output).toHaveText("1");
     await page.waitForTimeout(200);
     expect(await notes()).toBe(0);
     // While sound is off, Tone.js never loads.
     expect(toneLoads).toBe(1);
-
-    // Turning it back on loads Tone.js to play a confirming note (dropped if the download is
-    // slow), and examples play again. It is remembered too.
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect.poll(() => toneLoads).toBe(2);
-    await increment.click();
-    await expect.poll(notes).toBeGreaterThan(0);
-    await page.reload();
-    await page.waitForLoadState("networkidle");
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("the sound switch shows off before any app script runs", async ({
+  test("the sound switch shows on before any app script runs", async ({
     page,
   }) => {
     await page.goto("/first-atom");
     await page.waitForLoadState("networkidle");
     const toggle = page.getByRole("button", { name: "Sound effects" });
+    await expect(toggle.locator(".sound-off-icon")).toBeVisible();
     await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
     // Without the app's JavaScript, only the inline script in app.html can pick the icon.
     await page.route("**/_app/**/*.js", (route) => route.abort());
     await page.reload();
-    await expect(toggle.locator(".sound-off-icon")).toBeVisible();
-    await expect(toggle.locator(".sound-on-icon")).toBeHidden();
+    await expect(toggle.locator(".sound-on-icon")).toBeVisible();
+    await expect(toggle.locator(".sound-off-icon")).toBeHidden();
   });
 
   test("on a phone the search button is an icon that still opens search", async ({

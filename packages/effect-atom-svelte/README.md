@@ -8,6 +8,8 @@ This is a community project by Jarred Norris. It is not part of Effect, and the 
 
 ## Installation
 
+Once it is published:
+
 ```sh
 npm install effect effect-atom-svelte
 ```

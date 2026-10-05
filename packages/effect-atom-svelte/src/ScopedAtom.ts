@@ -7,6 +7,9 @@ import type { Atom } from "effect/reactivity";
 import { createContext } from "svelte";
 
 /**
+ * Marks a value as a `ScopedAtom`: every scoped atom has this key, set to this same string, as
+ * Effect's own types carry a type id.
+ *
  * @stability unstable
  * @since 0.1.0
  * @category type ids

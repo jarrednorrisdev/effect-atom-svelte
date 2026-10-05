@@ -9,6 +9,7 @@ import ts from "typescript";
 import type { Plugin } from "vite";
 
 import { pages } from "../src/lib/docs/nav.ts";
+import { headingId } from "./heading-links.ts";
 import { highlight } from "./highlight.ts";
 
 /**
@@ -23,11 +24,18 @@ export interface ApiExample {
   readonly title?: string | undefined;
 }
 
+/** The guide page that teaches an export: its address (maybe with a section) and its title. */
+export interface ApiGuide {
+  readonly href: string;
+  readonly title: string;
+}
+
 /** An exported name and its JSDoc. Text fields are Markdown; `signature` is TypeScript. */
 export interface ApiExport {
   readonly category: string;
   readonly description: string;
   readonly examples: readonly ApiExample[];
+  readonly guide?: ApiGuide | undefined;
   /** For `export * from`: the page of the module it re-exports. */
   readonly module?: string | undefined;
   readonly name: string;
@@ -38,6 +46,7 @@ export interface ApiExport {
 
 /** A module of another package that the library re-exports, and the address of its source. */
 export interface ApiReExportedModule {
+  readonly guide?: ApiGuide | undefined;
   readonly name: string;
   readonly source: string;
 }
@@ -61,9 +70,18 @@ export interface ApiImport {
   readonly namespace?: string | undefined;
 }
 
+/** A `package.json` export: what an app imports, the module's page, and its first sentence. */
+export interface ApiEntryPoint {
+  readonly from: string;
+  readonly href: string;
+  readonly summary: string;
+}
+
 /** A source module and its exports, sorted like docgen sorts them: by category, then by name. */
 export interface ApiModule {
   readonly description: string;
+  /** On the index only: every entry point of the package. */
+  readonly entryPoints?: readonly ApiEntryPoint[] | undefined;
   readonly exports: readonly ApiExport[];
   readonly file: string;
   readonly href: string;
@@ -85,6 +103,75 @@ interface DocBlock {
 }
 
 const packageName = "effect-atom-svelte";
+
+/**
+ * The guide page that teaches each export, by name. An export missing here gets no guide link;
+ * a page missing from the sidebar, or a section missing from its page, fails the build.
+ */
+const guides: Readonly<Record<string, string>> = {
+  AsyncResult: "/async-atoms#asyncresult",
+  Atom: "/first-atom",
+  AtomHttpApi: "/http",
+  AtomInput: "/reading-and-writing#following-a-different-atom",
+  AtomRef: "/refs",
+  AtomRegistry: "/installation#add-a-registry",
+  AtomRpc: "/rpc",
+  AtomState: "/reading-and-writing",
+  AtomValue: "/reading-and-writing",
+  CaughtError: "/sveltekit#errors-in-boundaries",
+  EffectErrorBody: "/sveltekit#errors-in-boundaries",
+  Hooks: "/reading-and-writing",
+  Hydration: "/hydration",
+  HydrationBoundary: "/hydration#hydrationboundary",
+  ProvideExistingRegistry: "/installation#registry-options",
+  ProvideNewRegistry: "/installation#registry-options",
+  ProvideRegistryOptions: "/installation#registry-options",
+  RegistryContext: "/installation#add-a-registry",
+  RegistryOptions: "/installation#registry-options",
+  RegistryProvider: "/installation#add-a-registry",
+  ResultOptions: "/suspense#awaiting-in-the-script",
+  ScopedAtom: "/scoped-atoms",
+  SuspenseOptions: "/suspense",
+  TypeId: "/scoped-atoms",
+  WriteMode: "/mutations",
+  WriteOptions: "/mutations",
+  getRegistry: "/cookbook",
+  handleClientError: "/sveltekit#errors-in-boundaries",
+  handleServerError: "/sveltekit#errors-in-boundaries",
+  make: "/scoped-atoms",
+  provideRegistry: "/installation#registry-options",
+  useAtom: "/reading-and-writing#reading-and-writing",
+  useAtomMount: "/lifetimes#holding-an-atom-from-a-component",
+  useAtomRef: "/refs#reading-a-ref-in-a-component",
+  useAtomRefProp: "/refs#reading-a-ref-in-a-component",
+  useAtomRefPropValue: "/refs#reading-a-ref-in-a-component",
+  useAtomRefresh: "/async-atoms#running-it-again",
+  useAtomResult: "/suspense#awaiting-in-the-script",
+  useAtomSet: "/reading-and-writing#writing",
+  useAtomSubscribe: "/reading-and-writing#running-code-on-every-change",
+  useAtomSuspense: "/suspense",
+  useAtomValue: "/reading-and-writing#reading",
+};
+
+/** The guide for an export, titled from the sidebar. */
+const guideOf = (name: string): ApiGuide | undefined => {
+  const href = guides[name];
+  if (href === undefined) {
+    return undefined;
+  }
+  const [pathname = ""] = href.split("#");
+  const page = pages.find((entry) => entry.href === pathname);
+  if (!page) {
+    throw new Error(
+      `The guide for ${name}, ${href}, is not a page in src/lib/docs/nav.ts`
+    );
+  }
+  return { href, title: page.title };
+};
+
+/** A Markdown description's first sentence, for a summary. */
+const firstSentence = (text: string) =>
+  /^[\s\S]*?\.(?=\s|$)/u.exec(text.trim())?.[0] ?? text.trim();
 
 /** `Hooks.svelte.ts` is the module `Hooks`. */
 const moduleName = (file: string) => file.replace(/(?:\.svelte)?\.ts$/u, "");
@@ -197,11 +284,13 @@ const declaration = (node: ts.FunctionDeclaration, source: ts.SourceFile) => {
 /** A component's description (its `@component` comment) and its props interface. */
 const readComponent = async (file: string) => {
   const text = await readFile(file, "utf-8");
-  const comment = /<!--\s*@component\s(?<body>[\s\S]*?)-->/u.exec(text)?.groups
-    ?.body;
+  const componentComment = /<!--\s*@component\s(?<body>[\s\S]*?)-->/u;
+  const comment = componentComment.exec(text)?.groups?.body;
+  // Looked for after the comment, whose examples have script tags of their own.
   const script =
-    /<script lang="ts">(?<body>[\s\S]*?)<\/script>/u.exec(text)?.groups?.body ??
-    "";
+    /<script lang="ts">(?<body>[\s\S]*?)<\/script>/u.exec(
+      text.replace(componentComment, "")
+    )?.groups?.body ?? "";
   const source = ts.createSourceFile(file, script, ts.ScriptTarget.Latest);
   // An interface, or a type alias when the props are a union, as RegistryProvider's are.
   const props = source.statements.find(
@@ -217,10 +306,16 @@ const readComponent = async (file: string) => {
       `${file}: a component needs an @component comment and a Props type`
     );
   }
+  // The comment is indented in the file; its examples' code keeps its own indentation.
+  const lines = comment.split(/\r?\n/u);
+  const indent = Math.min(
+    ...lines
+      .filter((line) => line.trim() !== "")
+      .map((line) => line.length - line.trimStart().length)
+  );
   return {
-    description: comment
-      .split("\n")
-      .map((line) => line.trim())
+    description: lines
+      .map((line) => line.slice(indent).trimEnd())
       .join("\n")
       .trim(),
     signature: props.getText(source),
@@ -372,6 +467,7 @@ export const readApiReference = async (
       }));
       exports.push({
         category,
+        guide: guideOf(name),
         name,
         signature,
         since,
@@ -428,6 +524,7 @@ export const readApiReference = async (
         description: doc?.description ?? "",
         from: specifier,
         modules: clause.elements.map((element) => ({
+          guide: guideOf(element.name.text),
           name: element.name.text,
           source: sourceUrl(
             specifier,
@@ -517,7 +614,21 @@ export const readApiReference = async (
   };
 
   const modules = await Promise.all(files.map(readModule));
-  return modules.toSorted(byIndexThenName);
+  // The index lists every entry point, each summed up by its module's first sentence.
+  const entryPointList = [...entryPoints].map(([file, from]) => ({
+    from,
+    href: moduleHref(file),
+    summary: firstSentence(
+      modules.find((module) => module.file === file)?.description ?? ""
+    ),
+  }));
+  return modules
+    .map((module) =>
+      module.name === "index"
+        ? { ...module, entryPoints: entryPointList }
+        : module
+    )
+    .toSorted(byIndexThenName);
 };
 
 /** An export as a page shows it: Markdown rendered and code highlighted. */
@@ -570,6 +681,7 @@ const markdown = new Marked({
 });
 
 const renderMarkdown = (text: string) => markdown.parse(text);
+const renderInline = (text: string) => markdown.parseInline(text);
 
 /** Signatures are wrapped to fit the code frame, as oxfmt formats the library itself. */
 const renderSignature = async (signature: string) => {
@@ -603,6 +715,14 @@ const renderApiModule = async (module: ApiModule): Promise<ApiModuleHtml> => {
       title,
     })),
     description: await renderMarkdown(module.description),
+    entryPoints:
+      module.entryPoints &&
+      (await Promise.all(
+        module.entryPoints.map(async (entry) => ({
+          ...entry,
+          summary: await renderInline(entry.summary),
+        }))
+      )),
     reExports: await Promise.all(
       module.reExports.map(async (group) => ({
         ...group,
@@ -610,6 +730,43 @@ const renderApiModule = async (module: ApiModule): Promise<ApiModuleHtml> => {
       }))
     ),
   };
+};
+
+/** Fails when a guide link names a section its page doesn't have. */
+const checkGuideSections = async (
+  modules: readonly ApiModule[],
+  routes: string
+) => {
+  const guidesUsed = modules.flatMap((module) => [
+    ...module.exports.map((entry) => entry.guide),
+    ...module.reExports.flatMap((group) =>
+      group.modules.map((entry) => entry.guide)
+    ),
+  ]);
+  const sections = new Set(
+    guidesUsed.flatMap((guide) =>
+      guide?.href.includes("#") ? [guide.href] : []
+    )
+  );
+  for (const href of sections) {
+    const [pathname = "", section] = href.split("#");
+    // oxlint-disable-next-line eslint/no-await-in-loop -- a handful of small files
+    const text = await readFile(
+      path.join(routes, pathname, "+page.md"),
+      "utf-8"
+    );
+    const ids = text
+      .split(/\r?\n/u)
+      .flatMap(
+        (line) => /^#{2,3} (?<title>.+)$/u.exec(line)?.groups?.title ?? []
+      )
+      .map(headingId);
+    if (!ids.includes(section ?? "")) {
+      throw new Error(
+        `The API reference links to ${href}, but ${pathname} has no such section: update the guides in vite/api-reference.ts`
+      );
+    }
+  }
 };
 
 const id = "virtual:api-reference";
@@ -621,12 +778,14 @@ const resolvedId = `\0${id}`;
  */
 export const apiReference = (): Plugin => {
   let packageDir = "";
+  let routes = "";
   return {
     configResolved(config) {
       packageDir = path.resolve(
         config.root,
         "../../packages/effect-atom-svelte"
       );
+      routes = path.resolve(config.root, "src/routes");
     },
     async load(loading) {
       if (loading !== resolvedId) {
@@ -646,6 +805,7 @@ export const apiReference = (): Plugin => {
           `Add the API reference for ${missing.map((module) => module.file).join(", ")} to src/lib/docs/nav.ts`
         );
       }
+      await checkGuideSections(modules, routes);
       const rendered = await Promise.all(modules.map(renderApiModule));
       return `export const modules = ${JSON.stringify(rendered)};`;
     },

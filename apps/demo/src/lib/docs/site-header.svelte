@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
   import FontToggle from "./font-toggle.svelte";
@@ -7,6 +8,9 @@
   import SearchButton from "./search-button.svelte";
   import SoundToggle from "./sound-toggle.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
+
+  // The pages whose examples call the demo API (#lib/clients.ts). Only they show its reset button.
+  const demoApiPages = new Set(["/cookbook", "/http", "/mutations", "/rpc"]);
 </script>
 
 <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:px-6">
@@ -18,7 +22,9 @@
   <div class="ml-auto flex items-center gap-1 md:gap-2">
     <SearchButton />
     <GitHubButton />
-    <ResetDemoApi />
+    {#if demoApiPages.has(page.url.pathname)}
+      <ResetDemoApi />
+    {/if}
     <FontToggle />
     <SoundToggle />
     <ThemeToggle />

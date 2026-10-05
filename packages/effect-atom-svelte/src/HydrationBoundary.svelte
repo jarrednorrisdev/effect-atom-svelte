@@ -3,6 +3,23 @@
   Hydrates dehydrated atom state, for example from `Hydration.dehydrate` returned by a remote
   function. Atoms new to the registry are hydrated before children render; atoms that already
   exist are updated after render, so current UI does not jump to the incoming data mid-render.
+
+  **Example** (Hydrating the state a load function dehydrated)
+
+  ```svelte
+  <script lang="ts">
+    import { HydrationBoundary } from "effect-atom-svelte";
+
+    import TodoList from "./todo-list.svelte";
+
+    // `data.state` is `Hydration.dehydrate(registry)`, returned by +page.server.ts.
+    const { data } = $props();
+  </script>
+
+  <HydrationBoundary state={data.state}>
+    <TodoList />
+  </HydrationBoundary>
+  ```
 -->
 <script lang="ts">
   import { Hydration } from "effect/reactivity";

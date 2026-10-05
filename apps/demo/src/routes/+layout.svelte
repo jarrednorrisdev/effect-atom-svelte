@@ -22,10 +22,14 @@
 
   const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
-  const title = $derived(neighbors(page.url.pathname).page?.title);
-  const fullTitle = $derived(title ? `${title} · ${siteName}` : siteName);
   // Only pages in the sidebar have an address of their own; error pages don't.
-  const canonical = $derived(title ? `${siteUrl}${page.url.pathname}` : undefined);
+  const navTitle = $derived(page.error ? undefined : neighbors(page.url.pathname).page?.title);
+  const errorTitle = $derived(
+    page.status === 404 ? "Page not found" : "Something went wrong"
+  );
+  const title = $derived(page.error ? errorTitle : navTitle);
+  const fullTitle = $derived(title ? `${title} · ${siteName}` : siteName);
+  const canonical = $derived(navTitle ? `${siteUrl}${page.url.pathname}` : undefined);
   let content = $state<HTMLElement>();
   const toc = new TableOfContents(() => content);
 

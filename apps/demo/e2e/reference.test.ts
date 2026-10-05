@@ -17,7 +17,7 @@ test.describe("API reference", () => {
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: module.name === "index" ? "effect-atom-svelte" : module.name,
+          name: module.name === "index" ? "API overview" : module.name,
         })
       ).toBeVisible();
       const headings = page.getByRole("article").getByRole("heading", {
@@ -26,14 +26,17 @@ test.describe("API reference", () => {
       await expect(headings).toHaveText(
         module.exports.map((entry) => entry.name)
       );
-      // Another package's modules are listed once each, linked to their source, not as headings.
+      // Another package's modules are listed once each, linked to their guide and their source,
+      // not as headings.
       const reExported = module.reExports.flatMap((group) => group.modules);
-      const rows = page.getByRole("article").locator("tbody tr");
+      // Their rows have ids, for links to them; the entry points' rows don't.
+      const rows = page.getByRole("article").locator("tbody tr[id]");
       await expect(rows.locator("td:first-child")).toHaveText(
         reExported.map((entry) => entry.name)
       );
       expect(
         await rows
+          .locator("td:last-child")
           .getByRole("link")
           .evaluateAll((links) =>
             links.map((link) => link.getAttribute("href"))

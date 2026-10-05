@@ -432,6 +432,26 @@ html {
   color: var(--foreground);
 }
 
+/* Section headings link to themselves (vite/heading-links.ts); a # shows on hover and focus. The
+   # has empty alternative text, so screen readers read the heading alone. */
+.heading-link {
+  color: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+}
+.heading-link::after {
+  color: var(--subtle-foreground);
+  content: "#";
+  content: "#" / "";
+  margin-left: 0.4em;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.heading-link:hover::after,
+.heading-link:focus-visible::after {
+  opacity: 1;
+}
+
 /* The current page in the sidebar is named in the accent. */
 [data-slot="sidebar"] a[aria-current="page"] {
   color: var(--brand-text);

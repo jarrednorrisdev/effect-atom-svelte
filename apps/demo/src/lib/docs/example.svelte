@@ -109,6 +109,36 @@
   const file = $derived(files.find((entry) => entry.name === selected) ?? files[0]);
 </script>
 
+{#snippet tabStrip(contents: Snippet)}
+  <!-- Scrolls sideways when the file names are wider than a phone. -->
+  <div
+    class={[
+      "not-prose flex items-end overflow-x-auto border bg-muted/40",
+      children ? "rounded-none" : "rounded-t-lg",
+    ]}
+  >
+    {@render contents()}
+  </div>
+{/snippet}
+
+{#snippet tabList()}
+  <Tabs.List class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto" variant="line">
+    {#each files as entry (entry.name)}
+      <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
+    {/each}
+  </Tabs.List>
+{/snippet}
+
+{#snippet fileName()}
+  <span class="example-tab" data-active>{file?.name}</span>
+{/snippet}
+
+{#snippet code(entry: ExampleFile)}
+  <!-- Highlighted at build time by vite/highlight.ts from the example's own files, copy button
+       included. -->
+  {@html entry.html}
+{/snippet}
+
 <!-- One frame and one shadow round the live result, the tabs and the code. -->
 <figure class="example my-8 rounded-lg" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
@@ -127,30 +157,22 @@
       {@render children()}
     </div>
   {/if}
-  <!-- Scrolls sideways when the file names are wider than a phone. -->
-  <div
-    class={[
-      "not-prose flex items-end overflow-x-auto border bg-muted/40",
-      children ? "rounded-none" : "rounded-t-lg",
-    ]}
-  >
-    {#if files.length > 1}
-      <Tabs.Root bind:value={selected}>
-        <Tabs.List class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto" variant="line">
-          {#each files as entry (entry.name)}
-            <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
-          {/each}
-        </Tabs.List>
-      </Tabs.Root>
-    {:else}
-      <span class="example-tab" data-active>{file?.name}</span>
-    {/if}
-  </div>
-  <div role="tabpanel">
-    <!-- Highlighted at build time by vite/highlight.ts from the example's own files, copy button
-         included. -->
-    {@html file?.html}
-  </div>
+  {#if files.length > 1}
+    <!-- Several files: a tab for each, and a tab panel showing the selected one. Only the selected
+         file's code is in the page, so search indexes the code a reader first sees. -->
+    <Tabs.Root bind:value={selected} class="gap-0">
+      {@render tabStrip(tabList)}
+      {#each files as entry (entry.name)}
+        <Tabs.Content value={entry.name}>
+          {#if entry.name === selected}{@render code(entry)}{/if}
+        </Tabs.Content>
+      {/each}
+    </Tabs.Root>
+  {:else}
+    <!-- One file: its name above its code, and no tabs to choose between. -->
+    {@render tabStrip(fileName)}
+    {#if file}<div>{@render code(file)}</div>{/if}
+  {/if}
 </figure>
 
 <style>

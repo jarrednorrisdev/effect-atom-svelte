@@ -6,10 +6,10 @@
   import { isSoundOn, setSoundOn } from "#lib/docs/sound-preference.ts";
   import { onMount } from "svelte";
 
-  // The server can't see localStorage, so this starts at the default and reads the stored choice
-  // once mounted. The icon doesn't wait: app.html's inline script marks `<html data-sound="off">`
-  // before first paint, and the style below shows the icon from that.
-  let on = $state(true);
+  // The server can't see localStorage, so this starts at the default, off, and reads the stored
+  // choice once mounted. The icon doesn't wait: app.html's inline script marks
+  // `<html data-sound="on">` before first paint, and the style below shows the icon from that.
+  let on = $state(false);
   onMount(() => {
     on = isSoundOn();
   });
@@ -40,8 +40,8 @@
 </Button>
 
 <style>
-  :global(html:not([data-sound="off"]) .sound-toggle .sound-off-icon),
-  :global(html[data-sound="off"] .sound-toggle .sound-on-icon) {
+  :global(html[data-sound="on"] .sound-toggle .sound-off-icon),
+  :global(html:not([data-sound="on"]) .sound-toggle .sound-on-icon) {
     display: none;
   }
 </style>

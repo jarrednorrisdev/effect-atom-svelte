@@ -1,0 +1,38 @@
+# Contributing
+
+How the repository is put together, deployed and tested. [README.md](README.md) has the layout and the commands to run it locally.
+
+## Docs site
+
+`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/first-atom`). The RPC and HTTP API pages need the demo API, so they are only prerendered in the hosted build.
+
+Search uses Pagefind, and only works in a build (`vite build` then `vite preview`). It indexes the prerendered pages (`export const prerender = true` in `+page.ts`). A page in the sidebar that isn't prerendered is indexed from its `+page.md` instead, without its live examples' source (`vite/pagefind.ts`).
+
+## Hosting
+
+The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing.
+
+Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy` passes it). The stack refuses any other profile, and Cloudflare variables in the environment, outside CI.
+
+Deploys from Windows fail: Alchemy's SvelteKit integration (2.0.0-beta.80) looks for the entry module as `server\index.js` while the modules are named with `/`, so it uploads a chunk as the main module and Cloudflare rejects the script ("no registered event handlers"). Deploy through CI, which runs on Linux.
+
+The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the visitor's tab and in the build (`src/lib/in-tab-api.ts`), so every page except `/browser`, whose cookie example reads the request, is prerendered. `/browser` is rendered by the site's Worker. `bun run test` also runs `playwright.hosted.config.ts`, which builds the site that way and checks it with no demo API running.
+
+## Tests
+
+`bun run test` runs the library's Vitest suite, which drives real `AtomRpc` and `AtomHttpApi` clients against `@demo/domain`'s server in-process, and the demo's Playwright suite, both in Chromium, Firefox and WebKit (install them once with `bunx playwright install chromium firefox webkit`). It also runs the demo's own Vitest project (`apps/demo/vitest.config.ts`, Chromium only), whose tests are the examples on the docs site's Testing page (`apps/demo/src/routes/testing`). To run one engine: `bunx vitest run --project "browser (firefox)"` or `bunx playwright test --project firefox`. Turbo caches results, so an unchanged package replays its last result; a cached pass is trustworthy, and `--force` should not be needed.
+
+The Playwright suite builds the demo once, then gives each worker its own demo API (`:3100` up, no latency) and `vite preview` server (`:5200` up), and resets the API's store before every test. Tests share no state, so they run in parallel and in any order. To run one: `cd apps/demo && bunx playwright test -g "<name>"`. To run Playwright in two worktrees at once, give one of them `E2E_PORT_OFFSET=50` (it moves every e2e port, including the hosted config's 5300); otherwise the runs share each other's servers. Rebuild the library first (`bun run --cwd packages/effect-atom-svelte build`) if you changed it.
+
+CI (`.github/workflows/ci.yml`) splits this into parallel jobs: lint, check and both Vitest suites; the Playwright suite in two jobs per engine (`--shard`); and the hosted check. The e2e suite runs in all three engines when a push changes the library, the e2e setup, a `package.json`, `bun.lock` or the workflow, and in Chromium alone for docs and example changes. To test every engine regardless, run the workflow by hand (`gh workflow run CI`).
+
+To check for flakiness, repeat tests within one run instead of looping `bun run test`, which would only replay the cache:
+
+```sh
+cd packages/effect-atom-svelte && bunx vitest run --repeats 19   # each test 20 times per engine, ~2.5 min
+cd apps/demo && bunx playwright test --repeat-each 20            # each test 20 times per engine, ~8.5 min
+```
+
+## Tracking work
+
+Work is tracked in the [effect-atom-svelte project](https://linear.app/jarrednorrisdev/project/effect-atom-svelte-a13e42344ff4) in the personal Linear workspace (team JND; the `linearis` CLI reaches it). Reference issues as `JND-<n>` in commits and changesets.
