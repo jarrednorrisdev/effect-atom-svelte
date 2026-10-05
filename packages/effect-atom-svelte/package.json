@@ -36,7 +36,8 @@
     "./sveltekit": {
       "types": "./dist/SvelteKit.d.ts",
       "default": "./dist/SvelteKit.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "svelte-package -i src -o dist",
@@ -62,7 +63,7 @@
   },
   "peerDependencies": {
     "@sveltejs/kit": "^3.0.0",
-    "effect": "^4.0.0",
+    "effect": "~4.0.0",
     "svelte": "^5.57.0"
   },
   "peerDependenciesMeta": {

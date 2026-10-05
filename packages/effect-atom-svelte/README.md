@@ -4,7 +4,7 @@ Svelte 5 bindings for the Effect Atom modules (`effect/reactivity`), in the shap
 
 This is a community project by Jarred Norris. It is not part of Effect, and the Effect team neither makes nor endorses it.
 
-**Status:** pre-release, not published yet. It targets `effect` 4, Svelte 5.57+ with `experimental.async`, and SvelteKit 3.
+**Status:** pre-release, not published yet. It targets `effect` 4.0, Svelte 5.57+ with `experimental.async`, and SvelteKit 3. The `effect` peer range is `~4.0.0`, not `^4.0.0`: the bindings reach into parts of the atom registry that aren't public API, which a minor release of `effect` can change.
 
 ## Installation
 
