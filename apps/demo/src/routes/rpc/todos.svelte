@@ -22,6 +22,10 @@
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
+  // Declared before the await: a binding to state declared after it is only set up once the
+  // await settles, after hydration, and would clear text typed before then.
+  let draft = $state("");
+
   // Server rendering waits for the list.
   const todos = await useAtomResult(todosAtom);
   // For the list's counter: each time the query fetches from the browser.
@@ -42,8 +46,6 @@
       leaving.delete(id);
     }
   };
-
-  let draft = $state("");
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();

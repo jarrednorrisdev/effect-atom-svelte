@@ -126,6 +126,26 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-todos")).toContainText("Slow todo");
   });
 
+  test("a draft typed before hydration survives it", async ({ page }) => {
+    const { errors } = watch(page);
+    // Hold the app's scripts, so the server's input is on screen but not yet hydrated.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/_app/immutable/**/*.js", async (route) => {
+      await held.promise;
+      await route.continue();
+    });
+    await page.goto("/rpc", { waitUntil: "domcontentloaded" });
+    const draft = page.getByTestId("rpc-draft");
+    await draft.fill("Early todo");
+    await expect(page.locator("html[data-hydrated]")).not.toBeAttached();
+    held.resolve(undefined);
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    await page.waitForLoadState("networkidle");
+    // Svelte's bind:value keeps text typed before hydration (JND-92).
+    await expect(draft).toHaveValue("Early todo");
+    expect(await errors()).toEqual([]);
+  });
+
   test("a mutation's reactivity key sends the query to waiting, then back", async ({
     page,
   }) => {
@@ -476,6 +496,9 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
 test("effect basics: interrupting tryPromise aborts the request's signal", async ({
   page,
 }) => {
+  // The pretend server answers after two seconds, which a loaded machine can spend between
+  // Send and Interrupt, so stop the page's clock while the request is in flight.
+  await page.clock.install();
   await page.goto("/effect-basics");
   await page.waitForLoadState("networkidle");
   const state = page.getByTestId("request-state");
@@ -483,10 +506,13 @@ test("effect basics: interrupting tryPromise aborts the request's signal", async
     .getByRole("list", { name: "Server" })
     .getByRole("listitem");
   await expect(state).toHaveText("Initial");
+  // The page's clock follows the real one until paused, so a second ahead is never in its past.
+  await page.clock.pauseAt(Date.now() + 1000);
   await page.getByRole("button", { name: "Send request" }).click();
   await expect(state).toHaveText("Initial, waiting");
   await expect(server).toHaveText([/^0 ms\s*request received$/u]);
   await page.getByRole("button", { name: "Interrupt" }).click();
+  await page.clock.resume();
   await expect(state).toHaveText("Failure");
   await expect(page.getByTestId("request")).toHaveText("Interrupted");
   await expect(server).toHaveText([
