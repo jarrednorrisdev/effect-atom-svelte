@@ -18,6 +18,7 @@ import {
 import { computed } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
+import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
@@ -477,6 +478,29 @@ describe("hydrating server output", () => {
       await expect.poll(outputs(target)).toEqual(["from the browser"]);
       expect(pendingBoundaryComputed).toEqual(["browser"]);
     });
+  });
+
+  test("a HydrationBoundary with awaited state hydrates a query with reactivity keys (JND-95)", async () => {
+    queryFetches.count = 0;
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      errors.push(event.error ?? event.message);
+    };
+    window.addEventListener("error", onError);
+    onTestFinished(() => window.removeEventListener("error", onError));
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-awaited-boundary.svelte",
+      SsrAwaitedBoundary
+    );
+
+    // HydrationBoundary keeps Effect's Hydration.hydrate behavior: a query wrapped by withReactivity
+    // runs again in the browser, building its outer atom as the child first reads it.
+    await expect.poll(outputs(target)).toEqual(["browser 1"]);
+    expect(queryFetches.count).toBe(1);
+    // Long enough for Svelte to commit the hydration and everything it scheduled. Its dev build used
+    // to throw "Batch has scheduled effects" while committing the update that first build announced.
+    await sleep("100 millis");
+    expect(errors).toEqual([]);
   });
 
   describe("a getter that picks a different atom in the browser (JND-24)", () => {
