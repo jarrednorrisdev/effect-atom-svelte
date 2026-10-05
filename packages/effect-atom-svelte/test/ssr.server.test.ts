@@ -350,6 +350,39 @@ describe("server rendering", () => {
     });
   });
 
+  describe("the async hooks with an atom nothing has started", () => {
+    const save = Atom.fn((value: string) => Effect.succeed(value));
+
+    test("useAtomResult rejects instead of hanging", async () => {
+      await expect(renderSetup(readTag(save))).rejects.toThrow(
+        "has not started"
+      );
+    });
+
+    test("useAtomSuspense rejects instead of hanging", async () => {
+      await expect(
+        renderSetup(() => {
+          const value = useAtomSuspense(save);
+          return () => value.current;
+        })
+      ).rejects.toThrow("has not started");
+    });
+
+    test("a serializable one rejects instead of hanging while it seeds", async () => {
+      const idle = Atom.make<AsyncResult.AsyncResult<string>>(
+        AsyncResult.initial()
+      ).pipe(
+        Atom.serializable({
+          key: "idle-seed",
+          schema: AsyncResult.Schema({ success: Schema.String }),
+        })
+      );
+      await expect(renderSetup(readTag(idle))).rejects.toThrow(
+        "has not started"
+      );
+    });
+  });
+
   describe("a serializable atom read inside a boundary with a pending snippet (JND-86)", () => {
     // Pins today's behavior: the hook seeds at init, before Svelte knows the read is never rendered.
     test("with the hook outside the boundary, the server still computes, waits and embeds it", async () => {

@@ -843,6 +843,19 @@ export const useAtomRefPropValue = <A, K extends keyof A>(
 // Internal shorthand; exported signatures spell the type out so the API reference shows it.
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
+/**
+ * Whether a result is `Initial` with nothing running to settle it, as an `Atom.fn` nothing has
+ * called. On the server nothing will start it during the render, so waiting would hang it.
+ */
+const notStarted = (
+  result: AsyncResult.AsyncResult<unknown, unknown>
+): boolean => result._tag === "Initial" && !result.waiting;
+
+const notStartedError = (hook: string): Error =>
+  new Error(
+    `${hook} read an atom that has not started on the server: its result is Initial and nothing is running it, as for an Atom.fn that has not been called, so the render would wait for it forever. Read it with useAtomValue, which renders Initial, or inside a <svelte:boundary> with a pending snippet, which the server renders instead.`
+  );
+
 /** One serialization key's seed in a registry, shared by every component using that key. */
 interface Seed {
   readonly atom: Atom.Atom<unknown>;
@@ -918,7 +931,10 @@ const seedOnServer = (
       if (claim.first !== claim.own) {
         return await claim.first;
       }
-      await awaitResult(registry, atom);
+      // Not waited for if nothing has started it: the hook rejects once seeded.
+      if (!notStarted(registry.get(atom))) {
+        await awaitResult(registry, atom);
+      }
       return encodeSeed(key, encode, registry.get(atom));
     })();
     return claim.own;
@@ -1094,7 +1110,10 @@ export interface ResultOptions {
  * again. With a getter, only the first atom is awaited: when the getter picks another atom the
  * handle follows it, starting from that atom's current result (often `Initial`), and the
  * component's await does not run again. On the server, an atom with a `withServerValue` override
- * reads as that value and is never computed.
+ * reads as that value and is never computed. An atom that has not started, whose result is
+ * `Initial` with nothing running, as an `Atom.fn` nothing has called, keeps the await pending in the
+ * browser until something writes it; on the server, where nothing will during the render, the
+ * await rejects.
  *
  * **Example** (Awaiting an atom picked by a prop)
  *
@@ -1157,6 +1176,9 @@ export const useAtomResult = async <A, E>(
     // Mounted only after seeding, so hydration's value is in place before the atom first computes.
     release = registry.mount(atom);
     seed?.letGo();
+  }
+  if (!BROWSER && notStarted(registry.get(atom))) {
+    throw notStartedError("useAtomResult");
   }
   await awaitResult(registry, atom, options, lifetime.signal);
   return value;
@@ -1238,6 +1260,9 @@ const suspend = async <A, E>(
   signal: AbortSignal
 ): Promise<unknown> => {
   if (isPending(current, options)) {
+    if (!BROWSER && notStarted(current)) {
+      throw notStartedError("useAtomSuspense");
+    }
     const exit = await awaitResult(
       registry,
       atom,
@@ -1356,7 +1381,9 @@ const sharedWait = (
  * every reader of a pending promise went away, as that wait was interrupted. Failures reject with the squashed cause, or resolve with
  * the `Failure` when `includeFailure` is set. On the server, an atom with a `withServerValue`
  * override resolves from that value and is never computed; if the value is `Initial`, the promise
- * rejects, so read it inside a `<svelte:boundary>` with a `pending` snippet.
+ * rejects, so read it inside a `<svelte:boundary>` with a `pending` snippet. An atom that has not
+ * started, whose result is `Initial` with nothing running, as an `Atom.fn` nothing has called,
+ * stays pending in the browser until something writes it, and rejects on the server.
  *
  * **Example** (Awaiting an atom in the markup)
  *
