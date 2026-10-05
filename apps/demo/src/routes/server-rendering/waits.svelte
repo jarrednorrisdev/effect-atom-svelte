@@ -31,7 +31,8 @@
 
   const markup = useAtomSuspense(markupAtom);
   const script = await useAtomResult(scriptAtom);
-  // Read after the await, so the server renders it before it has a result.
+  // Read after the await, so the atom only starts now and the server renders it as Initial.
+  // Read before it, the atom would start with the others and could be done by then.
   const value = useAtomValue(valueAtom);
 </script>
 

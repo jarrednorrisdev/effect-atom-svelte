@@ -39,7 +39,11 @@ In the example, providers stand in for requests. Each makes its own registry, as
 
 <Example files={[{ html: requestSource, name: "request.svelte" }, { html: requestsSource, name: "requests.svelte" }]} hint="Click Add to cart in Request 1: only its cart grows, but addedRef counts it for every request. Then click Send another request: Request 3 starts with an empty cart, and a moment later Request 1 ends, its cart gone, while addedRef keeps its count."> <Requests /> </Example>
 
-If you pass your own registry to `RegistryProvider` with `registry`, it outlives the request. The hooks release the atoms the request read, but the registry itself stays for you to dispose of. Each request still sends the browser only its own [hydration](/hydration) results.
+<Aside type="danger" title="Never pass the server a registry that outlives the request">
+
+`RegistryProvider`'s `registry` option provides a registry you made yourself. On the server, one made at module level serves every request, so visitors share its atom values. The results sent to the browser for [hydration](/hydration) are read from it too, so one visitor's data can be written into another's page. Let the provider create the registry, as in [Installation](/installation#registry-options).
+
+</Aside>
 
 <Aside type="caution" title="State outside the registry is shared">
 
@@ -56,7 +60,9 @@ A server render waits for the promises it awaits, and for nothing else. Whether 
 | `await useAtomResult(atom)` in the script | Waits for the first result. |
 | `{await todos.current}` in markup, with `const todos = useAtomSuspense(atom)` in the script | Waits, unless it is inside a `<svelte:boundary>` with a `pending` snippet. |
 | `useAtomSuspense` in a component inside a boundary with `pending` | Renders the `pending` snippet, and leaves the content to the browser. |
-| `useAtomValue(atom)` | Doesn't wait. Renders the current result, usually `Initial`. |
+| `useAtomValue(atom)` | Doesn't wait, but still starts the atom. Renders whatever result the atom has when the render reaches it. |
+
+`useAtomValue` starts the atom on the server as soon as the component sets up, so the result it renders depends on timing. Usually that is `Initial`, but if the atom finishes while the render waits on something else, it renders the value. The browser's first render usually starts from `Initial` again, so the two can disagree, and hydration can mismatch. Read data the first paint needs with one of the other hooks.
 
 **Example** (Content that must be in the first paint)
 
@@ -64,6 +70,7 @@ A server render waits for the promises it awaits, and for nothing else. Whether 
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
 
+  // A serializable async atom, such as an AtomRpc query with a serializationKey.
   const todos = useAtomSuspense(todosAtom);
 </script>
 
@@ -76,6 +83,12 @@ A server render waits for the promises it awaits, and for nothing else. Whether 
 ```
 
 Use a `pending` snippet for content that can arrive later, such as anything below the fold, so it doesn't hold up the whole page.
+
+<Aside type="caution" title="The server waits without a time limit">
+
+A server render waits for every atom it awaits, however long it takes. A slow API holds up the whole page, and one that never answers holds it for good. Give the atom's effect a limit with `Effect.timeout`, so it fails instead, or put data the page can do without inside a boundary with a `pending` snippet.
+
+</Aside>
 
 The example reads four atoms in those four ways. Each atom records where it ran, and **In the HTML** shows what the page's HTML has in that place, fetched again from the server. This site prerenders its pages, so here the server is the build.
 
@@ -106,7 +119,7 @@ const widthAtom = Atom.make((get) => {
 
 Without the server value, reading `window` on the server would throw.
 
-For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. `useAtomResult` has nothing to wait for, so the server renders the `Initial` result. In the browser, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`. `useAtomSuspense` has nothing to resolve with, so on the server it rejects: read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. A serializable atom with a server value isn't passed to the browser, since the server never computed it. [Browser atoms](/browser) covers browser-only atoms in detail.
+For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. `useAtomResult` has nothing to wait for, so the server renders the `Initial` result. In the browser, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`. `useAtomSuspense` has nothing to resolve with, so on the server it rejects: read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. Without one, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). A serializable atom with a server value isn't passed to the browser, since the server never computed it. [Browser atoms](/browser) covers browser-only atoms in detail.
 
 <Example files={[{ html: serverValuesSource, name: "server-values.svelte" }]} hint="Compare each value with what the HTML has: the server rendered 1024 and Initial. Then resize the window and watch the width follow."> <ServerValues /> </Example>
 

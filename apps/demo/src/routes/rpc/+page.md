@@ -21,7 +21,7 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
 
 If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/rpc), `AtomRpc` gives your components its procedures as atoms. A query is an async atom you read, a mutation is an atom you write, and both keep the RPC's typed payloads and errors.
 
-The examples on this page call the [demo API](/#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses.
+The examples on this page call the [demo API](/#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses. On this site, the page is prerendered, so the list it opens with came from the copy of the demo API that ran during the build. The todos you add go to the copy in your tab.
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Add a todo and watch listTodos: the mutation invalidates the todos key, so the query fetches again and its requests count goes up. Then click Paste a long title and Add: the procedure fails with its typed TitleTooLong."> <Todos /> </Example>
 
@@ -51,7 +51,7 @@ The class is also an Effect service, with a `runtime` that builds the protocol l
 
 <Aside type="caution" title="Use an absolute URL on the server">
 
-When a page renders on the server, its queries run there too, and a relative URL such as `/api/rpc` has no origin to resolve against. Give the server the full URL, for example by checking `import.meta.env.SSR` when you build the protocol layer.
+When a page renders on the server, its queries run there too, and a relative URL such as `/api/rpc` has no origin to resolve against. Give the server the full URL, for example by checking `import.meta.env.SSR` when you build the protocol layer. The server also doesn't send the visitor's cookies: see [On the server](#on-the-server).
 
 </Aside>
 
@@ -63,14 +63,14 @@ When a page renders on the server, its queries run there too, and a relative URL
 const todosAtom = TodosRpc.query("listTodos", undefined);
 ```
 
-Read it like any other [async atom](/async-atoms): with `useAtomValue`, `useAtomSuspense` in markup, or `await useAtomResult` in the script. The example above awaits it in the script, so server rendering waits for the list.
+Read it like any other [async atom](/async-atoms): with `useAtomValue`, `useAtomSuspense` in markup, or `await useAtomResult` in the script. The example above awaits it in the script, so server rendering waits for the list. [Server rendering](/server-rendering) and [Hydration](/hydration) cover what the server waits for and what it sends to the browser.
 
 A third argument takes options:
 
 | Option | Does |
 | --- | --- |
 | `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. |
-| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). |
+| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored for [streaming procedures](#streaming-procedures). |
 | `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
 | `headers` | Extra headers for the request. |
 
@@ -125,3 +125,80 @@ For anything a single query or mutation doesn't cover, write an effect that uses
 <Example files={[{ html: createAndReadSource, name: "create-and-read.svelte" }]} hint="Click Create and read, and watch the calls: getTodo waits for the id that createTodo returns. Then paste a long title: createTodo fails, and getTodo is never sent."> <CreateAndRead /> </Example>
 
 The effect's error type is the union of both procedures' errors, plus `RpcClientError`, and the first failure ends it.
+
+## On the server
+
+When a page renders on the server, its queries run there too, and two things differ from the browser.
+
+**The URL must be absolute.** See [Relative URLs on the server](/troubleshooting#relative-urls-on-the-server).
+
+**The visitor's cookies stay behind.** In the browser, `fetch` sends the page's cookies to its own origin. On the server, the client sends nothing from the visitor's request: no cookies and no `Authorization` header. So the server calls your API as a visitor who isn't logged in, and a query that needs a session fails there, for example with a 401.
+
+<Aside type="danger" title="A logged-out result can stick">
+
+If that query has a `serializationKey`, the server sends its failure with the page, and the browser starts from it. A hydrated atom doesn't run again unless you set [`revalidateOnHydrate`](/hydration#running-again-after-hydration), so the visitor sees the logged-out result until something refreshes the query.
+
+</Aside>
+
+To send the visitor's credentials, give `protocol` a function instead of a layer. It receives the registry's context, so it can read an atom, and the registry builds the layer from that atom's value. Each request on the server has its own registry, so each builds its own client:
+
+**Example** (Sending the visitor's token)
+
+```ts
+// src/lib/clients.ts
+import { Layer } from "effect";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
+import { Atom, AtomRpc } from "effect/reactivity";
+import { RpcClient, RpcSerialization } from "effect/rpc";
+
+import { TodosRpcs } from "./rpc.ts";
+
+// The visitor's token, set for each request by the root layout.
+export const tokenAtom = Atom.make<string | undefined>(undefined).pipe(
+  Atom.keepAlive
+);
+
+const origin = import.meta.env.SSR ? "http://localhost:3010" : "";
+
+const withToken = (token: string | undefined) =>
+  HttpClient.mapRequest((request) =>
+    token ? HttpClientRequest.bearerToken(request, token) : request
+  );
+
+export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {
+  group: TodosRpcs,
+  protocol: (get) =>
+    RpcClient.layerProtocolHttp({
+      url: `${origin}/api/rpc`,
+      transformClient: withToken(get(tokenAtom)),
+    }).pipe(
+      Layer.provide([FetchHttpClient.layer, RpcSerialization.layerNdjson])
+    ),
+}) {}
+```
+
+The root layout sets the atom through `initialValues`, as [Preferences in a cookie](/browser#preferences-in-a-cookie) does for cookies:
+
+```ts
+// src/routes/+layout.server.ts
+export const load = ({ cookies }) => ({ token: cookies.get("token") });
+```
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { RegistryProvider } from "effect-atom-svelte";
+
+  import { tokenAtom } from "$lib/clients.ts";
+
+  const { children, data } = $props();
+</script>
+
+<RegistryProvider initialValues={[[tokenAtom, data.token]]}>
+  {@render children()}
+</RegistryProvider>
+```
+
+Data from a server `load` is written into the page, where any script can read it. That suits a token the page's scripts already hold, but not an `HttpOnly` session cookie. For data behind one of those, either fetch it in a server `load` with SvelteKit's `fetch`, which forwards the visitor's cookies to your own domain and its subdomains, and hand it to atoms with [`HydrationBoundary`](/hydration#hydrationboundary); or leave the query to the browser, inside a `<svelte:boundary>` with a `pending` snippet.
+
+A page rendered with a visitor's credentials is for that visitor only: don't prerender it, and don't let a shared cache keep it. See [SvelteKit](/sveltekit#prerender-or-render-per-request).

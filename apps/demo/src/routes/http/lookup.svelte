@@ -7,6 +7,12 @@
   import { TodosHttp } from "#lib/clients.ts";
 
   let id = $state(2);
+  // An empty box binds null, which is no id: keep the last one until a number is typed.
+  const typeId = (typed: number | null) => {
+    if (typed !== null) {
+      id = typed;
+    }
+  };
 
   // GET /api/todos/:id. A missing todo is a typed 404, TodoNotFound.
   const todo = useAtomSuspense(
@@ -30,7 +36,7 @@
 <p class="flex flex-wrap items-center gap-2">
   <label>
     Todo id
-    <input bind:value={id} data-testid="http-id" min="1" type="number" />
+    <input bind:value={() => id, typeId} data-testid="http-id" min="1" type="number" />
   </label>
   {#each [1, 2, 99] as option (option)}
     <button aria-pressed={id === option} onclick={() => (id = option)}>

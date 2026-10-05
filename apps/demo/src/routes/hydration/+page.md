@@ -27,10 +27,10 @@ When a page rendered on the server starts up in the browser, its atoms start emp
 From server to browser, a page load goes like this:
 
 1. A request comes in, and the server creates a registry for it.
-2. The server renders the page with that registry, and encodes the results of the serializable atoms the render waited for.
+2. The server renders the page with that registry, and encodes the results of the serializable atoms read with `useAtomResult` or `useAtomSuspense`.
 3. It sends the HTML with those results, then disposes of its registry. The registry itself never leaves the server.
 4. The browser creates its own registry, puts the server's results into it, and hydrates the page. Atoms without a result from the server compute again.
-5. From then on, everything runs in the browser's registry, including navigation to other pages.
+5. From then on, atoms run in the browser's registry, including on other pages the visitor opens. Server `load` functions and remote functions still run on the server when SvelteKit calls them.
 
 On a prerendered page, steps 1 to 3 happen once, when the site is built.
 
@@ -50,7 +50,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 
 const todosAtom = Atom.make(fetchTodos).pipe(
   Atom.serializable({
-    key: "todos",
+    key: "app/todos",
     schema: AsyncResult.Schema({
       success: Schema.Array(Todo),
       error: TodosError,
@@ -71,6 +71,8 @@ const todosAtom = TodosRpc.query("listTodos", undefined, {
 
 Two different atoms with the same key on one page make the server render throw. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
 
+The keys go to Svelte's `hydratable`, which everything on the page shares, other libraries included. Give yours a prefix of your own, such as `app/`. `AtomRpc` and `AtomHttpApi` already prefix theirs with the client and procedure or endpoint, so `serializationKey: "todos"` becomes `AtomRpc:listTodos:todos`.
+
 </Aside>
 
 ## Which atoms to serialize
@@ -83,7 +85,13 @@ Leave it out when the value can't travel or shouldn't:
 - **Values with behavior**, such as functions or class instances with private state. A schema rebuilds data, not closures.
 - **Values that depend on where they run**, such as the window's width, something read from `localStorage`, or the current time. The server's answer would be wrong in the browser, so let it compute again, or keep the atom off the server with [server values](/server-rendering#server-values).
 
-Leaving out an atom whose value could travel costs nothing but work: the browser computes it again after the page loads, and may show a loading state over content the server already rendered.
+Leaving out an atom whose value could travel costs time. A component that awaits it waits for the browser to compute it again before it hydrates, so until the effect finishes, the component shows the server's markup but doesn't respond to clicks.
+
+<Aside type="danger" title="A serialized result is in the page">
+
+The encoded results are plain text in the page's HTML, where anyone who gets the page can read them, whether or not a component shows them. Never serialize data the visitor mustn't see. A page whose serialized results belong to one visitor must not be prerendered or kept by a shared cache: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
+
+</Aside>
 
 ## How the result travels
 
@@ -115,9 +123,9 @@ const prices = useAtomSuspense(pricesAtom, { revalidateOnHydrate: true });
 
 When several components read the same serializable atom, it runs again if any of them asks.
 
-The atom runs again as the page hydrates, and the hook waits for the new result, as for any result it doesn't have yet. Until it arrives, the component keeps showing what the server rendered.
+The atom runs again as the page hydrates, but the hook doesn't wait for it. It resolves with the server's result, marked as waiting, so the page hydrates with what the server rendered. When the browser's result arrives, the component switches to it.
 
-<Example files={[{ html: revalidateSource, name: "revalidate.svelte" }]} hint="Both atoms were in the HTML, computed on the server. The second ran again in the browser: click Reload the page and watch it keep the server's markup until the browser's result arrives."> <Revalidate /> </Example>
+<Example files={[{ html: revalidateSource, name: "revalidate.svelte" }]} hint="Both atoms were in the HTML, computed on the server. The second ran again in the browser: click Reload the page and watch it show the server's result, waiting, until the browser's arrives."> <Revalidate /> </Example>
 
 <Aside type="note" title="Different from @effect/atom-react">
 
@@ -138,7 +146,7 @@ This happens when the choice depends on state only the browser has, such as a fi
   import { onMount } from "svelte";
   import { useAtomSuspense, useAtomValue } from "effect-atom-svelte";
 
-  // Atom.kvs over localStorage, with withServerValue(() => "all") for the server.
+  // Atom.kvs over localStorage, and an in-memory store on the server, which reads "all".
   const saved = useAtomValue(savedFilterAtom);
 
   let mounted = $state(false);
@@ -156,7 +164,7 @@ The example saves its filter with `Atom.kvs`, whose server store is in memory, s
 
 ## HydrationBoundary
 
-Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
+Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
 
 **Example** (Hydrating from a load function)
 

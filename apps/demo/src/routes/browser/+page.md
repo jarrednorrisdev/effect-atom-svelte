@@ -30,6 +30,8 @@ The recipes build on [Services and runtimes](/services) for the storage layers, 
 
 `KeyValueStore.layerStorage(() => localStorage)` throws on the server, where `localStorage` doesn't exist. So the example gives the server an in-memory store instead, and the server renders the default value, an empty draft. Once the page has hydrated, the browser reads the saved draft and shows it.
 
+The in-memory store belongs to the registry that builds it, so on the server each request starts with an empty one. When the store has no value for the key, `Atom.kvs` writes the default to it, so the first read in the browser saves the default.
+
 <Aside type="caution" title="The first paint shows the default">
 
 The server can't know what a visitor saved in their browser. Reload the page above with a draft saved and you see it appear a moment after the page does. That's fine for a draft, but not for a theme or a language, which must be right on the first paint. Use a cookie for those.
@@ -48,7 +50,7 @@ The server's store needs the request's cookies. Pass them from the root layout's
 
 ```ts
 // src/routes/+layout.server.ts
-import { preferencePrefix } from "#lib/preferences.ts";
+import { preferencePrefix } from "$lib/preferences.ts";
 
 // Page data is embedded in the HTML, so pass on preference cookies only.
 export const load = ({ cookies }) => ({
@@ -66,7 +68,7 @@ export const load = ({ cookies }) => ({
 <script lang="ts">
   import { RegistryProvider } from "effect-atom-svelte";
 
-  import { preferenceCookiesAtom } from "#lib/preferences.ts";
+  import { preferenceCookiesAtom } from "$lib/preferences.ts";
 
   const { children, data } = $props();
 </script>
@@ -84,17 +86,29 @@ The registry disposes of an atom nobody reads, `initialValues` included. Without
 
 A page that reads cookies depends on the request, so it can't be prerendered. This site's own theme switch uses `localStorage` and a small inline script instead, because its pages are prerendered.
 
+<Aside type="caution" title="Keep cookie pages out of shared caches">
+
+A page rendered from cookies differs from one visitor to the next. If a CDN or other shared cache keeps it, it can serve one visitor's page to another. Send `Cache-Control: private`, or `Vary: Cookie` so the cache keeps a copy per set of cookies. See [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
+
+</Aside>
+
 ## The URL's query string
 
 `Atom.searchParam` reads and writes one parameter of the URL's query string. Bind an input to it, and the parameter follows what you type:
 
 <Example files={[{ html: searchParamSource, name: "search-param.svelte" }]} hint="Type a word and watch the timeline: the atom changes on every key, the URL once, half a second after you stop. Then clear the box: the parameter goes away."> <SearchParam /> </Example>
 
-Writes to the URL are batched, and land half a second after the last change, with `history.pushState`. An empty value removes the parameter. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
+Writes to the URL are batched, and land half a second after the last change, with `history.pushState`, so each pause in typing adds a history entry. An empty value removes the parameter. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
 
 <Aside type="caution" title="The server reads an empty string">
 
-`Atom.searchParam` reads `window.location`, so on the server it is always `""`, whatever the URL. If the server must render the parameter, read it from SvelteKit's `page.url` instead.
+`Atom.searchParam` reads `window.location`, so on the server it is always `""`, or `Option.none()` with a schema, whatever the URL. Never make an atom that reads it serializable: the browser would start from the server's result, computed from the empty value. If the server must render the parameter, read it from SvelteKit's `page.url` instead.
+
+</Aside>
+
+<Aside type="caution" title="SvelteKit's router doesn't see the change">
+
+`Atom.searchParam` calls `history.pushState` itself, not through SvelteKit. Its history entries carry none of SvelteKit's own state, so SvelteKit doesn't treat them as navigations: `page.url` can keep the old query string, and `load` functions that read it don't run again. In a SvelteKit app, when anything else reads the parameter, keep it in `page.url` instead: read `page.url.searchParams`, and change it with `goto` from `$app/navigation`. Pass `reset: false` so the focus and scroll position stay where they are, and `replace: true` if a change shouldn't add a history entry.
 
 </Aside>
 

@@ -1,6 +1,6 @@
 ---
 title: SvelteKit
-description: Keep typed errors through SvelteKit's error handling, and load data without load functions.
+description: Set up a SvelteKit app for atoms, keep typed errors through handleError, and choose between prerendering and rendering per request.
 ---
 
 <script>
@@ -16,7 +16,35 @@ description: Keep typed errors through SvelteKit's error handling, and load data
   import todoCardsSource from "./todo-cards.svelte?highlight";
 </script>
 
-effect-atom-svelte works in any app on Svelte 5.57 or later, and SvelteKit 3 needs very little extra. Set Svelte's options in `vite.config.ts` and put a `RegistryProvider` in your root layout, as in [Installation](/installation). This page covers the parts where SvelteKit and Effect meet: errors, data loading and prerendering.
+effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks leave every error as it is. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
+
+## Setting up an app
+
+A SvelteKit app that renders atoms on the server needs these, each covered in more detail elsewhere:
+
+1. **Svelte's options.** Turn on Svelte's experimental async in `vite.config.ts`, and SvelteKit's remote functions if you use them. See [Turn on async mode](/installation#turn-on-async-mode).
+2. **A registry at the root.** Put one `RegistryProvider` in `src/routes/+layout.svelte`. Pass values from the request, such as cookies, from the root layout's `load` through `initialValues`, and give those atoms `Atom.keepAlive`. See [Add a registry](/installation#add-a-registry) and [Preferences in a cookie](/browser#preferences-in-a-cookie).
+3. **Error hooks.** To tell typed errors apart in `failed` snippets, export the hooks from `src/hooks.client.ts` and `src/hooks.server.ts`, and declare `tag` on `App.Error` in `src/app.d.ts`. See [Errors in boundaries](#errors-in-boundaries).
+4. **API clients.** Give the server absolute URLs, and either send the visitor's credentials from the server or leave those queries to the browser. See [On the server](/rpc#on-the-server).
+5. **Prerendering and caching.** Prerender the pages that don't depend on the request, and keep pages rendered for one visitor out of shared caches. See [Prerender or render per request](#prerender-or-render-per-request).
+
+**Example** (SvelteKit's options in `vite.config.ts`)
+
+```ts
+// vite.config.ts
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [
+    sveltekit({
+      compilerOptions: { experimental: { async: true } },
+      // Only if the app uses remote functions.
+      experimental: { remoteFunctions: true },
+    }),
+  ],
+});
+```
 
 ## Errors in boundaries
 
@@ -72,12 +100,6 @@ This site uses both hooks. In the example, the `failed` snippet tells the errors
 
 <Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 7, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
 
-<Aside type="caution" title="A failure on the server sets the status">
-
-When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. A prerendered page can't fail that way: the build stops at the 500. The example fails only in the browser for that reason: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
-
-</Aside>
-
 <Aside type="tip" title="Your own handleError">
 
 To report errors to a service or set other fields, write your own hook and call ours from it:
@@ -95,30 +117,47 @@ export const handleError: HandleClientError = (input) => {
 
 </Aside>
 
-Alternatively, handle the error before it reaches the boundary: `useAtomSuspense(atom, { includeFailure: true })` resolves with the `Failure` itself, typed error and all. See [Suspense](/suspense#when-it-fails).
+[Errors](/errors) covers the other ways to handle a failure, such as `includeFailure`, which resolves with the `Failure` instead of reaching the boundary.
 
-## Data without load functions
+### A failure on the server sets the status
 
-A component can `await` the atoms it needs, and the server render waits for them, as described in [Server rendering](/server-rendering). Each component asks for its own data, and nothing has to be passed down from a `load` function.
+When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. A prerendered page can't fail that way: the build stops at the 500. The example fails only in the browser for that reason: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
+
+To render a failure on the server without the 500, read the atom with `includeFailure`, so the failure is a value the component shows rather than an error.
+
+## Data in components
+
+A component can `await` the atoms it needs, and the server render waits for them, so a page needs no `load` function to render its data. [Server rendering](/server-rendering) covers what the render waits for.
 
 In the example, the page has no `load` function. Each card awaits its own todo, so the server rendered both into the page. After a change, a card loads its new todo in the browser, with the same code.
 
 <Example files={[{ html: todoCardsSource, name: "todo-cards.svelte" }, { html: todoCardSource, name: "todo-card.svelte" }]} hint="Both cards came with the page, computed on the server. Click Show another todo: the second card loads its next todo in the browser by itself."> <TodoCards /> </Example>
 
-`load` functions and remote functions still work alongside this. To hand their results to atoms, dehydrate a registry on the server and pass it to [`HydrationBoundary`](/hydration#hydrationboundary).
+To hand the results of `load` functions or remote functions to atoms, use [`HydrationBoundary`](/hydration#hydrationboundary).
 
-## Prerendering
+## Prerender or render per request
 
-A page with `export const prerender = true` is rendered once, at build time. Its atoms are computed during the build, and the results of serializable atoms awaited with `useAtomResult` or `useAtomSuspense` are hydrated in the browser as usual, so a prerendered page shows the data from when the site was built until something refreshes it.
+A page with `export const prerender = true` is rendered once, at build time. Every visitor gets the same HTML, with the results its serializable atoms had then, until something in the browser refreshes them.
 
 This page is prerendered. The example's atom records when and where it ran, so the time it shows is when the site was built.
 
 <Example files={[{ html: builtAtSource, name: "built-at.svelte" }]} hint="The time is when the site was built: the server ran the atom then, and every visitor gets that result. Click Compute again to run it in the browser, now."> <BuiltAt /> </Example>
 
-Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build.
+Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build. If a prerendered result shouldn't be as old as the build, run it again in the browser with [`revalidateOnHydrate`](/hydration#running-again-after-hydration).
+
+A page rendered from a visitor's cookies or credentials holds that visitor's data, in its markup and in its [serialized results](/hydration#which-atoms-to-serialize). Never prerender it, and don't let a shared cache, such as a CDN, keep it and serve it to someone else. Send `Cache-Control: private` from its `load`, or `Vary: Cookie` if a shared cache should keep one copy for each set of cookies:
+
+**Example** (Keeping a visitor's page out of shared caches)
+
+```ts
+// src/routes/account/+page.server.ts
+export const load = ({ setHeaders }) => {
+  setHeaders({ "cache-control": "private" });
+};
+```
 
 <Aside type="note" title="This site">
 
-This site's pages are prerendered where they can be. In the examples on this page, [Server rendering](/server-rendering) and [Hydration](/hydration), "Computed on the server" means computed when the site was built.
+This site prerenders every page that doesn't depend on the request, so in its examples, "Computed on the server" means computed when the site was built. That includes [RPC](/rpc) and [HTTP API](/http), whose lists come from a copy of the demo API that runs during the build. [Browser atoms](/browser) reads cookies, so it is rendered for each request.
 
 </Aside>
