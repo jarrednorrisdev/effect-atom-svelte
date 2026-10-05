@@ -10,9 +10,12 @@ let demo = makeDemoHandler({ latency });
 Bun.serve({
   fetch: async (request) => {
     // Puts the store back to its seed, so each e2e test starts from the same todos.
+    // The docs' "Reset the demo API" button reaches it through the dev server's
+    // /api proxy, as /api/__reset.
+    const { pathname } = new URL(request.url);
     if (
       request.method === "POST" &&
-      new URL(request.url).pathname === "/__reset"
+      (pathname === "/__reset" || pathname === "/api/__reset")
     ) {
       const previous = demo;
       demo = makeDemoHandler({ latency });
