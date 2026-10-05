@@ -19,6 +19,9 @@ test.describe("Async atoms page", () => {
     page,
   }) => {
     const errors = pageErrors(page);
+    // A reading takes half a second, which a loaded machine can spend before the check for
+    // "waiting" runs, so the page's clock is paused while one is in flight.
+    await page.clock.install();
     await page.goto("/async-atoms");
     await page.waitForLoadState("networkidle");
     const match = page.getByTestId("sensor-match");
@@ -37,8 +40,11 @@ test.describe("Async atoms page", () => {
     await expect(match).toHaveText("The sensor is offline");
     // The failure keeps the last success, which getOrElse falls back to.
     await expect(last).toHaveText(reading);
+    // The page's clock follows the real one until paused, so a second ahead is never in its past.
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.getByRole("button", { name: "Read again" }).click();
     await expect(state).toHaveText("Failure, waiting");
+    await page.clock.resume();
     await expect(state).toHaveText("Failure");
     await expect(last).toHaveText(reading);
     await setPressed(
