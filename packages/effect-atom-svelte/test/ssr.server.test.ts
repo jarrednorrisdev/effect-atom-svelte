@@ -1,5 +1,11 @@
 import { Effect, Schema } from "effect";
-import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import {
+  AsyncResult,
+  Atom,
+  AtomRef,
+  AtomRegistry,
+  Hydration,
+} from "effect/reactivity";
 import { render } from "svelte/server";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
@@ -11,6 +17,7 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import HydrateAbove from "./fixtures/hydrate-above.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
@@ -19,6 +26,12 @@ import SsrHarness from "./fixtures/ssr-harness.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrSequential from "./fixtures/ssr-sequential.svelte";
+import {
+  defectAtom,
+  serverSecret,
+  streamAtom,
+  unencodableAtom,
+} from "./fixtures/unsent-seed.ts";
 import { repeat } from "./helpers.ts";
 
 let clients: ReturnType<typeof makeClients> | undefined;
@@ -53,6 +66,39 @@ const unresolvedWarnings = () => {
     warn.mock.calls.filter((call) =>
       String(call[0]).includes("unresolved_hydratable")
     );
+};
+
+/** Reads an async atom with useAtomResult, rendering its tag. */
+const readTag =
+  (atom: Atom.Atom<AsyncResult.AsyncResult<unknown, unknown>>) => () => {
+    const result = useAtomResult(atom);
+    return (async () => {
+      const live = await result;
+      return () => live.current._tag;
+    })();
+  };
+
+/** Collects every warning for the rest of the test, silencing them. */
+const allWarnings = () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  onTestFinished(() => warn.mockRestore());
+  return () => warn.mock.calls.map((call) => String(call[0]));
+};
+
+/** A serializable number atom for HydrationBoundary to hydrate. */
+const numberAtom = (key: string) =>
+  Atom.make(0).pipe(
+    Atom.keepAlive,
+    Atom.serializable({ key, schema: Schema.Number })
+  );
+
+/** The state Hydration.dehydrate gives for a registry where the atom is `value`. */
+const stateWith = (atom: Atom.Atom<number>, value: number) => {
+  const registry = AtomRegistry.make();
+  registry.set(atom as Atom.Writable<number>, value);
+  const state = Hydration.dehydrate(registry);
+  registry.dispose();
+  return state;
 };
 
 describe("server rendering", () => {
@@ -146,6 +192,112 @@ describe("server rendering", () => {
       return () => value.current;
     });
     expect(output.body).toContain("server value");
+  });
+
+  describe("what the server sends for hydration", () => {
+    test("a defect isn't sent: its message and cause stay on the server", async () => {
+      const output = await renderSetup(readTag(defectAtom));
+      expect(output.body).toContain("Failure");
+      const page = output.head + output.body;
+      expect(page).not.toContain(serverSecret);
+      expect(page).not.toContain("inner-secret-detail");
+    });
+
+    test("an interruption isn't sent", async () => {
+      const atom = Atom.make(Effect.interrupt as Effect.Effect<string>).pipe(
+        Atom.serializable({
+          key: "unsent-interrupt",
+          schema: AsyncResult.Schema({ success: Schema.String }),
+        })
+      );
+      const output = await renderSetup(readTag(atom));
+      expect(output.body).toContain("Failure");
+      expect(output.head).not.toContain("Interrupt");
+    });
+
+    test("a typed error is sent, as part of the atom's schema", async () => {
+      const atom = Atom.make(
+        Effect.fail("todo 7 is missing") as Effect.Effect<string, string>
+      ).pipe(
+        Atom.serializable({
+          key: "sent-typed-error",
+          schema: AsyncResult.Schema({
+            error: Schema.String,
+            success: Schema.String,
+          }),
+        })
+      );
+      const output = await renderSetup(readTag(atom));
+      expect(output.body).toContain("Failure");
+      expect(output.head).toContain("todo 7 is missing");
+    });
+
+    test.each([
+      ["a value that fails the schema's check", unencodableAtom],
+      [
+        "a typed error the schema doesn't cover",
+        Atom.make(
+          Effect.fail("not-in-schema") as unknown as Effect.Effect<string>
+        ).pipe(
+          Atom.serializable({
+            key: "unsent-uncovered-error",
+            schema: AsyncResult.Schema({ success: Schema.String }),
+          })
+        ),
+      ],
+    ])(
+      "%s isn't sent, and the render goes on with a warning",
+      async (_, atom) => {
+        const warned = allWarnings();
+        const output = await renderSetup(readTag(atom));
+        expect(output.body).toMatch(/Success|Failure/u);
+        expect(output.head).not.toContain("not-in-schema");
+        expect(warned()).toEqual([
+          expect.stringContaining(
+            `"${atom[Atom.SerializableTypeId].key}" doesn't encode`
+          ),
+        ]);
+      }
+    );
+
+    test("a stream still running when the render ends is sent as waiting", async () => {
+      const output = await renderSetup(readTag(streamAtom));
+      expect(output.body).toContain("Success");
+      expect(output.head).toContain("waiting:true");
+    });
+  });
+
+  describe("HydrationBoundary", () => {
+    test("updates an atom read above it before its children render", async () => {
+      const atom = numberAtom("boundary-above");
+      const output = await render(HydrateAbove, {
+        props: {
+          atom,
+          readAbove: true,
+          readInside: true,
+          state: stateWith(atom, 5),
+        },
+      });
+      // Above the boundary, the server had already rendered the atom's value before it.
+      expect(output.body).toContain("<p>0</p>");
+      expect(output.body).toContain("<output>5</output>");
+    });
+
+    test("drops the values nobody read when the render ends", async () => {
+      const atom = numberAtom("boundary-unread");
+      const registry = AtomRegistry.make();
+      const props = { atom, readAbove: false, registry };
+      const first = await render(HydrateAbove, {
+        props: { ...props, readInside: false, state: stateWith(atom, 42) },
+      });
+      expect(first.body).toContain("<output>-</output>");
+      // Kept, the first request's value would be the next request's.
+      const second = await render(HydrateAbove, {
+        props: { ...props, readInside: true, state: undefined },
+      });
+      expect(second.body).toContain("<output>0</output>");
+      registry.dispose();
+    });
   });
 
   describe("the async hooks with a server value (JND-58)", () => {

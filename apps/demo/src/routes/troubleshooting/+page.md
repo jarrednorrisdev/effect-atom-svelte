@@ -68,6 +68,10 @@ Two atoms with the same serialization key were rendered at the same time. The se
 
 It usually means a fixed key on an atom that has more than one copy: `Atom.serializable({ key: "todo" })` inside a family, or on an atom created in a component. Put what tells the copies apart into the key, such as the todo's id, and define atoms at module level. For an `AtomRpc` or `AtomHttpApi` query, give each `serializationKey` to only one set of arguments.
 
+## "doesn't encode with its schema, so it isn't sent to the browser"
+
+In development, the server warns when a serializable atom's result doesn't encode with its schema, such as a value that fails one of the schema's checks, or a typed error the schema has no `error` for. The page still renders, but the result isn't sent, so the browser computes the atom again. Fix the schema, or the effect, so the two agree. See [Serializable atoms](/hydration#serializable-atoms).
+
 ## "useAtomSuspense read an atom whose server value is pending"
 
 On the server, `useAtomSuspense` read an atom whose [server value](/hydration) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.

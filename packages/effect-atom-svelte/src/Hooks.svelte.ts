@@ -10,7 +10,12 @@ import { BROWSER } from "esm-env";
 import { getAbortSignal, hydratable, onDestroy, untrack } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
-import { revalidatesOnHydrate } from "./internal/hydration.ts";
+import {
+  decodeSeed,
+  encodeSeed,
+  isWaiting,
+  revalidatesOnHydrate,
+} from "./internal/hydration.ts";
 import { getRegistry } from "./RegistryContext.ts";
 
 /**
@@ -737,7 +742,7 @@ const seedOnServer = (
   onDestroy(release);
   const encoded = hydratable(key, async () => {
     await awaitResult(registry, atom);
-    return encode(registry.get(atom));
+    return encodeSeed(key, encode, registry.get(atom));
   });
   const claimed = serverSeeds.get(encoded);
   if (claimed && claimed !== atom) {
@@ -803,8 +808,13 @@ const seedFromServer = (
         const value = await encoded;
         // Only the server's value is a seed, and only while someone is there to read it now: a seed
         // set later would show data however old by then (JND-37).
-        if (!computedHere && holders > 0) {
-          applySeed(registry, atom, decode(value), revalidating > 0);
+        // The server sends no seed for a result it can't or mustn't pass on, such as a defect: the
+        // atom computes here instead. A seed still waiting, as a stream's between its values, runs
+        // again too: the server's run ended with the render, so it would wait forever.
+        const seed =
+          !computedHere && holders > 0 ? decodeSeed(value, decode) : undefined;
+        if (seed !== undefined) {
+          applySeed(registry, atom, seed, revalidating > 0 || isWaiting(seed));
         }
       })(),
       hold: (wantsRevalidate) => {

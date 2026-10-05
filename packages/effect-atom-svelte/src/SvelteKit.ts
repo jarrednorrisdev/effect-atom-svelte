@@ -10,18 +10,22 @@
  */
 
 /**
- * The part of SvelteKit's `handleError` input that the hooks read. `kind` is `"unknown"` for
- * errors thrown by your code, `"app"` for `error(...)`, `"framework"` for SvelteKit's own errors
- * (such as 404s) and, on the server, `"validation"` for invalid remote function arguments.
+ * The part of SvelteKit's `handleError` input that the hooks read. In SvelteKit 3, `kind` is
+ * `"unknown"` for errors thrown by your code, `"app"` for `error(...)`, `"framework"` for
+ * SvelteKit's own errors (such as 404s) and, on the server, `"validation"` for invalid remote
+ * function arguments. SvelteKit 2 passes no `kind`, so the hooks treat every error as `"unknown"`,
+ * and use the `message` it passes instead when they set none.
  *
  * @stability unstable
  * @since 0.1.0
  * @category models
  */
 export interface CaughtError {
-  readonly kind: string;
+  readonly kind?: string | undefined;
   readonly error: unknown;
   readonly issues?: unknown;
+  /** SvelteKit 2's message for the error, read only when there is no `kind`. */
+  readonly message?: string | undefined;
 }
 
 /**
@@ -52,6 +56,12 @@ const messageOf = (error: unknown): string | undefined => {
   return typeof error === "string" ? error : undefined;
 };
 
+// SvelteKit 2 expects a message from the hook, and passes the one it would show. SvelteKit 3 fills
+// in its own, and warns in development when the hook reads `message`, so it is read only without a
+// `kind`.
+const fallbackMessage = (input: CaughtError): string | undefined =>
+  input.kind === undefined ? input.message : undefined;
+
 // Leaves out empty fields, so SvelteKit's defaults apply, and returns nothing when both are empty.
 const body = (
   message: string | undefined,
@@ -67,7 +77,8 @@ const body = (
  * A client `handleError` hook (`src/hooks.client.ts`) that keeps the message and `_tag` of errors
  * thrown by your code, so a boundary's `failed` snippet shows them instead of
  * `{ status: 500, message: "Internal Error" }`. It logs those errors like SvelteKit's default
- * hook, and leaves `error(...)` and SvelteKit's own errors as they are.
+ * hook, and leaves `error(...)` and SvelteKit's own errors as they are. Made for SvelteKit 3:
+ * SvelteKit 2 doesn't say which errors are its own, so there every error is kept and logged.
  *
  * **Example** (Using it as the client hook)
  *
@@ -84,19 +95,20 @@ export const handleClientError = (
   input: CaughtError
 ): EffectErrorBody | undefined => {
   // Destructured here, not in the parameter list, so the API reference shows a named parameter.
-  const { error, kind } = input;
+  const { error, kind = "unknown" } = input;
   if (kind !== "unknown") {
     return undefined;
   }
   console.error(error);
-  return body(messageOf(error), tagOf(error));
+  return body(messageOf(error) ?? fallbackMessage(input), tagOf(error));
 };
 
 /**
  * A server `handleError` hook (`src/hooks.server.ts`) that keeps the `_tag` of errors thrown by
  * your code but not their message, which could expose details of the server to users: the
  * message stays SvelteKit's `"Internal Error"`. It logs errors with `console.error`.
- * Server errors reach a boundary's `failed` snippet when it renders on the server.
+ * Server errors reach a boundary's `failed` snippet when it renders on the server. Made for
+ * SvelteKit 3: SvelteKit 2 doesn't say which errors are its own, so there every error is logged.
  *
  * **Example** (Using it as the server hook)
  *
@@ -112,7 +124,7 @@ export const handleClientError = (
 export const handleServerError = (
   input: CaughtError
 ): EffectErrorBody | undefined => {
-  const { error, issues, kind } = input;
+  const { error, issues, kind = "unknown" } = input;
   if (kind === "validation") {
     console.error("Remote function schema validation failed:", issues);
     return undefined;
@@ -121,5 +133,5 @@ export const handleServerError = (
     return undefined;
   }
   console.error(error);
-  return body(undefined, tagOf(error));
+  return body(fallbackMessage(input), tagOf(error));
 };

@@ -2,7 +2,7 @@
 
 Community-built Svelte 5 bindings for Effect Atom, with a docs site and tests. It is not affiliated with Effect or the Effect team. The library is in [`packages/effect-atom-svelte`](packages/effect-atom-svelte/README.md), and its documentation is the docs site in `apps/demo`, live at [atom.jarrednorris.dev](https://atom.jarrednorris.dev).
 
-**Status:** pre-release. The package isn't on npm yet, and this repository stays private until it goes public. It targets `effect` 4, Svelte 5.57+ with `experimental.async`, and SvelteKit 3.
+**Status:** pre-release. The package isn't on npm yet, and this repository stays private until it goes public. It targets `effect` 4.0 (`~4.0.0`), Svelte 5.57+ with `experimental.async`, and SvelteKit 3.
 
 ```svelte
 <!-- src/routes/+layout.svelte: one registry for the app -->

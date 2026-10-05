@@ -107,3 +107,32 @@ describe("handleServerError", () => {
     );
   });
 });
+
+// SvelteKit 2 passes no `kind`, but `status` and the `message` it would show.
+describe("without a kind, as in SvelteKit 2", () => {
+  test("the client hook keeps and logs every error", () => {
+    const log = logged();
+    const error = new TodoNotFound({ id: 7 });
+    expect(
+      handleClientError({ error, message: "Internal Error" })
+    ).toStrictEqual({ message: "Todo 7 not found", tag: "TodoNotFound" });
+    expect(
+      handleClientError({ error: { _tag: "Plain" }, message: "Not Found" })
+    ).toStrictEqual({ message: "Not Found", tag: "Plain" });
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  test("the server hook keeps the _tag and SvelteKit's message, and logs every error", () => {
+    const log = logged();
+    const error = new TodoNotFound({ id: 7 });
+    expect(
+      handleServerError({ error, message: "Internal Error" })
+    ).toStrictEqual({ message: "Internal Error", tag: "TodoNotFound" });
+    const untagged = new Error("database password is hunter2");
+    expect(
+      handleServerError({ error: untagged, message: "Internal Error" })
+    ).toStrictEqual({ message: "Internal Error" });
+    expect(log).toHaveBeenCalledWith(error);
+    expect(log).toHaveBeenCalledWith(untagged);
+  });
+});

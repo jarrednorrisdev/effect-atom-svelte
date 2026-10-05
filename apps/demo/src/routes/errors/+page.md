@@ -167,6 +167,8 @@ Only the tag and message survive the hook, not the error's other fields: in the 
 
 Without SvelteKit, nothing sits in between: the `failed` snippet gets the value of `Cause.squash` itself, the error object with all its fields.
 
+The hooks don't cover [hydration](/hydration#how-the-result-travels). A serializable atom's typed error is sent with the page, fields and all, as part of its schema. A defect or an interruption isn't: the browser computes that atom again.
+
 ## Typed errors from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` decode errors from the server with their schemas, so they arrive as the same tagged classes, fields and all:
