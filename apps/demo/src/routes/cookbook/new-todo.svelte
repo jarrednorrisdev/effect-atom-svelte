@@ -27,6 +27,7 @@
 </script>
 
 <script lang="ts">
+  import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import { Cause, Exit, Option } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
@@ -80,10 +81,11 @@
         {#if !saving && isAddedTodo(todo)}
           <button
             aria-label="Remove {todo.title}"
+            data-cue="reset"
             onclick={() =>
               remove({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
           >
-            Remove
+            <Trash2Icon aria-hidden="true" />
           </button>
         {/if}
       </li>

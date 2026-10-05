@@ -471,6 +471,18 @@ html {
   & button:not(:disabled):hover {
     background: var(--accent);
   }
+  /* A button with only an icon, such as a trash can: square, with the icon centred. */
+  & button[aria-label]:has(> svg:only-child) {
+    display: inline-grid;
+    padding: 0;
+    place-items: center;
+    vertical-align: middle;
+    width: 2rem;
+  }
+  & button[aria-label] > svg:only-child {
+    height: 1rem;
+    width: 1rem;
+  }
   & button:disabled {
     opacity: 0.5;
   }
