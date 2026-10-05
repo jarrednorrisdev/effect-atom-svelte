@@ -8,15 +8,11 @@
   });
   const createAtom = TodosRpc.mutation("createTodo");
   const toggleAtom = TodosRpc.mutation("toggleTodo");
-  const removeAtom = TodosRpc.mutation("removeTodo");
 </script>
 
 <script lang="ts">
-  import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import { isAddedTodo } from "@demo/domain";
   import { Exit } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
-  import { SvelteSet } from "svelte/reactivity";
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
@@ -34,18 +30,6 @@
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
   const toggle = useAtomSet(toggleAtom);
-  // One remove at a time: a second call would interrupt the first.
-  const removing = useAtomValue(removeAtom);
-  const remove = useAtomSet(removeAtom, { mode: "promiseExit" });
-  // The todos being removed: their rows pulse until the list comes back without them.
-  const leaving = new SvelteSet<number>();
-  const removeTodo = async (id: number) => {
-    leaving.add(id);
-    const exit = await remove({ payload: { id }, reactivityKeys: ["todos"] });
-    if (Exit.isFailure(exit)) {
-      leaving.delete(id);
-    }
-  };
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -67,7 +51,7 @@
         data-testid="rpc-todos"
       >
         {#each todos.current.value as todo (todo.id)}
-          <li aria-busy={leaving.has(todo.id)}>
+          <li>
             <label>
               <input
                 checked={todo.done}
@@ -77,17 +61,6 @@
               />
               {todo.title}
             </label>
-            <!-- Only the todos you added; the server's two stay. -->
-            {#if isAddedTodo(todo)}
-              <button
-                aria-label="Remove {todo.title}"
-                data-cue="reset"
-                disabled={removing.current.waiting}
-                onclick={() => removeTodo(todo.id)}
-              >
-                <Trash2Icon aria-hidden="true" />
-              </button>
-            {/if}
           </li>
         {/each}
       </ul>
