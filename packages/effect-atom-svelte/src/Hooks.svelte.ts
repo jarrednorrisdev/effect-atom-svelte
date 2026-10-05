@@ -906,10 +906,24 @@ const seedOnServer = (
   // Mounted until the render ends, so the settled node is what the render reads.
   const release = registry.mount(atom);
   onDestroy(release);
-  const encoded = hydratable(key, async () => {
-    await awaitResult(registry, atom);
-    return encodeSeed(key, encode, registry.get(atom));
+  // hydratable hands every later reader of a key the first reader's value, but Svelte's dev build
+  // also runs each later reader's callback and throws hydratable_clobbering if what it encodes
+  // differs. Reading the atom again there would encode whatever it holds by then, so a later
+  // reader's callback encodes the first reader's seed instead: the callback runs inside hydratable,
+  // and once it has returned, `claim.first` says whose call it was.
+  const claim: { first?: Promise<unknown>; own?: Promise<unknown> } = {};
+  const encoded = hydratable(key, () => {
+    claim.own = (async () => {
+      await undefined;
+      if (claim.first !== claim.own) {
+        return await claim.first;
+      }
+      await awaitResult(registry, atom);
+      return encodeSeed(key, encode, registry.get(atom));
+    })();
+    return claim.own;
   });
+  claim.first = encoded;
   const claimed = serverSeeds.get(encoded);
   if (claimed && claimed !== atom) {
     throw new Error(`Two different atoms share the serialization key "${key}"`);

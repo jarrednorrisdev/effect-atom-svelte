@@ -23,6 +23,7 @@ import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import SsrChangingSeed from "./fixtures/ssr-changing-seed.svelte";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
@@ -591,6 +592,21 @@ describe("server rendering", () => {
       expect(output.body).toContain(expected);
       await expectBalanced();
     });
+  });
+
+  test("readers of one serialization key embed the first reader's seed, even if the atom changes between them", async () => {
+    // Svelte's dev build runs every reader's hydratable callback and throws hydratable_clobbering if
+    // what they encode differs.
+    const atom = Atom.make<AsyncResult.AsyncResult<string>>(
+      AsyncResult.success("seeded")
+    ).pipe(
+      Atom.serializable({
+        key: "changing-seed",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const output = await render(SsrChangingSeed, { props: { atom } });
+    expect(output.head + output.body).toContain("seeded");
   });
 
   test("two different atoms with the same serialization key are rejected", async () => {
