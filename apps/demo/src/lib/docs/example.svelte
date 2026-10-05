@@ -107,6 +107,24 @@
   // svelte-ignore state_referenced_locally
   let selected = $state(files[0]?.name ?? "");
   const file = $derived(files.find((entry) => entry.name === selected) ?? files[0]);
+
+  /**
+   * A long source shows its first lines, which usually define the atoms, and a button for the
+   * rest. Code with no live result above it is the whole point, so it starts open.
+   */
+  const cap = 14;
+  // svelte-ignore state_referenced_locally
+  let expanded = $state(!children);
+  const lineCount = (html: string) => html.split('class="line"').length - 1;
+  // A few hidden lines aren't worth a button.
+  const long = (entry: ExampleFile) => lineCount(entry.html) > cap + 4;
+
+  const collapse = (button: HTMLElement) => {
+    expanded = false;
+    // The block shrinks under the reader: bring its top back into view if it went above.
+    const source = button.closest(".source");
+    requestAnimationFrame(() => source?.scrollIntoView({ block: "nearest" }));
+  };
 </script>
 
 {#snippet tabStrip(contents: Snippet)}
@@ -135,8 +153,37 @@
 
 {#snippet code(entry: ExampleFile)}
   <!-- Highlighted at build time by vite/highlight.ts from the example's own files, copy button
-       included. -->
-  {@html entry.html}
+       included. Capped lines stay in the page, so search and the copy button still see them. -->
+  {@const capped = long(entry) && !expanded}
+  <div
+    class="source"
+    data-capped={capped || undefined}
+    data-expanded={(long(entry) && expanded) || undefined}
+    style:--cap={cap}
+  >
+    {@html entry.html}
+    {#if capped}
+      <div class="source-fade">
+        <button
+          aria-expanded="false"
+          class="source-toggle"
+          onclick={() => (expanded = true)}
+          type="button"
+        >
+          Show all {lineCount(entry.html)} lines
+        </button>
+      </div>
+    {:else if long(entry)}
+      <button
+        aria-expanded="true"
+        class="source-toggle source-collapse"
+        onclick={(event) => collapse(event.currentTarget)}
+        type="button"
+      >
+        Show fewer lines
+      </button>
+    {/if}
+  </div>
 {/snippet}
 
 <!-- One frame and one shadow round the live result, the tabs and the code. -->
@@ -208,5 +255,49 @@
     border-top: 0;
     box-shadow: none;
     margin: 0;
+  }
+  .source {
+    position: relative;
+  }
+  /* The top padding, then `--cap` lines; `lh` is the code's own line height. */
+  .source[data-capped] :global(.shiki) {
+    max-height: calc(1.25rem + var(--cap) * 1lh);
+    overflow-y: hidden;
+  }
+  /* Room under the last line for Show fewer lines. */
+  .source[data-expanded] :global(.shiki) {
+    padding-bottom: 3.75rem;
+  }
+  .source-fade {
+    align-items: end;
+    background: linear-gradient(transparent, var(--code-background) 60%);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    bottom: 1px;
+    display: flex;
+    height: 6rem;
+    inset-inline: 1px;
+    justify-content: center;
+    padding-bottom: 0.75rem;
+    position: absolute;
+  }
+  .source-toggle {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--foreground);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+  }
+  .source-toggle:hover,
+  .source-toggle:focus-visible {
+    border-color: var(--brand);
+  }
+  .source-collapse {
+    bottom: 0.75rem;
+    left: 50%;
+    position: absolute;
+    translate: -50% 0;
   }
 </style>
