@@ -78,11 +78,7 @@ export const load = ({ cookies }) => ({
 </RegistryProvider>
 ```
 
-<Aside type="caution" title="initialValues need keepAlive">
-
-The registry disposes of an atom nobody reads, `initialValues` included. Without `Atom.keepAlive`, `preferenceCookiesAtom` could be disposed of, and its cookies lost, before a component reads a preference.
-
-</Aside>
+Like any atom given a value through `initialValues`, `preferenceCookiesAtom` needs `Atom.keepAlive`, or the registry could dispose of it, and its cookies, before a component reads a preference. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data).
 
 A page that reads cookies depends on the request, so it can't be prerendered. This site's own theme switch uses `localStorage` and a small inline script instead, because its pages are prerendered.
 
