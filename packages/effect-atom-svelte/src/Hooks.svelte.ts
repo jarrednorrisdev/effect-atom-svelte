@@ -1335,6 +1335,9 @@ const sharedWait = (
   const controller = new AbortController();
   const promise = start(controller.signal);
   let settled = false;
+  // Each holder's abort listener, removed once the wait settles: the signal may outlive it by far, as
+  // the component's lifetime signal does, and would otherwise keep one listener per result it read.
+  const listeners: (readonly [AbortSignal, () => void])[] = [];
   void (async () => {
     try {
       await promise;
@@ -1342,6 +1345,10 @@ const sharedWait = (
       // Rejections belong to the awaiting template; this stops an unread one being reported as unhandled.
     }
     settled = true;
+    for (const [signal, listener] of listeners) {
+      signal.removeEventListener("abort", listener);
+    }
+    listeners.length = 0;
   })();
   let holders = 0;
   // Each signal holds once: reads outside a reaction all share the component's lifetime signal, and
@@ -1360,14 +1367,15 @@ const sharedWait = (
   };
   return {
     hold: (signal) => {
-      if (signal.aborted || held.has(signal)) {
+      // A settled wait is never interrupted, so it needs no holders.
+      if (settled || signal.aborted || held.has(signal)) {
         return;
       }
       held.add(signal);
       holders += 1;
-      signal.addEventListener("abort", () => release(signal.reason), {
-        once: true,
-      });
+      const listener = () => release(signal.reason);
+      signal.addEventListener("abort", listener, { once: true });
+      listeners.push([signal, listener]);
     },
     promise,
   };
