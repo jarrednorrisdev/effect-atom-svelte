@@ -22,10 +22,11 @@ test.describe("Server rendering page", () => {
     await expect(page.getByLabel("Request 2 cart")).toHaveText("1");
     await expect(added).toHaveText("3");
 
-    // Ending a request disposes of its registry; the next one starts empty.
-    await first.getByRole("button", { name: "End request" }).click();
-    await expect(first).toHaveCount(0);
+    // A new request starts empty; a moment later the oldest ends, which disposes of its registry.
+    await page.getByRole("button", { name: "Send another request" }).click();
     await expect(page.getByLabel("Request 3 cart")).toHaveText("0");
+    await expect(page.getByTestId("request-1-ended")).toBeVisible();
+    await expect(first).toHaveCount(0);
     await expect(page.getByLabel("Request 2 cart")).toHaveText("1");
     await expect(added).toHaveText("3");
   });
@@ -192,20 +193,34 @@ test.describe("Hydration page", () => {
       "Computed on the server"
     );
 
-    await page.getByTestId("saved-filter").selectOption("done");
+    const example = page
+      .locator("[data-example]")
+      .filter({ has: page.getByRole("group", { name: "Saved filter" }) });
+    const filter = (name: string) =>
+      example
+        .getByRole("group", { name: "Saved filter" })
+        .getByRole("button", { exact: true, name });
+    await filter("done").click();
+    await expect(filter("done")).toHaveAttribute("aria-pressed", "true");
     await expect(list).toHaveText(["Write the docs"]);
     await expect(page.getByTestId("filtered-where")).toHaveText(
       "Computed in the browser"
     );
 
     // What the example's Reload the page button does.
-    await page.reload();
+    const reloaded = page.waitForEvent("load");
+    await example.getByRole("button", { name: "Reload the page" }).click();
+    await reloaded;
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("saved-filter")).toHaveValue("done");
+    await expect(filter("done")).toHaveAttribute("aria-pressed", "true");
     await expect(list).toHaveText(["Write the docs"]);
     await expect(page.getByTestId("filtered-where")).toHaveText(
       "Computed in the browser"
     );
+    // The server has no saved filter, so its HTML lists every todo.
+    await expect(
+      example.getByText("Write the docs, Ship 0.1.0, Propose it upstream")
+    ).toBeVisible();
     expect(warnings.filter((text) => text.includes("hydrat"))).toEqual([]);
   });
 
