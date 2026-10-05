@@ -8,7 +8,7 @@ description: Give atoms' effects the services they need, with Atom.runtime and a
   import Example from "#lib/docs/example.svelte";
 
   import Dice from "./dice.svelte";
-  import source from "./dice.svelte?highlight";
+  import diceSource from "./dice.svelte?highlight";
   import Pool from "./pool.svelte";
   import poolSource from "./pool.svelte?highlight";
   import poolReaderSource from "./pool-reader.svelte?highlight";
@@ -16,9 +16,9 @@ description: Give atoms' effects the services they need, with Atom.runtime and a
 
 An effect that needs a service, such as an HTTP client or a repository, says so in its type, and can't run until something provides it. For atoms, that something is a **runtime**: an atom that builds a `Layer` and runs other atoms' effects with its services.
 
-[Effect basics](/effect-basics#services-and-layers) introduces services and layers. The example below uses a `Dice` service with two layers, a fair die and a loaded one. Turn on **Loaded dice** to switch layers.
+[Effect basics](/effect-basics#services-and-layers) introduces services and layers. In the example below, a runtime's layer builds a pretend connection pool with `Effect.acquireRelease`, and two atoms made from the runtime say which pool they got.
 
-<Example files={[{ html: source, name: "dice.svelte" }]} hint="Turn on Loaded dice: the runtime builds the other layer, and dieAtom rolls again with it. Then roll a few times."> <Dice /> </Example>
+<Example files={[{ html: poolSource, name: "pool.svelte" }, { html: poolReaderSource, name: "pool-reader.svelte" }]} hint="Turn on Read usersAtom: the runtime builds pool 1. Turn on Read ordersAtom: it shares pool 1. Turn both off: the pool is released. Turn one on again: pool 2 is built."> <Pool /> </Example>
 
 ## Making a runtime
 
@@ -50,35 +50,40 @@ const countAtom = runtime.atom(Todos.use((todos) => todos.count));
 
 An atom made this way fails with the layer's error if the layer fails to build.
 
+Every runtime also provides the `Reactivity` service, which is why `runtime.fn` takes a `reactivityKeys` option and `Atom.fn` doesn't. See [Mutations](/mutations#refreshing-what-changed).
+
+A layer whose service needs another service gets it with `Layer.provide`. Give the runtime the result, and it builds both:
+
+```ts
+// RemoteTodosLayer needs an Http service, which HttpLayer builds.
+const runtime = Atom.runtime(RemoteTodosLayer.pipe(Layer.provide(HttpLayer)));
+```
+
+<Aside type="caution" title="Make runtimes in a module">
+
+Like atoms, runtimes belong in a module, or a component's `<script module>`. `Atom.runtime` called in a component's script makes a new runtime for each instance, and new atoms from it, so the instances share no services or results.
+
+</Aside>
+
 ## When the layer is built
 
 The runtime is an atom itself, so it follows the usual [lifetimes](/lifetimes). It builds its layer the first time one of its atoms runs, and every atom made from it shares the services. When none of its atoms is in use any more, the runtime is disposed and the layer's resources are released.
 
 Layers are built once per registry. On the server, each request has its own registry and so its own services. Two runtimes that use the same layer share one copy of it in each registry.
 
-In the live example, the runtime's layer builds a pretend connection pool with `Effect.acquireRelease`, and two atoms made from the runtime say which pool they got.
-
-<Example files={[{ html: poolSource, name: "pool.svelte" }, { html: poolReaderSource, name: "pool-reader.svelte" }]} hint="Turn on Read usersAtom: the runtime builds pool 1. Turn on Read ordersAtom: it shares pool 1. Turn both off: the pool is released. Turn one on again: pool 2 is built."> <Pool /> </Example>
+The example at the top shows this: the pool is built when the first atom is read, shared by the second, and released when neither is read.
 
 ## Choosing a layer with `get`
 
-`Atom.runtime` also takes a function that receives `get` and returns the layer, as in the example above. When an atom it read changes, the runtime builds the new layer, and its atoms run their effects again with the new services.
+`Atom.runtime` also takes a function that receives `get` and returns the layer. When an atom it read changes, the runtime builds the new layer, and its atoms run their effects again with the new services.
 
-## Reactivity keys need a runtime
+The example below uses a `Dice` service with two layers, a fair die and a loaded one. Turn on **Loaded dice** to switch layers.
 
-`runtime.fn` takes a `reactivityKeys` option, and `Atom.fn` doesn't, because invalidating keys uses the `Reactivity` service that every runtime provides. That is why [Mutations](/mutations#refreshing-what-changed) makes a runtime with an empty layer:
-
-```ts
-const runtime = Atom.runtime(Layer.empty);
-
-const addAtom = runtime.fn((note: string) => saveNote(note), {
-  reactivityKeys: ["notes"],
-});
-```
+<Example files={[{ html: diceSource, name: "dice.svelte" }]} hint="Turn on Loaded dice: the runtime builds the other layer, and dieAtom rolls again with it. Then roll a few times."> <Dice /> </Example>
 
 ## Layers for every runtime
 
-`Atom.runtime.addGlobalLayer(layer)` adds a layer to every runtime, such as a logger or tracing for the whole app. Call it once at startup, before any atom runs.
+`Atom.runtime.addGlobalLayer(layer)` adds a layer to every runtime, such as a logger or tracing for the whole app. Call it once at startup, before any runtime builds its layer.
 
 <Aside type="tip" title="Testing">
 

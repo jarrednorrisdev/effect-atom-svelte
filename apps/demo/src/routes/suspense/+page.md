@@ -10,11 +10,14 @@ description: Await async atoms in markup, and let a boundary show loading and fa
   import Awaits from "./awaits.svelte";
   import combinedSource from "./combined.svelte?highlight";
   import awaitsSource from "./awaits.svelte?highlight";
+  import FirstLoad from "./first-load.svelte";
+  import firstLoadSource from "./first-load.svelte?highlight";
+  import forecastSource from "./forecast.svelte?highlight";
   import notesSource from "./notes.svelte?highlight";
   import oneByOneSource from "./one-by-one.svelte?highlight";
   import ScriptAwait from "./script-await.svelte";
   import scriptAwaitSource from "./script-await.svelte?highlight";
-  import Slow from "./slow.svelte";
+  import SlowTraces from "./slow-traces.svelte";
   import slowSource from "./slow.svelte?highlight";
   import togetherSource from "./together.svelte?highlight";
   import Weather from "./weather.svelte";
@@ -29,9 +32,9 @@ The hooks on this page need `experimental.async` turned on in Svelte's compiler 
 
 </Aside>
 
-The example shows a boundary's whole life. Under it, the inspector lights up the branch the boundary renders, and counts the updates still loading:
+In the example, a component awaits a slow atom inside a boundary. Under it, the inspector lights up the branch the boundary renders:
 
-<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Watch the first load show the pending snippet. Then pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Turn on Fail the next load and click Reload: the failed snippet takes over, and Try again starts the boundary afresh."> <Weather /> </Example>
+<Example files={[{ html: forecastSource, name: "forecast.svelte" }, { html: firstLoadSource, name: "first-load.svelte" }]} hint="Click Mount the forecast: the boundary shows its pending snippet until the forecast arrives, then the content. Unmount and mount it again: nothing kept the atom, so it loads again."> <FirstLoad /> </Example>
 
 ## Awaiting in markup
 
@@ -59,12 +62,14 @@ The promise stays the same object while the atom's result is unchanged, so Svelt
 
 ## When it fails
 
-When the atom's effect fails, the promise rejects with the error, and the boundary renders its `failed` snippet instead. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
+When the atom's effect fails, the promise rejects with `Cause.squash` of its cause: the typed error if there is one, otherwise the defect. The boundary then renders its `failed` snippet. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
 
 **Example** (Trying again)
 
 ```svelte
 <script lang="ts">
+  import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
+
   const todo = useAtomSuspense(todoAtom, { suspendOnWaiting: true });
   const refresh = useAtomRefresh(todoAtom);
 </script>
@@ -86,7 +91,7 @@ When the atom's effect fails, the promise rejects with the error, and the bounda
 </svelte:boundary>
 ```
 
-`suspendOnWaiting` makes the content wait for the refresh's result rather than the old failure; [After the first load](#after-the-first-load) explains it. In the example at the top, Try again shows the `pending` snippet once more: `reset` starts the boundary afresh.
+`suspendOnWaiting` makes the content wait for the refresh's result rather than the old failure; [After the first load](#after-the-first-load) explains it. In the [weather example](#following-a-different-atom), Try again shows the `pending` snippet once more: `reset` starts the boundary afresh.
 
 <Aside type="caution" title="SvelteKit hides error details">
 
@@ -115,7 +120,7 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 
 ## After the first load
 
-Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load, and `$effect.pending()` inside the boundary counts the awaits it is still waiting for. Use it to show that something is loading, as the example's Updating… does:
+Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load, and `$effect.pending()` inside the boundary counts the awaits it is still waiting for. Use it to show that something is loading, as the weather example's Updating… does:
 
 ```svelte
 {#if $effect.pending() > 0}
@@ -126,6 +131,10 @@ Svelte shows a boundary's `pending` snippet only while the boundary first loads.
 ### Following a different atom
 
 Like the other hooks that take an atom, `useAtomSuspense` accepts a getter, and follows whichever atom it returns. `useAtomSuspense(() => weatherAtom(city))` issues a new promise when `city` changes, and the boundary waits for the new atom while the old content stays.
+
+In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city. Each is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead: see [Server values](/server-rendering#server-values). The example also has a **Fail the next load** switch, to try the `failed` snippet.
+
+<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Turn on Fail the next load and click Reload: the failed snippet takes over, and Try again starts the boundary afresh."> <Weather /> </Example>
 
 <Aside type="note" title="Abandoned waits">
 
@@ -144,11 +153,11 @@ What a refresh does to the promise depends on `suspendOnWaiting`:
 
 The example reads two copies of one slow atom, one each way. Refresh both, and compare when each side's `await` resolves: on the default side at once, with the old value, then again with the new one; on the `suspendOnWaiting` side once, with the new value.
 
-<Example files={[{ html: slowSource, name: "slow.svelte" }]} hint="Click Refresh both, then compare the timelines: the default await resolves at once with the old value, and again two seconds later; the suspendOnWaiting one resolves once, with the new value, while $effect.pending() counts 1."> <Slow /> </Example>
+<Example files={[{ html: slowSource, name: "slow.svelte" }]} hint="Click Refresh both, then compare the timelines: the default await resolves at once with the old value, and again two seconds later; the suspendOnWaiting one resolves once, with the new value, while $effect.pending() counts 1."> <SlowTraces /> </Example>
 
 <Aside type="caution" title="One update waits for all of its awaits">
 
-Svelte shows an update only once every `await` it changed, in every boundary already showing content, has resolved. A refresh of one atom changes all of its reads in the same update, so if one atom is read both ways, the `suspendOnWaiting` read holds back the default one too, along with anything else the refresh changed, such as a `waiting` spinner from `useAtomValue`. That is why the example uses two atoms.
+Svelte shows an update only once every `await` it changed has resolved. A refresh changes every read of the atom at once, so a `suspendOnWaiting` read also holds back the atom's default reads, and anything else the refresh changed. That is why the example uses two atoms.
 
 </Aside>
 
@@ -182,7 +191,9 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-You can call hooks before and after top-level `await`s, because Svelte restores the component's context after each one. Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
+Svelte restores the component's context after each top-level `await`, so you can call hooks after one. The exception is a hook whose returned function you pass as an event handler, such as `onclick={refresh}`: call it before the first `await`, or wrap the handler in an arrow, `onclick={() => refresh()}`. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
+
+Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 
 Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
 
@@ -193,8 +204,6 @@ Below, each component loads todos and a user, which take a second and a half eac
 A hook can't be called after an `await` inside a function of your own, such as an `async` helper. Svelte only restores the component's context after top-level awaits in the script.
 
 </Aside>
-
-A button whose handler comes from a hook called after an `await` can do nothing in a production build. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
 ## Choosing a hook
 

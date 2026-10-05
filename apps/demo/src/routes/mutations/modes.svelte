@@ -17,13 +17,9 @@
       return `draft ${draft}`;
     });
 
-  // By default a new call interrupts the one in flight; concurrent lets both
-  // run.
+  // A new call interrupts the one in flight. get reads failAtom when the call
+  // starts.
   const saveAtom = Atom.fn((draft: number, get) => save(draft, get(failAtom)));
-  const concurrentSaveAtom = Atom.fn(
-    (draft: number, get) => save(draft, get(failAtom)),
-    { concurrent: true }
-  );
 </script>
 
 <script lang="ts">
@@ -34,14 +30,11 @@
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import { toneOf } from "#lib/docs/kit/tone.ts";
 
-  let concurrent = $state(false);
-  const atom = () => (concurrent ? concurrentSaveAtom : saveAtom);
-
   // One mutation, called three ways.
-  const saving = useAtomValue(atom);
-  const saveValue = useAtomSet(atom);
-  const savePromise = useAtomSet(atom, { mode: "promise" });
-  const saveExit = useAtomSet(atom, { mode: "promiseExit" });
+  const saving = useAtomValue(saveAtom);
+  const saveValue = useAtomSet(saveAtom);
+  const savePromise = useAtomSet(saveAtom, { mode: "promise" });
+  const saveExit = useAtomSet(saveAtom, { mode: "promiseExit" });
   const fail = useAtom(failAtom);
 
   // What each call gave back, one list per way of calling.
@@ -82,7 +75,7 @@
     draft += 1;
     void calls[mode](draft);
   };
-  // Two calls a moment apart: by default the second interrupts the first.
+  // Two calls a moment apart: the second interrupts the first.
   const callTwice = (mode: keyof typeof calls) => {
     call(mode);
     setTimeout(() => call(mode), 300);
@@ -117,7 +110,7 @@
 </div>
 
 <div class="mt-3">
-  <Part code label={concurrent ? "concurrentSaveAtom" : "saveAtom"} top>
+  <Part code label="saveAtom" top>
     <div class="flex flex-wrap items-center gap-3">
       {#if saving.current._tag === "Initial" && !saving.current.waiting}
         <ResultChip kind="message" tone="idle">Not called</ResultChip>
@@ -148,12 +141,6 @@
         onclick={() => (fail.current = !fail.current)}
       >
         Fail the save
-      </button>
-      <button
-        aria-pressed={concurrent}
-        onclick={() => (concurrent = !concurrent)}
-      >
-        concurrent: true
       </button>
     </div>
   </Part>

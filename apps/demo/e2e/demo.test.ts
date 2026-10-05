@@ -473,7 +473,7 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
   await expect(hash).toHaveText("a9993e364706816aba3e25717850c26c9cd0d89d");
 });
 
-test("effect basics: interrupting tryPromise aborts the request's signal", async ({
+test("effect basics: removing the reader aborts the request's signal", async ({
   page,
 }) => {
   await page.goto("/effect-basics");
@@ -482,19 +482,16 @@ test("effect basics: interrupting tryPromise aborts the request's signal", async
   const server = page
     .getByRole("list", { name: "Server" })
     .getByRole("listitem");
-  await expect(state).toHaveText("Initial");
-  await page.getByRole("button", { name: "Send request" }).click();
+  await page.getByRole("button", { name: "Add a reader" }).click();
   await expect(state).toHaveText("Initial, waiting");
   await expect(server).toHaveText([/^0 ms\s*request received$/u]);
-  await page.getByRole("button", { name: "Interrupt" }).click();
-  await expect(state).toHaveText("Failure");
-  await expect(page.getByTestId("request")).toHaveText("Interrupted");
+  await page.getByRole("button", { name: "Remove the reader" }).click();
   await expect(server).toHaveText([
     /^0 ms\s*request received$/u,
     /^\d+ ms\s*signal aborted, request dropped$/u,
   ]);
   // Left alone, the request answers after two seconds.
-  await page.getByRole("button", { name: "Send request" }).click();
+  await page.getByRole("button", { name: "Add a reader" }).click();
   await expect(page.getByTestId("request")).toHaveText("Here is your data", {
     timeout: 5000,
   });
@@ -697,87 +694,37 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
 });
 
 test.describe("Mutations page", () => {
-  test("adding a todo shows pending, then the list refreshes through its key", async ({
-    page,
-  }) => {
-    // The demo API runs without latency in e2e; hold the request here instead.
-    const held = Promise.withResolvers<undefined>();
-    await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"createTodo"')) {
-        await held.promise;
-      }
-      await route.continue();
-    });
+  test("adding a todo shows pending, then the new todo", async ({ page }) => {
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
-    const todos = page.getByTestId("add-todos").locator("li");
-    await expect(todos).toHaveText([
-      "Read the Effect Atom source",
-      "Write a Svelte adapter",
-    ]);
     const state = page.getByTestId("add-state");
     await expect(state).toHaveText("Initial");
 
     await page.getByTestId("add-draft").fill("Water the plants");
     await page.getByTestId("add-submit").click();
-    const adding = page.getByRole("button", { name: "Adding…" });
-    await expect(adding).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Adding…" })).toBeDisabled();
     await expect(state).toHaveText("Initial, waiting");
-    await expect(page.getByTestId("part-create")).toHaveAttribute(
-      "data-tone",
-      "running"
-    );
-    await expect(todos).toHaveCount(2);
 
-    held.resolve(undefined);
-    await expect(todos).toHaveText([
-      "Read the Effect Atom source",
-      "Write a Svelte adapter",
-      "Water the plants",
-    ]);
+    await expect(page.getByTestId("add-created")).toHaveText(
+      /^#\d+ Water the plants$/u
+    );
     await expect(state).toHaveText("Success");
     await expect(page.getByTestId("add-draft")).toHaveValue("");
-    await expect(
-      page.getByRole("button", { exact: true, name: "Add" })
-    ).toBeEnabled();
-    await expect(page.getByLabel("key invalidated")).toHaveText("1");
-    await expect(page.getByLabel("todosAtom todos")).toHaveText("3");
-    const log = page.getByTestId("invalidation-log").getByRole("listitem");
-    await expect(log.filter({ hasText: "createTodo sent" })).toHaveCount(1);
-    await expect(
-      log.filter({ hasText: 'createTodo succeeded: "todos" invalidated' })
-    ).toHaveCount(1);
-    await expect(log.filter({ hasText: "listTodos runs again" })).toHaveCount(
-      1
-    );
-    await expect(log.filter({ hasText: "listTodos: 3 todos" })).toHaveCount(1);
   });
 
-  test("a typed failure shows inline, keeps the input and invalidates nothing", async ({
-    page,
-  }) => {
+  test("a typed failure shows inline and keeps the input", async ({ page }) => {
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
-    const todos = page.getByTestId("add-todos").locator("li");
-    await expect(todos).toHaveCount(2);
-
-    await page.getByRole("button", { name: "Paste a long title" }).click();
+    await page
+      .getByTestId("add-example")
+      .getByRole("button", { name: "Paste a long title" })
+      .click();
     const draft = page.getByTestId("add-draft");
     await expect(draft).toHaveValue("x".repeat(70));
     await page.getByTestId("add-submit").click();
-    await expect(page.getByTestId("add-error")).toHaveText(
-      "TitleTooLong: keep it to 60 characters."
-    );
+    await expect(page.getByTestId("add-error")).toContainText("TitleTooLong");
     await expect(page.getByTestId("add-state")).toHaveText("Failure");
     await expect(draft).toHaveValue("x".repeat(70));
-    await expect(page.getByLabel("key invalidated")).toHaveText("0");
-    await expect(
-      page
-        .getByTestId("invalidation-log")
-        .getByRole("listitem")
-        .filter({ hasText: "createTodo failed: nothing invalidated" })
-    ).toHaveCount(1);
-    await expect(todos).toHaveCount(2);
   });
 
   test("each mode gives back something else, and Cancel and Reset work", async ({
@@ -910,7 +857,7 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   await page.getByRole("button", { name: "Stop reading" }).click();
   await expect(page.getByTestId("clock-stopped")).toBeVisible();
   await page.getByRole("button", { name: "Start reading" }).click();
-  await expect(clock).toHaveText(/^(?:starting|0|1)$/u);
+  await expect(clock).toHaveText(/^(?:starting|1)$/u);
 
   const fruit = page.getByTestId("fruit").getByRole("listitem");
   const pulls = page.getByRole("list", { name: "Pulls" }).getByRole("listitem");

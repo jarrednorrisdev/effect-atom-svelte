@@ -4,7 +4,7 @@
 
   const fruit = ["apple", "banana", "cherry", "damson", "elderberry", "fig", "grape"];
 
-  // Pages of three, each taking a moment to arrive, as from a paginated API.
+  // Pages of up to three, each taking a moment to arrive, as from a paginated API.
   const fruitStream = Stream.paginate(0, (start) =>
     Effect.succeed([
       fruit.slice(start, start + 3),
@@ -84,5 +84,5 @@
 {:else}
   <p>Loading…</p>
 {/if}
-<!-- Each pull adds a chunk: one page of three, or nothing once the stream ends. -->
+<!-- Each pull adds a chunk: one page, or nothing once the stream ends. -->
 <ResultHistory format={describe} label="Pulls" result={page.current} />

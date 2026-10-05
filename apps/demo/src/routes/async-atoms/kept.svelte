@@ -1,40 +1,28 @@
 <script module lang="ts">
-  import { Effect } from "effect";
   import { Atom } from "effect/reactivity";
 
-  // How many times each request below has run, for the cards under the pages.
-  const runsAtom = Atom.make({ search: 0, settings: 0, weather: 0 });
+  import { request } from "./kept-requests.svelte.ts";
 
-  // A request that takes a moment, and counts each time it runs.
-  const request = (name: "search" | "settings" | "weather", value: string) =>
-    Atom.make((get) =>
-      Effect.gen(function* load() {
-        get.registry.update(runsAtom, (runs) => ({
-          ...runs,
-          [name]: runs[name] + 1,
-        }));
-        yield* Effect.sleep("1500 millis");
-        return value;
-      })
-    );
+  // Pretend requests that take a moment. Each counts its runs for the cards
+  // under the pages.
+  const loadWeather = request("weather", "18 °C, light rain");
+  const loadSettings = request("settings", "Dark theme");
+  const search = request("search", "3 results for “atoms”");
 
   // Fresh on every visit.
-  const weatherAtom = request("weather", "18 °C, light rain");
+  const weatherAtom = Atom.make(loadWeather);
   // Loaded once per session.
-  const settingsAtom = request("settings", "Dark theme").pipe(Atom.keepAlive);
+  const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
   // Kept for 3 seconds after the last reader leaves.
-  const searchAtom = request("search", "3 results for “atoms”").pipe(
-    Atom.setIdleTTL("3 seconds")
-  );
+  const searchAtom = Atom.make(search).pipe(Atom.setIdleTTL("3 seconds"));
 </script>
 
 <script lang="ts">
-  import { useAtomValue } from "effect-atom-svelte";
   import BrowserFrame from "#lib/docs/kit/browser-frame.svelte";
   import CacheCard from "./cache-card.svelte";
+  import { runs } from "./kept-requests.svelte.ts";
   import Reader from "./kept-reader.svelte";
 
-  const runs = useAtomValue(runsAtom);
   // The page being shown. Only the dashboard reads the three atoms.
   let page = $state<"dashboard" | "help">("help");
 </script>
@@ -54,9 +42,9 @@
 <!-- What the registry holds for each atom, and how often its request ran. -->
 <div class="mt-4 grid gap-3 sm:grid-cols-3">
   {#each [
-    { atom: weatherAtom, name: "weatherAtom", runs: runs.current.weather },
-    { atom: settingsAtom, name: "settingsAtom", runs: runs.current.settings },
-    { atom: searchAtom, name: "searchAtom", runs: runs.current.search },
+    { atom: weatherAtom, name: "weatherAtom", runs: runs.weather },
+    { atom: settingsAtom, name: "settingsAtom", runs: runs.settings },
+    { atom: searchAtom, name: "searchAtom", runs: runs.search },
   ] as card (card.name)}
     <CacheCard {...card} read={page === "dashboard"} />
   {/each}

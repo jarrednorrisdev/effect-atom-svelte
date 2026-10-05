@@ -15,6 +15,7 @@ description: The parts of Effect these docs use, for Svelte developers who haven
   import hashSource from "./hash.svelte?highlight";
   import Lazy from "./lazy.svelte";
   import lazySource from "./lazy.svelte?highlight";
+  import readerSource from "./reader.svelte?highlight";
   import Request from "./request.svelte";
   import requestSource from "./request.svelte?highlight";
 </script>
@@ -84,9 +85,9 @@ const getJson = (url: string) =>
 
 `try` receives an `AbortSignal`, which Effect aborts if the effect is interrupted. Pass it on, as above, and an atom that nobody reads any more cancels its request.
 
-The example below wraps a pretend slow API that takes an `AbortSignal`, as `fetch` does. Interrupting the effect aborts the signal, and the server's log shows the request being dropped. Its atom is made with `Atom.fn`, which runs the effect each time it's called and stops it when written `Atom.Interrupt`; [Mutations](/mutations) covers it.
+The example below wraps a pretend slow API that takes an `AbortSignal`, as `fetch` does, in an async atom. The atom sends the request when `<Reader>` mounts. Remove the reader before the answer arrives, and the registry interrupts the effect, which aborts the signal: the server's log shows the request being dropped.
 
-<Example files={[{ html: requestSource, name: "request.svelte" }]} hint="Click Send request, then Interrupt before the two seconds are up. Then send another and let it finish."> <Request /> </Example>
+<Example files={[{ html: requestSource, name: "request.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Click Add a reader, then Remove the reader before the two seconds are up: the server drops the request. Then add a reader and let it finish."> <Request /> </Example>
 
 Without `catch`, as in `Effect.tryPromise(() => fetch(url))`, a rejection becomes an `UnknownError`. When a promise can't reject, `Effect.promise` wraps it without an error type.
 
@@ -131,9 +132,10 @@ An effect can fail in three ways, and only the first is in its type:
 - **A defect**, an exception nobody expected, such as a bug that throws inside `Effect.gen` or `Effect.sync`, or an `Effect.die`.
 - **An interruption**, when something stops the effect before it finishes.
 
-A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`; the failures in the examples above show one. Two functions read it:
+A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`; the failures in the examples above show one. These functions read it:
 
 - `Cause.findErrorOption(cause)` gives the typed error, as an `Option`. It is `None` when the effect died or was interrupted.
+- `Cause.hasInterruptsOnly(cause)` is `true` when the effect was interrupted and nothing else went wrong.
 - `Cause.pretty(cause)` renders the whole cause as text, for logs and for failures you didn't expect.
 
 Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It is what a settled promise is to a promise, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
@@ -143,6 +145,7 @@ Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with it
 ```ts
 import { Cause, Effect, Exit } from "effect";
 
+// getTodo is the function from the catchTag example above.
 const exit = await Effect.runPromiseExit(getTodo(2));
 // Exit<string, NotFound | Forbidden>
 
@@ -178,7 +181,12 @@ const countTodos = Effect.gen(function* () {
   const todos = yield* Todos;
   return yield* todos.count;
 }); // Effect<number, never, Todos>
+
+// The same effect, written with Todos.use.
+const countWithUse = Todos.use((todos) => todos.count);
 ```
+
+`Todos.use(f)` gets the service and runs the effect `f` returns, which saves an `Effect.gen` when you only need the service once.
 
 The effect can't run until something provides `Todos`. A **layer** builds services, and can depend on other layers. For atoms, `Atom.runtime(layer)` provides one: see [Services and runtimes](/services). `AtomRpc` and `AtomHttpApi` build their clients as services in the same way.
 
@@ -219,15 +227,10 @@ Read more in [Introduction to Effect Schema](https://effect.website/docs/v4/sche
 An effect produces one value. A `Stream` produces any number of them over time, like an async iterable that can fail with typed errors and is lazy like an effect:
 
 ```ts
-import { Stream } from "effect";
+import { Schedule, Stream } from "effect";
 
-// 0, 1, 2, … one a second.
-const seconds = Stream.tick("1 second").pipe(
-  Stream.scan(
-    () => 0,
-    (n) => n + 1
-  )
-);
+// 0, 1, 2, … one a second, the first a second after it starts.
+const seconds = Stream.fromSchedule(Schedule.spaced("1 second"));
 ```
 
 An atom backed by a stream holds its latest value, and a pull atom reads it a chunk at a time. See [Streams](/streams).

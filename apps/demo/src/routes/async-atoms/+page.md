@@ -62,13 +62,14 @@ An async atom's value is an `AsyncResult`, which is one of three states:
 
 Every state also has a `waiting` flag, which is `true` while the effect is running. A `Success` that is `waiting` still has the last value, so you can keep showing it while a new one loads, as the example does by dimming it. The history under the example lists every state the atom has been through, and when.
 
+An effect that finishes without waiting for anything, such as `Effect.succeed(3)`, gives its result straight away: the atom is never `Initial` or `waiting`.
+
 Read the result with `useAtomValue`, and check `_tag` in the markup:
 
 **Example** (Rendering each state)
 
 ```svelte
 <script lang="ts">
-  import { Cause } from "effect";
   import { useAtomValue } from "effect-atom-svelte";
 
   const todo = useAtomValue(todoAtom);
@@ -77,11 +78,13 @@ Read the result with `useAtomValue`, and check `_tag` in the markup:
 {#if todo.current._tag === "Success"}
   <p>{todo.current.value.title}</p>
 {:else if todo.current._tag === "Failure"}
-  <p>Could not load: {Cause.pretty(todo.current.cause)}</p>
+  <p>Could not load the todo.</p>
 {:else}
   <p>Loading…</p>
 {/if}
 ```
+
+To say why it failed, find the typed error in the `cause` with `Cause.findErrorOption`, as [Effect basics](/effect-basics#exit-and-cause) describes. [Errors](/errors) covers each kind of failure.
 
 <Aside type="tip" title="Await instead of checking tags">
 
@@ -99,7 +102,6 @@ The `AsyncResult` module, exported from `effect/reactivity`, has functions that 
 
 ```svelte
 <script lang="ts">
-  import { Cause } from "effect";
   import { AsyncResult } from "effect/reactivity";
   import { useAtomValue } from "effect-atom-svelte";
 
@@ -107,7 +109,7 @@ The `AsyncResult` module, exported from `effect/reactivity`, has functions that 
 
   const label = $derived(
     AsyncResult.match(todo.current, {
-      onFailure: (failure) => `Could not load: ${Cause.pretty(failure.cause)}`,
+      onFailure: () => "Could not load the todo.",
       onInitial: () => "Loading…",
       onSuccess: (success) => success.value.title,
     })
@@ -129,13 +131,16 @@ The live example reads one atom both ways. While the sensor is offline, `match` 
 
 <Example files={[{ html: sensorSource, name: "sensor.svelte" }]} hint="Wait for a reading, then turn on Offline: match reports the failure, while getOrElse keeps the last temperature. Click Read again while offline: it still does."> <Sensor /> </Example>
 
-[Streams](/streams) uses it to show `starting` until a stream's first item arrives. Other functions in the module:
+[Streams](/streams) uses `getOrElse` to show `starting` until a stream's first item arrives. Other functions in the module:
 
 | Function | Does |
 | --- | --- |
 | `AsyncResult.isSuccess`, `isFailure`, `isInitial` | Check the state, narrowing the type. |
 | `AsyncResult.value` | The value, or the last successful one, as an `Option`. |
 | `AsyncResult.error` | The typed error of a `Failure`, as an `Option`. |
+| `AsyncResult.matchWithError` | Like `match`, but a `Failure` goes to `onError` with its typed error, or to `onDefect` when it has none. |
+| `AsyncResult.matchWithWaiting` | Like `matchWithError`, with `onWaiting` for `Initial` and for any result that is `waiting`. |
+| `AsyncResult.builder` | Handles one case at a time, as in `AsyncResult.builder(result).onSuccess(f).onErrorTag("NotFound", g).orNull()`. |
 | `AsyncResult.map` | Transform the value of a `Success`, as in `result.pipe(AsyncResult.map(f))`. |
 | `AsyncResult.all` | Combine several results into one, which succeeds only when all of them have. |
 

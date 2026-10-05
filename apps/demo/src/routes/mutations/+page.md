@@ -21,9 +21,9 @@ description: Run an Effect when the user does something, and refresh what it cha
 
 An async atom runs its effect when something reads it. A **mutation** runs its effect when you write to it, such as saving a form or deleting a row. Its state is an `AsyncResult`, so a component can show that a save is in progress, what it returned, or why it failed.
 
-This form adds a todo to the demo server over [RPC](/rpc). Under it, the mutation's type lights up the way the last call ended, and its state follows each call:
+This form saves a todo with a pretend save that takes a second. Under it, the mutation's type lights up the way the last call ended, and its state follows each call:
 
-<Example files={[{ html: addTodoSource, name: "add-todo.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
+<Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
 ## Creating a mutation
 
@@ -39,9 +39,19 @@ const saveAtom = Atom.fn((todo: Todo) => saveTodo(todo));
 
 Writing an argument to the atom runs the effect. Reading the atom gives its `AsyncResult`: `Initial` before the first call, then `waiting` while a call runs, then `Success` or `Failure`.
 
-If you write again while a call is still running, the new call interrupts the old one. Pass `{ concurrent: true }` as `Atom.fn`'s second argument to let calls run side by side; the next section shows what the mutation's result is then.
+If you write again while a call is still running, the new call interrupts the old one.
 
-`AtomRpc` and `AtomHttpApi` make mutations for you. The example's `TodosRpc.mutation("createTodo")`, in `todos.ts`, is an `Atom.fn` that sends one `createTodo` request per write, with the payload as its argument.
+The function also receives `get`, as its second argument. In a mutation, `get(atom)` reads an atom's current value without subscribing to it, so a change to that atom doesn't run the mutation again. `get.set(atom, value)` writes to an atom, and `get.result(atom)` is an effect that gives an async atom's value once it has one, or fails with its error:
+
+**Example** (Reading another atom when the call starts)
+
+```ts
+const saveAtom = Atom.fn((todo: Todo, get) =>
+  saveTodo(todo, { draft: get(draftModeAtom) })
+);
+```
+
+The example under [Waiting for the result](#waiting-for-the-result) reads its **Fail the save** switch this way.
 
 ## Calling it from a component
 
@@ -62,7 +72,7 @@ If you write again while a call is still running, the new call interrupts the ol
 
 ## Showing a typed failure
 
-A form wants to know how its save ended, so it can clear itself or say what went wrong. With `mode: "promiseExit"` the setter returns a promise of the call's `Exit`, which never rejects. The demo server fails `createTodo` with a typed `TitleTooLong` error when the title is over 60 characters. To say what went wrong, find the typed error in the `Cause`:
+A form wants to know how its save ended, so it can clear itself or say what went wrong. With `mode: "promiseExit"` the setter returns a promise of the call's `Exit`, which never rejects. The example's save fails with a typed `TitleTooLong` error when the title is over 60 characters. To say what went wrong, find the typed error in the `Cause`:
 
 **Example** (Keeping the input when the save fails)
 
@@ -70,15 +80,20 @@ A form wants to know how its save ended, so it can clear itself or say what went
 const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
 const submit = async () => {
-  const exit = await create({ payload: { title } });
+  const exit = await create(title);
   if (Exit.isSuccess(exit)) {
     title = "";
     return;
   }
-  const failure = Cause.findErrorOption(exit.cause);
-  // failure.value is TitleTooLong | RpcClientError, so checking _tag narrows it.
+  const error = Cause.findErrorOption(exit.cause);
+  // None when the call was interrupted or died, rather than failing.
+  if (Option.isSome(error)) {
+    message = `Keep it to ${error.value.max} characters.`;
+  }
 };
 ```
+
+With several kinds of error, `error.value` is their union, and checking its `_tag` narrows it.
 
 Only success clears `title`, so after a failure the form still holds what the reader typed. The mutation's own state is a `Failure` too: the example at the top shows its cause rather than reading the `Exit`.
 
@@ -86,7 +101,7 @@ Only success clears `title`, so after a failure the form still holds what the re
 
 The `mode` option decides what calling the setter gives back. Below, one slow mutation is called three ways, one per column, and each column lists what its calls gave back. The mutation's own state, with Cancel and Reset, is underneath:
 
-<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click Call in each column: save(n) returns at once, the two promises wait a second and a half. Click Call twice: the second call interrupts the first, and both promises settle with the second call's result. Then turn on concurrent: true and call twice again: neither call is interrupted, and both settle, together, with the first call's result."> <div data-testid="modes-example"><Modes /></div> </Example>
+<Example files={[{ html: modesSource, name: "modes.svelte" }]} hint="Click Call in each column: save(n) returns at once, the two promises wait a second and a half. Click Call twice: the second call interrupts the first, and both promises settle with the second call's result. Then turn on Fail the save and call again."> <div data-testid="modes-example"><Modes /></div> </Example>
 
 | `mode` | The setter returns |
 | --- | --- |
@@ -94,7 +109,15 @@ The `mode` option decides what calling the setter gives back. Below, one slow mu
 | `"promise"` | A promise of the value. It rejects with the error if the effect fails. |
 | `"promiseExit"` | A promise of the `Exit`, the effect's success or its failure with a [`Cause`](/effect-basics#exit-and-cause), which never rejects. |
 
-The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result: click **Call twice** in a promise column and both lines resolve with the second draft. With `{ concurrent: true }`, the first call isn't interrupted: both run to the end. The mutation then settles once every running call has finished, with the result of the oldest, so both promises still get the same value: turn on **concurrent: true** and call twice, and both lines show the first call's draft.
+The promise settles with the mutation's next result. If a second call interrupts the first, both promises settle with the second call's result: click **Call twice** in a promise column and both lines resolve with the second draft.
+
+Pass `{ concurrent: true }` as `Atom.fn`'s second argument, and a new call doesn't interrupt the one in flight: both run to the end.
+
+<Aside type="caution" title="Concurrent calls share one result">
+
+A concurrent mutation still has one result. Each new call waits for every call already running, and the mutation settles with the result of the oldest. So every caller's promise gets the oldest call's result, not its own.
+
+</Aside>
 
 To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted, but the mutation itself keeps running.
 
@@ -102,9 +125,11 @@ To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(to
 
 With `"promise"` or `"promiseExit"`, a mutation still running when its component is destroyed runs to the end, because the promise keeps the atom alive. With the default mode nothing does, so the registry disposes of the atom and interrupts the call. Navigating away mid-save then abandons the save.
 
+To keep a mutation whatever the mode, make it with `Atom.keepAlive`, as in `Atom.fn(saveTodo).pipe(Atom.keepAlive)`. The registry then never disposes of it, so its calls finish and its last result stays.
+
 </Aside>
 
-### Cancelling and resetting
+### Canceling and resetting
 
 Write `Atom.Interrupt` to a mutation to interrupt the call in flight, and `Atom.Reset` to put it back to `Initial`:
 
@@ -116,6 +141,14 @@ setSave(Atom.Reset);
 ```
 
 After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
+
+## Mutations from RPC and HTTP APIs
+
+`AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are the same thing, made for you: `TodosRpc.mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
+
+The rest of this page uses the demo server's todos over RPC, from `todos.ts`:
+
+<Example files={[{ html: todosSource, name: "todos.ts" }]} />
 
 ## Refreshing what changed
 

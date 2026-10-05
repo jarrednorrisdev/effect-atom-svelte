@@ -14,15 +14,14 @@
   };
 
   // One atom per side, so a refresh on one side doesn't hold up the other.
-  const plainAtom = makeSlowAtom();
-  const waitingAtom = makeSlowAtom();
+  export const plainAtom = makeSlowAtom();
+  export const waitingAtom = makeSlowAtom();
 </script>
 
 <script lang="ts">
   import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
-  import Trace from "./trace.svelte";
 
   const plain = useAtomSuspense(plainAtom);
   const waiting = useAtomSuspense(waitingAtom, { suspendOnWaiting: true });
@@ -52,13 +51,6 @@
         <ResultChip kind="message" tone="running">Loading…</ResultChip>
       {/snippet}
     </svelte:boundary>
-    <!-- The atom's AsyncResult, and when the await resolved. -->
-    <Trace
-      atom={plainAtom}
-      mode="default"
-      name="plainAtom"
-      read={() => plain.current}
-    />
   </Part>
 
   <Part
@@ -80,11 +72,5 @@
         <ResultChip kind="message" tone="running">Loading…</ResultChip>
       {/snippet}
     </svelte:boundary>
-    <Trace
-      atom={waitingAtom}
-      mode="suspendOnWaiting"
-      name="waitingAtom"
-      read={() => waiting.current}
-    />
   </Part>
 </div>

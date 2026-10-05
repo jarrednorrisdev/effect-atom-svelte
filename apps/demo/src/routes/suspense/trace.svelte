@@ -4,14 +4,16 @@
   own `AsyncResult` as the registry has it, and what the side's `await` resolved with, on a
   timeline and in a log, timed from the latest refresh.
 
-  It reads the registry directly, not through Svelte: while a boundary waits, Svelte holds back
-  every change in the same update, and this shows what happens meanwhile. Each entry is written in
-  a task of its own (`setTimeout`), so it is a separate update that Svelte shows at once.
+  It reads the atom with a `useAtomSuspense` of its own, in the side's mode, so its await resolves
+  when the side's does. It follows the registry directly, not through Svelte: while a boundary
+  waits, Svelte holds back every change in the same update, and this shows what happens meanwhile.
+  Each entry is written in a task of its own (`setTimeout`), so it is a separate update that Svelte
+  shows at once.
 -->
 <script lang="ts">
   import type { Atom } from "effect/reactivity";
   import { AsyncResult } from "effect/reactivity";
-  import { useAtomSubscribe } from "effect-atom-svelte";
+  import { useAtomSubscribe, useAtomSuspense } from "effect-atom-svelte";
   import type { HTMLAttributes } from "svelte/elements";
 
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
@@ -27,11 +29,15 @@
     readonly mode: "default" | "suspendOnWaiting";
     /** The atom's name, as the example calls it. */
     readonly name: string;
-    /** The promise the side's boundary awaits right now. */
-    readonly read: () => Promise<string>;
   }
 
-  const { atom, mode, name, read, ...rest }: Props = $props();
+  const { atom, mode, name, ...rest }: Props = $props();
+
+  // Read the way the side reads it, so its promises resolve when the side's do.
+  // svelte-ignore state_referenced_locally
+  const suspendOnWaiting = mode === "suspendOnWaiting";
+  const awaited = useAtomSuspense(() => atom, { suspendOnWaiting });
+  const read = () => awaited.current;
 
   const example = getExampleState();
   const log = new EventLogState();
