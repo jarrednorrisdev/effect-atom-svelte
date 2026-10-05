@@ -10,10 +10,13 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "motion",
+      "@lucide/svelte/icons/bug",
       "@lucide/svelte/icons/check",
       "@lucide/svelte/icons/circle",
       "@lucide/svelte/icons/circle-alert",
       "@lucide/svelte/icons/loader-circle",
+      "@lucide/svelte/icons/octagon-x",
+      "@lucide/svelte/icons/trash-2",
       "@lucide/svelte/icons/x",
     ],
   },
