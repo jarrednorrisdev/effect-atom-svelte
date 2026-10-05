@@ -8,6 +8,7 @@ import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
+import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import {
   resetRevalidate,
@@ -21,6 +22,8 @@ import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
+import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
+import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
@@ -449,6 +452,30 @@ describe("hydrating server output", () => {
       await expect.poll(outputs(target)).toEqual(["server", "server"]);
       await sleep(afterFetch);
       expect(queryFetches.count).toBe(0);
+    });
+  });
+
+  describe("a serializable atom read inside a boundary with a pending snippet (JND-86)", () => {
+    test("with the hook outside the boundary, the browser uses the server's embedded result", async () => {
+      pendingBoundaryComputed.length = 0;
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-pending-boundary.svelte",
+        SsrPendingBoundary
+      );
+
+      await expect.poll(outputs(target)).toEqual(["from the server"]);
+      expect(pendingBoundaryComputed).toEqual([]);
+    });
+
+    test("with the hook in a component inside the boundary, the browser fetches it", async () => {
+      pendingBoundaryComputed.length = 0;
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-pending-boundary-child.svelte",
+        SsrPendingBoundaryChild
+      );
+
+      await expect.poll(outputs(target)).toEqual(["from the browser"]);
+      expect(pendingBoundaryComputed).toEqual(["browser"]);
     });
   });
 
