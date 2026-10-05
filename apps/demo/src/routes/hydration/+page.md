@@ -114,7 +114,7 @@ The example reads three atoms that record where they ran. All three were in the 
 
 ## Streams on the server
 
-A [stream atom](/streams) read with `useAtomResult` or `useAtomSuspense` is in the page with the latest item it had when the render ended, marked as waiting. The server's stream stops with its registry, so the browser runs the stream again. Until the browser's first item arrives, the page keeps showing the server's, so it doesn't flash a loading state. To keep a stream off the server, see [Keep browser-only streams off the server](/streams).
+A [stream atom](/streams) read with `useAtomResult` or `useAtomSuspense` is in the page with the latest item it had when the render ended, marked as waiting. The server's stream stops with its registry, so the browser runs the stream again. Until the browser's first item arrives, the page keeps showing the server's, so it doesn't flash a loading state. To keep a stream off the server, see [Server values](/server-rendering#server-values).
 
 ## Running again after hydration
 

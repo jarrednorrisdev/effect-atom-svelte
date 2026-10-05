@@ -76,7 +76,7 @@ If a component is inside more than one provider, `use` returns the nearest one's
 Both give you more than one atom from one definition. Choose by where the atom belongs:
 
 - A [family](/families) is keyed by a value. Any component can ask for `todoAtom(1)` and gets the same atom wherever it asks.
-- A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested panels above show.
+- A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested editors above show.
 
 Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
 

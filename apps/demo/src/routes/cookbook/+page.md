@@ -88,7 +88,7 @@ To run an atom again on a timer, refresh it whenever a signal atom changes. `Ato
 
 <Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds. Add a todo in the form above, and the count catches up on the next one."> <Polling /> </Example>
 
-The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. Add a todo in the form above, and the count catches up on the next tick. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
+The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
 
 ## A WebSocket or server-sent events
 

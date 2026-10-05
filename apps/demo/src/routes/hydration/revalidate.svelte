@@ -27,7 +27,8 @@
   const kept = await useAtomResult(keptAtom);
   // Runs again in the browser. It hydrates with the server's result, marked as waiting, then
   // switches to the browser's.
-  const fresh = await useAtomResult(freshAtom, { revalidateOnHydrate: true });</script>
+  const fresh = await useAtomResult(freshAtom, { revalidateOnHydrate: true });
+</script>
 
 <RevalidateParts fresh={fresh.current} kept={kept.current} />
 <p><button onclick={() => location.reload()}>Reload the page</button></p>
