@@ -35,4 +35,6 @@ cd apps/demo && bunx playwright test --repeat-each 20            # each test 20 
 
 ## Tracking work
 
-Work is tracked in the [effect-atom-svelte project](https://linear.app/jarrednorrisdev/project/effect-atom-svelte-a13e42344ff4) in the personal Linear workspace (team JND; the `linearis` CLI reaches it). Reference issues as `JND-<n>` in commits and changesets.
+Report bugs and suggest changes in [GitHub issues](https://github.com/jarrednorrisdev/effect-atom-svelte/issues). A change to the library needs a changeset (`bun run changeset`); CI checks for one on every pull request. [.changeset/README.md](.changeset/README.md) covers how releases are published.
+
+The maintainer tracks work in a private Linear workspace, so commits, changesets and code comments refer to issues as `JND-<n>`. Those links only open for the maintainer; the commit or comment around a reference says what it was about.
