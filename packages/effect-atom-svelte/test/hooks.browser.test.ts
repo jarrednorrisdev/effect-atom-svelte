@@ -557,7 +557,7 @@ describe("mounting and lifecycle", () => {
     await expect.element(output(page)).toHaveTextContent("7");
   });
 
-  test("useAtomInitialValues lets go of its atoms on unmount", async () => {
+  test("useAtomInitialValues holds its atoms without computing them, and lets go on unmount", async () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];
     const atom = trackedAtom(log);
@@ -569,9 +569,31 @@ describe("mounting and lifecycle", () => {
       },
       show: true,
     });
-    await expect.poll(() => log).toEqual(["start"]);
+    await sleep("50 millis");
+    expect(log).toEqual([]);
+    expect(registry.getNodes().has(atom)).toBe(true);
     await screen.rerender({ show: false });
-    await expect.poll(() => log).toEqual(["start", "stop"]);
+    await expect.poll(() => registry.getNodes().has(atom)).toBe(false);
+    expect(log).toEqual([]);
+  });
+
+  test("useAtomInitialValues applies again to a remounted component once its atom was disposed", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(0);
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.element(output(screen)).toHaveTextContent("7");
+    await screen.rerender({ show: false });
+    await expect.poll(() => registry.getNodes().has(atom)).toBe(false);
+    await screen.rerender({ show: true });
+    await expect.element(output(screen)).toHaveTextContent("7");
   });
 });
 

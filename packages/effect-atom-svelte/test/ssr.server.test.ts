@@ -488,6 +488,32 @@ describe("server rendering", () => {
     registry.dispose();
   });
 
+  test("an initial value starts a browser-only atom on the server without computing it", async () => {
+    let computed = 0;
+    const theme = Atom.make((): string => {
+      computed += 1;
+      throw new Error("localStorage is not defined");
+    });
+    const { body } = await renderSetup(() => {
+      useAtomInitialValues([[theme, "dark"]]);
+      const value = useAtomValue(theme);
+      return () => value.current;
+    });
+    expect(body).toContain("<output>dark</output>");
+    expect(computed).toBe(0);
+  });
+
+  test("an initial value nothing reads leaves its async atom unstarted on the server", async () => {
+    let fetched = 0;
+    const user = Atom.make(Effect.sync(() => (fetched += 1)));
+    const { body } = await renderSetup(() => {
+      useAtomInitialValues([[user, AsyncResult.success(0)]]);
+      return () => "layout";
+    });
+    expect(body).toContain("<output>layout</output>");
+    expect(fetched).toBe(0);
+  });
+
   test("repeated renders leave nothing behind (JND-21)", async () => {
     const cycles = 10;
     const log: string[] = [];

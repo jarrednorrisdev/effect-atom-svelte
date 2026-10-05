@@ -136,7 +136,7 @@ An atom's value lives in a registry, and the registry only keeps it while someth
 
 The opposite can surprise too:
 
-- **`useAtomInitialValues` applied only once.** It sets each atom once per registry. A component that mounts again, or gets a new prop, doesn't set it again. Write the atom with `useAtomSet` when the prop changes. On the server, each request sets them again, even on a registry shared between requests.
+- **`useAtomInitialValues` applied only once.** It sets each atom once while the atom is held. A component that mounts again while something still holds the atom, or gets a new prop, doesn't set it again; once the atom has been disposed, the next component to mount sets it again. Write the atom with `useAtomSet` when the prop changes. On the server, each request sets them again, even on a registry shared between requests.
 - **Kept atoms pile up.** `Atom.keepAlive` keeps an atom for the registry's whole life. In a family, every key is an atom of its own, so each key ever used stays. Prefer an idle TTL there. See [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 
 ## Relative URLs on the server

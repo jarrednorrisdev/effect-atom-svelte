@@ -152,6 +152,57 @@ const valueOrThrow = <A, E>(exit: Exit.Exit<A, E>): A => {
 const hasServerValue = (atom: Atom.Atom<unknown>): boolean =>
   Atom.ServerValueTypeId in atom;
 
+/** The parts of the registry implementation's nodes the hooks use. */
+interface RegistryNode {
+  readonly canBeRemoved: boolean;
+  /** Whether the node holds an initial value its first build will keep. */
+  readonly preserveInitialValueOnBuild: boolean;
+  readonly _value: unknown;
+  readonly setValue: (value: unknown) => void;
+  readonly setInitialValue: (value: unknown) => void;
+  readonly subscribe: (listener: () => void) => () => void;
+}
+
+/** The parts of the registry implementation the hooks use. */
+interface RegistryInternals {
+  readonly ensureNode: (atom: Atom.Atom<unknown>) => RegistryNode;
+  readonly scheduleNodeRemoval: (node: RegistryNode) => void;
+}
+
+// SAFETY: ensureNode and scheduleNodeRemoval are on the registry implementation, not the interface
+// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way.
+const internals = (registry: AtomRegistry.AtomRegistry): RegistryInternals =>
+  registry as unknown as RegistryInternals;
+
+/** The atom that holds a value given to `atom`: a wrapper such as `withRefresh` passes it on. */
+const initialValueTarget = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> => {
+  let target = atom;
+  while (target.initialValueTarget) {
+    target = target.initialValueTarget;
+  }
+  return target;
+};
+
+const noop = (): void => undefined;
+
+/**
+ * Keeps an atom's node in the registry without computing it, as a mount would but without the read.
+ * The registry sweeps a node without listeners, so a listener holds it; letting go schedules the
+ * sweep, as an unsubscribe does.
+ */
+const holdNode = (
+  registry: RegistryInternals,
+  node: RegistryNode
+): (() => void) => {
+  const unsubscribe = node.subscribe(noop);
+  return () => {
+    unsubscribe();
+    if (node.canBeRemoved) {
+      registry.scheduleNodeRemoval(node);
+    }
+  };
+};
+
 const awaitResult = <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
@@ -178,17 +229,26 @@ const subscribedReader = <A>(
     // await, keeps it for the request. The mounts are released in onDestroy, which runs when the
     // server render ends, because a registry passed in by the caller outlives the request (JND-17).
     // An atom with a withServerValue override is never computed on the server, so it is not mounted:
-    // mounting would run its real read, which is often browser-only.
+    // mounting would run its real read, which is often browser-only. Nor is one that holds a value
+    // from useAtomInitialValues: the server renders that value, which is what the atom's first build
+    // would keep, without running a read that may be browser-only or start a request.
     const releases: (() => void)[] = [];
     onDestroy(() => {
       for (const release of releases) {
         release();
       }
     });
+    const nodes = internals(registry);
     const mount = (atom: Atom.Atom<A>) => {
-      if (!hasServerValue(atom)) {
-        releases.push(registry.mount(atom));
+      if (hasServerValue(atom)) {
+        return atom;
       }
+      const node = nodes.ensureNode(atom);
+      releases.push(
+        node.preserveInitialValueOnBuild
+          ? holdNode(nodes, node)
+          : registry.mount(atom)
+      );
       return atom;
     };
     let mounted = mount(getAtom());
@@ -196,6 +256,12 @@ const subscribedReader = <A>(
       const atom = getAtom();
       if (atom !== mounted) {
         mounted = mount(atom);
+      }
+      if (!hasServerValue(atom)) {
+        const node = nodes.ensureNode(atom);
+        if (node.preserveInitialValueOnBuild) {
+          return node._value as A;
+        }
       }
       return Atom.getServerValue(atom, registry);
     };
@@ -609,56 +675,27 @@ const setNodeValue = (
   atom: Atom.Atom<unknown>,
   value: unknown
 ): void => {
-  // SAFETY: ensureNode is on the registry implementation, not the interface (Effect 4.0.0);
-  // @effect/atom-react uses it the same way.
-  (
-    registry as unknown as {
-      ensureNode: (atom: Atom.Atom<unknown>) => {
-        setValue: (value: unknown) => void;
-      };
-    }
-  )
-    .ensureNode(atom)
-    .setValue(value);
+  internals(registry).ensureNode(atom).setValue(value);
 };
 
-/**
- * Gives an atom a starting value as `AtomRegistry.make({ initialValues })` does: on the atom that
- * receives it (a wrapper such as `withRefresh` passes it to its source), kept as the value of the
- * node's first build, which still reads and follows the atom's sources.
- */
-const setInitialValue = (
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<unknown>,
-  value: unknown
-): void => {
-  let target = atom;
-  while (target.initialValueTarget) {
-    target = target.initialValueTarget;
-  }
-  // SAFETY: ensureNode is on the registry implementation, not the interface (Effect 4.0.0), as
-  // in setNodeValue.
-  (
-    registry as unknown as {
-      ensureNode: (atom: Atom.Atom<unknown>) => {
-        setInitialValue: (value: unknown) => void;
-      };
-    }
-  )
-    .ensureNode(target)
-    .setInitialValue(value);
-};
-
-const initialValuesApplied = new WeakMap<
-  AtomRegistry.AtomRegistry,
-  WeakSet<Atom.Atom<unknown>>
->();
+// The nodes given a value by useAtomInitialValues. A node belongs to one registry, and a node the
+// registry sweeps is gone from here too, so the next component to start it gives it the value again.
+const initialValuesApplied = new WeakSet<RegistryNode>();
 
 /**
- * Sets starting values once per registry, as `AtomRegistry.make({ initialValues })` would. The
- * atoms are mounted while the component lives, so a value set in a layout is still there when a
- * page reads it later; mounting an atom computes it, as reading it would. On the server the
- * record lasts one render, so each request against a shared registry applies its own values.
+ * Sets starting values as `AtomRegistry.make({ initialValues })` would: on the atom that receives it
+ * (a wrapper such as `withRefresh` passes it to its source), kept as the value of the atom's first
+ * build, which still reads and follows the atom's sources. The atoms are not computed here: each
+ * keeps its value, uncomputed, while this component lives, and the first component to read it
+ * computes it from there, so a value set in a layout is still there when a page reads it later, and
+ * an atom that can only compute in the browser can start from a value on the server.
+ *
+ * A value applies once while the atom is held, so a component mounted later, or a second
+ * component with its own value, does not overwrite a value the atom has moved on from. Once nothing
+ * holds the atom and the registry disposes it, the next component to start it applies its value
+ * again. On the server a value lasts one render, so each request against a shared registry applies
+ * its own; requests rendering at the same time share the registry's atoms, and with them the value
+ * the first one applied.
  *
  * **Example** (Starting an atom from a prop)
  *
@@ -680,29 +717,20 @@ const initialValuesApplied = new WeakMap<
 export const useAtomInitialValues = (
   initialValues: Iterable<readonly [Atom.Atom<unknown>, unknown]>
 ): void => {
-  const registry = getRegistry();
-  let applied = initialValuesApplied.get(registry);
-  if (!applied) {
-    applied = new WeakSet();
-    initialValuesApplied.set(registry, applied);
-    if (!BROWSER) {
-      // A registry passed in by the caller outlives the request, and the next request's values must
-      // apply too. onDestroy runs when the server render ends.
-      onDestroy(() => initialValuesApplied.delete(registry));
-    }
-  }
+  const registry = internals(getRegistry());
   const releases: (() => void)[] = [];
   for (const [atom, value] of initialValues) {
-    if (!applied.has(atom)) {
-      applied.add(atom);
-      setInitialValue(registry, atom, value);
+    const node = registry.ensureNode(initialValueTarget(atom));
+    if (!initialValuesApplied.has(node)) {
+      initialValuesApplied.add(node);
+      node.setInitialValue(value);
+      if (!BROWSER) {
+        // A registry passed in by the caller outlives the request, and its node may not be swept
+        // before the next request starts, whose value must apply too (JND-17).
+        releases.push(() => initialValuesApplied.delete(node));
+      }
     }
-    // Held, or the registry sweeps a node nothing has read yet and the value is lost for good, as
-    // it is recorded as applied. As in subscribedReader, the server never computes an atom with a
-    // server value.
-    if (BROWSER || !hasServerValue(atom)) {
-      releases.push(duringRead(() => registry.mount(atom)));
-    }
+    releases.push(holdNode(registry, node));
   }
   onTeardown(() => {
     for (const release of releases) {
@@ -839,10 +867,7 @@ const applySeed = (
   value: unknown,
   revalidate: boolean
 ): void => {
-  let target = atom;
-  while (target.initialValueTarget) {
-    target = target.initialValueTarget;
-  }
+  const target = initialValueTarget(atom);
   setNodeValue(registry, target, value);
   // Released at once, so the registry sweeps the node if the atom is not mounted soon.
   registry.mount(target)();
