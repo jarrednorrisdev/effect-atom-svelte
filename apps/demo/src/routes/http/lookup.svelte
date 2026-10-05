@@ -27,10 +27,17 @@
   };
 </script>
 
-<label>
-  Todo id
-  <input bind:value={id} data-testid="http-id" min="1" type="number" />
-</label>
+<p class="flex flex-wrap items-center gap-2">
+  <label>
+    Todo id
+    <input bind:value={id} data-testid="http-id" min="1" type="number" />
+  </label>
+  {#each [1, 2, 99] as option (option)}
+    <button aria-pressed={id === option} onclick={() => (id = option)}>
+      {option}
+    </button>
+  {/each}
+</p>
 
 <svelte:boundary>
   {@const result = await todo.current}

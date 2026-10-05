@@ -22,10 +22,10 @@
   import { AsyncResult } from "effect/reactivity";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
   import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import Chunks from "#lib/docs/kit/chunks.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
-  import Chunks from "./chunks.svelte";
 
   let accumulate = $state(true);
   const atom = () => (accumulate ? fruitAtom : latestPageAtom);
@@ -60,7 +60,7 @@
 {#if latest}
   <!-- Groups the items by the pull that brought them. -->
   {#key accumulate}
-    <Chunks end={ending} items={latest.items} />
+    <Chunks data-testid="fruit" end={ending} items={latest.items} />
   {/key}
   <p class="flex flex-wrap items-center gap-3">
     <button disabled={ended || page.current.waiting} onclick={() => loadMore()}>

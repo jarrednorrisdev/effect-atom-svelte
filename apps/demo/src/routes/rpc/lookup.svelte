@@ -1,8 +1,6 @@
 <script lang="ts">
-  import type { TodoNotFound } from "@demo/domain";
-  import { Cause, Match, Option } from "effect";
-  import type { RpcClientError } from "effect/rpc";
   import { useAtomSuspense } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosRpc } from "#lib/clients.ts";
@@ -14,43 +12,33 @@
   const todo = useAtomSuspense(() => TodosRpc.query("getTodo", { id }), {
     includeFailure: true,
   });
-
-  type LookupError = TodoNotFound | RpcClientError.RpcClientError;
-
-  // Find the typed error and match its _tag. A defect or an interruption has none.
-  const describe = (cause: Cause.Cause<LookupError>) => {
-    const error = Cause.findErrorOption(cause);
-    if (Option.isNone(error)) {
-      return "Something went wrong.";
-    }
-    return Match.valueTags(error.value, {
-      RpcClientError: (e) => `Could not reach the server: ${e.message}`,
-      TodoNotFound: (e) => `TodoNotFound: there is no todo ${e.id}`,
-    });
-  };
 </script>
 
-<select bind:value={id} data-testid="rpc-select">
-  <option value={1}>Todo 1</option>
-  <option value={2}>Todo 2</option>
-  <option value={99}>Todo 99, which doesn't exist</option>
-</select>
+<div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
+  {#each [1, 2, 99] as option (option)}
+    <button aria-pressed={id === option} onclick={() => (id = option)}>
+      Todo {option}
+    </button>
+  {/each}
+</div>
 
 <svelte:boundary>
   {@const result = await todo.current}
   <!-- $effect.pending() counts the boundary's unfinished awaits: the next todo. -->
   {@const busy = $effect.pending() > 0}
-  <p>
+  {@const call = `query("getTodo", { id: ${id} })`}
+  <div class="mt-3">
     {#if result._tag === "Success"}
-      <ResultChip {busy} kind="message" label="getTodo" tone="success">
+      <ResultChip {busy} kind="message" label={call} tone="success">
         <span data-testid="rpc-selected">{result.value.title}</span>
       </ResultChip>
     {:else}
-      <ResultChip {busy} kind="message" label="getTodo" tone="failure">
-        <span data-testid="rpc-selected">{describe(result.cause)}</span>
-      </ResultChip>
+      <!-- Todo 99 doesn't exist: the procedure fails with its typed TodoNotFound. -->
+      <div aria-busy={busy}>
+        <CauseView cause={result.cause} code data-testid="rpc-selected" label={call} />
+      </div>
     {/if}
-  </p>
+  </div>
   {#snippet pending()}
     <p>
       <ResultChip kind="message" label="getTodo" tone="running">Loading…</ResultChip>

@@ -1,31 +1,39 @@
 <!--
-  The fruit example's items, grouped by the pull that brought them: each time `items` grows, the
-  new ones are a chunk. When `items` is replaced instead (disableAccumulation), the new items are
-  the only chunk. The pull that finds the end brings an empty one. Not part of the example's code.
+  @component
+  A pull atom's items, grouped by the pull that brought them: each time `items` grows, the new
+  ones are a chunk. When `items` is replaced instead (disableAccumulation), the new items are the
+  only chunk. Once `end` is set, the pull that found the end shows as an empty one.
+
+  ```svelte
+  <Chunks end={done ? "done" : undefined} items={page.value.items} />
+  ```
+
+  Other attributes go on the list.
 -->
 <script lang="ts">
   import { untrack } from "svelte";
+  import type { HTMLOlAttributes } from "svelte/elements";
 
-  interface Props {
+  interface Props extends HTMLOlAttributes {
     /** How the pull that found the end ended, once one has: "done", or an error. */
     readonly end?: string | undefined;
-    readonly items: readonly string[];
+    readonly items: readonly unknown[];
   }
 
   interface Chunk {
     readonly end?: string | undefined;
-    readonly items: readonly string[];
+    readonly items: readonly unknown[];
     readonly pull: number;
   }
 
-  const { end, items }: Props = $props();
+  const { end, items, ...rest }: Props = $props();
 
   let chunks = $state<Chunk[]>([]);
   let pulls = 0;
-  let seen: readonly string[] = [];
+  let seen: readonly unknown[] = [];
   let wasEnded = false;
 
-  const track = (now: readonly string[], ending: string | undefined) => {
+  const track = (now: readonly unknown[], ending: string | undefined) => {
     const grew = now.length > seen.length && seen.every((item, i) => now[i] === item);
     if (grew) {
       pulls += 1;
@@ -49,12 +57,12 @@
   });
 </script>
 
-<ol class="chunks not-prose" data-testid="fruit">
+<ol class="chunks not-prose" {...rest}>
   {#each chunks as chunk (chunk.pull)}
     <li aria-label="Pull {chunk.pull}">
       <span class="pull">pull {chunk.pull}</span>
-      {#each chunk.items as item (item)}
-        <output>{item}</output>
+      {#each chunk.items as item, index (index)}
+        <output>{String(item)}</output>
       {:else}
         <span class="nothing">nothing: {chunk.end}</span>
       {/each}

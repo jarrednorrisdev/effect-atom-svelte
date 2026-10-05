@@ -12,18 +12,20 @@
 </script>
 
 <script lang="ts">
-  import { SvelteSet } from "svelte/reactivity";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import { isAddedTodo, type TitleTooLong } from "@demo/domain";
-  import { Cause, Exit, Match, Option } from "effect";
-  import type { RpcClientError } from "effect/rpc";
+  import { isAddedTodo } from "@demo/domain";
+  import { Exit } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import { SvelteSet } from "svelte/reactivity";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   // Server rendering waits for the list.
   const todos = await useAtomResult(todosAtom);
+  // For the list's counter: each time the query fetches from the browser.
+  const requests = new RequestCount(() => todosAtom);
 
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
@@ -42,21 +44,6 @@
   };
 
   let draft = $state("");
-  let error = $state("");
-
-  // A title that is too long fails with the RPC's typed error, TitleTooLong.
-  const describe = (
-    cause: Cause.Cause<TitleTooLong | RpcClientError.RpcClientError>
-  ) => {
-    const failure = Cause.findErrorOption(cause);
-    if (Option.isNone(failure)) {
-      return "Something went wrong.";
-    }
-    return Match.valueTags(failure.value, {
-      RpcClientError: (e) => `Could not reach the server: ${e.message}`,
-      TitleTooLong: (e) => `TitleTooLong: the limit is ${e.maxLength} characters`,
-    });
-  };
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -64,15 +51,12 @@
     const exit = await create({ payload: { title: draft }, reactivityKeys: ["todos"] });
     if (Exit.isSuccess(exit)) {
       draft = "";
-      error = "";
-    } else {
-      error = describe(exit.cause);
     }
   };
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part code label="query listTodos">
+  <Part code count={requests.current} countLabel="requests" label="query listTodos">
     <StateBadge data-testid="rpc-todos-state" result={todos.current} sound={false} />
     {#if todos.current._tag === "Success"}
       <ul
@@ -106,7 +90,7 @@
         {/each}
       </ul>
     {:else if todos.current._tag === "Failure"}
-      <p>Could not load the todos: {Cause.pretty(todos.current.cause)}</p>
+      <CauseView cause={todos.current.cause} />
     {/if}
   </Part>
 
@@ -120,11 +104,15 @@
       />
       <button data-testid="rpc-add" disabled={creating.current.waiting}>Add</button>
     </form>
-    <p><StateBadge data-testid="rpc-add-state" result={creating.current} /></p>
-    {#if error}
-      <ResultChip kind="message" tone="failure">
-        <span data-testid="rpc-error">{error}</span>
-      </ResultChip>
+    <p class="flex flex-wrap items-center gap-2">
+      <button onclick={() => (draft = "x".repeat(70))} type="button">
+        Paste a long title
+      </button>
+      <StateBadge data-testid="rpc-add-state" result={creating.current} />
+    </p>
+    <!-- TitleTooLong is the procedure's typed error. -->
+    {#if creating.current._tag === "Failure"}
+      <CauseView cause={creating.current.cause} data-testid="rpc-error" />
     {/if}
   </Part>
 </div>

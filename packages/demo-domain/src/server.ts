@@ -97,7 +97,7 @@ const RpcHandlers = TodosRpcs.toLayer(
       listTodos: () => store.list(),
       removeTodo: ({ id }) => store.remove(id),
       ticks: ({ count }) =>
-        Stream.fromSchedule(Schedule.spaced("200 millis")).pipe(
+        Stream.fromSchedule(Schedule.spaced("500 millis")).pipe(
           Stream.take(count)
         ),
       toggleTodo: ({ id }) => store.toggle(id),

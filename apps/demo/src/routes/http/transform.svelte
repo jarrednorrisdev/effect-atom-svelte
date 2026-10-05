@@ -46,39 +46,29 @@
 </script>
 
 <script lang="ts">
-  import { Option } from "effect";
-  import { AsyncResult } from "effect/reactivity";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const todo = useAtomValue(getTodoAtom);
   const getTodo = useAtomSet(getTodoAtom);
-
-  const describe = (result: AsyncResult.AsyncResult<unknown, { _tag: string }>) =>
-    Option.match(AsyncResult.error(result), {
-      onNone: () => "Something went wrong.",
-      onSome: (error) => `Failed with ${error._tag}`,
-    });
 </script>
 
-<p class="flex flex-wrap gap-2">
+<p class="flex flex-wrap items-center gap-2">
   <button data-cue="start" onclick={() => getTodo(1)}>Get todo 1</button>
   <button data-cue="start" onclick={() => getTodo(99)}>Get todo 99</button>
-</p>
-<div class="flex flex-wrap items-baseline gap-3">
-  {#if todo.current._tag === "Success"}
-    <ResultChip kind="message" label="getTodoAtom" tone="success">
-      <span data-testid="signed-todo">{todo.current.value.title}</span>
-    </ResultChip>
-  {:else if todo.current._tag === "Failure"}
-    <ResultChip kind="message" label="getTodoAtom" tone="failure">
-      <span data-testid="signed-todo">{describe(todo.current)}</span>
-    </ResultChip>
-  {/if}
   <StateBadge data-testid="signed-state" result={todo.current} />
-</div>
+</p>
+{#if todo.current._tag === "Success"}
+  <ResultChip kind="message" label="getTodoAtom" tone="success">
+    <span data-testid="signed-todo">{todo.current.value.title}</span>
+  </ResultChip>
+{:else if todo.current._tag === "Failure"}
+  <!-- The 404 arrives as the endpoint's typed TodoNotFound. -->
+  <CauseView cause={todo.current.cause} data-testid="signed-todo" />
+{/if}
 <EventLog
   data-testid="signed-log"
   empty="Get a todo to see the request."

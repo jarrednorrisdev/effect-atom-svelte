@@ -7,15 +7,25 @@
   // Each call the effect makes, for the log under the example.
   const calls = new EventLogState();
 
+  // Logs a call's failure, which ends the effect.
+  const logFailure = (name: string) =>
+    Effect.tapError((error: { readonly _tag: string }) =>
+      Effect.sync(() => calls.add(`${name} failed: ${error._tag}`, { tone: "failure" }))
+    );
+
   // Two calls in one effect: getTodo needs the id that createTodo returns.
   const createAndReadAtom = TodosRpc.runtime.fn((title: string) =>
     Effect.gen(function* createThenRead() {
       const client = yield* TodosRpc;
       calls.add("createTodo sent", { tone: "running" });
-      const created = yield* client("createTodo", { title });
+      const created = yield* client("createTodo", { title }).pipe(
+        logFailure("createTodo")
+      );
       calls.add(`createTodo: todo ${created.id}`, { tone: "success" });
       calls.add(`getTodo sent with id ${created.id}`, { tone: "running" });
-      const todo = yield* client("getTodo", { id: created.id });
+      const todo = yield* client("getTodo", { id: created.id }).pipe(
+        logFailure("getTodo")
+      );
       calls.add(`getTodo: "${todo.title}"`, { tone: "success" });
       return todo;
     })
@@ -23,8 +33,9 @@
 </script>
 
 <script lang="ts">
-  import { Cause, Option } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import EffectType from "#lib/docs/kit/effect-type.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -33,13 +44,6 @@
   const createAndRead = useAtomSet(createAndReadAtom);
 
   let title = $state("Feed the cat");
-
-  // A failed call ends the effect, so the calls after it are never sent.
-  const describe = (cause: Cause.Cause<{ readonly _tag: string }>) =>
-    Option.match(Cause.findErrorOption(cause), {
-      onNone: () => "Something went wrong.",
-      onSome: (error) => `${error._tag}: the effect stopped there`,
-    });
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -55,19 +59,25 @@
     Paste a long title
   </button>
 </form>
-<div class="mt-3 flex flex-wrap items-baseline gap-3">
-  {#if result.current._tag === "Success"}
-    {@const todo = result.current.value}
-    <ResultChip kind="message" label="createAndReadAtom" tone="success">
-      <span data-testid="create-read">Todo {todo.id}: {todo.title}</span>
-    </ResultChip>
-  {:else if result.current._tag === "Failure"}
-    <ResultChip kind="message" label="createAndReadAtom" tone="failure">
-      <span data-testid="create-read">{describe(result.current.cause)}</span>
-    </ResultChip>
-  {/if}
+<!-- The error type is both procedures' errors, plus RpcClientError. -->
+<p class="flex flex-wrap items-center gap-3">
+  <EffectType
+    error={["TitleTooLong", "TodoNotFound", "RpcClientError"]}
+    name="createAndReadAtom"
+    result={result.current}
+    success="Todo"
+  />
   <StateBadge data-testid="create-read-state" result={result.current} />
-</div>
+</p>
+{#if result.current._tag === "Success"}
+  {@const todo = result.current.value}
+  <ResultChip kind="message" label="createAndReadAtom" tone="success">
+    <span data-testid="create-read">Todo {todo.id}: {todo.title}</span>
+  </ResultChip>
+{:else if result.current._tag === "Failure"}
+  <!-- The first failure ends the effect, so the calls after it are never sent. -->
+  <CauseView cause={result.current.cause} data-testid="create-read" />
+{/if}
 <EventLog
   data-testid="create-read-log"
   empty="Click Create and read."

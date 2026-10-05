@@ -21,7 +21,7 @@ If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your com
 
 The examples on this page call the [demo API](/#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Switch the filter: each request is its own query atom. Then add a todo, or try a title longer than 60 characters for the typed 422."> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Switch the filter: each request is its own query atom, and the requests count goes up. Then add a todo, or click Paste a long title and Add for the typed 422."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -46,7 +46,7 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 
 Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there.
 
-Use `transformClient` to add things like authentication to every request. It takes the `HttpClient` and returns another, so any of `HttpClient`'s combinators work there. The example adds a header and logs each request and its status:
+Use `transformClient` to add things like authentication to every request. It takes the `HttpClient` and returns another, so any of `HttpClient`'s combinators work there. The example adds a header and logs each request and its status. [Auth headers](/cookbook#auth-headers) in the cookbook uses it to send a token:
 
 <Example files={[{ html: transformSource, name: "transform.svelte" }]} hint="Get todo 1, then todo 99: each request carries the x-reader header, and the log shows the 200 and the 404."> <Transform /> </Example>
 
@@ -76,7 +76,7 @@ An endpoint's declared errors come back as typed failures. A `TodoNotFound` decl
 
 Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in your markup. [Errors](/errors) covers the other ways.
 
-<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Type 99: the 404 comes back as a typed TodoNotFound, which the markup matches on."> <Lookup /> </Example>
+<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Click 99, or type an id: the 404 comes back as a typed TodoNotFound, which the markup matches on."> <Lookup /> </Example>
 
 ## Mutations
 

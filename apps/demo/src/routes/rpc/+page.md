@@ -23,7 +23,7 @@ If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main
 
 The examples on this page call the [demo API](/#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Add a todo and watch listTodos: the mutation invalidates the todos key, so the query fetches again. Then try a title longer than 60 characters."> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Add a todo and watch listTodos: the mutation invalidates the todos key, so the query fetches again and its requests count goes up. Then click Paste a long title and Add: the procedure fails with its typed TitleTooLong."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -78,7 +78,7 @@ A third argument takes options:
 
 `query` returns the same atom whenever you pass the same arguments, compared by value. So you can call it inside a getter, and the hook moves to a new query whenever the arguments change:
 
-<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Pick another todo: the old one stays on screen, dimmed, until the new one arrives. Todo 99 comes back as the typed TodoNotFound."> <Lookup /> </Example>
+<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Pick another todo: the old one stays on screen, dimmed, until the new one arrives. Todo 99 comes back as the procedure's typed TodoNotFound."> <Lookup /> </Example>
 
 ## Mutations
 

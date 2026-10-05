@@ -19,20 +19,27 @@
 </script>
 
 <script lang="ts">
-  import { SvelteSet } from "svelte/reactivity";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import { isAddedTodo, type TitleTooLong } from "@demo/domain";
-  import { Cause, Exit, Match, Option } from "effect";
+  import { isAddedTodo } from "@demo/domain";
+  import { Exit } from "effect";
   import { useAtomSet, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
+  import { SvelteSet } from "svelte/reactivity";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
+  import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
+  const filters = [
+    { label: "All", value: "all" },
+    { label: "Open", value: "false" },
+    { label: "Done", value: "true" },
+  ] as const;
   let filter = $state<Filter>("all");
   let draft = $state("");
-  let error = $state("");
 
   const todos = useAtomSuspense(() => todosFor(filter));
+  // For the list's counter: each request a list query makes from the browser.
+  const requests = new RequestCount(() => todosFor(filter));
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
   // One remove at a time: a second call would interrupt the first.
@@ -48,36 +55,27 @@
     }
   };
 
-  // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
-  const describe = (cause: Cause.Cause<TitleTooLong>) => {
-    const failure = Cause.findErrorOption(cause);
-    if (Option.isNone(failure)) {
-      return "Something went wrong.";
-    }
-    return Match.valueTags(failure.value, {
-      TitleTooLong: (e) => `TitleTooLong: the limit is ${e.maxLength} characters`,
-    });
-  };
-
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     const exit = await create({ payload: { title: draft }, reactivityKeys: ["todos"] });
     if (Exit.isSuccess(exit)) {
       draft = "";
-      error = "";
-    } else {
-      error = describe(exit.cause);
     }
   };
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part code label="query todos.list">
-    <select bind:value={filter} data-testid="http-filter">
-      <option value="all">All</option>
-      <option value="false">Open</option>
-      <option value="true">Done</option>
-    </select>
+  <Part code count={requests.current} countLabel="requests" label="query todos.list">
+    <div aria-label="Filter" class="flex flex-wrap gap-2" role="group">
+      {#each filters as option (option.value)}
+        <button
+          aria-pressed={filter === option.value}
+          onclick={() => (filter = option.value)}
+        >
+          {option.label}
+        </button>
+      {/each}
+    </div>
     <code>GET /api/todos{filter === "all" ? "" : `?done=${filter}`}</code>
 
     <!-- No pending snippet, so server rendering waits for the list. -->
@@ -111,11 +109,15 @@
       <button data-testid="http-add" disabled={creating.current.waiting}>Add</button>
     </form>
     <code>POST /api/todos</code>
-    <p><StateBadge data-testid="http-add-state" result={creating.current} /></p>
-    {#if error}
-      <ResultChip kind="message" tone="failure">
-        <span data-testid="http-error">{error}</span>
-      </ResultChip>
+    <p class="flex flex-wrap items-center gap-2">
+      <button onclick={() => (draft = "x".repeat(70))} type="button">
+        Paste a long title
+      </button>
+      <StateBadge data-testid="http-add-state" result={creating.current} />
+    </p>
+    <!-- The endpoint declares TitleTooLong with status 422, so it arrives typed. -->
+    {#if creating.current._tag === "Failure"}
+      <CauseView cause={creating.current.cause} data-testid="http-error" />
     {/if}
   </Part>
 </div>
