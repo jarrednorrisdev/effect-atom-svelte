@@ -79,6 +79,7 @@ const toGetter = <A>(input: AtomInput<A>): (() => A) =>
 // state_unsafe_mutation if state changes while a template or $derived is evaluating. Reads are
 // counted, and a notification raised during one is delivered on a microtask instead. Outside a
 // read, notifications stay synchronous so writes from event handlers update in the same tick.
+// useAtomSubscribe keeps its own order on top of this (see orderedDelivery).
 let activeReads = 0;
 
 const afterReads = (update: () => void): void => {
@@ -503,11 +504,60 @@ export const useAtomRefresh = (
 };
 
 /**
+ * Delivers each value to `f` as afterReads would, but in order and only while subscribed. Once a
+ * change raised during a read is deferred, later changes queue behind it, so `f` never hears an
+ * older value after a newer one; whatever is still queued when the subscription ends is dropped.
+ */
+const orderedDelivery = <A>(
+  f: (value: A) => void
+): ((value: A) => void) & { readonly stop: () => void } => {
+  let live = true;
+  let flushing = false;
+  const queue: A[] = [];
+  // Stopping empties the queue, which ends a flush in progress.
+  const flush = () => {
+    try {
+      while (queue.length > 0) {
+        f(queue.shift() as A);
+      }
+    } finally {
+      // Still queued only if `f` threw: the rest goes out on the next microtask.
+      flushing = queue.length > 0;
+      if (flushing) {
+        queueMicrotask(flush);
+      }
+    }
+  };
+  const deliver = (value: A) => {
+    if (!live) {
+      return;
+    }
+    if (flushing || activeReads > 0) {
+      queue.push(value);
+      if (!flushing) {
+        flushing = true;
+        queueMicrotask(flush);
+      }
+    } else {
+      f(value);
+    }
+  };
+  return Object.assign(deliver, {
+    stop: () => {
+      live = false;
+      queue.length = 0;
+    },
+  });
+};
+
+/**
  * Calls `f` on every change while the component lives, and with the current value first when
  * `immediate` is set. The atom is computed when the hook starts, so a derived or effect atom that
  * nothing else reads still runs and reports its changes. A change raised while another component
  * is reading an atom reaches `f` on a microtask, so `f` can write `$state` (Svelte forbids that
- * during a read); other changes reach it synchronously.
+ * during a read). Changes after it wait their turn, so `f` sees every change in order; any other
+ * change reaches it synchronously. Nothing reaches `f` once the component is destroyed, not even a
+ * change still waiting for its microtask.
  *
  * **Example** (Saving every change)
  *
@@ -540,7 +590,12 @@ export const useAtomSubscribe = <A>(
       if (options?.immediate === true) {
         f(value);
       }
-      return registry.subscribe(atom, (next) => afterReads(() => f(next)));
+      const deliver = orderedDelivery(f);
+      const cancel = registry.subscribe(atom, deliver);
+      return () => {
+        deliver.stop();
+        cancel();
+      };
     });
   });
 };

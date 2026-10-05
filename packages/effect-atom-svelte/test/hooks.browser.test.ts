@@ -431,6 +431,60 @@ describe("mounting and lifecycle", () => {
     await expect.element(output(screen)).toHaveTextContent("1 read");
   });
 
+  test("useAtomSubscribe keeps changes in order when one raised during a read is deferred", async () => {
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    // Its first build writes the watched atom, during the read.
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    const seen: number[] = [];
+    let readThenWrite: (() => void) | undefined;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(watched, (value) => seen.push(value));
+        const value = useAtomValue(read);
+        // As an event handler might: the read's change is deferred, the write that follows is not.
+        readThenWrite = () => {
+          void value.current;
+          registry.set(watched, 2);
+        };
+        return () => "";
+      },
+    });
+    readThenWrite?.();
+    await sleep("20 millis");
+    expect(seen).toEqual([1, 2]);
+  });
+
+  test("useAtomSubscribe drops a deferred change once the component is destroyed", async () => {
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    const seen: number[] = [];
+    let readIt: (() => void) | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(watched, (value) => seen.push(value));
+        const value = useAtomValue(read);
+        readIt = () => {
+          void value.current;
+        };
+        return () => "";
+      },
+    });
+    readIt?.();
+    screen.unmount();
+    await sleep("20 millis");
+    expect(seen).toEqual([]);
+  });
+
   test("useAtomInitialValues applies once per registry", async () => {
     const registry = AtomRegistry.make();
     const atom = Atom.make(0);
