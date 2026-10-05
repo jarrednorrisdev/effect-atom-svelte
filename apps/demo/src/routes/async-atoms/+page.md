@@ -94,6 +94,16 @@ With Svelte's experimental async turned on, you can `await` an async atom in mar
 
 </Aside>
 
+## Running it again
+
+`useAtomRefresh` returns a function that runs the atom's effect again:
+
+```ts
+const roll = useAtomRefresh(dieAtom);
+```
+
+While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also [holds](/reading-and-writing#reading) the atom for as long as the component lives, so a refresh is never lost because nothing was reading.
+
 ## Working with AsyncResult
 
 The `AsyncResult` module, exported from `effect/reactivity`, has functions that save you checking `_tag` by hand.
@@ -102,23 +112,14 @@ The `AsyncResult` module, exported from `effect/reactivity`, has functions that 
 
 **Example** (A label for each state)
 
-```svelte
-<script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
-  import { useAtomValue } from "effect-atom-svelte";
-
-  const todo = useAtomValue(todoAtom);
-
-  const label = $derived(
-    AsyncResult.match(todo.current, {
-      onFailure: () => "Could not load the todo.",
-      onInitial: () => "Loading…",
-      onSuccess: (success) => success.value.title,
-    })
-  );
-</script>
-
-<p>{label}</p>
+```ts
+const label = $derived(
+  AsyncResult.match(todo.current, {
+    onFailure: () => "Could not load the todo.",
+    onInitial: () => "Loading…",
+    onSuccess: (success) => success.value.title,
+  })
+);
 ```
 
 `AsyncResult.getOrElse` gives the value, or a fallback when there is none yet. It also falls back to the last successful value when the effect fails after succeeding before, so a failed refresh doesn't empty the screen:
@@ -145,16 +146,6 @@ The live example reads one atom both ways. While the sensor is offline, `match` 
 | `AsyncResult.builder` | Handles one case at a time, as in `AsyncResult.builder(result).onSuccess(f).onErrorTag("NotFound", g).orNull()`. |
 | `AsyncResult.map` | Transform the value of a `Success`, as in `result.pipe(AsyncResult.map(f))`. |
 | `AsyncResult.all` | Combine several results into one, which succeeds only when all of them have. |
-
-## Running it again
-
-`useAtomRefresh` returns a function that runs the atom's effect again:
-
-```ts
-const roll = useAtomRefresh(dieAtom);
-```
-
-While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also [holds](/reading-and-writing#reading) the atom for as long as the component lives, so a refresh is never lost because nothing was reading.
 
 ## Keeping results
 
@@ -194,7 +185,3 @@ const feedAtom = Atom.make(
 <Example files={[{ html: connectionSource, name: "connection.svelte" }, { html: feedSource, name: "feed.svelte" }]} hint="Add a reader: the atom opens a socket. Click Reconnect: the old socket closes before the new one opens. Then remove the reader: the last socket closes."> <Connection /> </Example>
 
 This is the effect version of `get.addFinalizer`, described in [Lifetimes](/lifetimes#finalizers).
-
-## Services
-
-An effect that needs services, such as an HTTP client or a repository, gets them from a **runtime** built from a `Layer`. See [Services and runtimes](/services).
