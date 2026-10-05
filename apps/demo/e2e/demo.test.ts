@@ -652,6 +652,9 @@ test("async atoms: initial, success and a refresh that keeps the value", async (
 test("services: a runtime's atoms use its layer, and run again when the layer changes", async ({
   page,
 }) => {
+  // A roll takes 600 ms, which a loaded machine can spend before the busy check runs, so the
+  // page's clock is paused while one is in flight.
+  await page.clock.install();
   await page.goto("/services");
   await page.waitForLoadState("networkidle");
   const die = page.getByTestId("service-die");
@@ -667,8 +670,11 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   await expect(page.getByTestId("service-state")).toHaveText("Success");
   // A fair die rolls three sixes in a row once in 216 runs; the loaded one always does.
   const rollAndWait = async () => {
+    // The page's clock follows the real one until paused, so a second ahead is never in its past.
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.getByRole("button", { name: "Roll again" }).click();
     await expect(die).toHaveAttribute("aria-busy", "true");
+    await page.clock.resume();
     await expect(die).toHaveAttribute("aria-busy", "false");
     await expect(die).toHaveText("6");
   };
