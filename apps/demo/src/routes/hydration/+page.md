@@ -103,6 +103,7 @@ A few things follow from that:
 
 - **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
+- **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
 - **The hooks don't send a defect.** For a failure with a defect or an interruption, the hooks send no result, as the defect's message and cause could reveal details of the server. The browser computes the atom itself. Typed errors are part of the atom's schema, so they are sent. Effect's `Hydration.dehydrate` doesn't skip defects: see [HydrationBoundary](#hydrationboundary).
 - **A result the schema can't encode isn't sent.** The server renders it, and the browser computes the atom itself, as Effect's `Hydration.dehydrate` skips it too. In development the server warns, with the schema's error.
@@ -111,6 +112,27 @@ A few things follow from that:
 The example reads three atoms that record where they ran. All three were in the server's HTML, but only the serializable one read by `useAtomResult` kept the server's result: the atom without a key ran again in the browser, and so did the one read with `useAtomValue`, which the server rendered as `Initial`.
 
 <Example files={[{ html: travelSource, name: "travel.svelte" }]} hint="Compare In the HTML with the result now: only the first row still has the server's result. Open another page from the sidebar and come back: all three run in the browser, as only the first page load is hydrated."> <Travel /> </Example>
+
+## Call hooks before the first await
+
+Svelte reads the results in the page only while it is hydrating, and in a component whose script has a top-level `await`, hydrating stops at that `await`. A hook called after it gets nothing from the server: its atom runs again in the browser, and the page keeps the server's HTML until the browser's result arrives.
+
+Call every `useAtomResult` and `useAtomSuspense` before the script's first `await`. To wait for several results, await them together:
+
+```svelte
+<script lang="ts">
+  import { useAtomResult } from "effect-atom-svelte";
+
+  // Both get the server's result.
+  const [todos, user] = await Promise.all([useAtomResult(todosAtom), useAtomResult(userAtom)]);
+
+  // Not like this: userAtom runs again in the browser.
+  // const todos = await useAtomResult(todosAtom);
+  // const user = await useAtomResult(userAtom);
+</script>
+```
+
+`useAtomSuspense` returns its promise without waiting, so a `useAtomSuspense` call is only affected if an `await` comes before it in the script. In development, a hook that misses the server's result warns in the browser's console, naming the atom's serialization key.
 
 ## Streams on the server
 

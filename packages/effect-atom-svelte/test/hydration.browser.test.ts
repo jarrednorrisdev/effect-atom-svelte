@@ -2,7 +2,7 @@ import { Deferred, Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry, Hydration } from "effect/reactivity";
 import { hydrate, unmount } from "svelte";
 import type { Component } from "svelte";
-import { beforeAll, describe, expect, onTestFinished, test } from "vitest";
+import { beforeAll, describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
@@ -304,9 +304,18 @@ describe("hydrating server output", () => {
     // Pins today's behavior. Svelte's hydratable reads the server's values only while it is
     // hydrating, and it stops hydrating at a component script's first await, so a hook called after
     // one gets no seed: its atom runs in the browser like one without a serialization key, and the
-    // component keeps the server's markup until it has the browser's result.
-    test("a hook called after a top-level await gets no seed", async () => {
+    // component keeps the server's markup until it has the browser's result. The development build
+    // warns, once per key, and not for a later render that reads the same keys (JND-96).
+    test("a hook called after a top-level await gets no seed, and warns", async () => {
       resetRevalidate();
+      const warn = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      onTestFinished(() => warn.mockRestore());
+      const missed = () =>
+        warn.mock.calls.filter(([message]) =>
+          String(message).includes("got no value from the server")
+        );
       const target = await hydrateFromServer(
         "/test/fixtures/ssr-after-await.svelte",
         SsrAfterAwait
@@ -318,6 +327,20 @@ describe("hydrating server output", () => {
         kept: ["server"],
       });
       expect(revalidateComputed).toEqual(["after-await"]);
+      expect(missed()).toHaveLength(1);
+      expect(String(missed()[0]?.[0])).toContain('"revalidate-after-await"');
+
+      // As after client-side navigation: the server's values are still on the page, but each key
+      // has had its chance.
+      const again = await render(SsrAfterAwait);
+      await expect
+        .poll(() =>
+          [...again.container.querySelectorAll("output")].map(
+            (o) => o.textContent
+          )
+        )
+        .toEqual(["browser", "browser"]);
+      expect(missed()).toHaveLength(1);
     });
   });
 

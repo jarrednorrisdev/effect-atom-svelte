@@ -78,6 +78,10 @@ In development, the server warns when a serializable atom's result doesn't encod
 
 On the server, `useAtomSuspense` read an atom whose [server value](/server-rendering#server-values) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.
 
+## "got no value from the server, so it runs again in the browser"
+
+A `useAtomResult` or `useAtomSuspense` call came after a top-level `await` in its component's script, where Svelte has stopped hydrating, so it missed the result the server sent. Call it before the first `await`, and await several hooks together with `Promise.all`. See [Call hooks before the first await](/hydration#call-hooks-before-the-first-await). The warning is shown in development only.
+
 ## "provideRegistry takes an existing registry or options for a new one, not both"
 
 A `RegistryProvider` or `provideRegistry` got a `registry` along with `initialValues`, `scheduleTask`, `timeoutResolution` or `defaultIdleTTL`. Those options only apply to a registry the provider creates. Pass them to `AtomRegistry.make` when you create the registry instead.

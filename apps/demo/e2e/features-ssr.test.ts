@@ -174,6 +174,12 @@ test.describe("Hydration page", () => {
     await expect(page.getByTestId("revalidate-kept-where")).toHaveText(
       "Computed on the server"
     );
+    // It hydrated with the server's result, marked as waiting, before the browser's (JND-96).
+    const fresh = page
+      .getByTestId("revalidate-fresh-history")
+      .getByRole("listitem");
+    await expect(fresh.first()).toContainText("Success server, waiting");
+    await expect(fresh.last()).toContainText("Success browser");
   });
 
   test("a saved filter applies after mounting, without a hydration warning", async ({

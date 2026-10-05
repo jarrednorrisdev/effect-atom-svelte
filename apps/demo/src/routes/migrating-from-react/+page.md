@@ -66,7 +66,7 @@ Every hook that takes an atom or a ref also takes a getter, except `useAtomRefPr
 
 React hooks run on every render, in the same order. Svelte hooks run once, while the component initializes, because they find the registry through Svelte's context:
 
-- **At the top level of the script.** This includes after a top-level `await`, where Svelte restores the context.
+- **At the top level of the script.** This includes after a top-level `await`, where Svelte restores the context. But a serializable atom read after one doesn't get the server's result: see [Call hooks before the first await](/hydration#call-hooks-before-the-first-await).
 - **Not in callbacks.** An event handler, a `setTimeout` or a function of your own after an `await` runs too late, and Svelte throws `lifecycle_outside_component`. Call the hook at the top level and keep what it returns.
 - **Before an `await` when the markup uses the result as a handler.** See [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
