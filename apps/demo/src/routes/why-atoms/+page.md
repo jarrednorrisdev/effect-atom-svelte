@@ -54,33 +54,13 @@ Here is the signed-in user again, this time loaded by your Effect code:
 
 ```ts
 // user.ts
-import { Context, Effect, Schema } from "effect";
-import { AsyncResult, Atom } from "effect/reactivity";
+import { Atom } from "effect/reactivity";
 
-const User = Schema.Struct({ name: Schema.String });
+import { currentUser } from "./session.ts";
 
-export class SignedOut extends Schema.TaggedError<SignedOut>()(
-  "SignedOut",
-  {}
-) {}
-
-// A service in your Effect code that finds the signed-in user.
-class Users extends Context.Service<
-  Users,
-  { readonly current: Effect.Effect<typeof User.Type, SignedOut> }
->()("app/Users") {}
-
-// UsersLayer, your implementation of the service (such as a call to your
-// API), is left out here.
-const runtime = Atom.runtime(UsersLayer);
-
-export const userAtom = runtime.atom(Users.use((users) => users.current)).pipe(
-  // A key and a schema, so the server's result is sent with the page.
-  Atom.serializable({
-    key: "user",
-    schema: AsyncResult.Schema({ success: User, error: SignedOut }),
-  })
-);
+// currentUser is your Effect code that finds the signed-in user. Its type,
+// Effect<User, SignedOut>, says it can fail with a typed SignedOut error.
+export const userAtom = Atom.make(currentUser);
 ```
 
 ```svelte
@@ -119,7 +99,7 @@ export const userAtom = runtime.atom(Users.use((users) => users.current)).pipe(
 {/if}
 ```
 
-Next to a `getUser` remote query, the difference is the Effect code: the `Users` service is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error, so the badge can tell a signed-out visitor from a defect. The server's result still travels with the page, because the atom is serializable.
+Next to a `getUser` remote query, the difference is the Effect code: `currentUser` is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error, so the badge can tell a signed-out visitor from a defect. Effect code that needs services, such as an HTTP client, gets them from a [runtime](/services). Made [serializable](/hydration#serializable-atoms), the atom sends the server's result with the page, as a remote query does.
 
 The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing [holds](/reading-and-writing#reading), so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
 
