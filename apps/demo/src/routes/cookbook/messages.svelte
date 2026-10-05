@@ -20,13 +20,17 @@
     )
   );
 
-  // Every message so far. withServerValueInitial keeps the connection off
-  // the server.
+  // How many messages arrived, and the last five. Capped, so a connection
+  // left open doesn't grow the list forever. withServerValueInitial keeps
+  // the connection off the server.
   const messagesAtom = Atom.make(
     messages.pipe(
       Stream.scan(
-        () => [] as string[],
-        (all, message) => [...all, message]
+        () => ({ count: 0, latest: [] as string[] }),
+        ({ count, latest }, message) => ({
+          count: count + 1,
+          latest: [...latest, message].slice(-5),
+        })
       )
     )
   ).pipe(Atom.withServerValueInitial);
@@ -39,17 +43,19 @@
   import { enter } from "#lib/docs/kit/motion.ts";
 
   const messages = useAtomValue(messagesAtom);
-  const all = $derived(
-    messages.current._tag === "Success" ? messages.current.value : []
+  const received = $derived(
+    messages.current._tag === "Success"
+      ? messages.current.value
+      : { count: 0, latest: [] }
   );
 </script>
 
-<Cue cue="tick" on={all.length} />
+<Cue cue="tick" on={received.count} />
 <p>
-  <FlashValue data-testid="socket-count" value={all.length} /> messages
+  <FlashValue data-testid="socket-count" value={received.count} /> messages
 </p>
 <ol class="flex list-none flex-wrap gap-1.5 p-0" data-testid="socket-messages">
-  {#each all.slice(-5) as message (message)}
+  {#each received.latest as message (message)}
     <li class="m-0" {@attach enter()}><output>Message {message}</output></li>
   {:else}
     <li aria-busy="true">Waiting for the first message…</li>

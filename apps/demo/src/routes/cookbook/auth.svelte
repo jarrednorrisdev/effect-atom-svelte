@@ -22,8 +22,9 @@
     ),
   }) {}
 
-  // GET /api/me answers 401 Unauthorized without the header. Each write
-  // sends one request.
+  // GET /api/me answers 401 Unauthorized without the header. A mutation,
+  // so nothing is sent until a click, and each write sends one request.
+  // An app would read it with Authed.query and refresh it after sign-in.
   const meAtom = Authed.mutation("account", "me");
 </script>
 

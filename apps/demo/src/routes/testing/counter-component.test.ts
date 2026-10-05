@@ -1,6 +1,6 @@
 import { RegistryProvider } from "effect-atom-svelte";
 import { AtomRegistry } from "effect/reactivity";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import Counter from "./counter.svelte";
@@ -8,6 +8,8 @@ import { countAtom } from "./counter.ts";
 
 test("a click writes to the registry", async () => {
   const registry = AtomRegistry.make();
+  // Disposed even when an assertion fails.
+  onTestFinished(() => registry.dispose());
   const screen = await render(
     Counter,
     {},
@@ -20,7 +22,6 @@ test("a click writes to the registry", async () => {
   // Writes from the test reach the component too.
   registry.set(countAtom, 5);
   await expect.element(screen.getByText("Doubled: 10")).toBeVisible();
-  registry.dispose();
 });
 
 test("initialValues start the component in a given state", async () => {

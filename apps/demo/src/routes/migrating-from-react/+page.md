@@ -14,6 +14,7 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `@effect/atom-react` | effect-atom-svelte |
 | --- | --- |
 | `const value = useAtomValue(atom)` | `const value = useAtomValue(atom)`, read as `value.current` |
+| `useAtomValue(atom, f)` | The same, read through `current` |
 | `const [value, setValue] = useAtom(atom)` | `const value = useAtom(atom)`, read and assign `value.current` |
 | `useAtomSet(atom, { mode })` | The same. Promise setters also take `{ signal }` |
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
@@ -57,7 +58,17 @@ A React component calls its hooks again on every render, so `useAtomValue(todoAt
 const todo = useAtomValue(() => todoAtom(id));
 ```
 
-Every hook that takes an atom also takes a getter. See [Following a different atom](/reading-and-writing#following-a-different-atom).
+Every hook that takes an atom or a ref also takes a getter, except `useAtomRefProp`, which takes the ref itself. See [Following a different atom](/reading-and-writing#following-a-different-atom).
+
+### Where hooks can be called
+
+React hooks run on every render, in the same order. Svelte hooks run once, while the component initializes, because they find the registry through Svelte's context:
+
+- **At the top level of the script.** This includes after a top-level `await`, where Svelte restores the context.
+- **Not in callbacks.** An event handler, a `setTimeout` or a function of your own after an `await` runs too late, and Svelte throws `lifecycle_outside_component`. Call the hook at the top level and keep what it returns.
+- **Before an `await` when the markup uses the result as a handler.** A production build can attach event handlers before the script's top-level awaits have finished.
+
+[Troubleshooting](/troubleshooting#can-only-be-used-during-component-initialisation) covers the errors, and [Handlers after an await](/troubleshooting#handlers-after-an-await) the last case.
 
 ## Suspense
 
@@ -90,8 +101,11 @@ Here, `useAtomSuspense` returns a promise that you `await` in markup, inside a `
 | `<RegistryProvider>` | `<RegistryProvider>`, or `provideRegistry()` in a script |
 | `useContext(RegistryContext)` | `getRegistry()` |
 | No provider: a module-level default registry | No provider: a shared default registry in the browser, and an error on the server |
+| Registry work runs on React's scheduler, at low priority. The default registry also has `defaultIdleTTL: 400` | Effect's default scheduler, and no idle TTL unless you pass `defaultIdleTTL` |
 
 `RegistryProvider` takes the same `initialValues`, `scheduleTask`, `timeoutResolution` and `defaultIdleTTL`. It also takes `registry`, to provide one you made yourself, and `revalidateOnHydrate`. See [Registry options](/installation#registry-options).
+
+So an atom nothing reads lasts 400 milliseconds in React's default registry, but is dropped here once the current task ends. React's `RegistryProvider` has no idle TTL either, unless you pass one.
 
 React's default registry, used when there is no provider, is one module-level registry, on the server too. Here, the server throws `No AtomRegistry in context` instead, so a page can't share one visitor's state with another. Put a `RegistryProvider` in your root layout.
 

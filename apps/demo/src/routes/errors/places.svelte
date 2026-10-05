@@ -26,7 +26,12 @@
 
 <script lang="ts">
   import { Cause, Option } from "effect";
-  import { useAtom, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
+  import {
+    useAtom,
+    useAtomRefresh,
+    useAtomSuspense,
+    useAtomValue,
+  } from "effect-atom-svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -38,6 +43,8 @@
   const asPromise = useAtomSuspense(todoAtom);
   // 3. Resolves with the Success or the Failure, and never rejects.
   const inPlace = useAtomSuspense(todoAtom, { includeFailure: true });
+  // reset alone would render the same Failure again: refresh the atom first.
+  const refresh = useAtomRefresh(todoAtom);
 
   const typed = (cause: Cause.Cause<NotFound>) =>
     Option.match(Cause.findErrorOption(cause), {
@@ -78,7 +85,14 @@
         <p class="text-sm break-all">
           Received <code data-testid="places-received">{JSON.stringify(kept)}</code>
         </p>
-        <button onclick={reset}>Try again</button>
+        <button
+          onclick={() => {
+            refresh();
+            reset();
+          }}
+        >
+          Try again
+        </button>
       {/snippet}
     </svelte:boundary>
   </Part>

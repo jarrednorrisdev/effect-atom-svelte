@@ -27,9 +27,11 @@ An effect can end without a value in three ways:
 | --- | --- | --- |
 | **Typed error** | `Effect.fail`, a yielded tagged error, `tryPromise`'s `catch`, an RPC or HTTP API error. | Yes, as the `E` in `Effect<A, E>` and `AsyncResult<A, E>`. |
 | **Defect** | An exception thrown inside the effect, or `Effect.die`. Usually a bug. | No. |
-| **Interruption** | Something stopped the effect, such as the registry disposing of an atom nobody reads. | No. |
+| **Interruption** | Something stopped the effect, such as writing `Atom.Interrupt` to a mutation, or `Effect.interrupt`. | No. |
 
 Handle typed errors where they happen, because they are part of what the user can do: a todo can be missing, a title can be too long. Defects and interruptions are rarely something a component can fix, so show a general message and log them. [Effect basics](/effect-basics#exit-and-cause) introduces these with Effect's own docs.
+
+The registry also interrupts effects itself: when it disposes of an atom nobody reads, and when an atom runs again before its last run finished. Those interruptions never show up as a `Failure`. The atom is gone, or the new run's result takes the old one's place.
 
 ## What a Failure holds
 
@@ -77,7 +79,7 @@ const describe = (cause: Cause.Cause<TodoNotFound | Forbidden>) => {
 
 Each way of reading an atom hands you failure in its own form. The example reads one atom three ways:
 
-<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Pick todo 7. useAtomValue gets a Failure, the boundary swaps in its failed snippet, and includeFailure gets the typed error, id and all. Then pick todo 1: the boundary stays failed until you click Try again."> <Places /> </Example>
+<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Pick todo 7. useAtomValue gets a Failure, the boundary swaps in its failed snippet, and includeFailure gets the typed error, id and all. Then pick todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
 
 ### With `useAtomValue` or `useAtomResult`
 
@@ -86,6 +88,8 @@ Both give you the `AsyncResult`, failures included. Check `_tag` in the markup, 
 ### In a boundary
 
 `useAtomSuspense` rejects when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. The promise rejects with `Cause.squash(cause)`: the first typed error if there is one, otherwise the defect, otherwise an `Error` saying the effect was interrupted. See [When it fails](/suspense#when-it-fails).
+
+The snippet's `reset` renders the boundary's content again, but the atom still holds the same `Failure`. Refresh the atom first, with `useAtomRefresh`, as the example's **Try again** does.
 
 Before the `failed` snippet sees the error, SvelteKit passes it through its `handleError` hook, as the next section explains.
 
@@ -99,6 +103,8 @@ To handle typed errors next to the value rather than in a boundary, pass `includ
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
 
+  // todoAtom is a family, and describe is the function from above.
+  const { id } = $props();
   const todo = useAtomSuspense(() => todoAtom(id), { includeFailure: true });
 </script>
 
@@ -112,8 +118,6 @@ To handle typed errors next to the value rather than in a boundary, pass `includ
   {#snippet pending()}<p>Loading…</p>{/snippet}
 </svelte:boundary>
 ```
-
-The lookups on the [RPC](/rpc#following-arguments) and [HTTP API](/http#typed-errors) pages work this way.
 
 ### Mutations: `promise` and `promiseExit`
 
@@ -130,6 +134,9 @@ Prefer `"promiseExit"` when the mutation has typed errors to show:
 import { Exit } from "effect";
 import { useAtomSet } from "effect-atom-svelte";
 
+// In a component's script. createAtom is a mutation, describe is from above.
+let draft = $state("");
+let error = $state("");
 const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
 const submit = async () => {
@@ -158,12 +165,16 @@ In a SvelteKit app, an error that reaches a boundary's `failed` snippet goes thr
 
 Only the tag and message survive the hook, not the error's other fields: in the [example above](#where-to-handle-failure), the boundary receives `NotFound`'s tag and message, but not its `id`. When you need those, use `includeFailure` instead. [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install the hooks.
 
+Without SvelteKit, nothing sits in between: the `failed` snippet gets the value of `Cause.squash` itself, the error object with all its fields.
+
 ## Typed errors from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` decode errors from the server with their schemas, so they arrive as the same tagged classes, fields and all:
 
 - **An RPC procedure** fails with the errors in its `error` schema, plus `RpcClientError` when the request itself fails, for example because the server can't be reached.
 - **An HTTP API endpoint** fails with the errors it declares. A request that fails, or a response that doesn't decode, is a defect rather than a typed error, so the only typed errors are your own.
+
+Both also fail with the errors of any middleware the procedure or endpoint uses, such as an `Unauthorized` from an auth middleware.
 
 Declaring the errors with `Schema.TaggedError` gives them a `_tag` on both sides:
 
@@ -188,3 +199,25 @@ Sometimes an error isn't a failure for the page: a missing profile can just mean
 <Example files={[{ html: recoverSource, name: "recover.svelte" }]} hint="Todo 2 doesn't exist: todoAtom fails, while recoveredAtom succeeds with null. Pick todo 1 and both succeed."> <Recover /> </Example>
 
 `recoveredAtom`'s error type is `never`, so a reader has nothing to handle but `null`. `Effect.catchTags` handles several tags at once. Read more about recovering in Effect's [Error Management](https://effect.website/docs/v4/error-management/expected-errors) docs.
+
+## Retrying
+
+To let the user try again, refresh the atom with `useAtomRefresh`. It runs the effect again, and the result goes from `Failure` to `Success` or to a new `Failure`. In a boundary, call `reset` after the refresh, as in [In a boundary](#in-a-boundary).
+
+To try again without the user, retry inside the effect. `Effect.retry` runs it again on a typed error, following a `Schedule`:
+
+**Example** (Three more tries, further apart each time)
+
+```ts
+import { Effect, Schedule } from "effect";
+import { Atom } from "effect/reactivity";
+
+// fetchTodos is an Effect that requests the list.
+const todosAtom = Atom.make(
+  fetchTodos.pipe(
+    Effect.retry({ schedule: Schedule.exponential("200 millis"), times: 3 })
+  )
+);
+```
+
+The atom stays `Initial`, or keeps its previous value with `waiting` set, until the last try ends. Defects and interruptions aren't retried. To retry only some errors, add `while: (error) => error._tag === "RpcClientError"`.

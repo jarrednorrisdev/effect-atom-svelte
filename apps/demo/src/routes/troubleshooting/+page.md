@@ -17,9 +17,26 @@ Put a `RegistryProvider` around the whole app, in the root layout. See [Add a re
 
 In the browser, a component with no provider above it uses a shared default registry, so a missing provider only shows up once the page renders on the server.
 
-### "can only be used during component initialisation"
+## "can only be used during component initialisation"
 
-The hooks find the registry through Svelte's context, which is only available while a component initializes. Svelte throws `lifecycle_outside_component` when a hook is called later, such as from an event handler, a `setTimeout`, or after an `await` inside a function of your own. Call hooks at the top level of the script. To use the registry later, keep what the hook returns, or call [`getRegistry()`](/cookbook#the-registry-itself) at the top level and keep the registry.
+The hooks find the registry through Svelte's context, which is only available while a component initializes. Svelte throws `lifecycle_outside_component` when a hook is called later, such as from an event handler, a `setTimeout`, or after an `await` inside a function of your own. Call hooks at the top level of the script. To use the registry later, keep what the hook returns, or call [`getRegistry()`](/cookbook#write-atoms-from-a-plain-function) at the top level and keep the registry.
+
+## Async mode is not turned on
+
+Without async mode, Svelte reports one of two errors. The compiler rejects an `await` in markup, `$derived` or at the top level of a script:
+
+```txt
+Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`
+```
+
+`useAtomResult` and `useAtomSuspense` call Svelte's `hydratable` for a serializable atom, which throws at runtime. In development the error reads:
+
+```txt
+experimental_async_required
+Cannot use `hydratable(...)` unless the `experimental.async` compiler option is `true`
+```
+
+Turn on async mode in `svelte.config.js`, and in a separate Vitest config if you have one. See [Turn on async mode](/installation#turn-on-async-mode).
 
 ## Two copies of effect
 
@@ -44,6 +61,28 @@ If Vitest has a config of its own, it needs the same setting. To see how many co
 While the page hydrates, a hook asked for the server's result for an atom the server never rendered. Svelte throws this in development. A production build only warns, then runs the atom in the browser, and the markup can mismatch.
 
 It happens when a hook's getter picks a different serializable atom in the browser than it did on the server, usually because the choice depends on state only the browser has, such as `localStorage`. Base the first choice on state the server also has, or keep the server's choice until the component has mounted. See [A getter must pick the same atom](/hydration#a-getter-must-pick-the-same-atom).
+
+## "Two different atoms share the serialization key"
+
+Two atoms with the same serialization key were rendered at the same time. The server sends one result per key, so the browser couldn't tell which atom it belongs to.
+
+It usually means a fixed key on an atom that has more than one copy: `Atom.serializable({ key: "todo" })` inside a family, or on an atom created in a component. Put what tells the copies apart into the key, such as the todo's id, and define atoms at module level. For an `AtomRpc` or `AtomHttpApi` query, give each `serializationKey` to only one set of arguments.
+
+## "useAtomSuspense read an atom whose server value is pending"
+
+On the server, `useAtomSuspense` read an atom whose [server value](/hydration) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.
+
+## "provideRegistry takes an existing registry or options for a new one, not both"
+
+A `RegistryProvider` or `provideRegistry` got a `registry` along with `initialValues`, `scheduleTask`, `timeoutResolution` or `defaultIdleTTL`. Those options only apply to a registry the provider creates. Pass them to `AtomRegistry.make` when you create the registry instead.
+
+## "This atom value is read-only"
+
+Something assigned `current` on what `useAtomValue`, `useAtomRef` or `useAtomRefPropValue` returned, for example with `bind:value`. Those only read. Use `useAtom` to read and write an atom, and `useAtomRefProp` and its `set` to write one property of a ref.
+
+## "Service not found"
+
+An atom from a runtime failed with a defect such as `Service not found: app/Weather`. The runtime's layer doesn't provide a service the effect uses. This often happens in tests, where a layer given through `initialValues` replaces the runtime's whole layer and isn't type-checked. Add the missing service to the layer. See [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
 
 ## Handlers after an await
 
@@ -71,16 +110,28 @@ Because development builds hide this, run your end-to-end tests against `vite bu
 
 </Aside>
 
+## An atom loads forever, or starts over on every read
+
+A hook that gets a new atom on every read starts it again each time. An async atom then never settles, and a writable one loses each write. Look for a new atom made where the hook reads it:
+
+- **`Atom.make` in a getter or `$derived`.** `useAtomValue(() => Atom.make(...))` makes a new atom each time the getter runs. Define the atom at module level, or use a [family](/families) for one atom per key.
+- **A family key that compares by reference.** A family returns the same atom for keys with the same contents, but a function compares by reference, so a key that holds one makes a new atom each call. See [Which keys count as the same](/families#which-keys-count-as-the-same).
+
 ## My state reset
 
 An atom's value lives in a registry, and the registry only keeps it while something needs it. When a value goes back to its default, look for one of these:
 
-- **Nothing was reading it.** When the last reader goes away, for example when you navigate to a page that doesn't show it, the registry disposes of the atom, and the next read starts again from the initial value. Use `Atom.keepAlive`, an idle TTL or `useAtomMount`. See [Lifetimes](/lifetimes#keeping-atoms-alive).
-- **It was set through `initialValues`.** Those atoms are disposed like any other, so give them `Atom.keepAlive`.
+- **Nothing was reading it.** When the last reader goes away, for example when you navigate to a page that doesn't show it, the registry disposes of the atom, and the next read starts again from the initial value. Call `useAtomMount` in a component that stays, such as the layout, to keep it while that component lives. `Atom.keepAlive` and an idle TTL work for every registry. See [Lifetimes](/lifetimes#keeping-atoms-alive).
+- **It was set through `initialValues`.** Those atoms are disposed like any other. Mount them with `useAtomMount` in the component that provides them, or give them `Atom.keepAlive`.
 - **The atom is created inside a component.** `Atom.make` in a component's script makes a new atom each time the component is created. Define atoms at module level, in `<script module>` or a `.ts` file, or use a [family](/families) or a [scoped atom](/scoped-atoms) for one atom per key or per subtree.
 - **A second `RegistryProvider`.** Components below a nested provider read its registry, not the root one, and the provider disposes of its registry when it is destroyed. Keep one provider at the root unless you want a separate registry.
 - **A save never finished.** A mutation called with the default `"value"` mode is interrupted when its component is destroyed, so navigating away mid-save abandons it. See [Mutations](/mutations#waiting-for-the-result).
 - **The page was reloaded.** The browser's registry lasts one page load. To keep a value across reloads, store it with [`Atom.kvs`](/browser#persisting-to-localstorage) or in the URL.
+
+The opposite can surprise too:
+
+- **`useAtomInitialValues` applied only once.** It sets each atom once per registry. A component that mounts again, or gets a new prop, doesn't set it again. Write the atom with `useAtomSet` when the prop changes.
+- **Kept atoms pile up.** `Atom.keepAlive` keeps an atom for the registry's whole life. In a family, every key is an atom of its own, so each key ever used stays. Prefer an idle TTL there. See [Keeping a family's atoms](/families#keeping-a-familys-atoms).
 
 ## Relative URLs on the server
 
@@ -112,10 +163,4 @@ For `AtomHttpApi`, set `baseUrl` the same way. In a real app, read the server's 
 
 ## Plain Svelte (no SvelteKit)
 
-effect-atom-svelte doesn't depend on SvelteKit. Only `effect-atom-svelte/sveltekit`, which formats errors for SvelteKit's `handleError` hook, is specific to it, and you can leave it out. Without SvelteKit:
-
-- **Async mode.** Pass `compilerOptions: { experimental: { async: true } }` to `svelte()` from `@sveltejs/vite-plugin-svelte`. See [Turn on async mode](/installation#turn-on-async-mode).
-- **The registry.** Wrap your root component's markup in `RegistryProvider`, as you would the root layout.
-- **Server rendering.** Await `render` from `svelte/server`: it waits for the async work in your components, then returns the page's `head` and `body`. The results for [hydration](/hydration) are written into `head`, so put it in the page's `<head>`. In the browser, start the app with `hydrate` from `svelte` instead of `mount`.
-
-A client-only app needs none of the server rendering setup. It still needs async mode for `useAtomSuspense` and `useAtomResult`.
+See [Plain Svelte (no SvelteKit)](/installation#plain-svelte-no-sveltekit) on the Installation page.

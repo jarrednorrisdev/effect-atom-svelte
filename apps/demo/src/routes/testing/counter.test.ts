@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { AtomRegistry } from "effect/reactivity";
 import { expect, test } from "vitest";
 
-import { countAtom, doubledAtom, savedAtom } from "./counter.ts";
+import { countAtom, doubledAtom, savedAtom, submitAtom } from "./counter.ts";
 
 // Gives the registry a moment to run what it scheduled.
 const nextTask = () => Effect.runPromise(Effect.sleep("1 millis"));
@@ -43,4 +43,15 @@ test("getResult waits for an async atom's value", async () => {
     AtomRegistry.getResult(registry, savedAtom)
   );
   expect(saved).toBe("Saved 3");
+});
+
+test("a mutation's result, with set and getResult", async () => {
+  const registry = AtomRegistry.make();
+  registry.set(submitAtom, 4);
+
+  // suspendOnWaiting waits for this call's result, not an earlier one.
+  const submitted = await Effect.runPromise(
+    AtomRegistry.getResult(registry, submitAtom, { suspendOnWaiting: true })
+  );
+  expect(submitted).toBe("Submitted 4");
 });
