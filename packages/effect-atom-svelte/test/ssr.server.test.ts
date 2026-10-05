@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { render } from "svelte/server";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
 import {
   useAtomRef,
@@ -11,10 +11,13 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
 import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
+import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
+import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrSequential from "./fixtures/ssr-sequential.svelte";
 import { repeat } from "./helpers.ts";
 
@@ -41,6 +44,16 @@ const failsIfComputed = (key: string) =>
       schema: AsyncResult.Schema({ success: Schema.String }),
     })
   );
+
+/** Collects Svelte's unresolved_hydratable warnings for the rest of the test, silencing them. */
+const unresolvedWarnings = () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  onTestFinished(() => warn.mockRestore());
+  return () =>
+    warn.mock.calls.filter((call) =>
+      String(call[0]).includes("unresolved_hydratable")
+    );
+};
 
 describe("server rendering", () => {
   test("awaits an RPC query and embeds its encoded result for hydration", async () => {
@@ -180,6 +193,31 @@ describe("server rendering", () => {
       const output = await render(ServerValueBoundary);
       expect(output.body).toContain("loading");
       expect(serverValueComputed).toEqual([]);
+    });
+  });
+
+  describe("a serializable atom read inside a boundary with a pending snippet (JND-86)", () => {
+    // Pins today's behavior: the hook seeds at init, before Svelte knows the read is never rendered.
+    test("with the hook outside the boundary, the server still computes, waits and embeds it", async () => {
+      pendingBoundaryComputed.length = 0;
+      const warnings = unresolvedWarnings();
+      const output = await render(SsrPendingBoundary);
+      expect(output.body).toContain("loading");
+      expect(output.body).not.toContain("from the server");
+      expect(pendingBoundaryComputed).toEqual(["server"]);
+      // The response waited for the atom, and Svelte warns the wait was for nothing it rendered.
+      expect(output.head).toContain("from the server");
+      expect(warnings()).toHaveLength(1);
+    });
+
+    test("with the hook in a component inside the boundary, the server never calls it", async () => {
+      pendingBoundaryComputed.length = 0;
+      const warnings = unresolvedWarnings();
+      const output = await render(SsrPendingBoundaryChild);
+      expect(output.body).toContain("loading");
+      expect(pendingBoundaryComputed).toEqual([]);
+      expect(output.head).not.toContain("pending-boundary");
+      expect(warnings()).toEqual([]);
     });
   });
 
