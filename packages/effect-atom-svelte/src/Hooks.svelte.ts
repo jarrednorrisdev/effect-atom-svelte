@@ -291,8 +291,9 @@ const subscribedReader = <A>(
   // render, which already has the value, so it is dropped. Delivered on a microtask it started a
   // Svelte batch that, when the first render ran after an await in markup (a HydrationBoundary
   // awaiting its state), committed before hydration's own and made Svelte's dev build throw "Batch
-  // has scheduled effects" (JND-95). After mount it is still delivered, as before: dropping it there
-  // too made a getter switched in onMount compute the server's atom again (JND-24).
+  // has scheduled effects" (JND-95). After mount it is still delivered, as before. Nothing depends
+  // on the update it starts: a getter switched in onMount once did, by accident, as that update
+  // rendered before the registry swept the old atom (JND-98, fixed in the effect below).
   let reading: Atom.Atom<A> | undefined;
   const listen = (current: Atom.Atom<A>, update: () => void) =>
     registry.subscribe(current, () => {
@@ -318,11 +319,20 @@ const subscribedReader = <A>(
     // the subscription may follow an atom the commit did not pick. It moves to the committed atom,
     // or that atom's later changes, a refresh's result or failure included, would not reach the
     // page (JND-93).
+    // The atom it leaves is kept, not released: this effect can run before the switch it reads has
+    // committed. A getter switched in onMount is read here in the same flush, while Svelte's batch
+    // for the switch is still pending, and the renders with that batch rolled back read the old
+    // atom. Released here, the registry could sweep it before they do, and they would compute it
+    // again (JND-98). A later run that commits another atom releases it.
     if (atom !== undefined && atom !== committed) {
+      const previous = atom;
       const previousCancel = cancel;
       atom = committed;
       cancel = follow(committed);
-      previousCancel?.();
+      if (previousCancel) {
+        releaseKept();
+        kept = { atom: previous, cancel: previousCancel };
+      }
     }
   });
   const subscribe = createSubscriber((update) => {
