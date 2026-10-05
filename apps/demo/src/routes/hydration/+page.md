@@ -89,7 +89,7 @@ Leaving out an atom whose value could travel costs time. A component that awaits
 
 <Aside type="danger" title="A serialized result is in the page">
 
-The encoded results are plain text in the page's HTML, where anyone who gets the page can read them, whether or not a component shows them. Never serialize data the visitor mustn't see. A page whose serialized results belong to one visitor must not be prerendered or kept by a shared cache: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
+The encoded results are plain text in the page's HTML, where anyone who gets the page can read them, whether or not a component shows them. That includes typed errors, with all their fields. Never serialize data the visitor mustn't see. A page whose serialized results belong to one visitor must not be prerendered or kept by a shared cache: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
 
 </Aside>
 
@@ -102,10 +102,17 @@ A few things follow from that:
 - **Only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
+- **A defect isn't sent.** The server sends no result for a failure with a defect or an interruption, as the defect's message and cause could reveal details of the server. The browser computes the atom itself. Typed errors are part of the atom's schema, so they are sent.
+- **A result the schema can't encode isn't sent.** The server renders it, and the browser computes the atom itself, as Effect's `Hydration.dehydrate` skips it too. In development the server warns, with the schema's error.
+- **A stream sends its latest item, as waiting.** The server's render ends while the stream still runs, so the browser starts from that item and runs the stream again. See [Streams on the server](#streams-on-the-server).
 
 The example reads three atoms that record where they ran. All three were in the server's HTML, but only the serializable one read by `useAtomResult` kept the server's result: the atom without a key ran again in the browser, and so did the one read with `useAtomValue`, which the server rendered as `Initial`.
 
 <Example files={[{ html: travelSource, name: "travel.svelte" }]} hint="Compare In the HTML with the result now: only the first row still has the server's result. Open another page from the sidebar and come back: all three run in the browser, as only the first page load is hydrated."> <Travel /> </Example>
+
+## Streams on the server
+
+A [stream atom](/streams) read with `useAtomResult` or `useAtomSuspense` is in the page with the latest item it had when the render ended, marked as waiting. The server's stream stops with its registry, so the browser runs the stream again. Until the browser's first item arrives, the page keeps showing the server's, so it doesn't flash a loading state. To keep a stream off the server, see [Keep browser-only streams off the server](/streams).
 
 ## Running again after hydration
 
@@ -197,7 +204,7 @@ export const load = async () => {
 </HydrationBoundary>
 ```
 
-Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
+Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. On the server, they are updated before the children render too. A value for an atom nothing reads waits in the registry until something does, and is dropped when the boundary goes away. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
 
 The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
 
