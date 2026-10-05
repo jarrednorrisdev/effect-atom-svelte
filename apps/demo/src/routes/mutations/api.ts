@@ -13,8 +13,8 @@ export interface Todo {
 // A pretend API for this page's examples, kept in memory. Each request
 // takes a moment, as a real one would.
 const saved: Todo[] = [
-  { done: true, id: 1, title: "Read the Effect Atom source" },
-  { done: false, id: 2, title: "Write a Svelte adapter" },
+  { done: false, id: 1, title: "Read the Effect Atom source" },
+  { done: true, id: 2, title: "Write a Svelte adapter" },
 ];
 
 export const listTodos = Effect.sync(() => [...saved]).pipe(
