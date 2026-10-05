@@ -8,10 +8,12 @@
   const calls = new EventLogState();
 
   // Logs a call's failure, which ends the effect.
-  const logFailure = (name: string) =>
-    Effect.tapError((error: { readonly _tag: string }) =>
-      Effect.sync(() => calls.add(`${name} failed: ${error._tag}`, { tone: "failure" }))
-    );
+  const logFailure =
+    (name: string) =>
+    <A, E extends { readonly _tag: string }, R>(call: Effect.Effect<A, E, R>) =>
+      Effect.tapError(call, (failure) =>
+        Effect.sync(() => calls.add(`${name} failed: ${failure._tag}`, { tone: "failure" }))
+      );
 
   // Two calls in one effect: getTodo needs the id that createTodo returns.
   const createAndReadAtom = TodosRpc.runtime.fn((title: string) =>

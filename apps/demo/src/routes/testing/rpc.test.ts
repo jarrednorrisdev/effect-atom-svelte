@@ -23,6 +23,7 @@ const makeHandlers = (todos: Todo[]) =>
     },
     getTodo: ({ id }) => Effect.fail(new TodoNotFound({ id })),
     listTodos: () => Effect.sync(() => [...todos]),
+    removeTodo: ({ id }) => Effect.fail(new TodoNotFound({ id })),
     ticks: () => Stream.empty,
     toggleTodo: ({ id }) => Effect.fail(new TodoNotFound({ id })),
   });

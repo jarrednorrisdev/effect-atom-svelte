@@ -52,11 +52,8 @@ class TodoStore extends Context.Service<
           (title.length > TITLE_MAX_LENGTH
             ? Effect.fail(new TitleTooLong({ maxLength: TITLE_MAX_LENGTH }))
             : Effect.sync(() => {
-                const todo = new Todo({
-                  done: false,
-                  id: nextId++,
-                  title,
-                });
+                const todo = new Todo({ done: false, id: nextId, title });
+                nextId += 1;
                 todos.set(todo.id, todo);
                 return todo;
               })
@@ -70,9 +67,11 @@ class TodoStore extends Context.Service<
           ).pipe(delay),
         remove: (id) =>
           find(id).pipe(
-            Effect.map(() => {
-              todos.delete(id);
-            }),
+            Effect.flatMap(() =>
+              Effect.sync(() => {
+                todos.delete(id);
+              })
+            ),
             delay
           ),
         toggle: (id) =>
