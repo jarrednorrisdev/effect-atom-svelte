@@ -669,68 +669,88 @@ test("services: a runtime's atoms use its layer, and run again when the layer ch
   await rollAndWait();
 });
 
-/** The time of a log entry, `<n> ms …`. */
-const entryTime = async (entry: ReturnType<Page["getByRole"]>) => {
-  const text = await entry.textContent();
-  return Number(/^\s*(?<ms>\d+) ms/u.exec(text ?? "")?.groups?.ms);
+/** The time of a timeline dot, `<label> at <n> ms`. */
+const dotTime = async (dot: ReturnType<Page["getByRole"]>) => {
+  const text = await dot.textContent();
+  return Number(/at (?<ms>\d+) ms\s*$/u.exec(text ?? "")?.groups?.ms);
 };
 
 test("suspense: pending, value, refresh and failure", async ({ page }) => {
   await page.goto("/suspense");
-  const value = page.getByTestId("suspense-value");
-  await expect(value).toHaveText("Loaded 1 time");
-  await expect(page.getByTestId("held-value")).toHaveText("Loaded 1 time");
   await page.waitForLoadState("networkidle");
-  const log = (name: string) =>
-    page
-      .getByRole("list", { name: `${name} since the last refresh` })
-      .getByRole("listitem");
-  const plain = log("plainAtom");
-  const held = log("heldAtom");
-  // The first load: both awaits wait for the first value.
-  await expect(plain).toHaveText([
-    /^0 ms\s*atom\s*Initial, waiting$/u,
-    /^\d+ ms\s*atom\s*Success$/u,
-    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
-  ]);
 
-  // By default, a refresh's await resolves at once with the old value, then with the new one.
-  // A refresh waits for 800 ms, which load can eat between two checks, so the in-flight states
-  // are checked through the logs, which keep every step in order.
-  await page.getByRole("button", { name: "Refresh default" }).click();
-  await expect(plain).toHaveText([
-    /^0 ms\s*atom\s*Success, waiting$/u,
-    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
-  ]);
-  expect(await entryTime(plain.nth(1))).toBeLessThan(400);
-  await expect(value).toHaveText("Loaded 2 times");
-  await expect(plain).toHaveText([
-    /^0 ms\s*atom\s*Success, waiting$/u,
-    /^\d+ ms\s*await\s*resolved with Loaded 1 time$/u,
-    /^\d+ ms\s*atom\s*Success$/u,
-    /^\d+ ms\s*await\s*resolved with Loaded 2 times$/u,
-  ]);
+  // The opener: the boundary shows its pending snippet until the forecast arrives.
+  const forecast = page.getByTestId("forecast");
+  const forecastPending = page.locator('[data-branch="pending"]', {
+    hasText: "Loading the forecast…",
+  });
+  await expect(forecast).toHaveCount(0);
+  await page.getByRole("button", { name: "Mount the forecast" }).click();
+  await expect(forecastPending).toBeVisible();
+  await expect(forecast).toHaveText("18 °C, cloudy");
+  await expect(forecastPending).toHaveCount(0);
+  // Nothing kept the atom, so a new mount loads it again.
+  await page.getByRole("button", { name: "Unmount the forecast" }).click();
+  await expect(forecast).toHaveCount(0);
+  await page.getByRole("button", { name: "Mount the forecast" }).click();
+  await expect(forecastPending).toBeVisible();
+  await expect(forecast).toHaveText("18 °C, cloudy");
 
-  // With suspendOnWaiting, the await waits for the new value; the boundary counts it as pending.
-  await page.getByRole("button", { name: "Refresh suspendOnWaiting" }).click();
-  // Only visible in flight, so checked first.
+  // Refreshing: the default await resolves at once with the old value, then with the new one;
+  // the suspendOnWaiting one waits for the new value, and the boundary counts it as pending.
+  const value = page.getByTestId("suspense-value");
+  const held = page.getByTestId("held-value");
+  await expect(value).toHaveText("Loaded 1 time");
+  await expect(held).toHaveText("Loaded 1 time");
+  await expect(page.getByTestId("plainAtom-state")).toHaveText("Success");
+  await expect(page.getByTestId("waitingAtom-state")).toHaveText("Success");
+  const awaits = page.getByRole("list", { exact: true, name: "await" });
+  const plainAwait = awaits.nth(0).getByRole("listitem");
+  const heldAwait = awaits.nth(1).getByRole("listitem");
+  await page.getByRole("button", { name: "Refresh both" }).click();
+  // Only visible in flight, so checked first. The refresh takes two seconds.
   await expect(page.getByTestId("held-pending")).toHaveText("1");
-  await expect(page.getByTestId("held-value")).toHaveText("Loaded 2 times");
+  await expect(page.getByTestId("plainAtom-caption")).toHaveText(
+    "The await resolved at once, with the old value."
+  );
+  await expect(page.getByTestId("waitingAtom-caption")).toHaveText(
+    "The await is waiting for the new value."
+  );
+  await expect(value).toHaveText("Loaded 1 time");
+  await expect(held).toHaveText("Loaded 1 time");
+  await expect(value).toHaveText("Loaded 2 times");
+  await expect(held).toHaveText("Loaded 2 times");
   await expect(page.getByTestId("held-pending")).toHaveText("0");
-  await expect(held).toHaveText([
-    /^0 ms\s*atom\s*Success, waiting$/u,
-    /^\d+ ms\s*atom\s*Success$/u,
-    /^\d+ ms\s*await\s*resolved with Loaded 2 times$/u,
+  await expect(page.getByTestId("plainAtom-caption")).toHaveCount(0);
+  await expect(page.getByTestId("waitingAtom-caption")).toHaveCount(0);
+  // The timelines keep when each await resolved, timed from the refresh.
+  await expect(plainAwait).toHaveText([
+    /^resolved with Loaded 1 time at \d+ ms$/u,
+    /^resolved with Loaded 2 times at \d+ ms$/u,
   ]);
-  // The atom takes 800 ms; the log starts a moment after the click.
-  expect(await entryTime(held.nth(2))).toBeGreaterThan(600);
+  await expect(heldAwait).toHaveText([
+    /^resolved with Loaded 2 times at \d+ ms$/u,
+  ]);
+  expect(await dotTime(plainAwait.nth(0))).toBeLessThan(1000);
+  expect(await dotTime(heldAwait.nth(0))).toBeGreaterThan(1500);
 
-  await expect(page.getByTestId("suspense-failed")).toHaveText(
-    "This atom always fails"
+  // A failure: the failed snippet takes over, and Try again starts the boundary afresh.
+  const weather = page.getByTestId("weather");
+  await expect(weather).toHaveText("18 °C, cloudy");
+  const failNext = page.getByRole("button", {
+    exact: true,
+    name: "Fail the next load",
+  });
+  await setPressed(failNext, true);
+  await page.getByRole("button", { exact: true, name: "Reload" }).click();
+  await expect(page.getByTestId("weather-failed")).toHaveText(
+    "No weather for Paris right now"
   );
-  await expect(page.getByTestId("suspense-failed-tag")).toHaveText(
-    "AlwaysFails"
-  );
+  await expect(weather).toHaveCount(0);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(failNext).toHaveAttribute("aria-pressed", "false");
+  await expect(weather).toHaveText("18 °C, cloudy");
+  await expect(page.getByTestId("weather-failed")).toHaveCount(0);
 });
 
 test.describe("Mutations page", () => {
@@ -767,6 +787,71 @@ test.describe("Mutations page", () => {
     await expect(draft).toHaveValue("x".repeat(70));
   });
 
+  test("a successful add refreshes the list through its key, a failed one doesn't", async ({
+    page,
+  }) => {
+    // The demo API runs without latency in e2e; hold the request here instead.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/api/rpc{,/}", async (route) => {
+      if (route.request().postData()?.includes('"tag":"createTodo"')) {
+        await held.promise;
+      }
+      await route.continue();
+    });
+    await page.goto("/mutations");
+    await page.waitForLoadState("networkidle");
+    const example = page.getByTestId("refresh-example");
+    const todos = page.getByTestId("refresh-todos").getByRole("listitem");
+    const log = page.getByTestId("invalidation-log").getByRole("listitem");
+    await expect(todos).toHaveText([
+      "Read the Effect Atom source",
+      "Write a Svelte adapter",
+    ]);
+
+    await page.getByTestId("refresh-draft").fill("Water the plants");
+    await page.getByTestId("refresh-submit").click();
+    await expect(page.getByTestId("part-create")).toHaveAttribute(
+      "data-tone",
+      "running"
+    );
+    await expect(todos).toHaveCount(2);
+
+    held.resolve(undefined);
+    await expect(todos).toHaveText([
+      "Read the Effect Atom source",
+      "Write a Svelte adapter",
+      "Water the plants",
+    ]);
+    await expect(page.getByLabel("key invalidated")).toHaveText("1");
+    await expect(page.getByLabel("todosAtom todos")).toHaveText("3");
+    await expect(log.filter({ hasText: "createTodo sent" })).toHaveCount(1);
+    await expect(
+      log.filter({ hasText: 'createTodo succeeded: "todos" invalidated' })
+    ).toHaveCount(1);
+    await expect(log.filter({ hasText: "listTodos runs again" })).toHaveCount(
+      1
+    );
+    await expect(log.filter({ hasText: "listTodos: 3 todos" })).toHaveCount(1);
+
+    // A failed call invalidates nothing, so the list stays as it is.
+    await example.getByRole("button", { name: "Paste a long title" }).click();
+    await page.getByTestId("refresh-submit").click();
+    await expect(
+      log.filter({ hasText: "createTodo failed: nothing invalidated" })
+    ).toHaveCount(1);
+    await expect(page.getByLabel("key invalidated")).toHaveText("1");
+    await expect(todos).toHaveCount(3);
+
+    // Only an added todo has a Remove button.
+    const remove = example.getByRole("button", { name: /^Remove /u });
+    await expect(remove).toHaveCount(1);
+    await remove.click();
+    await expect(todos).toHaveText([
+      "Read the Effect Atom source",
+      "Write a Svelte adapter",
+    ]);
+  });
+
   test("each mode gives back something else, and Cancel and Reset work", async ({
     page,
   }) => {
@@ -774,57 +859,61 @@ test.describe("Mutations page", () => {
     await page.waitForLoadState("networkidle");
     const example = page.getByTestId("modes-example");
     const state = page.getByTestId("modes-state");
-    const log = page.getByTestId("modes-log").getByRole("listitem");
+    const results = (mode: "exit" | "promise" | "value") =>
+      page.getByTestId(`modes-${mode}`).getByRole("listitem");
+    // The columns, in order: save(n), await savePromise(n), await saveExit(n).
+    const call = (column: number) =>
+      example.getByRole("button", { exact: true, name: "Call" }).nth(column);
+    const callTwice = (column: number) =>
+      example
+        .getByRole("button", { exact: true, name: "Call twice" })
+        .nth(column);
     await expect(state).toHaveText("Initial");
+    await expect(results("promise")).toHaveText(["Not called yet."]);
 
-    // The second call interrupts the first, so both promises settle with draft 2. Both clicks
-    // happen in one task: under load, two separate clicks can land more than the save's 1.5 s
-    // apart, and then nothing is interrupted.
-    await example.evaluate((element) => {
-      for (const name of ["Save (promise)", "Save (promiseExit)"]) {
-        const button = [...element.querySelectorAll("button")].find(
-          (candidate) => candidate.textContent?.trim() === name
-        );
-        button?.click();
-      }
-    });
+    // The second call interrupts the first, so both promises settle with draft 2.
+    await callTwice(1).click();
     await expect(state).toHaveText("Initial, waiting");
-    await expect(log).toHaveCount(0);
-    await expect(log).toHaveCount(2);
-    await expect(log.nth(0)).toContainText(
-      'promise #1: resolved with "draft 2"'
-    );
-    await expect(log.nth(1)).toContainText(
-      'promiseExit #2: Exit.Success("draft 2")'
-    );
+    await expect(results("promise")).toHaveText([
+      '#1: resolved "draft 2"',
+      '#2: resolved "draft 2"',
+    ]);
     await expect(state).toHaveText("Success");
 
     // Value mode returns at once; the atom's state shows the rest.
-    await example.getByRole("button", { name: "Save (value)" }).click();
-    await expect(log.nth(2)).toContainText("value #3: returned undefined");
+    await call(0).click();
+    await expect(results("value")).toHaveText(["#3: returned undefined"]);
     await expect(state).toHaveText("Success, waiting");
+    await expect(state).toHaveText("Success");
+
+    await callTwice(2).click();
+    await expect(results("exit")).toHaveText([
+      '#4: Exit.Success("draft 5")',
+      '#5: Exit.Success("draft 5")',
+    ]);
     await expect(state).toHaveText("Success");
 
     await setPressed(
       example.getByRole("button", { exact: true, name: "Fail the save" }),
       true
     );
-    await example.getByRole("button", { name: "Save (promise)" }).click();
-    await expect(log.nth(3)).toContainText("promise #4: rejected, DiskFull");
-    await expect(state).toHaveText("Failure");
-
-    await example.getByRole("button", { name: "Save (promiseExit)" }).click();
-    await expect(state).toHaveText("Failure, waiting");
-    await example.getByRole("button", { name: "Cancel" }).click();
-    await expect(log.nth(4)).toContainText(
-      "promiseExit #5: Exit.Failure, interrupted"
+    await call(1).click();
+    await expect(results("promise").nth(2)).toHaveText(
+      "#6: rejected, DiskFull"
     );
     await expect(state).toHaveText("Failure");
-    await expect(
-      example.getByRole("button", { name: "Cancel" })
-    ).toBeDisabled();
 
-    await example.getByRole("button", { name: "Reset" }).click();
+    await call(2).click();
+    await expect(state).toHaveText("Failure, waiting");
+    const cancel = example.getByRole("button", { exact: true, name: "Cancel" });
+    await cancel.click();
+    await expect(results("exit").nth(2)).toHaveText(
+      "#7: Exit.Failure, interrupted"
+    );
+    await expect(state).toHaveText("Failure, interrupted");
+    await expect(cancel).toBeDisabled();
+
+    await example.getByRole("button", { exact: true, name: "Reset" }).click();
     await expect(state).toHaveText("Initial");
   });
 
@@ -843,19 +932,31 @@ test.describe("Mutations page", () => {
     await page.waitForLoadState("networkidle");
     const example = page.getByTestId("optimistic-example");
     const list = page.getByTestId("optimistic-todos");
+    const server = page.getByTestId("server-todos").getByRole("listitem");
+    const provisional = list
+      .getByRole("listitem")
+      .filter({ hasText: "provisional" });
     const state = page.getByTestId("optimistic-state");
     const first = list.getByRole("checkbox", {
       name: "Read the Effect Atom source",
     });
     await expect(first).not.toBeChecked();
+    await expect(server).toHaveText([
+      "○ Read the Effect Atom source",
+      "✓ Write a Svelte adapter",
+    ]);
 
+    // The screen changes at once; the server keeps the old value until the save lands.
     await first.click();
     await expect(first).toBeChecked();
-    await expect(list).toHaveAttribute("aria-busy", "true");
+    await expect(provisional).toHaveCount(1);
+    await expect(provisional).toContainText("Read the Effect Atom source");
     await expect(state).toHaveText("Initial, waiting");
+    await expect(server.first()).toHaveText("○ Read the Effect Atom source");
     held.resolve(undefined);
     await expect(state).toHaveText("Success");
-    await expect(list).toHaveAttribute("aria-busy", "false");
+    await expect(server.first()).toHaveText("✓ Read the Effect Atom source");
+    await expect(provisional).toHaveCount(0);
     await expect(first).toBeChecked();
 
     const failNext = example.getByRole("button", {
@@ -868,15 +969,19 @@ test.describe("Mutations page", () => {
     });
     await expect(second).toBeChecked();
     await second.click();
-    // The provisional value first, then the rollback a second later.
+    // The provisional value first, then the rollback a moment later.
     await expect(second).not.toBeChecked();
-    await expect(list).toHaveAttribute("aria-busy", "true");
-    await expect(failNext).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByTestId("optimistic-error")).toHaveText(
-      "ConnectionLost: the save failed, so the todo went back."
+    await expect(provisional).toContainText("Write a Svelte adapter");
+    await expect(page.getByTestId("optimistic-error")).toContainText(
+      "ConnectionLost"
     );
+    await expect(failNext).toHaveAttribute("aria-pressed", "false");
     await expect(second).toBeChecked();
-    await expect(list).toHaveAttribute("aria-busy", "false");
+    await expect(provisional).toHaveCount(0);
+    await expect(server).toHaveText([
+      "✓ Read the Effect Atom source",
+      "✓ Write a Svelte adapter",
+    ]);
     await expect(first).toBeChecked();
     await expect(state).toHaveText("Failure");
   });
@@ -886,43 +991,65 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   page,
 }) => {
   await page.goto("/streams");
-  const clock = page.getByTestId("clock");
-  await expect(clock).toHaveText(/^[1-9]/u, {
-    timeout: 3000,
-  });
+  const clockA = page.getByTestId("clock-A");
+  const clockB = page.getByTestId("clock-B");
+  const readers = page.getByRole("button", { name: "Read clockAtom" });
+  const log = page.getByTestId("clock-log").getByRole("listitem");
+  const started = log.filter({ hasText: "stream started" });
+  const stopped = log.filter({ hasText: "stream stopped" });
+  // The stream counts the seconds since it started, from 1.
+  await expect(clockA).toHaveText(/^[1-9]/u, { timeout: 3000 });
   // A stream that is still running is a Success that is waiting.
-  await expect(page.getByTestId("clock-state")).toHaveText("Success, waiting");
-  // With no reader the stream stops; a new reader starts it again from the beginning.
-  await expect(clock).toHaveText(/^[2-9]/u, { timeout: 3000 });
-  await page.getByRole("button", { name: "Stop reading" }).click();
-  await expect(page.getByTestId("clock-stopped")).toBeVisible();
-  await page.getByRole("button", { name: "Start reading" }).click();
-  await expect(clock).toHaveText(/^(?:starting|1)$/u);
+  await expect(page.getByTestId("clock-A-state")).toHaveText(
+    "Success, waiting"
+  );
+  await expect(started).toHaveCount(1);
 
-  const fruit = page.getByTestId("fruit").getByRole("listitem");
+  // A second reader shares the same stream, so it shows the same count.
+  await setPressed(readers.nth(1), true);
+  await expect(clockB).toHaveText(/^[1-9]/u, { timeout: 3000 });
+  await expect
+    .poll(
+      async () => (await clockA.textContent()) === (await clockB.textContent())
+    )
+    .toBe(true);
+  await expect(started).toHaveCount(1);
+
+  // Without reader A the stream keeps running for B.
+  await setPressed(readers.nth(0), false);
+  await expect(clockA).toHaveCount(0);
+  const count = (await clockB.textContent()) ?? "";
+  await expect(clockB).not.toHaveText(count, { timeout: 3000 });
+  await expect(stopped).toHaveCount(0);
+
+  // With no reader the stream stops; a new reader starts it again from the beginning.
+  await setPressed(readers.nth(1), false);
+  await expect(stopped).toHaveCount(1);
+  await setPressed(readers.nth(0), true);
+  await expect(clockA).toHaveText(/^(?:starting|1)$/u);
+  await expect(started).toHaveCount(2);
+
+  // Each pull brings one chunk, a page of up to three.
+  const fruit = page.getByTestId("fruit");
+  const chunks = fruit.getByRole("listitem");
+  const items = fruit.locator("output");
   const pulls = page.getByRole("list", { name: "Pulls" }).getByRole("listitem");
-  await expect(fruit).toHaveText(["apple", "banana", "cherry"]);
+  await expect(items).toHaveText(["apple", "banana", "cherry"]);
+  await expect(chunks).toHaveCount(1);
+  await expect(chunks.nth(0)).toContainText("pull 1");
   await expect(page.getByTestId("fruit-done")).toHaveText("false");
   const more = page.getByRole("button", { name: "Load more" });
   await more.click();
-  await expect(fruit).toHaveText([
-    "apple",
-    "banana",
-    "cherry",
+  await expect(chunks).toHaveCount(2);
+  await expect(chunks.nth(1)).toContainText("pull 2");
+  await expect(chunks.nth(1).locator("output")).toHaveText([
     "damson",
     "elderberry",
     "fig",
   ]);
   await more.click();
-  await expect(fruit).toHaveText([
-    "apple",
-    "banana",
-    "cherry",
-    "damson",
-    "elderberry",
-    "fig",
-    "grape",
-  ]);
+  await expect(chunks.nth(2).locator("output")).toHaveText(["grape"]);
+  await expect(items).toHaveCount(7);
   await expect(page.getByTestId("fruit-done")).toHaveText("false");
   // The pull atom learns the stream has ended only on the next pull, which brings no items.
   await more.click();
@@ -930,7 +1057,9 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
     page.getByRole("button", { name: "No more fruit" })
   ).toBeDisabled();
   await expect(page.getByTestId("fruit-done")).toHaveText("true");
-  await expect(fruit).toHaveCount(7);
+  await expect(chunks).toHaveCount(4);
+  await expect(chunks.nth(3)).toContainText("nothing: done");
+  await expect(items).toHaveCount(7);
   // Each pull adds a chunk, and the last adds none. The pulls that wait for a page show it;
   // the last one may settle too quickly for its waiting state to show.
   await expect(pulls.last()).toHaveText(
@@ -946,9 +1075,27 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
     "Success 7 items, done: false",
     "Success 7 items, done: true",
   ]);
+
+  // With disableAccumulation, items holds only the latest page, and the end is a failure.
+  await setPressed(
+    page.getByRole("button", { name: "disableAccumulation: true" }),
+    true
+  );
+  await expect(items).toHaveText(["apple", "banana", "cherry"]);
+  await more.click();
+  await expect(items).toHaveText(["damson", "elderberry", "fig"]);
+  await expect(chunks).toHaveCount(1);
+  await more.click();
+  await expect(items).toHaveText(["grape"]);
+  await more.click();
   await expect(
-    pulls.filter({ hasText: "Success 3 items, done: false, waiting" })
-  ).toHaveCount(1);
+    page.getByRole("button", { name: "No more fruit" })
+  ).toBeDisabled();
+  await expect(page.getByTestId("fruit-cause")).toContainText(
+    "NoSuchElementError"
+  );
+  await expect(chunks.last()).toContainText("nothing: NoSuchElementError");
+  await expect(items).toHaveText(["grape"]);
 });
 
 test("AtomRef: each field edits a slice, and the card reads the whole", async ({
