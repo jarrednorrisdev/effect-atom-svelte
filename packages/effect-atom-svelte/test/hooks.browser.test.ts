@@ -1,6 +1,6 @@
 import { Effect, Stream } from "effect";
 import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
-import { describe, expect, test } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import {
@@ -548,6 +548,29 @@ describe("RegistryProvider", () => {
     expect(log).toEqual(["disposed"]);
     await screen.unmount();
     expect(log).toEqual(["disposed", "disposed"]);
+  });
+
+  test("reads its props once, and warns in development when one changes", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    const atom = Atom.make(1);
+    const first = AtomRegistry.make();
+    const second = AtomRegistry.make();
+    second.set(atom, 2);
+    const screen = await render(Provider, {
+      registry: first,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    expect(warn).not.toHaveBeenCalled();
+    await screen.rerender({ registry: second });
+    await expect
+      .poll(() => warn.mock.calls.map((call) => String(call[0])))
+      .toEqual([expect.stringContaining("reads its props once")]);
+    expect(screen.container.textContent).toContain("1");
   });
 });
 
