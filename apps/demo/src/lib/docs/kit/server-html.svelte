@@ -12,7 +12,7 @@
   ```
 
   It reads "In the HTML" before the text. Other attributes go on the `<output>`, whose text is the
-  element's text with its whitespace collapsed, or "Not in the HTML".
+  element's text with its whitespace collapsed, "(empty)", or "Not in the HTML".
 -->
 <script module lang="ts">
   let fetched: { readonly path: string; readonly html: Promise<Document | undefined> } | undefined;
@@ -59,7 +59,16 @@
         return;
       }
       const element = html.querySelector(`[data-testid="${of}"]`);
-      text = element?.textContent?.replaceAll(/\s+/gu, " ").trim() ?? "Not in the HTML";
+      // A list reads as its items, separated, rather than run together.
+      const items = element ? [...element.querySelectorAll("li")] : [];
+      const found = (
+        items.length > 0
+          ? items.map((item) => item.textContent?.trim() ?? "").join(", ")
+          : element?.textContent
+      )
+        ?.replaceAll(/\s+/gu, " ")
+        .trim();
+      text = found === "" ? "(empty)" : (found ?? "Not in the HTML");
     })();
     return () => {
       live = false;

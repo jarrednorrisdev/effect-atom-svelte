@@ -37,9 +37,6 @@
   <StateBadge data-testid="where-state" result={where.current} />
 </p>
 {#if where.current._tag === "Success"}
-  <p>
-    Computed on <output data-testid="computed-on">{where.current.value}</output>
-  </p>
   <WhereParts computedOn={where.current.value} waiting={where.current.waiting} />
 {/if}
 <ResultHistory data-testid="where-history" result={where.current} />

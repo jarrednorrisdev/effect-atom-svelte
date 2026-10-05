@@ -3,6 +3,8 @@
   import { useAtomValue } from "effect-atom-svelte";
   import Origin from "#lib/docs/kit/origin.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  // What the server's HTML had in the same place.
+  import ServerHtml from "#lib/docs/kit/server-html.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import { toneOf } from "#lib/docs/kit/tone.ts";
 
@@ -16,9 +18,13 @@
 {#snippet price(name: string, result: AsyncResult.AsyncResult<string, never>)}
   <Part code data-testid={name} label={name} tone={toneOf(result)}>
     <p class="m-0 flex flex-wrap items-center gap-2">
-      <Origin where={result._tag === "Success" ? result.value : undefined} />
+      <Origin
+        data-testid="{name}-where"
+        where={result._tag === "Success" ? result.value : undefined}
+      />
       <StateBadge {result} />
     </p>
+    <p class="mt-2 mb-0"><ServerHtml of="{name}-where" /></p>
   </Part>
 {/snippet}
 

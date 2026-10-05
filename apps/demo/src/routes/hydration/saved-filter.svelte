@@ -52,6 +52,8 @@
   import { useAtom, useAtomResult } from "effect-atom-svelte";
   import { onMount } from "svelte";
   import Origin from "#lib/docs/kit/origin.svelte";
+  // What the server's HTML had in the same place.
+  import ServerHtml from "#lib/docs/kit/server-html.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   const saved = useAtom(savedFilterAtom);
@@ -63,15 +65,17 @@
   const list = await useAtomResult(() => todosFor(mounted ? saved.current : "all"));
 </script>
 
-<p>
-  <label>
-    Saved filter
-    <select bind:value={saved.current} data-testid="saved-filter">
-      <option value="all">All</option>
-      <option value="open">Open</option>
-      <option value="done">Done</option>
-    </select>
-  </label>
+<p class="flex flex-wrap items-center gap-2">
+  <span aria-label="Saved filter" class="flex flex-wrap gap-2" role="group">
+    {#each ["all", "open", "done"] as const as filter (filter)}
+      <button
+        aria-pressed={saved.current === filter}
+        onclick={() => (saved.current = filter)}
+      >
+        {filter}
+      </button>
+    {/each}
+  </span>
   <button onclick={() => location.reload()}>Reload the page</button>
 </p>
 {#if list.current._tag === "Success"}
@@ -84,3 +88,6 @@
 {:else}
   <StateBadge result={list.current} />
 {/if}
+<p class="flex flex-wrap items-center gap-2">
+  <ServerHtml of="filtered-todos" />
+</p>

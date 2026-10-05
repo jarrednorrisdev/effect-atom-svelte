@@ -15,6 +15,8 @@
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
+  // What the server's HTML had in the same place.
+  import ServerHtml from "#lib/docs/kit/server-html.svelte";
 
   const theme = useAtom(themeAtom);
 </script>
@@ -27,11 +29,20 @@
   data-testid="themed"
   data-theme={theme.current}
 >
-  <select aria-label="Theme" bind:value={theme.current} data-testid="theme">
-    <option value="light">Light</option>
-    <option value="dark">Dark</option>
-  </select>
-  <button data-cue="none" onclick={() => location.reload()}>Reload the page</button>
-  <p>The {theme.current} theme, read from the pref-theme cookie.</p>
+  <p class="m-0 flex flex-wrap items-center gap-2">
+    <span aria-label="Theme" class="flex gap-2" role="group">
+      {#each ["light", "dark"] as const as name (name)}
+        <button aria-pressed={theme.current === name} onclick={() => (theme.current = name)}>
+          {name}
+        </button>
+      {/each}
+    </span>
+    <button data-cue="none" onclick={() => location.reload()}>Reload the page</button>
+  </p>
+  <p class="mb-0 flex flex-wrap items-center gap-2">
+    The <strong data-testid="theme-name">{theme.current}</strong> theme, read from the
+    pref-theme cookie.
+    <ServerHtml of="theme-name" />
+  </p>
 </div>
 

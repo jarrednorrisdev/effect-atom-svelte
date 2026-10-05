@@ -26,7 +26,7 @@ The recipes build on [Services and runtimes](/services) for the storage layers, 
 
 `Atom.kvs` keeps an atom's value in a `KeyValueStore`. Back it with `localStorage`, and the value survives a reload:
 
-<Example files={[{ html: draftSource, name: "draft.svelte" }]} hint="Type a draft, then reload the page: it comes back from localStorage. The server rendered the empty default, so the draft appears just after the page does."> <Draft /> </Example>
+<Example files={[{ html: draftSource, name: "draft.svelte" }]} hint="Type a draft, then reload the page: it comes back from localStorage. In the HTML shows the server rendered the empty default, so the draft appears just after the page does."> <Draft /> </Example>
 
 `KeyValueStore.layerStorage(() => localStorage)` throws on the server, where `localStorage` doesn't exist. So the example gives the server an in-memory store instead, and the server renders the default value, an empty draft. Once the page has hydrated, the browser reads the saved draft and shows it.
 
@@ -40,7 +40,7 @@ The server can't know what a visitor saved in their browser. Reload the page abo
 
 A cookie goes to the server with every request, so the server can render the stored value. Back `Atom.kvs` with a store that reads and writes `document.cookie` in the browser, and reads the request's cookies on the server:
 
-<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Pick Dark, then reload the page. The box is dark from the first paint: the server read the cookie."> <Theme /> </Example>
+<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Pick dark, then reload the page. The box is dark from the first paint, and In the HTML says dark: the server read the cookie."> <Theme /> </Example>
 
 The server's store needs the request's cookies. Pass them from the root layout's `load` function to the registry, through `initialValues`:
 
@@ -102,7 +102,7 @@ Writes to the URL are batched, and land half a second after the last change, wit
 
 `Atom.refreshOnWindowFocus` computes an atom again whenever the tab becomes visible, so it catches up with anything that changed while the visitor was away:
 
-<Example files={[{ html: focusSource, name: "focus.svelte" }]} hint="Switch to another tab and back: the time flashes as the atom computes again."> <Focus /> </Example>
+<Example files={[{ html: focusSource, name: "focus.svelte" }]} hint="Switch to another tab and back: the atom computes again, and the count goes up. In the HTML shows the server value, not yet."> <Focus /> </Example>
 
 It listens on `window` as soon as it is computed, so on the server it throws. Give it a server value with `Atom.withServerValue`, as the example does. The atom is then never computed on the server, whichever hook reads it. See [Server rendering](/server-rendering#server-values).
 

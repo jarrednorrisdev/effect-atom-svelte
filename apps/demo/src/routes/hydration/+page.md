@@ -152,7 +152,7 @@ The first render uses `"all"` on both sides, and hydrates from the server's resu
 
 The example saves its filter with `Atom.kvs`, whose server store is in memory, so the server reads `"all"` there too.
 
-<Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Pick Done, then click Reload the page: the list starts at all three todos, from the server, then switches to the saved filter and computes it in the browser."> <SavedFilter /> </Example>
+<Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Pick done, then click Reload the page. In the HTML shows the server rendered all three todos; the list then switches to the saved filter, computed in the browser."> <SavedFilter /> </Example>
 
 ## HydrationBoundary
 
@@ -193,4 +193,4 @@ Atoms the browser's registry doesn't have yet are hydrated before the children r
 
 The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
 
-<Example files={[{ html: hydrationBoundarySource, name: "hydration-boundary.svelte" }, { html: pricesRemoteSource, name: "prices.remote.ts" }, { html: pricesAtomsSource, name: "prices.ts" }, { html: pricesSource, name: "prices.svelte" }]} hint="Both atoms came from the remote function, computed on the server. Reload the page and watch pricesWithKeysAtom: it shows the server's result, then runs again in the browser."> <HydrationBoundaryExample /> </Example>
+<Example files={[{ html: hydrationBoundarySource, name: "hydration-boundary.svelte" }, { html: pricesRemoteSource, name: "prices.remote.ts" }, { html: pricesAtomsSource, name: "prices.ts" }, { html: pricesSource, name: "prices.svelte" }]} hint="Both atoms came from the remote function, computed on the server, as In the HTML shows. pricesWithKeysAtom then ran again in the browser: reload the page and watch it switch."> <HydrationBoundaryExample /> </Example>

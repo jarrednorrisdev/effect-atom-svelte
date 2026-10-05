@@ -30,28 +30,36 @@
 </script>
 
 <script lang="ts">
-  import { useAtomSet, useAtomSuspense } from "effect-atom-svelte";
+  import { useAtom, useAtomSuspense } from "effect-atom-svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   // Shows the App.Error the failed snippet receives.
   import ErrorBody from "./error-body.svelte";
 
   const todo = useAtomSuspense(todoAtom);
-  const setAsk = useAtomSet(askAtom);
+  const asked = useAtom(askAtom);
+
+  const asks = [
+    ["found", "Todo 1"],
+    ["missing", "Todo 7, missing"],
+    ["slow", "A slow todo"],
+    ["broken", "A broken response"],
+  ] as const;
 
   // The boundary's reset while it shows the failed snippet, so a new ask renders again.
   let reset: (() => void) | undefined;
   const ask = (next: Ask) => {
-    setAsk(next);
+    asked.current = next;
     reset?.();
     reset = undefined;
   };
 </script>
 
-<p>
-  <button onclick={() => ask("found")}>Todo 1</button>
-  <button onclick={() => ask("missing")}>Todo 7, missing</button>
-  <button onclick={() => ask("slow")}>A slow todo</button>
-  <button onclick={() => ask("broken")}>A broken response</button>
+<p aria-label="What to ask for" class="flex flex-wrap gap-2" role="group">
+  {#each asks as [name, label] (name)}
+    <button aria-pressed={asked.current === name} onclick={() => ask(name)}>
+      {label}
+    </button>
+  {/each}
 </p>
 <!-- With a pending snippet, the server never waits for the atom. See the caution. -->
 <svelte:boundary onerror={(_, retry) => (reset = retry)}>
