@@ -8,10 +8,8 @@
   const calls = new EventLogState();
 
   // Logs a call's failure, which ends the effect.
-  const logFailure = (name: string) =>
-    Effect.tapError((error: { readonly _tag: string }) =>
-      Effect.sync(() => calls.add(`${name} failed: ${error._tag}`, { tone: "failure" }))
-    );
+  const logFailure = (name: string, failure: { readonly _tag: string }) =>
+    Effect.sync(() => calls.add(`${name} failed: ${failure._tag}`, { tone: "failure" }));
 
   // Two calls in one effect: getTodo needs the id that createTodo returns.
   const createAndReadAtom = TodosRpc.runtime.fn((title: string) =>
@@ -19,12 +17,12 @@
       const client = yield* TodosRpc;
       calls.add("createTodo sent", { tone: "running" });
       const created = yield* client("createTodo", { title }).pipe(
-        logFailure("createTodo")
+        Effect.tapError((failure) => logFailure("createTodo", failure))
       );
       calls.add(`createTodo: todo ${created.id}`, { tone: "success" });
       calls.add(`getTodo sent with id ${created.id}`, { tone: "running" });
       const todo = yield* client("getTodo", { id: created.id }).pipe(
-        logFailure("getTodo")
+        Effect.tapError((failure) => logFailure("getTodo", failure))
       );
       calls.add(`getTodo: "${todo.title}"`, { tone: "success" });
       return todo;

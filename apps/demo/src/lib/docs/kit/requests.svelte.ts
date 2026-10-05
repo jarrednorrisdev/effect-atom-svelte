@@ -14,8 +14,8 @@
  * so moving counts as a request: a query atom nothing was reading fetches when it is read.
  */
 
-import type { Atom, AsyncResult } from "effect/reactivity";
 import { getRegistry } from "effect-atom-svelte";
+import type { Atom, AsyncResult } from "effect/reactivity";
 
 type Query = Atom.Atom<AsyncResult.AsyncResult<unknown, unknown>>;
 
