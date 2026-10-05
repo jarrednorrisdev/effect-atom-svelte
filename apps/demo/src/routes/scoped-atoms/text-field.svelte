@@ -4,11 +4,10 @@
   import DraftPart from "./draft-part.svelte";
   import { Draft } from "./draft-scope.ts";
 
-  const atom = Draft.use();
-  const draft = useAtom(atom);
+  const draft = useAtom(Draft.use());
 </script>
 
-<DraftPart {atom} name="TextField">
+<DraftPart name="TextField">
   <input
     aria-label="Draft"
     bind:value={draft.current}

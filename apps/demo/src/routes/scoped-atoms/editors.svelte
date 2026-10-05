@@ -2,12 +2,13 @@
   import DraftPart from "./draft-part.svelte";
   import { Draft } from "./draft-scope.ts";
   import NoteEditor from "./note-editor.svelte";
+  import SharedEditor from "./shared-editor.svelte";
 
   let kind = $state<"own" | "shared">("own");
 
-  // For comparison: one draft above both editors. An editor that doesn't
-  // provide its own finds this one with Draft.use(), as both would find an
-  // atom defined at module level.
+  // For comparison: one draft above both editors. SharedEditor doesn't
+  // provide its own, so its parts find this one with Draft.use(), as they
+  // would find an atom defined at module level.
   const shared = Draft.provide("");
 </script>
 
@@ -26,10 +27,10 @@
       <NoteEditor name="Note B" />
     </div>
   {:else}
-    <DraftPart atom={shared} name="Editors" provides>
+    <DraftPart atom={shared} name="Editors">
       <div class="grid gap-3 sm:grid-cols-2">
-        <NoteEditor name="Note A" provides={false} />
-        <NoteEditor name="Note B" provides={false} />
+        <SharedEditor name="Note A" />
+        <SharedEditor name="Note B" />
       </div>
     </DraftPart>
   {/if}

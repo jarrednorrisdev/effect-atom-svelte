@@ -99,22 +99,29 @@ export const userAtom = runtime.atom(Users.use((users) => users.current)).pipe(
 ```svelte
 <!-- user-badge.svelte -->
 <script lang="ts">
+  import { Option } from "effect";
+  import { AsyncResult } from "effect/reactivity";
   import { useAtomResult } from "effect-atom-svelte";
   import { userAtom } from "$lib/user";
 
   const user = await useAtomResult(userAtom);
+  // The typed error, SignedOut, if the effect failed with one.
+  const signedOut = $derived(AsyncResult.error(user.current));
 </script>
 
 {#if user.current._tag === "Success"}
   <p>Signed in as {user.current.value.name}</p>
-{:else}
+{:else if Option.isSome(signedOut)}
   <a href="/sign-in">Sign in</a>
+{:else}
+  <!-- A defect: something failed that the effect's type doesn't describe. -->
+  <p>Couldn't load your account.</p>
 {/if}
 ```
 
-Next to a `getUser` remote query, the difference is the Effect code: the `Users` service is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error. The server's result still travels with the page, because the atom is serializable.
+Next to a `getUser` remote query, the difference is the Effect code: the `Users` service is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error, so the badge can tell a signed-out visitor from a defect. The server's result still travels with the page, because the atom is serializable.
 
-The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing reads, so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
+The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing [holds](/reading-and-writing#reading), so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
 
 ## What else atoms handle
 
@@ -123,7 +130,7 @@ Per-request isolation is the problem a module can't solve. Beyond it, atoms brin
 - **Effect in components.** An atom takes an `Effect` or a `Stream` as it is, and can use services from a `Layer`. `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into typed queries and mutations. See [Services and runtimes](/services), [RPC](/rpc) and [HTTP API](/http).
 - **Async state with typed errors.** An atom built from an `Effect` holds an `AsyncResult`: `Initial` before the first value, `Success` or `Failure` after, with the error typed by the effect. The hooks hand that to `<svelte:boundary>`, or let you match on it. See [Async atoms](/async-atoms).
 - **Derived values.** `Atom.make((get) => ...)` reads other atoms, from any module, whether they hold server data or client state, and the registry computes it again only when one of them changes. See [Derived atoms](/derived-atoms).
-- **Cleanup.** When nothing reads an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. A component that unmounts mid-request cancels that request. State in context, by contrast, lasts as long as the layout that created it. In exchange, an atom nothing reads loses its value unless you keep it alive. See [Lifetimes](/lifetimes).
+- **Cleanup.** When nothing holds an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. If a component unmounts mid-request and nothing else holds the atom, its effect is interrupted. The request itself is aborted if the effect passes on its `AbortSignal`: see [Wrapping a promise](/effect-basics#wrapping-a-promise). State in context, by contrast, lasts as long as the layout that created it. In exchange, an atom nothing holds loses its value unless you keep it alive. See [Lifetimes](/lifetimes).
 - **Server data in the browser.** As with a remote `query`, serializable async atoms awaited during server rendering pass their results to the browser, which uses them instead of running the effects again. See [Hydration](/hydration).
 
 ## When you don't need atoms

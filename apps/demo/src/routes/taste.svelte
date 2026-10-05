@@ -4,8 +4,11 @@
 
   const countAtom = Atom.make(0);
   const doubledAtom = Atom.make((get) => get(countAtom) * 2);
+  // Stamped with the time, so a new greeting looks different from the old one.
   const greetingAtom = Atom.make(
-    Effect.succeed("Hello from an Effect").pipe(Effect.delay("2 seconds"))
+    Effect.sync(() => `Hello from an Effect at ${new Date().toLocaleTimeString()}`).pipe(
+      Effect.delay("2 seconds")
+    )
   );
 </script>
 
@@ -23,8 +26,9 @@
 
   const count = useAtom(countAtom);
   const doubled = useAtomValue(doubledAtom);
-  // suspendOnWaiting: a refresh waits for the new greeting instead of keeping the old one.
-  const greeting = useAtomSuspense(greetingAtom, { suspendOnWaiting: true });
+  const greeting = useAtomSuspense(greetingAtom);
+  // True while the effect runs again.
+  const reloading = useAtomValue(greetingAtom, (result) => result.waiting);
   const reload = useAtomRefresh(greetingAtom);
 </script>
 
@@ -42,7 +46,7 @@
   <Part code label="greetingAtom">
     <svelte:boundary>
       <ResultChip
-        busy={$effect.pending() > 0}
+        busy={reloading.current}
         data-testid="taste-greeting"
         kind="message"
         tone="success"

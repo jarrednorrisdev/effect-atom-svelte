@@ -26,18 +26,20 @@ The app must load one copy of `effect`. See [Two copies of effect](/troubleshoot
 
 ## Turn on async mode
 
-The async hooks (`useAtomSuspense`, `useAtomResult`) and server rendering depend on Svelte's experimental async support. The other hooks, such as `useAtom` and `useAtomValue`, work without it, so an app that only renders in the browser and doesn't use those two can skip this step. SvelteKit 3 reads Svelte's options from `vite.config.ts`:
+The async hooks (`useAtomSuspense`, `useAtomResult`) and server rendering depend on Svelte's experimental async support. The other hooks, such as `useAtom` and `useAtomValue`, work without it, so an app that only renders in the browser and doesn't use those two can skip this step. SvelteKit 3 reads Svelte's options from `vite.config.ts`, so add `compilerOptions` to the options you already pass to `sveltekit()`:
 
 **Example** (Turning on experimental async in SvelteKit 3)
 
 ```ts
 // vite.config.ts
+import adapter from "@sveltejs/adapter-auto";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
     sveltekit({
+      adapter: adapter(),
       compilerOptions: { experimental: { async: true } },
     }),
   ],
@@ -78,7 +80,7 @@ Most apps need no options. Two are worth knowing from the start:
 | Option | Does |
 | --- | --- |
 | `initialValues` | Starting values, as `[atom, value]` pairs, such as data from a `load` function. |
-| `registry` | An existing registry to provide instead of creating one. You dispose it yourself, and the other options don't apply to it. |
+| `registry` | An existing registry to provide instead of creating one. You dispose of it yourself. Passing it with `initialValues`, `defaultIdleTTL`, `timeoutResolution` or `scheduleTask` throws, as those only shape a new registry. `revalidateOnHydrate` still applies. |
 
 <Aside type="danger" title="Never share a registry between requests">
 

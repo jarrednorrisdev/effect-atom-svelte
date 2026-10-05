@@ -8,18 +8,22 @@
   import type { Atom } from "effect/reactivity";
   import type { Snippet } from "svelte";
 
+  import { Draft } from "./draft-scope.ts";
   import { colorOf, nameProvider, providerOf } from "./providers.ts";
 
   interface Props {
-    readonly atom: Atom.Atom<string>;
+    /** The atom an editor provides. A part without it finds its own with Draft.use(). */
+    readonly atom?: Atom.Atom<string>;
     readonly children: Snippet;
     readonly name: string;
-    /** This part provides the atom (an editor), rather than using it. */
-    readonly provides?: boolean;
   }
 
-  const { atom, children, name, provides = false }: Props = $props();
+  const { atom: provided, children, name }: Props = $props();
 
+  // svelte-ignore state_referenced_locally
+  const provides = provided !== undefined;
+  // svelte-ignore state_referenced_locally
+  const atom = provided ?? Draft.use();
   // An editor names its atom before its children render, so they can look it up.
   // svelte-ignore state_referenced_locally
   if (provides) {

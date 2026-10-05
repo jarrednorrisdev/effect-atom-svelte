@@ -3,7 +3,7 @@
 
   import { startTimer, stopTimer } from "./timers.svelte.ts";
 
-  // The example's switch: leave the finalizer out to see what it prevents.
+  // Demo switch, turned off below to see what the finalizer prevents.
   let withFinalizer = true;
 
   // Milliseconds between ticks.
@@ -18,6 +18,7 @@
       get.setSelf(ticks);
     };
     const timer = startTimer(tick, get(tickIntervalAtom));
+    // Demo switch: a real atom always registers its finalizer.
     if (withFinalizer) {
       get.addFinalizer(() => stopTimer(timer));
     }

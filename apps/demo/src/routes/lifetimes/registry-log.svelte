@@ -8,11 +8,13 @@
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import { untrack } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
+  import { useAtomValue } from "effect-atom-svelte";
+
+  import { logAtom } from "./lifecycle-log.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     /** Shows the caption as code, in its own case, such as an atom's name. */
     readonly code?: boolean;
-    readonly events: readonly { readonly atom: string; readonly event: string }[];
     /** Shown while the log is empty. */
     readonly empty?: string;
     /** The log's caption; "Registry" by default. */
@@ -22,16 +24,16 @@
   const {
     code = false,
     empty = "Nothing yet. Add a reader to an atom.",
-    events,
     label = "Registry",
     ...rest
   }: Props = $props();
 
+  const events = useAtomValue(logAtom);
   const log = new EventLogState();
   let seen = 0;
   $effect(() => {
-    const arrived = events.slice(seen);
-    seen = events.length;
+    const arrived = events.current.slice(seen);
+    seen = events.current.length;
     untrack(() => {
       for (const entry of arrived) {
         log.add(`${entry.atom}: ${entry.event}`, {
