@@ -25,7 +25,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 
 The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomInitialValues`.
 
-<Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click + or ×10 and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
+<Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click +, − or Reset and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
 ## Reading
 
@@ -42,7 +42,9 @@ The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/s
 <p>{label}</p>
 ```
 
-The hook only subscribes while something reactive reads `current`. When nothing does, it unsubscribes, and the registry can dispose of the atom. Reading `current` only in an event handler gets the value at that moment but doesn't subscribe, so it doesn't hold the atom either: if nothing else holds it, the next read may start from the atom's initial value.
+While something reactive reads `current`, the hook **holds** the atom: it tells the registry the value is still needed, and the registry keeps it. When nothing reads `current`, the hook lets go, and once nothing holds the atom, the registry can dispose of its value. [Lifetimes](/lifetimes#held-atoms) lists everything that holds an atom.
+
+Reading `current` only in an event handler gets the value at that moment, but doesn't hold the atom: if nothing else holds it, the next read may start from the atom's initial value.
 
 ### Transforming the value
 
@@ -85,7 +87,7 @@ setCount((n) => n * 10);
 
 Because a function is treated as an update, storing a function in an atom takes one more wrapper: `setHandler(() => handler)`.
 
-The component doesn't read the atom, so it doesn't update when the value changes. It does keep the atom mounted for as long as the component lives, so a value you set is not disposed before something reads it.
+The component doesn't read the atom, so it doesn't update when the value changes. It does hold the atom for as long as the component lives, so a value you set is not disposed before something reads it.
 
 <Aside type="tip" title="Setters that return a promise">
 
@@ -101,7 +103,7 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 useAtomSubscribe(draftAtom, (draft) => localStorage.setItem("draft", draft));
 ```
 
-The function isn't called for the value the atom already has, only for changes. Pass `{ immediate: true }` to also call it once with the current value when the component mounts. Like `useAtomSet`, it keeps the atom mounted while the component lives.
+The function isn't called for the value the atom already has, only for changes. Pass `{ immediate: true }` to also call it once with the current value when the component mounts. Like `useAtomSet`, it holds the atom while the component lives.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
 
@@ -114,8 +116,8 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
   import { Atom } from "effect/reactivity";
 
   // Kept alive, so each keeps its text while the hook follows the other.
-  const draftAtom = Atom.make("").pipe(Atom.keepAlive);
-  const savedAtom = Atom.make("").pipe(Atom.keepAlive);
+  const draftAtom = Atom.make("Half a thought").pipe(Atom.keepAlive);
+  const savedAtom = Atom.make("Published post").pipe(Atom.keepAlive);
 </script>
 
 <script lang="ts">
@@ -128,12 +130,12 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 
 <Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
-When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The snippet keeps both with `Atom.keepAlive`; in the live example, the boxes on the right read both atoms, which holds them too. See [Lifetimes](/lifetimes).
+When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. `Atom.keepAlive` keeps both here. See [Lifetimes](/lifetimes).
 
 Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
 <Aside type="note" title="When updates arrive">
 
-A write from an event handler updates every reader at once, so after `count.current += 1`, reading another atom derived from `count` gives the new value. A change that happens while Svelte is evaluating markup or a `$derived`, such as an atom computed for the first time by that read, reaches the hooks on a microtask instead, because Svelte doesn't allow state to change during that evaluation.
+A write from an event handler updates every reader at once: the handler's next line already reads the new value, from the atom and from atoms derived from it.
 
 </Aside>

@@ -15,6 +15,8 @@ description: Await async atoms in markup, and let a boundary show loading and fa
   import forecastSource from "./forecast.svelte?highlight";
   import notesSource from "./notes.svelte?highlight";
   import oneByOneSource from "./one-by-one.svelte?highlight";
+  import Retry from "./retry.svelte";
+  import retrySource from "./retry.svelte?highlight";
   import ScriptAwait from "./script-await.svelte";
   import scriptAwaitSource from "./script-await.svelte?highlight";
   import SlowTraces from "./slow-traces.svelte";
@@ -91,11 +93,15 @@ When the atom's effect fails, the promise rejects with `Cause.squash` of its cau
 </svelte:boundary>
 ```
 
-`suspendOnWaiting` makes the content wait for the refresh's result rather than the old failure; [After the first load](#after-the-first-load) explains it. In the [weather example](#following-a-different-atom), Try again shows the `pending` snippet once more: `reset` starts the boundary afresh.
+`suspendOnWaiting` makes the content wait for the refresh's result rather than the old failure; [After the first load](#after-the-first-load) explains it.
+
+In the example, the atom is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead: see [Server values](/server-rendering#server-values). Turn on **Fail the next load** to try the `failed` snippet:
+
+<Example files={[{ html: retrySource, name: "retry.svelte" }]} hint="Turn on Fail the next load and click Reload: the failed snippet takes over. Click Try again: reset starts the boundary afresh, so the pending snippet shows until the new forecast arrives."> <Retry /> </Example>
 
 <Aside type="caution" title="SvelteKit hides error details">
 
-SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The example reads `error.message` because this site installs the hooks from `effect-atom-svelte/sveltekit`, which keep an Effect error's message and `_tag`. Without them, the snippet would show "Internal Error". [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install them.
+SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The example casts the error to `App.Error`, SvelteKit's error type, and reads `error.message` because this site installs the hooks from `effect-atom-svelte/sveltekit`, which keep an Effect error's message and `_tag`. Without them, the snippet would show "Internal Error". [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install them.
 
 </Aside>
 
@@ -132,9 +138,9 @@ Svelte shows a boundary's `pending` snippet only while the boundary first loads.
 
 Like the other hooks that take an atom, `useAtomSuspense` accepts a getter, and follows whichever atom it returns. `useAtomSuspense(() => weatherAtom(city))` issues a new promise when `city` changes, and the boundary waits for the new atom while the old content stays.
 
-In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city. Each is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead: see [Server values](/server-rendering#server-values). The example also has a **Fail the next load** switch, to try the `failed` snippet.
+In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city, each loaded in the browser only, like the failure example's atom.
 
-<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Turn on Fail the next load and click Reload: the failed snippet takes over, and Try again starts the boundary afresh."> <Weather /> </Example>
+<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Pick two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
 
 <Aside type="note" title="Abandoned waits">
 
@@ -191,7 +197,7 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-Svelte restores the component's context after each top-level `await`, so you can call hooks after one. The exception is a hook whose returned function you pass as an event handler, such as `onclick={refresh}`: call it before the first `await`, or wrap the handler in an arrow, `onclick={() => refresh()}`. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
+Svelte restores the component's context after each top-level `await`, so you can call hooks after one. In Svelte 5.57, a bug in production builds affects one case: a function a hook returns after an `await`, passed directly as an event handler such as `onclick={refresh}`, does nothing. To work around it, call that hook before the first `await`, or wrap the handler in an arrow, `onclick={() => refresh()}`. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
 Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 

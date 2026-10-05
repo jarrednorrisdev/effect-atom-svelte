@@ -9,14 +9,16 @@
   import { exampleTouched, getExampleState } from "#lib/docs/kit/tone.ts";
   import type { Tone } from "#lib/docs/kit/tone.ts";
   import type { Atom } from "effect/reactivity";
+  import { useAtomValue } from "effect-atom-svelte";
   import type { Snippet } from "svelte";
+
+  import { logAtom } from "./lifecycle-log.ts";
 
   interface Props {
     readonly atom: Atom.Atom<unknown>;
     readonly children: Snippet;
     /** What the count counts; "readers" by default. */
     readonly countLabel?: string;
-    readonly events: readonly { readonly atom: string; readonly event: string }[];
     readonly name: string;
     readonly readers: number;
   }
@@ -25,17 +27,17 @@
     atom,
     children,
     countLabel = "readers",
-    events,
     name,
     readers,
   }: Props = $props();
 
   const example = getExampleState();
+  const log = useAtomValue(logAtom);
 
   // The latest event for this atom.
   const last = $derived.by(() => {
     let found: string | undefined;
-    for (const entry of events) {
+    for (const entry of log.current) {
       if (entry.atom === name) {
         found = entry.event;
       }
@@ -65,7 +67,7 @@
       return "disposed";
     }
     if (readers > 0) {
-      return "mounted";
+      return "held";
     }
     if (atom.keepAlive) {
       return "no readers, kept alive";

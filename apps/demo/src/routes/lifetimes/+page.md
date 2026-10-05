@@ -26,13 +26,13 @@ Each box below is an atom, with the number of `<Reader>` components reading it i
 
 <Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Add two readers to plain, then remove them one at a time: plain is disposed only when its count reaches 0. Keeping atoms alive, below, explains the other two."> <Lifetimes /> </Example>
 
-## Mounted atoms
+## Held atoms
 
-An atom is **mounted** while something holds it. Each of these holds an atom:
+An atom is [held](/reading-and-writing#reading) while something tells the registry its value is still needed. Each of these holds an atom:
 
 - A hook whose `current` is being read in markup, `$derived` or `$effect`.
 - `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe` and `useAtomResult`, for as long as their component lives.
-- Another mounted atom that reads it with `get`.
+- Another atom that reads it with `get`, while that atom is itself held or kept alive.
 
 When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
 
@@ -84,7 +84,7 @@ An idle TTL is not exact. The registry groups disposals into time buckets of `ti
 </script>
 ```
 
-The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. Mounting an atom that hasn't been computed also computes it: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
+The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. Holding an atom that hasn't been computed also computes it: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
 
 In the live example, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`. The panel beside the app shows what holds the atom at each moment:
 

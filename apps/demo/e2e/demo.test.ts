@@ -368,9 +368,8 @@ test("introduction: a count, its double and an Effect's greeting", async ({
     /data-tone="running"[^>]*><span class="content[^"]*">(?:<!---->)*Loading…/u
   );
   await page.goto("/");
-  await expect(page.getByTestId("taste-greeting")).toHaveText(
-    "Hello from an Effect"
-  );
+  const greeting = page.getByTestId("taste-greeting");
+  await expect(greeting).toHaveText(/^Hello from an Effect at /u);
   await page.waitForLoadState("networkidle");
   const add = page.getByRole("button", { name: "Add one" });
   await add.click();
@@ -378,6 +377,13 @@ test("introduction: a count, its double and an Effect's greeting", async ({
   await expect(page.getByTestId("taste-count")).toHaveText("2");
   // doubledAtom follows countAtom.
   await expect(page.getByTestId("taste-doubled")).toHaveText("4");
+  // A refresh keeps the old greeting, marked busy, until the new one arrives.
+  const first = await greeting.textContent();
+  await page.getByRole("button", { name: "Load again" }).click();
+  await expect(greeting).toHaveAttribute("aria-busy", "true");
+  await expect(greeting).toHaveText(first ?? "");
+  await expect(greeting).not.toHaveText(first ?? "", { timeout: 5000 });
+  await expect(greeting).toHaveAttribute("aria-busy", "false");
 });
 
 test("first atom: two counters share one atom", async ({ page }) => {
@@ -405,8 +411,9 @@ test("reading and writing: read, write, transform, update and bind", async ({
   await page.getByRole("button", { name: "+" }).click();
   await expect(page.getByTestId("count")).toHaveText("2");
   await expect(page.getByTestId("parity")).toHaveText("even");
-  await page.getByRole("button", { name: "Multiply by 10" }).click();
-  await expect(page.getByTestId("count")).toHaveText("20");
+  await page.getByRole("button", { exact: true, name: "Reset" }).click();
+  await expect(page.getByTestId("count")).toHaveText("0");
+  await expect(page.getByTestId("parity")).toHaveText("even");
   await page.getByTestId("name").fill("Effect");
   await expect(page.getByTestId("greeting")).toHaveText("Hello, Effect!");
   await page.getByTestId("name").fill("");
@@ -735,7 +742,7 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
   expect(await dotTime(heldAwait.nth(0))).toBeGreaterThan(1500);
 
   // A failure: the failed snippet takes over, and Try again starts the boundary afresh.
-  const weather = page.getByTestId("weather");
+  const weather = page.getByTestId("retry-forecast");
   await expect(weather).toHaveText("18 °C, cloudy");
   const failNext = page.getByRole("button", {
     exact: true,
@@ -743,14 +750,15 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
   });
   await setPressed(failNext, true);
   await page.getByRole("button", { exact: true, name: "Reload" }).click();
-  await expect(page.getByTestId("weather-failed")).toHaveText(
+  await expect(page.getByTestId("retry-failed")).toHaveText(
     "No weather for Paris right now"
   );
   await expect(weather).toHaveCount(0);
-  await page.getByRole("button", { name: "Try again" }).click();
+  // The switch fails one load only.
   await expect(failNext).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Try again" }).click();
   await expect(weather).toHaveText("18 °C, cloudy");
-  await expect(page.getByTestId("weather-failed")).toHaveCount(0);
+  await expect(page.getByTestId("retry-failed")).toHaveCount(0);
 });
 
 test.describe("Mutations page", () => {
@@ -1278,7 +1286,7 @@ test("lifetimes: an atom is disposed when its last reader goes, unless it is kep
   await button("plain: add a reader").click();
   await expect(readers("plain")).toHaveText("2");
   await expect(page.getByText("Reading plain")).toHaveCount(2);
-  await expect(status("plain")).toHaveText("mounted");
+  await expect(status("plain")).toHaveText("held");
   // Two readers share one computation.
   await expect(entries).toHaveText([/^\d+ ms\s*plain: computed$/u]);
   // One reader is left, so the atom stays.

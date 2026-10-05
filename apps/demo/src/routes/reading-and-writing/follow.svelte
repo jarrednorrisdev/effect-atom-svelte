@@ -1,8 +1,9 @@
 <script module lang="ts">
   import { Atom } from "effect/reactivity";
 
-  const draftAtom = Atom.make("Half a thought");
-  const savedAtom = Atom.make("Published post");
+  // Kept alive, so each keeps its text while the hook follows the other.
+  const draftAtom = Atom.make("Half a thought").pipe(Atom.keepAlive);
+  const savedAtom = Atom.make("Published post").pipe(Atom.keepAlive);
 </script>
 
 <script lang="ts">

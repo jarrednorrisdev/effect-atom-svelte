@@ -14,12 +14,8 @@
   const count = useAtom(countAtom);
   // Read only, through a transform.
   const parity = useAtomValue(countAtom, (n) => (n % 2 === 0 ? "even" : "odd"));
-  // Write only: a setter that takes a value or an updater.
+  // Write only: a setter.
   const setCount = useAtomSet(countAtom);
-  // An updater gets the current value. Past Number.MAX_SAFE_INTEGER, + and − would
-  // stop changing the count, so it stays put there.
-  const fits = (n: number) => Number.isSafeInteger(n * 10);
-  const timesTen = (n: number) => (fits(n) ? n * 10 : n);
   // bind: assigns .current as you type.
   const name = useAtom(nameAtom);
 </script>
@@ -33,13 +29,7 @@
     </span>
   </Part>
   <Part code label="useAtomSet">
-    <button
-      aria-label="Multiply by 10"
-      data-cue={fits(count.current) ? "up" : "blocked"}
-      onclick={() => setCount(timesTen)}
-    >
-      ×10
-    </button>
+    <button data-cue="reset" onclick={() => setCount(0)}>Reset</button>
   </Part>
   <Part code label="useAtomValue">
     The count is <FlashValue data-testid="parity" value={parity.current} />.

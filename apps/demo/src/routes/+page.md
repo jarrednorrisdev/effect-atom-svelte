@@ -29,9 +29,9 @@ effect-atom-svelte was inspired by Thomas Foster's [Svelte Atoms pull request](h
 
 Three atoms: a number you can change, a value derived from it, and an `Effect` that takes two seconds. The component reads all three with hooks. If `Effect` is new to you, [Effect basics](/effect-basics) covers what these docs use.
 
-<Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Click Load again to watch greetingAtom load."> <Taste /> </Example>
+<Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Click Load again: the old greeting stays until the new one arrives."> <Taste /> </Example>
 
-Clicking **Add one** writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes. **Load again** refreshes `greetingAtom`, and with `suspendOnWaiting` the markup waits for the new greeting.
+Clicking **Add one** writes to `countAtom`, and `doubledAtom` follows. The greeting is awaited in the markup, with a `<svelte:boundary>` showing "Loading…" until the effect finishes. **Load again** runs `greetingAtom` again. The old greeting stays on screen, dimmed, until the new one arrives.
 
 ## How it fits together
 
@@ -40,8 +40,8 @@ Three pieces work together:
 | Piece | What it is |
 | --- | --- |
 | **Atom** | A description of a value: a starting value, how to derive it from other atoms, or an `Effect` or `Stream` that produces it. An atom holds no value itself, so it is safe to define once in a module. |
-| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing reads it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
-| **Hook** | Connects a component to an atom in the nearest registry. It subscribes while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
+| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing holds it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
+| **Hook** | Connects a component to an atom in the nearest registry. It [holds](/reading-and-writing#reading) the atom while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
 
 Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Why atoms](/why-atoms) explains why that matters, and when you don't need atoms at all.
 
