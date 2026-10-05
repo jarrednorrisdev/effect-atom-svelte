@@ -54,9 +54,9 @@ Because values live in the registry rather than in the atom, the same `countAtom
 
 ## Requirements
 
-- `effect` 4.0
+- `effect` 4.0.x (not 4.1)
 - Svelte 5.57 or later, with experimental async turned on for the async hooks and server rendering
-- SvelteKit 3, if you want the server rendering helpers shown in these docs
+- SvelteKit 3 for the `effect-atom-svelte/sveltekit` error hooks (on SvelteKit 2 they work with less detail: see [SvelteKit](/sveltekit))
 
 ## How these docs work
 
