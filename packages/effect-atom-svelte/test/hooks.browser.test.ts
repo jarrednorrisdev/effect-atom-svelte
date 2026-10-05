@@ -158,6 +158,9 @@ describe("useAtom", () => {
   });
 });
 
+/** A function for an atom to hold as its value. */
+const storedHandler = () => "b";
+
 describe("useAtomSet", () => {
   test("sets a value or applies an updater", async () => {
     const atom = Atom.make(1);
@@ -219,6 +222,44 @@ describe("useAtomSet", () => {
     const exit = run(undefined, { signal: controller.signal });
     controller.abort();
     await expect(exit).resolves.toMatchObject({ _tag: "Failure" });
+  });
+
+  test("promise modes reject Atom.Reset instead of waiting forever", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    let run!: (value: number) => Promise<number>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(double, { mode: "promise" });
+        return () => "";
+      },
+    });
+    await expect(run(1)).resolves.toBe(2);
+    // Left out of the types: a reset result is Initial, which never settles.
+    await expect(run(Atom.Reset as never)).rejects.toThrow("Atom.Reset");
+    expect(registry.get(double)).toMatchObject({ _tag: "Success", value: 2 });
+  });
+
+  test("value mode stores a function wrapped in an updater", async () => {
+    const registry = AtomRegistry.make();
+    // Atom.make would take a function as the atom's read, not its value.
+    const handler = Atom.writable(
+      (): (() => string) => () => "a",
+      (ctx, value: () => string) => ctx.setSelf(value)
+    );
+    let set!: (
+      value: (() => string) | ((current: () => string) => () => string)
+    ) => void;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        set = useAtomSet(handler);
+        return () => "";
+      },
+    });
+    set(() => storedHandler);
+    expect(registry.get(handler)).toBe(storedHandler);
   });
 });
 

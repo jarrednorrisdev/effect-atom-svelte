@@ -142,6 +142,8 @@ setSave(Atom.Reset);
 
 After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
 
+Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: their types leave it out, and the promise rejects.
+
 ## Mutations from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are the same thing, made for you: `TodosRpc.mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).

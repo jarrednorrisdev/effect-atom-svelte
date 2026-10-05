@@ -378,8 +378,18 @@ export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
 
 /**
  * Returns a setter. The atom is mounted for the component's lifetime, so an `Atom.fn` keeps its
- * state between calls and is not disposed between set and read. In `promise` and `promiseExit`
- * modes the setter waits for the atom's next settled result.
+ * state between calls and is not disposed between set and read.
+ *
+ * In `value` mode a function passed to the setter is an updater, called with the current value. To
+ * store a function in an atom, wrap it: `set(() => handler)`.
+ *
+ * In `promise` and `promiseExit` modes the setter waits for the atom's next settled result. The
+ * wait holds the atom, so a call still in flight keeps it running after the component is
+ * destroyed, until it settles. The call's `signal` cancels only the wait: an `Atom.fn` already
+ * running keeps going (send `Atom.Interrupt` to stop it). Calls on one `Atom.fn` share its single
+ * result, so a new call supersedes one in flight and every pending call resolves with the latest
+ * call's result. `Atom.Reset` has no result to wait for, so these modes leave it out of their
+ * types and reject it; reset with a `value` mode setter.
  *
  * **Example** (Updating an atom from its current value)
  *
@@ -402,11 +412,14 @@ export function useAtomSet<R, W>(
 export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
   options: { readonly mode: "promise" }
-): (value: W, options?: WriteOptions) => Promise<A>;
+): (value: Exclude<W, Atom.Reset>, options?: WriteOptions) => Promise<A>;
 export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
   options: { readonly mode: "promiseExit" }
-): (value: W, options?: WriteOptions) => Promise<Exit.Exit<A, E>>;
+): (
+  value: Exclude<W, Atom.Reset>,
+  options?: WriteOptions
+) => Promise<Exit.Exit<A, E>>;
 export function useAtomSet<A, E, W>(
   input: AtomInput<Atom.Writable<AsyncResult.AsyncResult<A, E>, W>>,
   options?: { readonly mode?: WriteMode | undefined }
@@ -435,6 +448,13 @@ export function useAtomSet(
     };
   }
   return async (value: unknown, writeOptions?: WriteOptions) => {
+    if (value === Atom.Reset) {
+      // Excluded by the types: a reset result is Initial, which never settles, so the wait would
+      // never end.
+      throw new TypeError(
+        `useAtomSet's ${mode} mode cannot wait for Atom.Reset; reset with a value mode setter`
+      );
+    }
     const atom = getAtom() as Atom.Writable<
       AsyncResult.AsyncResult<unknown, unknown>,
       unknown
