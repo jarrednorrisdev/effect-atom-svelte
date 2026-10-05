@@ -340,12 +340,19 @@ const readComponent = async (file: string) => {
 const readEntryPoints = async (packageDir: string) => {
   const manifest = JSON.parse(
     await readFile(path.join(packageDir, "package.json"), "utf-8")
-  ) as { exports: Record<string, { readonly default: string }> };
+  ) as { exports: Record<string, string | { readonly default: string }> };
   return new Map(
-    Object.entries(manifest.exports).map(([subpath, { default: target }]) => [
-      path.basename(target).replace(/\.js$/u, ".ts"),
-      path.posix.join(packageName, subpath),
-    ])
+    Object.entries(manifest.exports).flatMap(([subpath, target]) =>
+      // Only the modules: "./package.json" maps straight to a file.
+      typeof target === "string"
+        ? []
+        : [
+            [
+              path.basename(target.default).replace(/\.js$/u, ".ts"),
+              path.posix.join(packageName, subpath),
+            ] as const,
+          ]
+    )
   );
 };
 
