@@ -21,6 +21,7 @@ import type { AtomState, ProvideRegistryOptions } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
+import SubscribeIntoState from "./fixtures/subscribe-into-state.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { sleep } from "./helpers.ts";
 
@@ -335,6 +336,58 @@ describe("mounting and lifecycle", () => {
     expect(seen).toEqual(["1x"]);
     registry.set(atom, 2);
     await expect.poll(() => seen).toEqual(["1x", "2y"]);
+  });
+
+  test("useAtomSubscribe computes a derived atom nothing else reads, and hears its changes", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const doubled = Atom.make((get) => get(base) * 2);
+    const seen: number[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(doubled, (value) => seen.push(value));
+        return () => "";
+      },
+    });
+    registry.set(base, 2);
+    registry.set(base, 3);
+    await expect.poll(() => seen).toEqual([4, 6]);
+  });
+
+  test("useAtomSubscribe runs an effect atom nothing else reads", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(
+      Effect.succeed("done").pipe(Effect.delay("20 millis"))
+    );
+    const seen: string[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(atom, (value) => seen.push(value._tag));
+        return () => "";
+      },
+    });
+    await expect.poll(() => seen).toEqual(["Success"]);
+  });
+
+  test("useAtomSubscribe's callback can write $state when a read elsewhere changes the atom", async () => {
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    // Reading this atom writes the watched one, while a $derived is evaluating.
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    const screen = await render(SubscribeIntoState, {
+      read,
+      registry,
+      show: false,
+      watched,
+    });
+    await expect.element(output(screen)).toHaveTextContent("none hidden");
+    await screen.rerender({ show: true });
+    await expect.element(output(screen)).toHaveTextContent("1 read");
   });
 
   test("useAtomInitialValues applies once per registry", async () => {

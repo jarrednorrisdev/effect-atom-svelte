@@ -76,13 +76,15 @@ const toGetter = <A>(input: AtomInput<A>): (() => A) =>
 // read, notifications stay synchronous so writes from event handlers update in the same tick.
 let activeReads = 0;
 
-const notifyAfterReads = (update: () => void) => () => {
+const afterReads = (update: () => void): void => {
   if (activeReads > 0) {
     queueMicrotask(update);
   } else {
     update();
   }
 };
+
+const notifyAfterReads = (update: () => void) => () => afterReads(update);
 
 const duringRead = <A>(f: () => A): A => {
   activeReads += 1;
@@ -462,7 +464,10 @@ export const useAtomRefresh = (
 
 /**
  * Calls `f` on every change while the component lives, and with the current value first when
- * `immediate` is set.
+ * `immediate` is set. The atom is computed when the hook starts, so a derived or effect atom that
+ * nothing else reads still runs and reports its changes. A change raised while another component
+ * is reading an atom reaches `f` on a microtask, so `f` can write `$state` (Svelte forbids that
+ * during a read); other changes reach it synchronously.
  *
  * **Example** (Saving every change)
  *
@@ -487,9 +492,16 @@ export const useAtomSubscribe = <A>(
   $effect(() => {
     const atom = getAtom();
     // `immediate` calls `f` now, inside this effect; what `f` reads must not re-run it.
-    return untrack(() =>
-      registry.subscribe(atom, f, { immediate: options?.immediate === true })
-    );
+    return untrack(() => {
+      // registry.subscribe does not compute a node that has never been read, so an atom nothing
+      // else reads would never run, and a derived atom would never hear its sources. Reading it
+      // first builds it.
+      const value = duringRead(() => registry.get(atom));
+      if (options?.immediate === true) {
+        f(value);
+      }
+      return registry.subscribe(atom, (next) => afterReads(() => f(next)));
+    });
   });
 };
 
