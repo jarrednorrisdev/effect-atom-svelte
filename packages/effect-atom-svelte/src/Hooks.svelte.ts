@@ -987,9 +987,12 @@ const noSeedMount = (): void => undefined;
  */
 const claimedKeys = new WeakMap<object, Set<string>>();
 
-const serverValues = (): ReadonlyMap<string, unknown> | undefined =>
-  (globalThis as { __svelte?: { h?: ReadonlyMap<string, unknown> } }).__svelte
-    ?.h;
+// The store is not public API, so a Svelte that changes its shape or drops it turns the warning off
+// rather than throwing.
+const serverValues = (): ReadonlyMap<string, unknown> | undefined => {
+  const store = (globalThis as { __svelte?: { h?: unknown } }).__svelte?.h;
+  return store instanceof Map ? store : undefined;
+};
 
 const warnIfSent = async (key: string, sent: unknown): Promise<void> => {
   try {
