@@ -126,6 +126,26 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-todos")).toContainText("Slow todo");
   });
 
+  test("a draft typed before hydration survives it", async ({ page }) => {
+    const { errors } = watch(page);
+    // Hold the app's scripts, so the server's input is on screen but not yet hydrated.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/_app/immutable/**/*.js", async (route) => {
+      await held.promise;
+      await route.continue();
+    });
+    await page.goto("/rpc", { waitUntil: "domcontentloaded" });
+    const draft = page.getByTestId("rpc-draft");
+    await draft.fill("Early todo");
+    await expect(page.locator("html[data-hydrated]")).not.toBeAttached();
+    held.resolve(undefined);
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    await page.waitForLoadState("networkidle");
+    // Svelte's bind:value keeps text typed before hydration (JND-92).
+    await expect(draft).toHaveValue("Early todo");
+    expect(await errors()).toEqual([]);
+  });
+
   test("a mutation's reactivity key sends the query to waiting, then back", async ({
     page,
   }) => {

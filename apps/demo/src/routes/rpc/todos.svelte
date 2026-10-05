@@ -19,15 +19,17 @@
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
+  // Declared before the await: a binding to state declared after it is only set up once the
+  // await settles, after hydration, and would clear text typed before then.
+  let draft = $state("");
+  let error = $state("");
+
   // Server rendering waits for the list.
   const todos = await useAtomResult(todosAtom);
 
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
   const toggle = useAtomSet(toggleAtom);
-
-  let draft = $state("");
-  let error = $state("");
 
   // A title that is too long fails with the RPC's typed error, TitleTooLong.
   const describe = (
