@@ -830,6 +830,20 @@ const seedOnServer = (
   })();
 };
 
+/** A hook's wait for its seed. */
+interface SeedWait {
+  /** Resolves once the seed is in, or there is none to wait for. */
+  readonly done: Promise<void>;
+  /**
+   * Lets go of the mount that holds the seeded atom for the hook, once the hook holds what it
+   * reads itself. Until then the mount lasts until the component is destroyed or commits a switch
+   * to another atom, which while a first load is pending is never (JND-59).
+   */
+  readonly letGo: () => void;
+}
+
+const noSeedMount = (): void => undefined;
+
 /**
  * For the getter's first atom, if serializable, resolves it and passes the encoded result from
  * server to client with `hydratable`, so hydration seeds the registry instead of fetching again.
@@ -841,7 +855,7 @@ const seedFromServer = (
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => ResultAtom<unknown, unknown>,
   revalidateOption: boolean | undefined
-): Promise<void> | undefined => {
+): SeedWait | undefined => {
   const atom = getAtom();
   // The server never computes an atom with a server value, so it has no value to pass on, and the
   // browser must not ask for one: hydratable throws for a key the server didn't write (JND-58).
@@ -850,7 +864,10 @@ const seedFromServer = (
   }
   const { decode, encode, key } = atom[Atom.SerializableTypeId];
   if (!BROWSER) {
-    return seedOnServer(registry, atom, key, encode);
+    return {
+      done: seedOnServer(registry, atom, key, encode),
+      letGo: noSeedMount,
+    };
   }
   const revalidate = revalidatesOnHydrate(revalidateOption);
   let registrySeeds = seeds.get(registry);
@@ -911,12 +928,18 @@ const seedFromServer = (
   const { done } = entry;
   const unhold = entry.hold(revalidate);
   let release: (() => void) | undefined;
+  let handedOver = false;
+  const letGo = () => {
+    handedOver = true;
+    release?.();
+    release = undefined;
+  };
   let left = false;
   const leave = () => {
     if (!left) {
       left = true;
       unhold();
-      release?.();
+      letGo();
     }
   };
   onTeardown(leave);
@@ -927,12 +950,15 @@ const seedFromServer = (
       leave();
     }
   });
-  return (async () => {
-    await done;
-    if (!left) {
-      release = registry.mount(atom);
-    }
-  })();
+  return {
+    done: (async () => {
+      await done;
+      if (!left && !handedOver) {
+        release = registry.mount(atom);
+      }
+    })(),
+    letGo,
+  };
 };
 
 /**
@@ -991,9 +1017,11 @@ export const useAtomResult = async <A, E>(
     lifetime.abort();
     release?.();
   });
-  // Later atoms are mounted by this effect, which runs once the component mounts, so after the
-  // await below. The first atom's mount is released then, as the effect holds it from there.
+  // Later atoms are mounted by this effect, which runs once the component mounts, so usually after
+  // the await below. The first atom's mount is released then, as the effect holds it from there.
+  let effectHolds = false;
   $effect(() => {
+    effectHolds = true;
     const unmount = registry.mount(getAtom());
     release?.();
     release = undefined;
@@ -1001,15 +1029,26 @@ export const useAtomResult = async <A, E>(
   });
   const seed = seedFromServer(registry, getAtom, options?.revalidateOnHydrate);
   if (seed) {
-    await seed;
+    await seed.done;
   }
   // Destroyed while seeding: reading the atom now would only compute it for nobody. On the server,
   // an atom with a server value is read as that value, with nothing to wait for.
   if (lifetime.signal.aborted || (!BROWSER && hasServerValue(atom))) {
     return value;
   }
-  // Mounted only after seeding, so hydration's value is in place before the atom first computes.
-  release = registry.mount(atom);
+  if (effectHolds) {
+    // Mounted while seeding, as when the promise is not awaited straight away: the effect holds the
+    // getter's atom, and a mount here would never be released. Once the getter has switched away,
+    // waiting would only compute the first atom for nobody.
+    seed?.letGo();
+    if (untrack(getAtom) !== atom) {
+      return value;
+    }
+  } else {
+    // Mounted only after seeding, so hydration's value is in place before the atom first computes.
+    release = registry.mount(atom);
+    seed?.letGo();
+  }
   await awaitResult(registry, atom, options, lifetime.signal);
   return value;
 };
@@ -1122,6 +1161,28 @@ const readerSignal = (): AbortSignal | undefined => {
   }
 };
 
+/**
+ * Mounts an atom until every signal has aborted. The release waits a microtask, as a reaction aborts
+ * its signal before it re-runs, and the re-run's own subscription takes over.
+ */
+const holdWhileRead = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>,
+  signals: readonly AbortSignal[]
+): void => {
+  const release = registry.mount(atom);
+  let holders = signals.length;
+  const letGo = () => {
+    holders -= 1;
+    if (holders === 0) {
+      queueMicrotask(release);
+    }
+  };
+  for (const signal of signals) {
+    signal.addEventListener("abort", letGo, { once: true });
+  }
+};
+
 /** A wait shared by every read of one result; each reader holds it until its signal aborts. */
 interface SharedWait {
   readonly promise: Promise<unknown>;
@@ -1227,7 +1288,7 @@ export function useAtomSuspense<A, E>(
   let seeded = seed === undefined;
   if (seed) {
     void (async () => {
-      await seed;
+      await seed.done;
       seeded = true;
     })();
   }
@@ -1236,7 +1297,7 @@ export function useAtomSuspense<A, E>(
       ? createSubscriber((update) => {
           let live = true;
           void (async () => {
-            await seed;
+            await seed.done;
             if (live) {
               update();
             }
@@ -1246,25 +1307,40 @@ export function useAtomSuspense<A, E>(
           };
         })
       : undefined;
-  const afterSeed = new WeakMap<ResultAtom<A, E>, Promise<unknown>>();
+  // Per atom, the promise every reader before the seed shares, and those readers' signals.
+  const afterSeed = new WeakMap<
+    ResultAtom<A, E>,
+    { readonly promise: Promise<unknown>; readonly readers: Set<AbortSignal> }
+  >();
   // Holds waits read outside any derived or effect (a top-level await in the script, an event
   // handler), which cannot say when they are done with them, until the component is destroyed.
   const lifetime = new AbortController();
   onTeardown(() => lifetime.abort());
 
-  const waits = new WeakMap<AsyncResult.AsyncResult<A, E>, SharedWait>();
+  // Keyed by atom, then result: atoms can share a result object, as a derived atom returning its
+  // source's result does, and a wait holds and waits for one atom.
+  const waits = new WeakMap<
+    ResultAtom<A, E>,
+    WeakMap<AsyncResult.AsyncResult<A, E>, SharedWait>
+  >();
   const settle = (
     atom: ResultAtom<A, E>,
     current: AsyncResult.AsyncResult<A, E>,
     signal: AbortSignal
   ): Promise<unknown> => {
-    let wait = waits.get(current);
+    let atomWaits = waits.get(atom);
+    if (!atomWaits) {
+      atomWaits = new WeakMap();
+      waits.set(atom, atomWaits);
+    }
+    let wait = atomWaits.get(current);
     if (!wait) {
+      const forAtom = atomWaits;
       wait = sharedWait(
         (abort) => suspend(registry, atom, current, options, abort),
-        () => waits.delete(current)
+        () => forAtom.delete(current)
       );
-      waits.set(current, wait);
+      atomWaits.set(current, wait);
     }
     wait.hold(signal);
     return wait.promise;
@@ -1285,25 +1361,47 @@ export function useAtomSuspense<A, E>(
       }
       return promise;
     }
+    const signal = readerSignal();
     if (!seeded && seed) {
       // Reading the atom before the seed lands would fetch what hydration is about to provide.
       const atom = getAtom();
       trackSeed?.();
-      let promise = afterSeed.get(atom);
-      if (!promise) {
-        promise = (async () => {
-          await seed;
-          // Destroyed meanwhile: nobody awaits this, and reading would compute the atom for nobody.
-          if (lifetime.signal.aborted) {
+      let pending = afterSeed.get(atom);
+      if (!pending) {
+        const readers = new Set<AbortSignal>();
+        const promise = (async () => {
+          await seed.done;
+          // Held by the readers still there, not the component, so a getter switch while the first
+          // load is pending interrupts it. None left, as when destroyed: nobody awaits this, and
+          // reading would compute the atom for nobody.
+          const live = [...readers].filter((reader) => !reader.aborted);
+          if (live.length === 0) {
             return undefined;
           }
-          // Shared by every reader that came before the seed, so the component holds it.
-          return settle(atom, registry.get(atom), lifetime.signal);
+          holdWhileRead(registry, atom, live);
+          seed.letGo();
+          const current = registry.get(atom);
+          let waited: Promise<unknown> | undefined;
+          for (const reader of live) {
+            waited = settle(atom, current, reader);
+          }
+          return waited;
         })();
-        afterSeed.set(atom, promise);
+        pending = { promise, readers };
+        afterSeed.set(atom, pending);
       }
-      return promise;
+      pending.readers.add(signal ?? lifetime.signal);
+      return pending.promise;
     }
-    return settle(getAtom(), result.current, readerSignal() ?? lifetime.signal);
+    const promise = settle(
+      getAtom(),
+      result.current,
+      signal ?? lifetime.signal
+    );
+    if (signal) {
+      // A reaction read it, so the reader's subscription holds the atom from here.
+      seed?.letGo();
+    }
+    return promise;
   }, readOnly);
 }
