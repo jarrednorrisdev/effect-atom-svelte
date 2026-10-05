@@ -29,7 +29,14 @@ import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
+import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
+import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
+import {
+  resetUnsent,
+  streamSeen,
+  unsentComputed,
+} from "./fixtures/unsent-seed.ts";
 import { sleep, text } from "./helpers.ts";
 
 interface ServerOutput {
@@ -329,6 +336,32 @@ describe("hydrating server output", () => {
     expect(new Set(serverValueComputed)).toEqual(
       new Set(["result", "suspense"])
     );
+  });
+
+  test("a defect or a value the schema rejects isn't sent, so the browser computes it", async () => {
+    resetUnsent();
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-unsent-seed.svelte",
+      SsrUnsentSeed
+    );
+
+    await expect
+      .poll(outputs(target))
+      .toEqual(["defect from the browser", "unencodable from the browser"]);
+    expect(new Set(unsentComputed)).toEqual(new Set(["defect", "unencodable"]));
+  });
+
+  test("a stream sent between its values hydrates with the server's value, then runs again", async () => {
+    resetUnsent();
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-stream-seed.svelte",
+      SsrStreamSeed
+    );
+
+    // The server's run ended with the render, so left as it came, it would wait forever.
+    await expect.poll(outputs(target)).toEqual(["20"]);
+    expect(streamSeen[0]).toBe("3 (waiting)");
+    expect(streamSeen).not.toContain("Initial");
   });
 
   test("refreshing a hydrated atom computes it in the browser", async () => {
