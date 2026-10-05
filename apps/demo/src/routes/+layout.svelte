@@ -13,6 +13,7 @@
   import TocMenu from "#lib/docs/toc-menu.svelte";
   import Toc from "#lib/docs/toc.svelte";
   import { TableOfContents } from "#lib/docs/toc.svelte.ts";
+  import { installInTabEventSource } from "#lib/in-tab-api.ts";
   import { preferenceCookiesAtom } from "#lib/preferences.ts";
   import { RegistryProvider } from "effect-atom-svelte";
   import { onMount } from "svelte";
@@ -21,6 +22,9 @@
   import type { LayoutData } from "./$types";
 
   const { children, data }: { children: Snippet; data: LayoutData } = $props();
+
+  // The hosted build runs the demo API in the tab; examples' EventSource reads from it there.
+  installInTabEventSource();
 
   // Only pages in the sidebar have an address of their own; error pages don't.
   const navTitle = $derived(page.error ? undefined : neighbors(page.url.pathname).page?.title);

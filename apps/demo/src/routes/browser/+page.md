@@ -86,11 +86,7 @@ The registry disposes of an atom nobody reads, `initialValues` included. Without
 
 A page that reads cookies depends on the request, so it can't be prerendered. This site's own theme switch uses `localStorage` and a small inline script instead, because its pages are prerendered.
 
-<Aside type="caution" title="Keep cookie pages out of shared caches">
-
-A page rendered from cookies differs from one visitor to the next. If a CDN or other shared cache keeps it, it can serve one visitor's page to another. Send `Cache-Control: private`, or `Vary: Cookie` so the cache keeps a copy per set of cookies. See [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
-
-</Aside>
+A page rendered from cookies differs from one visitor to the next, so keep it out of shared caches: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
 
 ## The URL's query string
 

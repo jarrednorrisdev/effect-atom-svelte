@@ -10,7 +10,17 @@ import { createContext, onDestroy } from "svelte";
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 
 /**
- * Options for a registry created by `provideRegistry` or `RegistryProvider`.
+ * Options for a registry created by `provideRegistry` or `RegistryProvider`: the options of
+ * Effect's `AtomRegistry.make`, all optional.
+ *
+ * - `initialValues`: pairs of an atom and its starting value, such as `[[tokenAtom, token]]`.
+ * - `scheduleTask`: schedules the registry's deferred work, such as disposing of atoms nobody
+ *   reads. It takes a task and returns a function that cancels it.
+ * - `defaultIdleTTL`: in milliseconds, how long an atom nobody reads is kept before it is disposed
+ *   of, for atoms without an idle TTL of their own. Without it, such atoms are disposed of shortly
+ *   after their last reader goes.
+ * - `timeoutResolution`: in milliseconds, how finely idle timeouts are grouped. Defaults to half
+ *   of `defaultIdleTTL`, or 1000.
  *
  * @stability unstable
  * @since 0.1.0
@@ -58,7 +68,15 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
   return browserRegistry;
 };
 
-interface ProvideRegistryCommon {
+/**
+ * The options `provideRegistry` and `RegistryProvider` take whether they create a registry or are
+ * given one.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface ProvideRegistryCommon {
   /**
    * Run server-rendered async atoms again once the page has hydrated. Defaults to `false`: the
    * server's value is milliseconds old. Children inherit it; the async hooks' own option overrides

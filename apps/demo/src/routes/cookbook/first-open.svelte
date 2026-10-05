@@ -7,10 +7,11 @@
   import { todosAtom } from "./todos.ts";
 
   // Waits for the list, then fetches the first open todo by its id. It depends on
-  // todosAtom, so it runs again whenever the list changes.
+  // todosAtom, so it runs again whenever the list changes. suspendOnWaiting
+  // waits for a list being fetched again, rather than using the old one.
   const firstOpenAtom = Atom.make((get) =>
     Effect.gen(function* findFirstOpen() {
-      const todos = yield* get.result(todosAtom);
+      const todos = yield* get.result(todosAtom, { suspendOnWaiting: true });
       const open = todos.find((todo) => !todo.done);
       if (open === undefined) {
         return undefined;

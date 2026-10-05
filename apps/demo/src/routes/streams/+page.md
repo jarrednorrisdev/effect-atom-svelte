@@ -37,7 +37,7 @@ A failure keeps the last item as its previous success, so `AsyncResult.getOrElse
 
 <Aside type="tip" title="Keep browser-only streams off the server">
 
-When a page renders on the server, every atom it reads starts and keeps running until the render ends. A clock or a socket has nothing useful to show there. Wrap the atom in `Atom.withServerValueInitial`: it is `Initial` on the server and the stream never starts. In the browser it runs as normal. A serializable stream atom left on the server sends its latest item with the page, and the browser runs the stream again: see [Streams on the server](/hydration#streams-on-the-server).
+When a page renders on the server, every atom it reads starts and keeps running until the render ends. A clock or a socket has nothing useful to show there. Wrap the atom in `Atom.withServerValueInitial`: it is `Initial` on the server and the stream never starts. [Server values](/server-rendering#server-values) explains how the server reads such an atom. In the browser it runs as normal. A serializable stream atom left on the server sends its latest item with the page, and the browser runs the stream again: see [Streams on the server](/hydration#streams-on-the-server).
 
 </Aside>
 

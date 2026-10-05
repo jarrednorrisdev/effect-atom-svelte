@@ -119,12 +119,16 @@ class InTabEventSource extends EventTarget {
 }
 
 /**
- * The browser's `EventSource`, except in the hosted build, where the demo API runs in this tab and
- * a network connection couldn't reach it: there it is a stand-in that reads from the in-tab API.
+ * In the hosted build, replaces the browser's `EventSource` with the stand-in that reads from the
+ * in-tab API, which a network connection couldn't reach. The root layout calls it, so examples
+ * use the global `EventSource` and their source works when pasted into an app.
  */
-export const EventSource: typeof globalThis.EventSource = inTabApi
-  ? (InTabEventSource as unknown as typeof globalThis.EventSource)
-  : globalThis.EventSource;
+export const installInTabEventSource = (): void => {
+  if (inTabApi && typeof window !== "undefined") {
+    globalThis.EventSource =
+      InTabEventSource as unknown as typeof globalThis.EventSource;
+  }
+};
 
 /** An `HttpClient` that sends every request to the in-tab handler instead of the network. */
 export const inTabHttpClient: Layer.Layer<HttpClient.HttpClient> = Layer.effect(

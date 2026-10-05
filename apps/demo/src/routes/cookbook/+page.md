@@ -54,7 +54,7 @@ Sometimes one request needs the result of another, such as fetching a todo's det
 
 <Example files={[{ html: firstOpenSource, name: "first-open.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Click Done: the list is fetched again, then firstOpenAtom fetches the next open todo."> <FirstOpen /> </Example>
 
-`get.result` fails the atom if the list fails, so the error reaches the component without any extra code. Because the atom read `todosAtom`, it runs again when the list changes. Click **Done**: the mutation invalidates `"todos"`, the list is fetched again, and the atom moves on to the next open todo.
+`get.result` fails the atom if the list fails, so the error reaches the component without any extra code. With `suspendOnWaiting`, it waits for a list that is being fetched again, rather than using the old one. Because the atom read `todosAtom`, it runs again when the list changes. Click **Done**: the mutation invalidates `"todos"`, the list is fetched again, and the atom moves on to the next open todo.
 
 If the second request only needs a value the component already has, a getter is enough: `useAtomValue(() => TodosRpc.query("getTodo", { id: selected }))`.
 
@@ -76,7 +76,7 @@ This form adds a todo. It shows the todo straight away, shows the server's typed
 
 Three pieces work together:
 
-- **`Atom.optimistic` and `Atom.optimisticFn`** show the provisional list while the mutation runs. When it succeeds, the optimistic atom reads `todosAtom` again, so the mutation doesn't need `reactivityKeys`. See [Optimistic updates](/mutations#optimistic-updates).
+- **`Atom.optimistic` and `Atom.optimisticFn`** show the provisional list while the mutation runs. When it succeeds, the optimistic atom refreshes `todosAtom`, so the mutation doesn't need `reactivityKeys`. See [Optimistic updates](/mutations#optimistic-updates).
 - **`mode: "promiseExit"`** gives the submit handler the mutation's `Exit`, which never rejects.
 - **`Cause.findErrorOption`** takes the first typed error out of the cause. Its type is the procedure's errors plus `RpcClientError`, so checking `_tag` narrows it to `TitleTooLong` and its `maxLength`.
 
@@ -135,19 +135,11 @@ If the server speaks Effect RPC, a procedure declared with `stream: true` gives 
 
 ## Auth headers
 
-To add a header to every request, give the client a `transformClient` function. It takes the `HttpClient` and returns one that changes each request before it is sent. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
+Add the token to each request in the client's `transformClient`, as on [HTTP API](/http#defining-the-client). `mapRequest` runs for each request, so a new token is picked up without rebuilding the client. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
 
 <Example files={[{ html: authSource, name: "auth.svelte" }]} hint="Send GET /api/me: without the header, the server answers 401. Turn on Signed in and send it again: the same client now adds the header."> <Auth /> </Example>
 
-`mapRequest` runs for each request, so the token is read every time and a new one is picked up without rebuilding the client. The example keeps the token in module state, which is safe only because nothing sets it on the server (see the caution below). `GET /api/me` only reads, so an app would read it with a query, `Authed.query("account", "me", {})`, and refresh it with `useAtomRefresh` after sign-in. The example uses a mutation so that nothing is sent until you click, and each click sends one request. `RpcClient.layerProtocolHttp` takes a `transformClient` option too, for an `AtomRpc` client.
-
-To add a header to one request only, pass `headers`. RPC queries and mutations take it, and so does an HTTP API request.
-
-<Aside type="caution" title="The client is shared on the server">
-
-A client defined at module level serves every request the server renders. Don't keep a visitor's token in module state there, or another visitor's render could send it. In the browser, a session cookie on the same origin needs no code, because `fetch` sends it. On the server, nothing sends it for you: see the [RPC page](/rpc) for passing a visitor's credentials on.
-
-</Aside>
+The example keeps the token in module state, which is safe only in the browser: a module-level client serves every request on the server. To send each visitor's token from the server, see [On the server](/rpc#on-the-server).
 
 ## Debounced search
 
@@ -204,78 +196,12 @@ When the id changes, `{#key}` destroys the old provider, which disposes of its r
 
 ## Retry with backoff
 
-`Effect.retry` runs a failed effect again, following a `Schedule`. A query from `AtomRpc` or `AtomHttpApi` is an atom, not an effect, so to retry one, call the client in an effect of your own and run it with the service's runtime:
-
-**Example** (Up to four more tries when the server can't be reached)
-
-```ts
-import { Effect, Schedule } from "effect";
-
-import { TodosRpc } from "./clients.ts";
-
-const todoAtom = TodosRpc.runtime.atom(
-  Effect.gen(function* getTodo() {
-    const client = yield* TodosRpc;
-    return yield* client("getTodo", { id: 1 });
-  }).pipe(
-    Effect.retry({
-      schedule: Schedule.exponential("500 millis"),
-      times: 4,
-      while: (error) => error._tag === "RpcClientError",
-    })
-  )
-);
-```
-
-The waits double each time: 500 milliseconds, then 1, 2 and 4 seconds. `while` retries only the errors worth trying again, so `TodoNotFound` from the server fails at once. See [Retrying](/errors#retrying).
+Pipe the effect through `Effect.retry` with a `Schedule`, as in [Retrying](/errors#retrying). For an `AtomRpc` or `AtomHttpApi` query, call the client in an effect of your own, as in [Calling the client yourself](/rpc#calling-the-client-yourself), and retry that.
 
 ## Cancel a mutation in flight
 
-Write `Atom.Interrupt` to a mutation to interrupt the call. A Cancel button only needs the setter:
-
-**Example** (A Cancel button)
-
-```svelte
-<script lang="ts">
-  import { Atom } from "effect/reactivity";
-  import { useAtomSet, useAtomValue } from "effect-atom-svelte";
-
-  const save = useAtomValue(saveAtom);
-  const setSave = useAtomSet(saveAtom);
-</script>
-
-<button disabled={!save.current.waiting} onclick={() => setSave(Atom.Interrupt)}>
-  Cancel
-</button>
-```
-
-The mutation's value becomes a `Failure` whose cause is an interruption. The `{ signal }` a promise setter takes is different: aborting it stops the wait, but the call keeps running. See [Cancelling and resetting](/mutations#canceling-and-resetting).
+Write `Atom.Interrupt` to the mutation, for example from a Cancel button's `onclick`. See [Canceling and resetting](/mutations#canceling-and-resetting).
 
 ## Keep a value across reloads
 
-`Atom.kvs` stores an atom's value in a `KeyValueStore`. Back it with `localStorage` in the browser, and with an in-memory store on the server, where `localStorage` doesn't exist:
-
-**Example** (A draft kept in localStorage)
-
-```ts
-import { Schema } from "effect";
-import { KeyValueStore } from "effect/persistence";
-import { Atom } from "effect/reactivity";
-
-import { browser } from "$app/env";
-
-const storage = Atom.runtime(
-  browser
-    ? KeyValueStore.layerStorage(() => localStorage)
-    : KeyValueStore.layerMemory
-);
-
-export const draftAtom = Atom.kvs({
-  defaultValue: () => "",
-  key: "draft",
-  runtime: storage,
-  schema: Schema.String,
-});
-```
-
-Read and write it like any atom. The server renders the default value, and the saved one appears once the page hydrates. [Persisting to localStorage](/browser#persisting-to-localstorage) has a live example.
+Store it with `Atom.kvs`, backed by `localStorage` in the browser and an in-memory store on the server. See [Persisting to localStorage](/browser#persisting-to-localstorage).
