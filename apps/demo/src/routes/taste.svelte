@@ -5,7 +5,7 @@
   const countAtom = Atom.make(0);
   const doubledAtom = Atom.make((get) => get(countAtom) * 2);
   const greetingAtom = Atom.make(
-    Effect.gen(function* () {
+    Effect.gen(function* greet() {
       yield* Effect.sleep("2 seconds");
       // The time tells a new greeting apart from the old one.
       const time = new Date().toLocaleTimeString();
