@@ -10,7 +10,7 @@
   import ThemeToggle from "./theme-toggle.svelte";
 
   // The pages whose examples call the demo API (#lib/clients.ts). Only they show its reset button.
-  const demoApiPages = new Set(["/cookbook", "/http", "/mutations", "/rpc"]);
+  const demoApiPages = new Set(["/cookbook", "/http", "/rpc"]);
 </script>
 
 <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:px-6">
