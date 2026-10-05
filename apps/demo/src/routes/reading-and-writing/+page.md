@@ -23,7 +23,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
-The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all, including `useAtomInitialValues`.
+The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all.
 
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click +, − or Reset and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
@@ -94,6 +94,27 @@ The component doesn't read the atom, so it doesn't update when the value changes
 For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a promise of the result. See [Mutations](/mutations).
 
 </Aside>
+
+## Starting values from a component
+
+`useAtomInitialValues` gives atoms their starting values from a component, as `initialValues` on `RegistryProvider` does from the root. Use it when the value comes from a prop or page data:
+
+```svelte
+<script lang="ts">
+  import { untrack } from "svelte";
+  import { useAtomInitialValues, useAtomValue } from "effect-atom-svelte";
+
+  const { start } = $props();
+  // Only the first value counts, so untrack says a later change to the prop isn't followed.
+  useAtomInitialValues([[countAtom, untrack(() => start)]]);
+  const count = useAtomValue(countAtom);
+</script>
+```
+
+- **Once per registry.** Each atom takes the first value a component gives it in that registry. A component that mounts again, or gets a new prop, doesn't set it again. To follow a prop, write the atom with `useAtomSet`.
+- **Held while the component lives.** The hook holds its atoms, so a value set in a layout is still there when a page reads it later. Holding an atom computes it, as reading it would.
+- **Once per render on the server.** Each server render sets its values again.
+- **Where `initialValues` puts it.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
 
 ## Running code on every change
 
