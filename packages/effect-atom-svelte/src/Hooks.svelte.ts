@@ -295,7 +295,8 @@ const subscribedReader = <A>(
 
 /**
  * Reads an atom, optionally through a transform. The atom stays mounted while something reactive
- * reads `.current`, and unmounted when nothing does.
+ * reads `.current`, and unmounted when nothing does. The transform is not cached: it runs on every
+ * read of `.current`, so keep it cheap, or read it once into a `$derived`.
  *
  * **Example** (Reading an atom through a transform)
  *
@@ -651,7 +652,8 @@ export const useAtomInitialValues = (
 };
 
 /**
- * Reads an `AtomRef`, following it when the getter returns a different ref.
+ * Reads an `AtomRef`, following it when the getter returns a different ref. For one property of a
+ * ref, use `useAtomRefPropValue`.
  *
  * **Example** (Reading a ref)
  *
@@ -692,7 +694,9 @@ export const useAtomRef = <A>(
 };
 
 /**
- * Returns the `AtomRef` for one property of an `AtomRef`.
+ * Returns `ref.prop(prop)`, the `AtomRef` for one property of an `AtomRef`. It takes the ref
+ * itself, not a getter, and does not follow later changes to `ref` or `prop`; to read a property
+ * of a ref picked by a getter, use `useAtomRefPropValue`.
  *
  * **Example** (Writing one property of a ref)
  *
@@ -714,7 +718,8 @@ export const useAtomRefProp = <A, K extends keyof A>(
 ): AtomRef.AtomRef<A[K]> => ref.prop(prop);
 
 /**
- * Reads one property of an `AtomRef`.
+ * Reads one property of an `AtomRef`, following the getter to a different ref. `prop` is taken
+ * once, when the component starts, and is not followed.
  *
  * **Example** (Reading one property of a ref)
  *
@@ -1242,7 +1247,9 @@ const sharedWait = (
 /**
  * Exposes an async atom as a promise for `await` in markup or `$derived(await ...)`. The promise is
  * stable while the result is unchanged, and a new one is issued when the result changes, so Svelte
- * re-runs dependents only on real updates. Failures reject with the squashed cause, or resolve with
+ * re-runs dependents only on real updates. Unchanged means the same atom and the same result
+ * object: a refresh issues a new promise even if its value is equal, and so does a read after
+ * every reader of a pending promise went away, as that wait was interrupted. Failures reject with the squashed cause, or resolve with
  * the `Failure` when `includeFailure` is set. On the server, an atom with a `withServerValue`
  * override resolves from that value and is never computed; if the value is `Initial`, the promise
  * rejects, so read it inside a `<svelte:boundary>` with a `pending` snippet.
