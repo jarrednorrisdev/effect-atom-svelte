@@ -112,7 +112,7 @@ Below, each `<TodoItem>` gets its item's ref, and the numbers count notification
 
 <Aside type="danger" title="Module-level refs are shared on the server">
 
-A ref has no registry, so it gets none of the [per-request isolation](/server-rendering#one-registry-per-request) atoms get. A ref created at module level is shared by every request the server handles. Create refs that hold per-user data inside a component, and pass them down, or only write to them in the browser.
+A ref has no registry, so it gets none of the [per-request isolation](/server-rendering#one-registry-per-request) atoms get. A ref created at module level is shared by every request the server handles, so a visitor's data written to it on the server can show up in another visitor's page. Create refs that hold per-visitor data inside a component and pass them down, or only write to them in the browser. See [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
 </Aside>
 

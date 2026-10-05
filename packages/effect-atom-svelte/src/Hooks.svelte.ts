@@ -758,6 +758,10 @@ export const useAtomInitialValues = (
  * Reads an `AtomRef`, following it when the getter returns a different ref. For one property of a
  * ref, use `useAtomRefPropValue`.
  *
+ * A ref has no registry. On the server, one created at module level is shared by every request,
+ * so don't write a visitor's data to it there: see
+ * https://atom.jarrednorris.dev/server-rendering#module-state-is-shared-between-visitors
+ *
  * **Example** (Reading a ref)
  *
  * ```ts
