@@ -201,7 +201,7 @@ export const load = ({ cookies }) => ({ token: cookies.get("token") });
 {@render children()}
 ```
 
-The layout's `data` changes when its `load` runs again, so call `invalidateAll()` after signing in or out. A new token rebuilds the client, and the queries that use it run again. Other atoms still hold what the previous user saw: to start every atom over, key the provider by the user instead, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
+The layout's `data` changes when its `load` runs again, so call `refreshAll()` from `$app/navigation` after signing in or out. A new token rebuilds the client, and the queries that use it run again. Other atoms still hold what the previous user saw: to start every atom over, key the provider by the user instead, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
 
 Data from a server `load` is written into the page, where any script can read it. That suits a token the page's scripts already hold, but not an `HttpOnly` session cookie. For data behind one of those, either fetch it in a server `load` with SvelteKit's `fetch`, which forwards the visitor's cookies to your own domain and its subdomains, and hand it to atoms with [`HydrationBoundary`](/hydration#hydrationboundary); or leave the query to the browser, inside a `<svelte:boundary>` with a `pending` snippet.
 
