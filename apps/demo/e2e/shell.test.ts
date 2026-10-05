@@ -135,9 +135,13 @@ test.describe("docs shell", () => {
     await page.goto("/installation");
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
     const shown = page.locator(".install-command pre:visible");
-    await expect(shown).toHaveText('bun add "effect@~4.0.0" effect-atom-svelte');
+    await expect(shown).toHaveText(
+      'bun add "effect@~4.0.0" effect-atom-svelte'
+    );
     await page.getByRole("tab", { name: "pnpm" }).click();
-    await expect(shown).toHaveText('pnpm add "effect@~4.0.0" effect-atom-svelte');
+    await expect(shown).toHaveText(
+      'pnpm add "effect@~4.0.0" effect-atom-svelte'
+    );
     // Kept in localStorage, so the next visit opens on pnpm.
     await page.reload();
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
@@ -145,7 +149,9 @@ test.describe("docs shell", () => {
       "aria-selected",
       "true"
     );
-    await expect(shown).toHaveText('pnpm add "effect@~4.0.0" effect-atom-svelte');
+    await expect(shown).toHaveText(
+      'pnpm add "effect@~4.0.0" effect-atom-svelte'
+    );
   });
 
   test("one-line code blocks and phones show no line numbers", async ({

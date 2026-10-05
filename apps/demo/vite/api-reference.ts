@@ -122,7 +122,8 @@ const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     WriteMode: "/mutations",
     WriteOptions: "/mutations",
     useAtom: "/reading-and-writing#reading-and-writing",
-    useAtomInitialValues: "/reading-and-writing#starting-values-from-a-component",
+    useAtomInitialValues:
+      "/reading-and-writing#starting-values-from-a-component",
     useAtomMount: "/lifetimes#holding-an-atom-from-a-component",
     useAtomRef: "/refs#reading-a-ref-in-a-component",
     useAtomRefProp: "/refs#reading-a-ref-in-a-component",
