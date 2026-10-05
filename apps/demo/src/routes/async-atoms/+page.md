@@ -40,13 +40,15 @@ const dieAtom = Atom.make(
 );
 ```
 
-The atom runs the effect the first time something reads it, not when you create it. When nothing reads it any more, the registry disposes of it and interrupts the effect if it is still running.
+The atom runs the effect the first time something reads it, not when you create it. When nothing holds it any more, the registry disposes of it and interrupts the effect if it is still running.
 
 To read other atoms first, pass a function that receives `get` and returns the effect. The atom runs the effect again whenever an atom it read changes:
 
 ```ts
 const todoAtom = Atom.make((get) => fetchTodo(get(selectedIdAtom)));
 ```
+
+To wait for another async atom's value inside the effect, use `get.result(atom)`. It returns an `Effect` that waits for the atom's result, and fails with its error if it fails: see [Dependent queries](/cookbook#dependent-queries).
 
 The live example reads the **Drop the die** toggle this way. Turn it on, and the atom runs its effect again, which now fails.
 
@@ -152,25 +154,23 @@ The live example reads one atom both ways. While the sensor is offline, `match` 
 const roll = useAtomRefresh(dieAtom);
 ```
 
-While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also keeps the atom mounted for as long as the component lives, so a refresh is never lost because nothing was reading.
+While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also [holds](/reading-and-writing#reading) the atom for as long as the component lives, so a refresh is never lost because nothing was reading.
 
 ## Keeping results
 
-An async atom has the same [lifetime](/lifetimes) as any other: when nothing reads it, the registry disposes of its result, and the next read runs the effect again. To keep a result, use `Atom.keepAlive` or an idle TTL:
+An async atom has the same [lifetime](/lifetimes) as any other: when nothing holds it, the registry disposes of its result, and the next read runs the effect again. To keep a result, use `Atom.keepAlive` or an idle TTL:
 
 **Example** (A cache that survives navigation)
 
 ```ts
 const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
 
-const searchAtom = Atom.family((term: string) =>
-  Atom.make(search(term)).pipe(Atom.setIdleTTL("1 minute"))
-);
+const searchAtom = Atom.make(search).pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the settings load once per registry, which is once per session in the browser. Each search result is kept for a minute after you navigate away, so going back shows it straight away.
+Here the settings load once per registry, which is once per session in the browser. The search result is kept for a minute after you navigate away, so going back within that minute shows it straight away.
 
-The live example has one atom of each kind on a dashboard, and a help page that reads none of them. The cards below the pages count how many times each request has run, and show what the registry holds for each atom.
+The live example has these two atoms on a dashboard, with the TTL cut to 3 seconds, beside a plain `weatherAtom`. A help page reads none of them. The cards below the pages count how many times each request has run, and show what the registry holds for each atom.
 
 <Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Open the dashboard, then go to Help and back. weatherAtom loads again every time, settingsAtom never does, and searchAtom loads again only if you stayed away longer than its 3 seconds."> <Kept /> </Example>
 
