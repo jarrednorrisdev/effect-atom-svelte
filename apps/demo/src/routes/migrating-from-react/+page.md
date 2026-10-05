@@ -16,10 +16,12 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `const value = useAtomValue(atom)` | `const value = useAtomValue(atom)`, read as `value.current` |
 | `useAtomValue(atom, f)` | The same, read through `current` |
 | `const [value, setValue] = useAtom(atom)` | `const value = useAtom(atom)`, read and assign `value.current` |
-| `useAtomSet(atom, { mode })` | The same. Promise setters also take `{ signal }` |
+| `useAtomSet(atom, { mode })` | The same, but the promise modes reject `Atom.Reset`: reset with a `"value"` setter. Promise setters also take `{ signal }` |
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
 | None | `await useAtomResult(atom)` in the script |
-| `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe`, `useAtomInitialValues` | The same |
+| `useAtomMount`, `useAtomRefresh` | The same |
+| `useAtomSubscribe` | The same, but it computes the atom, so a derived atom nothing else reads still runs |
+| `useAtomInitialValues` | Also holds its atoms while the component lives, and gives a wrapped atom's value to its source, as `initialValues` does. See [Starting values from a component](/reading-and-writing#starting-values-from-a-component) |
 | `useAtomRef(ref)`, `useAtomRefPropValue(ref, prop)` | The same, read through `current` |
 | `useAtomRefProp(ref, prop)` | The same |
 
@@ -66,9 +68,9 @@ React hooks run on every render, in the same order. Svelte hooks run once, while
 
 - **At the top level of the script.** This includes after a top-level `await`, where Svelte restores the context.
 - **Not in callbacks.** An event handler, a `setTimeout` or a function of your own after an `await` runs too late, and Svelte throws `lifecycle_outside_component`. Call the hook at the top level and keep what it returns.
-- **Before an `await` when the markup uses the result as a handler.** A production build can attach event handlers before the script's top-level awaits have finished.
+- **Before an `await` when the markup uses the result as a handler.** See [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
-[Troubleshooting](/troubleshooting#can-only-be-used-during-component-initialisation) covers the errors, and [Handlers after an await](/troubleshooting#handlers-after-an-await) the last case.
+[Troubleshooting](/troubleshooting#can-only-be-used-during-component-initialisation) covers the errors.
 
 ## Suspense
 
