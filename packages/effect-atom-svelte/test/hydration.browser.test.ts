@@ -8,14 +8,25 @@ import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
+import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import { queryFetches } from "./fixtures/reactive-query.ts";
+import {
+  resetRevalidate,
+  revalidateComputed,
+  revalidateSeen,
+} from "./fixtures/revalidate.ts";
 import { computed } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
+import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
+import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
+import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
+import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
@@ -252,6 +263,44 @@ describe("hydrating server output", () => {
     expect(computed).toEqual(["a"]);
   });
 
+  describe("revalidateOnHydrate (JND-85)", () => {
+    test("shows the server's result as waiting while the atom runs again", async () => {
+      resetRevalidate();
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-revalidate.svelte",
+        SsrRevalidate
+      );
+
+      await expect.poll(outputs(target)).toEqual(["browser", "browser"]);
+      expect(revalidateSeen).toEqual({
+        result: ["server (waiting)", "browser"],
+        suspense: ["server (waiting)", "browser"],
+      });
+      expect(new Set(revalidateComputed)).toEqual(
+        new Set(["result", "suspense"])
+      );
+    });
+
+    // Pins today's behavior. Svelte's hydratable reads the server's values only while it is
+    // hydrating, and it stops hydrating at a component script's first await, so a hook called after
+    // one gets no seed: its atom runs in the browser like one without a serialization key, and the
+    // component keeps the server's markup until it has the browser's result.
+    test("a hook called after a top-level await gets no seed", async () => {
+      resetRevalidate();
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-after-await.svelte",
+        SsrAfterAwait
+      );
+
+      await expect.poll(outputs(target)).toEqual(["server", "browser"]);
+      expect(revalidateSeen).toEqual({
+        "after-await": ["browser"],
+        kept: ["server"],
+      });
+      expect(revalidateComputed).toEqual(["after-await"]);
+    });
+  });
+
   test("useAtomResult uses the server's result, then follows its getter", async () => {
     computed.length = 0;
     const target = await hydrateFromServer(
@@ -405,6 +454,53 @@ describe("hydrating server output", () => {
       await sleep(afterFetch);
       expect(queryFetches.count).toBe(0);
     });
+  });
+
+  describe("a serializable atom read inside a boundary with a pending snippet (JND-86)", () => {
+    test("with the hook outside the boundary, the browser uses the server's embedded result", async () => {
+      pendingBoundaryComputed.length = 0;
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-pending-boundary.svelte",
+        SsrPendingBoundary
+      );
+
+      await expect.poll(outputs(target)).toEqual(["from the server"]);
+      expect(pendingBoundaryComputed).toEqual([]);
+    });
+
+    test("with the hook in a component inside the boundary, the browser fetches it", async () => {
+      pendingBoundaryComputed.length = 0;
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-pending-boundary-child.svelte",
+        SsrPendingBoundaryChild
+      );
+
+      await expect.poll(outputs(target)).toEqual(["from the browser"]);
+      expect(pendingBoundaryComputed).toEqual(["browser"]);
+    });
+  });
+
+  test("a HydrationBoundary with awaited state hydrates a query with reactivity keys (JND-95)", async () => {
+    queryFetches.count = 0;
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      errors.push(event.error ?? event.message);
+    };
+    window.addEventListener("error", onError);
+    onTestFinished(() => window.removeEventListener("error", onError));
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-awaited-boundary.svelte",
+      SsrAwaitedBoundary
+    );
+
+    // HydrationBoundary keeps Effect's Hydration.hydrate behavior: a query wrapped by withReactivity
+    // runs again in the browser, building its outer atom as the child first reads it.
+    await expect.poll(outputs(target)).toEqual(["browser 1"]);
+    expect(queryFetches.count).toBe(1);
+    // Long enough for Svelte to commit the hydration and everything it scheduled. Its dev build used
+    // to throw "Batch has scheduled effects" while committing the update that first build announced.
+    await sleep("100 millis");
+    expect(errors).toEqual([]);
   });
 
   describe("a getter that picks a different atom in the browser (JND-24)", () => {

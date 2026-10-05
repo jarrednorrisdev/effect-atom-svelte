@@ -195,20 +195,48 @@ const subscribedReader = <A>(
     kept?.cancel();
     kept = undefined;
   };
-  $effect(() => {
-    committed = getAtom();
-    if (kept && kept.atom !== committed) {
-      releaseKept();
-    }
-  });
+  // Whether the component has mounted: its effects have run once.
+  let mounted = false;
+  // The atom this reader's own registry.get is reading. A subscribed node is rebuilt as soon as it
+  // goes stale, so the read builds it only the first time, and that build announces the very value
+  // the read returns. Before the component mounts, that announcement can only re-render its first
+  // render, which already has the value, so it is dropped. Delivered on a microtask it started a
+  // Svelte batch that, when the first render ran after an await in markup (a HydrationBoundary
+  // awaiting its state), committed before hydration's own and made Svelte's dev build throw "Batch
+  // has scheduled effects" (JND-95). After mount it is still delivered, as before: dropping it there
+  // too made a getter switched in onMount compute the server's atom again (JND-24).
+  let reading: Atom.Atom<A> | undefined;
+  const listen = (current: Atom.Atom<A>, update: () => void) =>
+    registry.subscribe(current, () => {
+      if (mounted || reading !== current) {
+        update();
+      }
+    });
   const follow = (current: Atom.Atom<A>) => {
     if (kept?.atom === current) {
       const { cancel: keptCancel } = kept;
       kept = undefined;
       return keptCancel;
     }
-    return notify ? registry.subscribe(current, notify) : undefined;
+    return notify ? listen(current, notify) : undefined;
   };
+  $effect(() => {
+    mounted = true;
+    committed = getAtom();
+    if (kept && kept.atom !== committed) {
+      releaseKept();
+    }
+    // A render with the switch rolled back can read the old atom after the render that commits, so
+    // the subscription may follow an atom the commit did not pick. It moves to the committed atom,
+    // or that atom's later changes, a refresh's result or failure included, would not reach the
+    // page (JND-93).
+    if (atom !== undefined && atom !== committed) {
+      const previousCancel = cancel;
+      atom = committed;
+      cancel = follow(committed);
+      previousCancel?.();
+    }
+  });
   const subscribe = createSubscriber((update) => {
     notify = notifyAfterReads(update);
     cancel = atom ? follow(atom) : undefined;
@@ -239,7 +267,13 @@ const subscribedReader = <A>(
         }
       }
       subscribe();
-      return registry.get(current);
+      const outer = reading;
+      reading = current;
+      try {
+        return registry.get(current);
+      } finally {
+        reading = outer;
+      }
     });
 };
 

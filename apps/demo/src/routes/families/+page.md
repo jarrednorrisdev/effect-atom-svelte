@@ -7,8 +7,8 @@ description: Create one atom per key, and follow the one your component needs.
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
-  import KeptTallies from "./kept-tallies.svelte";
-  import keptSource from "./kept-tallies.svelte?highlight";
+  import KeptDrafts from "./kept-drafts.svelte";
+  import keptSource from "./kept-drafts.svelte?highlight";
   import SameKey from "./same-key.svelte";
   import sameKeySource from "./same-key.svelte?highlight";
   import TodoApp from "./todo-app.svelte";
@@ -81,9 +81,11 @@ const draftAtom = Atom.family(
 draftAtom({ doc: 1, lang: "en" }) === draftAtom({ doc: 1, lang: "en" }); // true
 ```
 
-Try it below. Every click passes `draftAtom` a new key object, and the family runs its recipe only for contents it hasn't seen:
+This matters because object keys are usually built fresh: in the example below, every change of document or language makes a new `{ doc, lang }` object. A cache you write yourself with `new Map()` compares object keys by reference, so a new object never finds the old entry.
 
-<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Click Call draftAtom twice: the second call returns the same atom. Then change the document or the language and call it again."> <SameKey /> </Example>
+Try it below. Both editors keep one draft per document and language, one in a family and one in a `Map`:
+
+<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Switch to lang: fr, then back to en. The family finds your draft again, because the new key equals the old one. The Map compared the new object by reference, missed, and made a fresh empty atom: now it has more atoms than keys, and your old draft is still in it with nothing able to reach it."> <SameKey /> </Example>
 
 A family holds its atoms through weak references, where the platform supports them, so an atom nothing refers to any more can be garbage collected. If that happens, the next call with that key runs the recipe again and makes a fresh atom.
 
@@ -111,21 +113,22 @@ If you pass `todoAtom(id)` directly instead of a function, the hook reads the at
 
 ## Keeping a family's atoms
 
-A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. But a component that reads only the selected key holds one atom at a time: pick another key, and the registry disposes of the one you left, so its value starts again from the recipe.
+A family's atoms follow the usual [lifetimes](/lifetimes): once nothing reads one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. The draft editor above is different: it reads only the current key's atom. Switch to another language and the draft you left has no reader, so the registry disposes of it, and coming back runs the recipe again for an empty draft. That's why its drafts used `Atom.keepAlive`.
 
 To keep each value, give the atom an idle TTL inside the family, or wrap it in `Atom.keepAlive`:
 
-**Example** (Counts that outlive their readers)
+**Example** (Drafts that outlive their readers)
 
 ```ts
-const tallyAtom = Atom.family((fruit: string) =>
-  Atom.make(0).pipe(Atom.setIdleTTL("5 minutes"))
+const draftAtom = Atom.family(
+  (key: { readonly doc: number; readonly lang: string }) =>
+    Atom.make("").pipe(Atom.setIdleTTL("5 minutes"))
 );
 ```
 
-Below are three families that differ only in how long they keep their atoms. Add one to each, then pick another fruit, and watch which fruits each family still has in the registry:
+Below are the same drafts in three families that differ only in how long they keep an atom with no reader. Under each editor is where every draft is right now:
 
-<Example files={[{ html: keptSource, name: "kept-tallies.svelte" }]} hint="Add one to each family, then pick pears. plain lets go of apples at once, idle TTL four seconds later, and keepAlive never: pick apples again to find its count."> <KeptTallies /> </Example>
+<Example files={[{ html: keptSource, name: "kept-drafts.svelte" }]} hint="Type in all three, switch to lang: fr and straight back to en: plain has already lost its draft, and the other two still have theirs. Then switch to fr and wait out the countdown: the idle TTL lets go of the en draft too. keepAlive never does."> <KeptDrafts /> </Example>
 
 <Aside type="caution" title="keepAlive in a family">
 

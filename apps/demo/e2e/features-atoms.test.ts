@@ -163,28 +163,32 @@ test.describe("Atoms pages: an example for every feature", () => {
     await expect(log).toHaveCount(3);
   });
 
-  test("families: equal keys return the same atom", async ({ page }) => {
+  test("families: equal keys return the same atom, unlike a Map", async ({
+    page,
+  }) => {
     await page.goto("/families");
     await page.waitForLoadState("networkidle");
-    const calls = page
-      .getByRole("list", { name: "Calls" })
-      .getByRole("listitem");
-    const call = page.getByRole("button", { name: "Call draftAtom" });
-    await call.click();
-    await call.click();
-    await page.getByTestId("key-lang").selectOption("fr");
-    await call.click();
-    await page.getByTestId("key-lang").selectOption("en");
-    await call.click();
-    await expect(calls).toHaveText([
-      'draftAtom({ doc: 1, lang: "en" }) new atom: the recipe ran',
-      'draftAtom({ doc: 1, lang: "en" }) same atom as call 1',
-      'draftAtom({ doc: 1, lang: "fr" }) new atom: the recipe ran',
-      'draftAtom({ doc: 1, lang: "en" }) same atom as call 1',
-    ]);
-    await expect(page.getByTestId("key-atoms").locator("output")).toHaveText(
-      "2 / 4 keys called"
+    const family = page.getByRole("textbox", { name: "Atom.family draft" });
+    const map = page.getByRole("textbox", { name: "new Map() draft" });
+    // The same-key example comes first; the kept-drafts example has the same pickers.
+    const lang = (value: string) =>
+      page
+        .getByRole("button", { exact: true, name: `lang: "${value}"` })
+        .first()
+        .click();
+    await family.fill("Hello");
+    await map.fill("Hello");
+    await lang("fr");
+    await expect(family).toHaveValue("");
+    await expect(map).toHaveValue("");
+    await lang("en");
+    // A new { doc: 1, lang: "en" } object: equal for the family, a miss for the Map.
+    await expect(family).toHaveValue("Hello");
+    await expect(map).toHaveValue("");
+    await expect(page.getByTestId("made-family")).toHaveText(
+      "2 atoms for 2 keys"
     );
+    await expect(page.getByTestId("made-map")).toHaveText("3 atoms for 2 keys");
   });
 
   test("families: plain, idle TTL and keepAlive families keep their atoms differently", async ({
@@ -192,31 +196,36 @@ test.describe("Atoms pages: an example for every feature", () => {
   }) => {
     await page.goto("/families");
     await page.waitForLoadState("networkidle");
-    const entries = (name: string) =>
-      page.getByTestId(`kept-${name}-entries`).locator("output");
-    const addOne = (name: string) =>
-      page.getByRole("button", { name: `${name}: add one` }).click();
-    await addOne("plain");
-    await addOne("idle TTL");
-    await addOne("keepAlive");
-    await expect(page.getByTestId("kept-plain")).toHaveText("1");
-    await expect(page.getByTestId("kept-keepAlive")).toHaveText("1");
-
-    await page.getByTestId("kept-fruit").selectOption("pears");
-    await expect(page.getByTestId("kept-plain")).toHaveText("0");
-    await expect(entries("plain")).toHaveText("1 / 3 in the registry");
-    await expect(entries("idle TTL")).toHaveText("2 / 3 in the registry");
-    await expect(entries("keepAlive")).toHaveText("2 / 3 in the registry");
-    // The idle TTL is four seconds.
-    await expect(entries("idle TTL")).toHaveText("1 / 3 in the registry", {
-      timeout: 8000,
-    });
-    await expect(entries("keepAlive")).toHaveText("2 / 3 in the registry");
-
-    await page.getByTestId("kept-fruit").selectOption("apples");
-    await expect(page.getByTestId("kept-plain")).toHaveText("0");
-    await expect(page.getByTestId("kept-idle TTL")).toHaveText("0");
-    await expect(page.getByTestId("kept-keepAlive")).toHaveText("1");
+    const names = ["plain", 'setIdleTTL("5 seconds")', "keepAlive"];
+    const draft = (name: string) =>
+      page.getByRole("textbox", { name: `${name} draft` });
+    const state = (id: string) =>
+      page.getByTestId(`states-${id}`).locator('[data-key="1 en"] span');
+    // The kept-drafts example comes after the same-key one, so take its last pickers.
+    const lang = (value: string) =>
+      page
+        .getByRole("button", { exact: true, name: `lang: "${value}"` })
+        .last()
+        .click();
+    for (const name of names) {
+      await draft(name).fill("Hello");
+    }
+    // Straight back: only plain has lost its draft.
+    await lang("fr");
+    await expect(state("plain")).toHaveText("disposed");
+    await expect(state("idle")).toContainText("left");
+    await expect(state("kept")).toHaveText("kept, no reader");
+    await lang("en");
+    await expect(draft("plain")).toHaveValue("");
+    await expect(draft('setIdleTTL("5 seconds")')).toHaveValue("Hello");
+    await expect(draft("keepAlive")).toHaveValue("Hello");
+    // Waiting out the idle TTL loses that draft too.
+    await lang("fr");
+    await expect(state("idle")).toHaveText("disposed", { timeout: 10_000 });
+    await expect(state("kept")).toHaveText("kept, no reader");
+    await lang("en");
+    await expect(draft('setIdleTTL("5 seconds")')).toHaveValue("");
+    await expect(draft("keepAlive")).toHaveValue("Hello");
   });
 
   test("AtomRef: a collection notifies an item's readers and the list's", async ({

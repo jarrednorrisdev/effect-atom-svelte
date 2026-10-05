@@ -126,6 +126,26 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-todos")).toContainText("Slow todo");
   });
 
+  test("a draft typed before hydration survives it", async ({ page }) => {
+    const { errors } = watch(page);
+    // Hold the app's scripts, so the server's input is on screen but not yet hydrated.
+    const held = Promise.withResolvers<undefined>();
+    await page.route("**/_app/immutable/**/*.js", async (route) => {
+      await held.promise;
+      await route.continue();
+    });
+    await page.goto("/rpc", { waitUntil: "domcontentloaded" });
+    const draft = page.getByTestId("rpc-draft");
+    await draft.fill("Early todo");
+    await expect(page.locator("html[data-hydrated]")).not.toBeAttached();
+    held.resolve(undefined);
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
+    await page.waitForLoadState("networkidle");
+    // Svelte's bind:value keeps text typed before hydration (JND-92).
+    await expect(draft).toHaveValue("Early todo");
+    expect(await errors()).toEqual([]);
+  });
+
   test("a mutation's reactivity key sends the query to waiting, then back", async ({
     page,
   }) => {
@@ -476,16 +496,22 @@ test("effect basics: tryPromise hashes the text, and a rejection is a typed erro
 test("effect basics: removing the reader aborts the request's signal", async ({
   page,
 }) => {
+  // The pretend server answers after two seconds, which a loaded machine can spend between
+  // adding and removing the reader, so stop the page's clock while the request is in flight.
+  await page.clock.install();
   await page.goto("/effect-basics");
   await page.waitForLoadState("networkidle");
   const state = page.getByTestId("request-state");
   const server = page
     .getByRole("list", { name: "Server" })
     .getByRole("listitem");
+  // The page's clock follows the real one until paused, so a second ahead is never in its past.
+  await page.clock.pauseAt(Date.now() + 1000);
   await page.getByRole("button", { name: "Add a reader" }).click();
   await expect(state).toHaveText("Initial, waiting");
   await expect(server).toHaveText([/^0 ms\s*request received$/u]);
   await page.getByRole("button", { name: "Remove the reader" }).click();
+  await page.clock.resume();
   await expect(server).toHaveText([
     /^0 ms\s*request received$/u,
     /^\d+ ms\s*signal aborted, request dropped$/u,
@@ -911,27 +937,50 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   ).toHaveCount(1);
 });
 
-test("AtomRef: a property ref updates the ref and its derived ref", async ({
+test("AtomRef: each field edits a slice, and the card reads the whole", async ({
   page,
 }) => {
   await page.goto("/refs");
   await page.waitForLoadState("networkidle");
-  const notified = page.getByLabel("profile notifications", { exact: true });
-  await expect(notified).toHaveText("0");
-  await page.getByRole("textbox", { name: "Name" }).fill("Grace");
-  await expect(page.getByTestId("ref-name")).toHaveText("Grace");
-  await expect(page.getByTestId("ref-badge")).toHaveText("Grace · Engineer");
-  await expect(page.getByTestId("ref-profile")).toHaveText(
-    '{"name":"Grace","role":"Engineer"}'
+  const card = page.getByTestId("profile-card");
+  await page
+    .getByRole("textbox", { name: "Name" })
+    .first()
+    .fill("Grace Hopper");
+  await page.getByRole("textbox", { name: "City" }).fill("New York");
+  await expect(card).toContainText("Grace Hopper");
+  await expect(card).toContainText("Engineer · New York");
+  // The nested slice wrote a new address into the profile.
+  await expect(page.getByTestId("profile-value")).toContainText(
+    '"city": "New York"'
   );
-  await expect(notified).toHaveText("1");
-  // An equal copy is no change, so the ref notifies nobody.
-  await page.getByRole("button", { name: "Set an equal copy" }).click();
-  await page.waitForTimeout(200);
-  await expect(notified).toHaveText("1");
-  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
-  await expect(notified).toHaveText("2");
-  await expect(page.getByTestId("ref-badge")).toHaveText("Ada · Engineer");
+});
+
+test("AtomRef: an autosave stops when the server's copy equals the draft", async ({
+  page,
+}) => {
+  await page.goto("/refs");
+  await page.waitForLoadState("networkidle");
+  const requests = page
+    .getByRole("list", { name: "Requests" })
+    .getByRole("listitem");
+  // The editor example above has its own Name field.
+  const name = page.getByRole("textbox", { name: "Name" }).last();
+  await name.fill("Ada Byron");
+  await expect(requests).toHaveText([/"Ada Byron", "Engineer"\s*saved/u]);
+  // The answer equals the draft, so setting it saves nothing more.
+  await page.waitForTimeout(1500);
+  await expect(requests).toHaveCount(1);
+  // A tidied answer is a change: it saves once more, then stops.
+  await name.fill("grace hopper");
+  await expect(requests).toHaveText([
+    /"Ada Byron"/u,
+    /"grace hopper", "Engineer"\s*saved, tidied/u,
+    /"Grace Hopper", "Engineer"\s*saved/u,
+  ]);
+  await expect(name).toHaveValue("Grace Hopper");
+  await page.waitForTimeout(1500);
+  await expect(requests).toHaveCount(3);
 });
 
 test("scoped atoms: each provider has its own atom", async ({ page }) => {
