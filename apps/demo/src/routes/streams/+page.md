@@ -9,9 +9,10 @@ description: Follow a Stream's latest value, or pull its items when you want the
 
   import Clock from "./clock.svelte";
   import clockSource from "./clock.svelte?highlight";
+  import clockAtomSource from "./clock.ts?highlight";
   import Countdown from "./countdown.svelte";
   import countdownSource from "./countdown.svelte?highlight";
-  import secondsSource from "./seconds.svelte?highlight";
+  import readerSource from "./reader.svelte?highlight";
   import Fruit from "./fruit.svelte";
   import fruitSource from "./fruit.svelte?highlight";
 </script>
@@ -20,9 +21,9 @@ Some values change over time without anyone asking: a clock, a price feed, messa
 
 ## Stream atoms
 
-Pass `Atom.make` a `Stream` and the atom holds the latest item the stream emitted:
+Pass `Atom.make` a `Stream` and the atom holds the latest item the stream emitted. The stream starts when something first reads the atom, and every reader shares it. It stops when the last reader goes away:
 
-<Example files={[{ html: secondsSource, name: "seconds.svelte" }, { html: clockSource, name: "clock.svelte" }]} hint="Each second the stream emits, and the atom holds the latest item. Click Stop reading, wait, then Start reading: the stream starts again from 0."> <Clock /> </Example>
+<Example files={[{ html: clockAtomSource, name: "clock.ts" }, { html: clockSource, name: "clock.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Turn on Reader B: it shows the same count, from the same stream. Turn off Reader A: the stream keeps running for B. Turn off B as well, and the log shows the stream stopped. Read again, and it starts from 0."> <Clock /> </Example>
 
 The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
@@ -33,8 +34,6 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
 
 <Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails, and Emits nothing, and compare the cause and the history."> <Countdown /> </Example>
-
-The stream starts when something first reads the atom, and stops when the last reader goes away.
 
 <Aside type="tip" title="Keep browser-only streams off the server">
 
