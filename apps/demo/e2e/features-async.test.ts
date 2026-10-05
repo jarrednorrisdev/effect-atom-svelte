@@ -248,42 +248,6 @@ test.describe("Effect basics page", () => {
     await expect(failed).toHaveCount(0);
     expect(errors).toEqual([]);
   });
-
-  test("a schema decodes valid JSON and explains what doesn't match", async ({
-    page,
-  }) => {
-    const errors = pageErrors(page);
-    await page.goto("/effect-basics");
-    await page.waitForLoadState("networkidle");
-    const decoded = page.getByTestId("decode");
-    // A failure's SchemaError, in a CauseView.
-    const cause = page.getByTestId("decode-cause");
-    const state = page.getByTestId("decode-state");
-    const input = page.getByTestId("decode-input");
-    const sample = (name: string) =>
-      page
-        .getByRole("group", { name: "Sample" })
-        .getByRole("button", { exact: true, name });
-    await expect(decoded).toHaveText("#1 Write the docs, done: false");
-    await expect(state).toHaveText("Success");
-    await setPressed(sample("Not an integer"), true);
-    await expect(state).toHaveText("Failure");
-    await expect(cause).toContainText(
-      /SchemaError: Expected an integer\s+at \["id"\]/u
-    );
-    await setPressed(sample("Missing title"), true);
-    await expect(cause).toContainText('at ["title"]');
-    // Editing the JSON by hand decodes it too, and no sample matches it any more.
-    await input.fill('{ "done": true, "id": 2, "title": "Ship" }');
-    await expect(decoded).toHaveText("#2 Ship, done: true");
-    await expect(sample("Missing title")).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
-    await input.fill("{ not json");
-    await expect(state).toHaveText("Failure");
-    expect(errors).toEqual([]);
-  });
 });
 
 test.describe("Services page", () => {

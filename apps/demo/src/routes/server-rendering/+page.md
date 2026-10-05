@@ -84,7 +84,7 @@ Module state is fine when it is the same for every visitor. Configuration, featu
 
 For per-visitor state, use one of these instead:
 
-- **An atom read through the hooks.** Each request gets its own registry, so each gets its own value. Give it the request's data with `initialValues` on `RegistryProvider` (see [Registry options](/installation#registry-options)) or [`useAtomInitialValues`](/reading-and-writing#starting-values-from-a-component).
+- **An atom read through the hooks.** Each request gets its own registry, so each gets its own value. Give it the request's data with `initialValues` on `RegistryProvider` (see [Registry options](/installation#registry-options)) or [`useAtomInitialValues`](/sveltekit#starting-atoms-from-request-data).
 - **A ref created inside a component.** A ref made in a component's script is new for each render. Pass it down as a prop, or through context.
 - **A [scoped atom](/scoped-atoms),** for state that belongs to one part of the page, such as each open editor's draft.
 - **A write in the browser only.** Event handlers and `$effect` never run on the server, so a module-level ref they write is shared only within one visitor's tab.

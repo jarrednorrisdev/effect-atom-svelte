@@ -22,23 +22,16 @@ An effect that needs a service, such as an HTTP client or a repository, says so 
 
 ## Making a runtime
 
-`Atom.runtime` takes a layer and returns a runtime. Its methods make atoms whose effects can use the layer's services:
+`Atom.runtime` takes a layer and returns a runtime. Its methods make atoms whose effects can use the layer's services. With the `Todos` service and `TodosLayer` from [Effect basics](/effect-basics#services-and-layers):
 
 **Example** (An atom backed by a service)
 
 ```ts
-import { Context, Effect, Layer } from "effect";
 import { Atom } from "effect/reactivity";
-
-class Todos extends Context.Service<
-  Todos,
-  { readonly count: Effect.Effect<number> }
->()("app/Todos") {}
-
-const TodosLayer = Layer.succeed(Todos, { count: Effect.succeed(3) });
 
 const runtime = Atom.runtime(TodosLayer);
 
+// Effect<number, never, Todos>: the runtime provides Todos.
 const countAtom = runtime.atom(Todos.use((todos) => todos.count));
 ```
 

@@ -7,8 +7,6 @@ description: Create one atom per key, and follow the one your component needs.
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
-  import KeptDrafts from "./kept-drafts.svelte";
-  import keptSource from "./kept-drafts.svelte?highlight";
   import SameKey from "./same-key.svelte";
   import sameKeySource from "./same-key.svelte?highlight";
   import TodoApp from "./todo-app.svelte";
@@ -69,7 +67,18 @@ todoAtom(3) === todoAtom(4); // false, todo 4 gets its own
 
 The recipe receives the key, so each new atom can start from a value based on it. Here every todo's atom starts with its own `id`.
 
-### Which keys count as the same
+## Reading from a family
+
+A family isn't an atom, so a hook can't read it directly. Pass the hook a [getter](/reading-and-writing#following-a-different-atom) that calls the family with a key, and the hook follows the atom for whichever key the getter reads. This is how the details panel in the app above follows the todo you open:
+
+**Example** (Following the selected key)
+
+```ts
+// The atom for whichever todo is open.
+const todo = useAtom(() => todoAtom(id));
+```
+
+## Which keys count as the same
 
 Keys are compared with Effect's structural equality, so objects and arrays with the same contents give the same atom:
 
@@ -90,24 +99,6 @@ Try it below. Both editors keep one draft per document and language, one in a fa
 
 A family holds its atoms through weak references, where the platform supports them, so an atom nothing refers to any more can be garbage collected. If that happens, the next call with that key runs the recipe again and makes a fresh atom.
 
-## Reading from a family
-
-A family isn't an atom, so a hook can't read it directly. Pass the hook a [getter](/reading-and-writing#following-a-different-atom) that calls the family with a key, and the hook follows the atom for whichever key the getter reads. This is how the details panel in the app above follows the todo you open:
-
-**Example** (Following the selected key)
-
-```svelte
-<script lang="ts">
-  import { useAtom } from "effect-atom-svelte";
-
-  import { todoAtom } from "./todos.ts";
-
-  const { id }: { id: number } = $props();
-  // The atom for whichever todo is open.
-  const todo = useAtom(() => todoAtom(id));
-</script>
-```
-
 ## Keeping a family's atoms
 
 A family's atoms follow the usual [lifetimes](/lifetimes): once nothing [holds](/reading-and-writing#reading) one, the registry disposes of its value. In the todo app, every row reads its todo, so no atom is ever left without a reader. The draft editor above is different: it reads only the current key's atom. Switch to another language and the draft you left has no reader, so the registry disposes of its value. Coming back gets the same atom from the family, but the registry starts it again from its initial value: an empty draft. That's why its drafts used `Atom.keepAlive`.
@@ -123,9 +114,7 @@ const draftAtom = Atom.family(
 );
 ```
 
-Below are the same drafts in three families that differ only in how long they keep an atom with no reader. Under each editor is where every draft is right now:
-
-<Example files={[{ html: keptSource, name: "kept-drafts.svelte" }]} hint="Type in all three, switch to lang: fr and straight back to en: plain has already lost its draft, and the other two still have theirs. Then switch to fr and wait out the countdown: the idle TTL lets go of the en draft too. keepAlive never does."> <KeptDrafts /> </Example>
+The live example at the top of [Lifetimes](/lifetimes) shows how a plain atom, one with an idle TTL and one kept alive behave once their last reader goes. In a family, each key's atom behaves the same way on its own.
 
 <Aside type="caution" title="keepAlive in a family">
 

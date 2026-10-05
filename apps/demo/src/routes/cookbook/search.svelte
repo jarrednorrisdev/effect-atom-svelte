@@ -12,8 +12,8 @@
     "Stream",
   ];
 
-  // Reads and writes ?q= in the URL.
-  const queryAtom = Atom.searchParam("q");
+  // What the box holds, on every key.
+  const queryAtom = Atom.make("");
 
   // Follows queryAtom once it has stopped changing for 400 milliseconds.
   const debouncedAtom = Atom.debounce(queryAtom, "400 millis");

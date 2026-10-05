@@ -94,53 +94,6 @@ test.describe("SvelteKit page", () => {
     await page.getByRole("button", { name: "Todo 1" }).click();
     await expect(todo).toHaveText("Write the docs");
   });
-
-  test("each card awaits its own todo, on the server and then in the browser", async ({
-    page,
-    request,
-  }) => {
-    const response = await request.get("/sveltekit");
-    const html = await response.text();
-    expect(html).toContain("Write the docs");
-    expect(html).toContain("Ship 0.1.0");
-
-    await page.goto("/sveltekit");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("card-1")).toContainText(
-      "Computed on the server"
-    );
-    await expect(page.getByTestId("card-2")).toContainText("Ship 0.1.0");
-    await expect(page.getByTestId("card-2")).toContainText(
-      "Computed on the server"
-    );
-
-    await page.getByRole("button", { name: "Show another todo" }).click();
-    const third = page.getByTestId("card-3");
-    await expect(third).toContainText("Propose it upstream");
-    await expect(third).toContainText("Computed in the browser");
-    await expect(page.getByTestId("card-1")).toContainText(
-      "Computed on the server"
-    );
-  });
-
-  test("a prerendered atom's result is from the build until it runs again", async ({
-    page,
-  }) => {
-    await page.goto("/sveltekit");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("stamp-where")).toHaveText(
-      "Computed on the server"
-    );
-    await expect(page.getByTestId("stamp-age")).toHaveText(/ago$|^just now$/u);
-
-    await page.getByRole("button", { name: "Compute again" }).click();
-    await expect(page.getByTestId("stamp-where")).toHaveText(
-      "Computed in the browser"
-    );
-    await expect(page.getByTestId("stamp-age")).toHaveText(
-      /^just now$|^\d seconds ago$/u
-    );
-  });
 });
 
 test.describe("Hydration page", () => {

@@ -1,33 +1,27 @@
 <script module lang="ts">
-  import { Todo } from "@demo/domain";
   import { Data, Effect } from "effect";
   import { AsyncResult, Atom } from "effect/reactivity";
 
-  import { TodosRpc } from "#lib/clients.ts";
+  import { toggleTodo } from "./api.ts";
+  import { runtime, todosAtom } from "./todos.ts";
 
   class ConnectionLost extends Data.TaggedError("ConnectionLost") {}
-
-  const todosAtom = TodosRpc.query("listTodos", undefined, {
-    reactivityKeys: ["todos"],
-  });
 
   // Turned on by "Make the next save fail"; the next save turns it off.
   const failNextAtom = Atom.make(false);
 
-  // Toggles a todo over RPC, on a slow connection: 1.5 seconds. When
-  // failNextAtom is on, it fails instead, as a dropped connection would,
-  // and the server never hears of it.
-  const toggleAtom = TodosRpc.runtime.fn(
-    (id: number, get) =>
-      Effect.gen(function* toggleTodo() {
-        yield* Effect.sleep("1500 millis");
-        if (get(failNextAtom)) {
-          get.set(failNextAtom, false);
-          return yield* new ConnectionLost();
-        }
-        const client = yield* TodosRpc;
-        return yield* client("toggleTodo", { id });
-      })
+  // Toggles a todo on a slow connection: 1.5 seconds. When failNextAtom is
+  // on, it fails instead, as a dropped connection would, and the server
+  // never hears of it.
+  const toggleAtom = runtime.fn((id: number, get) =>
+    Effect.gen(function* save() {
+      yield* Effect.sleep("1500 millis");
+      if (get(failNextAtom)) {
+        get.set(failNextAtom, false);
+        return yield* new ConnectionLost();
+      }
+      return yield* toggleTodo(id);
+    })
   );
 
   // Shows the todo toggled while toggleAtom runs. On success it refreshes
@@ -41,7 +35,7 @@
         current.pipe(
           AsyncResult.map((todos) =>
             todos.map((todo) =>
-              todo.id === id ? new Todo({ ...todo, done: !todo.done }) : todo
+              todo.id === id ? { ...todo, done: !todo.done } : todo
             )
           )
         ),

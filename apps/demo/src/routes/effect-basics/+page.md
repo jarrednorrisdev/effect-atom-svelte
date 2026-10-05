@@ -9,8 +9,6 @@ description: The parts of Effect these docs use, for Svelte developers who haven
 
   import CatchTag from "./catch-tag.svelte";
   import catchTagSource from "./catch-tag.svelte?highlight";
-  import Decode from "./decode.svelte";
-  import decodeSource from "./decode.svelte?highlight";
   import Hash from "./hash.svelte";
   import hashSource from "./hash.svelte?highlight";
   import Lazy from "./lazy.svelte";
@@ -20,9 +18,9 @@ description: The parts of Effect these docs use, for Svelte developers who haven
   import requestSource from "./request.svelte?highlight";
 </script>
 
-From here on, atoms run Effects: to fetch data, to save it, to follow a stream. You don't need to know all of Effect to use them. This page covers the parts these docs use, each with a link to [Effect's own documentation](https://effect.website/docs/v4) for the rest.
+From here on, atoms run Effects: to fetch data, to save it, to follow a stream. You don't need to know all of Effect to use them. This page covers the parts these docs use, each with a link to [Effect's own documentation](https://effect.website/docs/v4) for the rest. If you've used Effect before, skip to [Async atoms](/async-atoms).
 
-The example wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect, and reads it through an atom. Pick `MD5`, which Web Crypto doesn't support, to see a typed error.
+The examples on this page run their effects through atoms, with a badge for each atom's state. [Async atoms](/async-atoms), the next page, explains how that works; here, watch the effects. The first wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect. Pick `MD5`, which Web Crypto doesn't support, to see a typed error.
 
 <Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it, with the success side of the type lit up. Then pick MD5: the promise rejects, the atom fails with the typed error, and the error side lights up instead."> <Hash /> </Example>
 
@@ -132,11 +130,7 @@ An effect can fail in three ways, and only the first is in its type:
 - **A defect**, an exception nobody expected, such as a bug that throws inside `Effect.gen` or `Effect.sync`, or an `Effect.die`.
 - **An interruption**, when something stops the effect before it finishes.
 
-A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`; the failures in the examples above show one. These functions read it:
-
-- `Cause.findErrorOption(cause)` gives the typed error, as an `Option`. It is `None` when the effect died or was interrupted.
-- `Cause.hasInterruptsOnly(cause)` is `true` when the effect was interrupted and nothing else went wrong.
-- `Cause.pretty(cause)` renders the whole cause as text, for logs and for failures you didn't expect.
+A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`, as in the failures above. `Cause.findErrorOption(cause)` gives the typed error, as an `Option`, and `Cause.pretty(cause)` renders the whole cause as text for logs. [Errors](/errors#what-a-failure-holds) covers the rest, and how to handle each kind in a component.
 
 Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It is what a settled promise is to a promise, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
 
@@ -155,8 +149,6 @@ if (Exit.isSuccess(exit)) {
   console.log(Cause.pretty(exit.cause));
 }
 ```
-
-[Errors](/errors) covers handling each kind in a component.
 
 Read more in [Exit](https://effect.website/docs/v4/data-types/exit) and [Cause](https://effect.website/docs/v4/data-types/cause).
 
@@ -214,9 +206,7 @@ const decode = Schema.decodeUnknownEffect(Todo);
 // (input: unknown) => Effect<Todo, SchemaError, never>
 ```
 
-The live example decodes JSON text, so it wraps the schema in `Schema.fromJsonString`, which parses the text first.
-
-<Example files={[{ html: decodeSource, name: "decode.svelte" }]} hint="Pick each sample, or edit the JSON: the atom decodes it on every change, and a SchemaError says what doesn't match."> <Decode /> </Example>
+A value that doesn't match fails with a `SchemaError`, which says which field is wrong and why.
 
 Effect RPC and `HttpApi` use schemas for every payload, response and error, so the client and server agree on them. That is how the [RPC](/rpc) and [HTTP API](/http) pages get typed errors from the server. `Schema.TaggedError` defines a tagged error that can be sent over the network.
 

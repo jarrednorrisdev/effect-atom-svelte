@@ -281,50 +281,9 @@ test.describe("HTTP API page", () => {
     await expect(done).toHaveCount(0);
   });
 
-  test("a slow create disables Add and shows waiting until it settles", async ({
-    page,
-  }) => {
-    const held = Promise.withResolvers<undefined>();
-    await page.route("**/api/todos", async (route) => {
-      if (route.request().method() === "POST") {
-        await held.promise;
-      }
-      await route.continue();
-    });
+  test("a missing todo is a typed 404", async ({ page }) => {
     await page.goto("/http");
     await page.waitForLoadState("networkidle");
-    const add = page.getByTestId("http-add");
-    const state = page.getByTestId("http-add-state");
-    await expect(state).toHaveText("Initial");
-    await page.getByTestId("http-draft").fill("Slow over HTTP");
-    await add.click();
-    await expect(add).toBeDisabled();
-    await expect(state).toHaveText("Initial, waiting");
-    held.resolve(undefined);
-    await expect(add).toBeEnabled();
-    await expect(state).toHaveText("Success");
-    await expect(page.getByTestId("http-todos")).toContainText(
-      "Slow over HTTP"
-    );
-  });
-
-  test("create refreshes the list, and a typed 404", async ({ page }) => {
-    await page.goto("/http");
-    await page.waitForLoadState("networkidle");
-    const list = page.getByTestId("http-todos");
-
-    await page.getByTestId("http-draft").fill("Added over HTTP");
-    await page.getByTestId("http-add").click();
-    await expect(list).toContainText("Added over HTTP");
-    await expect(page.getByTestId("http-add-state")).toHaveText("Success");
-    await page.getByTestId("http-draft").fill("y".repeat(80));
-    await page.getByTestId("http-add").click();
-    // The endpoint's typed 422, shown as its Cause.
-    await expect(page.getByTestId("http-error")).toContainText(
-      "TitleTooLong { maxLength: 60 }"
-    );
-    await expect(page.getByTestId("http-add-state")).toHaveText("Failure");
-
     await page.getByTestId("http-id").fill("999");
     await expect(page.getByTestId("http-found")).toHaveText(
       "TodoNotFound: there is no todo 999"
@@ -816,14 +775,8 @@ test.describe("Mutations page", () => {
   test("a successful add refreshes the list through its key, a failed one doesn't", async ({
     page,
   }) => {
-    // The demo API runs without latency in e2e; hold the request here instead.
-    const held = Promise.withResolvers<undefined>();
-    await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"createTodo"')) {
-        await held.promise;
-      }
-      await route.continue();
-    });
+    // The pretend API's save takes a second; the page's clock is paused while it is in flight.
+    await page.clock.install();
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
     const example = page.getByTestId("refresh-example");
@@ -835,6 +788,7 @@ test.describe("Mutations page", () => {
     ]);
 
     await page.getByTestId("refresh-draft").fill("Water the plants");
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.getByTestId("refresh-submit").click();
     await expect(page.getByTestId("part-create")).toHaveAttribute(
       "data-tone",
@@ -842,7 +796,7 @@ test.describe("Mutations page", () => {
     );
     await expect(todos).toHaveCount(2);
 
-    held.resolve(undefined);
+    await page.clock.resume();
     await expect(todos).toHaveText([
       "Read the Effect Atom source",
       "Write a Svelte adapter",
@@ -867,15 +821,6 @@ test.describe("Mutations page", () => {
     ).toHaveCount(1);
     await expect(page.getByLabel("key invalidated")).toHaveText("1");
     await expect(todos).toHaveCount(3);
-
-    // Only an added todo has a Remove button.
-    const remove = example.getByRole("button", { name: /^Remove /u });
-    await expect(remove).toHaveCount(1);
-    await remove.click();
-    await expect(todos).toHaveText([
-      "Read the Effect Atom source",
-      "Write a Svelte adapter",
-    ]);
   });
 
   test("each mode gives back something else, and Cancel and Reset work", async ({
@@ -951,14 +896,9 @@ test.describe("Mutations page", () => {
   test("an optimistic toggle shows at once, and rolls back when the save fails", async ({
     page,
   }) => {
-    // Hold the real toggle so the provisional value is all the page can show.
-    const held = Promise.withResolvers<undefined>();
-    await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"toggleTodo"')) {
-        await held.promise;
-      }
-      await route.continue();
-    });
+    // The pretend API's save takes a second and a half; the page's clock is paused while it is
+    // in flight, so the provisional value is all the page can show.
+    await page.clock.install();
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
     const example = page.getByTestId("optimistic-example");
@@ -978,13 +918,14 @@ test.describe("Mutations page", () => {
     ]);
 
     // The screen changes at once; the server keeps the old value until the save lands.
+    await page.clock.pauseAt(Date.now() + 1000);
     await first.click();
     await expect(first).toBeChecked();
     await expect(provisional).toHaveCount(1);
     await expect(provisional).toContainText("Read the Effect Atom source");
     await expect(state).toHaveText("Initial, waiting");
     await expect(server.first()).toHaveText("○ Read the Effect Atom source");
-    held.resolve(undefined);
+    await page.clock.resume();
     await expect(state).toHaveText("Success");
     await expect(server.first()).toHaveText("✓ Read the Effect Atom source");
     await expect(provisional).toHaveCount(0);

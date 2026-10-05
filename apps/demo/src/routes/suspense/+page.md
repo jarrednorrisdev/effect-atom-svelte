@@ -62,68 +62,6 @@ In the example, a component awaits a slow atom inside a boundary. Under it, the 
 
 The promise stays the same object while the atom's result is unchanged, so Svelte only renders again when there is something new. When the result changes, `current` is a new promise.
 
-## When it fails
-
-When the atom's effect fails, the promise rejects with `Cause.squash` of its cause: the typed error if there is one, otherwise the defect, and otherwise an `Error` saying the effect was interrupted. The boundary then renders its `failed` snippet. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
-
-**Example** (Trying again)
-
-```svelte
-<script lang="ts">
-  import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
-
-  const todo = useAtomSuspense(todoAtom, { suspendOnWaiting: true });
-  const refresh = useAtomRefresh(todoAtom);
-</script>
-
-<svelte:boundary>
-  <p>{(await todo.current).title}</p>
-
-  {#snippet failed(error, reset)}
-    <p>{(error as App.Error).message}</p>
-    <button
-      onclick={() => {
-        refresh();
-        reset();
-      }}
-    >
-      Try again
-    </button>
-  {/snippet}
-</svelte:boundary>
-```
-
-`suspendOnWaiting` makes the content wait for the refresh's result rather than the old failure; [After the first load](#after-the-first-load) explains it.
-
-In the example, the atom is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead: see [Server values](/server-rendering#server-values). Turn on **Fail the next load** to try the `failed` snippet:
-
-<Example files={[{ html: retrySource, name: "retry.svelte" }]} hint="Turn on Fail the next load and click Reload: the failed snippet takes over. Click Try again: reset starts the boundary afresh, so the pending snippet shows until the new forecast arrives."> <Retry /> </Example>
-
-<Aside type="caution" title="SvelteKit hides error details">
-
-SvelteKit passes an error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The example casts the error to `App.Error`, SvelteKit's error type, and reads `error.message` because this site installs the hooks from `effect-atom-svelte/sveltekit`, which keep an Effect error's message and `_tag`. Without them, the snippet would show "Internal Error". [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install them.
-
-</Aside>
-
-To handle typed errors yourself rather than through the boundary, pass `includeFailure: true`. The promise then resolves with the whole `Success` or `Failure` result, and never rejects:
-
-**Example** (Handling a typed error in place)
-
-```svelte
-<script lang="ts">
-  const todo = useAtomSuspense(todoAtom, { includeFailure: true });
-</script>
-
-<svelte:boundary>
-  {@const result = await todo.current}
-  {#if result._tag === "Success"}
-    <p>{result.value.title}</p>
-  {:else}
-    <p>Could not load the todo.</p>
-  {/if}
-</svelte:boundary>
-```
-
 ## After the first load
 
 Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load, and `$effect.pending()` inside the boundary counts the awaits it is still waiting for. Use it to show that something is loading, as the weather example's Updating… does:
@@ -138,7 +76,7 @@ Svelte shows a boundary's `pending` snippet only while the boundary first loads.
 
 Like the other hooks that take an atom, `useAtomSuspense` accepts a getter, and follows whichever atom it returns. `useAtomSuspense(() => weatherAtom(city))` issues a new promise when `city` changes, and the boundary waits for the new atom while the old content stays.
 
-In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city, each loaded in the browser only, like the failure example's atom.
+In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city. Each is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead, and the browser loads it: see [Server values](/server-rendering#server-values).
 
 <Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Pick two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
 
@@ -167,7 +105,42 @@ Svelte shows an update only once every `await` it changed has resolved. A refres
 
 </Aside>
 
-Choose the default to keep the page responsive: the old value stays on screen, and the rest of the update, such as a spinner from `waiting`, shows at once. Choose `suspendOnWaiting` when old and new data must never appear together, such as a total next to the list it adds up, or when the content must wait for a retry, as in the failed snippet above.
+Choose the default to keep the page responsive: the old value stays on screen, and the rest of the update, such as a spinner from `waiting`, shows at once. Choose `suspendOnWaiting` when old and new data must never appear together, such as a total next to the list it adds up, or when the content must wait for a retry, as in the `failed` snippet below.
+
+## When it fails
+
+When the atom's effect fails, the promise rejects with `Cause.squash` of its cause: the typed error if there is one, otherwise the defect, and otherwise an `Error` saying the effect was interrupted. The boundary then renders its `failed` snippet. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
+
+**Example** (Trying again)
+
+```svelte
+{#snippet failed(error, reset)}
+  <p>{(error as App.Error).message}</p>
+  <!-- refresh is useAtomRefresh(todoAtom). -->
+  <button
+    onclick={() => {
+      refresh();
+      reset();
+    }}
+  >
+    Try again
+  </button>
+{/snippet}
+```
+
+Read the atom with `suspendOnWaiting: true`, so the content waits for the refresh's result rather than the old failure.
+
+Like the weather example's, this example's atom loads in the browser only. Rendered on the server, a failure would fail the build: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). Turn on **Fail the next load** to try the `failed` snippet:
+
+<Example files={[{ html: retrySource, name: "retry.svelte" }]} hint="Turn on Fail the next load and click Reload: the failed snippet takes over. Click Try again: reset starts the boundary afresh, so the pending snippet shows until the new forecast arrives."> <Retry /> </Example>
+
+<Aside type="caution" title="SvelteKit hides error details">
+
+SvelteKit passes the error through its `handleError` hook before a `failed` snippet sees it, and the default hook replaces it with `{ message: "Internal Error" }`. The example can read `error.message` because this site installs the hooks from `effect-atom-svelte/sveltekit`: see [SvelteKit's `handleError`](/errors#sveltekits-handleerror).
+
+</Aside>
+
+To handle typed errors yourself rather than through the boundary, pass `includeFailure: true`. The promise then resolves with the whole `Success` or `Failure` result, and never rejects: see [In place, with `includeFailure`](/errors#in-place-with-includefailure).
 
 ## Awaiting in the script
 

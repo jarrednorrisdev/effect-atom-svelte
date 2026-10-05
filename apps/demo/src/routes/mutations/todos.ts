@@ -1,13 +1,17 @@
-import { TodosRpc } from "#lib/clients.ts";
+import { Layer } from "effect";
+import { Atom } from "effect/reactivity";
 
-// The demo server's todos. Tagged "todos": it runs again when a mutation
-// invalidates that key.
-export const todosAtom = TodosRpc.query("listTodos", undefined, {
+import { createTodo, listTodos } from "./api.ts";
+
+// Tagged "todos": it runs again when a mutation invalidates that key.
+export const todosAtom = Atom.make(listTodos).pipe(
+  Atom.withReactivity(["todos"])
+);
+
+// reactivityKeys need a runtime, even one with no services.
+export const runtime = Atom.runtime(Layer.empty);
+
+// When a call succeeds, every atom tagged "todos" runs again.
+export const createAtom = runtime.fn(createTodo, {
   reactivityKeys: ["todos"],
 });
-
-// Each write sends one createTodo request.
-export const createAtom = TodosRpc.mutation("createTodo");
-
-// Removes a todo you added. The two the server starts with stay.
-export const removeAtom = TodosRpc.mutation("removeTodo");

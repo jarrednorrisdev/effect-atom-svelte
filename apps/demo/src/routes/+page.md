@@ -21,7 +21,7 @@ effect-atom-svelte connects [Effect Atom](https://github.com/Effect-TS/effect/tr
 
 Effect Atom (`effect/reactivity`) keeps your application's state in **atoms**: small reactive values that can hold plain data, be derived from other atoms, or run an `Effect` or a `Stream`. This library gives your components hooks to read and write those atoms, and the pieces you need to render them on the server and pick up where the server left off in the browser.
 
-Its API follows the adapters the Effect team maintains, `@effect/atom-react` and `@effect/atom-vue`, but it is a separate project. If you have used atoms in React or Vue, you already know the atoms; only the hooks change.
+Its API follows the adapters the Effect team maintains, `@effect/atom-react` and `@effect/atom-vue`, but it is a separate project. If you have used atoms in React or Vue, you already know the atoms; only the hooks change. Coming from React, see [Migrating from atom-react](/migrating-from-react).
 
 effect-atom-svelte was inspired by Thomas Foster's [Svelte Atoms pull request](https://github.com/Effect-TS/effect-smol/pull/2443) to effect-smol. The design of the live examples in these docs is inspired by Kit Langton's [Visual Effect](https://effect.kitlangton.com/).
 

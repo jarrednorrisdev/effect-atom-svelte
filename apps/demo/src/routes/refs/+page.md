@@ -51,18 +51,6 @@ profile.update((current) => ({ ...current, role: "Rear admiral" }));
 
 `subscribe` adds a listener that runs whenever the value changes, and returns a function that removes it.
 
-### Equal values change nothing
-
-A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody.
-
-Atoms are different: they compare with `Object.is` unless you give them [`Atom.withEquality`](/derived-atoms#when-readers-are-notified), so setting an atom to an equal copy notifies its readers.
-
-That matters when code runs on every change. Below, a listener autosaves the draft half a second after each edit. The server answers with its own stored copy, a new object, and the form adopts it as the draft:
-
-<Example files={[{ html: autosaveSource, name: "autosave.svelte" }, { html: apiSource, name: "profile-api.ts" }]} hint="Change the name to Ada Byron and pause: one request goes out. The server's answer equals the draft, so setting it notifies nobody and nothing saves again. Then type a name in lowercase: the server capitalizes it, that copy is a real change, so it saves once more and then stops."> <Autosave /> </Example>
-
-If the ref compared objects by reference, every answer would count as a change: it would save again, get another new object back, and loop forever.
-
 ### Properties
 
 `prop` returns a ref for one property. Setting it replaces the parent's value with a copy that has the new property, so the parent and every other reader see the change:
@@ -110,10 +98,20 @@ Below, each `<TodoItem>` gets its item's ref, and the numbers count notification
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Tick a todo: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
 
+## Equal values change nothing
+
+A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody.
+
+Atoms are different: they compare with `Object.is` unless you give them [`Atom.withEquality`](/derived-atoms#when-readers-are-notified), so setting an atom to an equal copy notifies its readers.
+
+That matters when code runs on every change. Below, a listener autosaves the draft half a second after each edit. The server answers with its own stored copy, a new object, and the form adopts it as the draft:
+
+<Example files={[{ html: autosaveSource, name: "autosave.svelte" }, { html: apiSource, name: "profile-api.ts" }]} hint="Change the name to Ada Byron and pause: one request goes out. The server's answer equals the draft, so setting it notifies nobody and nothing saves again. Then type a name in lowercase: the server capitalizes it, that copy is a real change, so it saves once more and then stops."> <Autosave /> </Example>
+
+If the ref compared objects by reference, every answer would count as a change: it would save again, get another new object back, and loop forever.
+
 <Aside type="danger" title="Module-level refs are shared on the server">
 
 A ref has no registry, so it gets none of the [per-request isolation](/server-rendering#one-registry-per-request) atoms get. A ref created at module level is shared by every request the server handles, so a visitor's data written to it on the server can show up in another visitor's page. Create refs that hold per-visitor data inside a component and pass them down, or only write to them in the browser. See [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
 </Aside>
-
-For state that each part of the page owns but that still lives in the request's registry, see [Scoped atoms](/scoped-atoms).
