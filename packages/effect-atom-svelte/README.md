@@ -1,16 +1,16 @@
 # effect-atom-svelte
 
-Svelte 5 bindings for Effect Atom (`effect/reactivity`), following the API of `@effect/atom-react`: hooks with a reactive `current`, async atoms you can `await` in markup, and server rendering with hydration.
+Svelte 5 bindings for Effect Atom (`effect/reactivity`): hooks with a reactive `current`, async atoms you can `await` in markup, and server rendering with hydration. The API follows `@effect/atom-react`.
 
-This is a community project by Jarred Norris. It is not part of Effect, and the Effect team neither makes nor endorses it. Most of its code and docs were written with the help of AI (Claude); its behavior is covered by tests in Chromium, Firefox and WebKit.
+This is a community project by Jarred Norris. It is not part of Effect, and the Effect team neither makes nor endorses it. Most of its code and docs were written with the help of AI (Claude Opus 5.5); its behavior is covered by tests in Chromium, Firefox and WebKit.
 
-**Documentation: [atom.jarrednorris.dev](https://atom.jarrednorris.dev)**
+**Documentation: [atom.jarrednorris.dev](https://atom.jarrednorris.dev)** · [API reference](https://atom.jarrednorris.dev/reference) · [GitHub](https://github.com/jarrednorrisdev/effect-atom-svelte)
 
 ## Requirements
 
-- `effect` 4.0.x. The peer range is `~4.0.0`, not `^4.0.0`, as the bindings use parts of the atom registry that aren't public API, which a minor release of `effect` can change.
-- Svelte 5.57 or later, with `experimental.async` turned on for the async hooks and server rendering.
-- SvelteKit is optional. The error hooks in `effect-atom-svelte/sveltekit` are made for SvelteKit 3 and work with less detail on SvelteKit 2.
+- `effect` 4.0.x. The peer range is `~4.0.0`, not `^4.0.0`: the bindings use parts of the atom registry that aren't public API, which a minor release of `effect` can change.
+- Svelte 5.57 or later. `experimental.async` is needed for `useAtomSuspense`, `useAtomResult` and server rendering.
+- SvelteKit is optional. The docs site and its tests run on SvelteKit 3. On SvelteKit 2, the error hooks in `effect-atom-svelte/sveltekit` work with less detail.
 
 ## Installation
 
@@ -21,6 +21,7 @@ npm install effect-atom-svelte "effect@~4.0.0"
 Turn on Svelte's async mode. In SvelteKit 3, pass it to `sveltekit()` in `vite.config.ts`:
 
 ```ts
+// vite.config.ts
 sveltekit({
   compilerOptions: { experimental: { async: true } },
 });
@@ -39,7 +40,7 @@ Then put a registry around your app, in the root layout:
 <RegistryProvider>{@render children()}</RegistryProvider>
 ```
 
-On the server, the provider creates a registry for each request, so visitors never see each other's state. See [Installation](https://atom.jarrednorris.dev/installation) for the options and for apps without SvelteKit.
+On the server, the provider creates a registry for each request, so visitors never see each other's state. Without one, the server throws `No AtomRegistry in context`. [Installation](https://atom.jarrednorris.dev/installation) covers the registry options and apps without SvelteKit.
 
 ## Example
 
@@ -72,7 +73,7 @@ On the server, the provider creates a registry for each request, so visitors nev
 </svelte:boundary>
 ```
 
-Hooks return an object whose `current` you read, assign or `bind:` to; destructuring it reads the value once and loses reactivity. Coming from React? See [Migrating from React](https://atom.jarrednorris.dev/migrating-from-react).
+Hooks return an object whose `current` you read, assign or `bind:` to. Don't destructure `current`: `const { current } = useAtomValue(atom)` reads once and never updates. Coming from `@effect/atom-react`? See [Migrating from atom-react](https://atom.jarrednorris.dev/migrating-from-react).
 
 ## Learn more
 
@@ -80,6 +81,7 @@ Hooks return an object whose `current` you read, assign or `bind:` to; destructu
 - [Server rendering](https://atom.jarrednorris.dev/server-rendering) and [Hydration](https://atom.jarrednorris.dev/hydration)
 - [Effect RPC](https://atom.jarrednorris.dev/rpc) and [HttpApi](https://atom.jarrednorris.dev/http)
 - [API reference](https://atom.jarrednorris.dev/reference) and [Troubleshooting](https://atom.jarrednorris.dev/troubleshooting)
+- [Every export at a glance, and more recipes](https://github.com/jarrednorrisdev/effect-atom-svelte#api-at-a-glance), in the repository's README
 
 ## Versioning
 
@@ -87,4 +89,4 @@ The package is at 0.x, so a minor release can change the API. Every change is li
 
 ## License
 
-MIT
+[MIT](https://github.com/jarrednorrisdev/effect-atom-svelte/blob/main/LICENSE)
