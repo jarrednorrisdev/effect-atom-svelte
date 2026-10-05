@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { isAddedTodo } from "@demo/domain";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
 
-  import { createAtom, todosAtom } from "./todos.ts";
+  import { createAtom, removeAtom, todosAtom } from "./todos.ts";
 
   const todos = useAtomValue(todosAtom);
   const create = useAtomSet(createAtom);
+  const remove = useAtomSet(removeAtom);
   let title = $state("Buy milk");
 
   const submit = (event: SubmitEvent) => {
@@ -28,7 +30,18 @@
 {#if todos.current._tag === "Success"}
   <ul aria-busy={todos.current.waiting} data-testid="refresh-todos">
     {#each todos.current.value as todo (todo.id)}
-      <li>{todo.title}</li>
+      <li>
+        {todo.title}
+        {#if isAddedTodo(todo)}
+          <button
+            aria-label="Remove {todo.title}"
+            onclick={() =>
+              remove({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+          >
+            Remove
+          </button>
+        {/if}
+      </li>
     {/each}
   </ul>
 {:else}

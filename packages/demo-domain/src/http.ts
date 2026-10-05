@@ -24,6 +24,10 @@ export class TodosApiGroup extends HttpApiGroup.make("todos")
       error: TodoNotFound,
       params: { id: Schema.NumberFromString },
       success: Todo,
+    }),
+    HttpApiEndpoint.delete("remove", "/:id", {
+      error: TodoNotFound,
+      params: { id: Schema.NumberFromString },
     })
   )
   .prefix("/todos") {}

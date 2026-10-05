@@ -8,3 +8,6 @@ export const todosAtom = TodosRpc.query("listTodos", undefined, {
 
 // Each write sends one createTodo request.
 export const createAtom = TodosRpc.mutation("createTodo");
+
+// Removes a todo you added. The two the server starts with stay.
+export const removeAtom = TodosRpc.mutation("removeTodo");

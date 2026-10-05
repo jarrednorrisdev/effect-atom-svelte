@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import { Todo } from "@demo/domain";
+  import { isAddedTodo, Todo } from "@demo/domain";
   import { AsyncResult, Atom } from "effect/reactivity";
 
   import { TodosRpc } from "#lib/clients.ts";
@@ -21,6 +21,9 @@
         ),
     })
   );
+
+  // Removes a todo you added. The two the server starts with stay.
+  const removeAtom = TodosRpc.mutation("removeTodo");
 </script>
 
 <script lang="ts">
@@ -32,6 +35,7 @@
   const todos = useAtomValue(optimisticTodosAtom);
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
+  const remove = useAtomSet(removeAtom);
 
   let title = $state("");
   let error = $state("");
@@ -71,7 +75,18 @@
   <ul class="[overflow-wrap:anywhere]" data-testid="new-todo-list">
     {#each todos.current.value as todo, index (index)}
       {@const saving = todo.id === 0}
-      <li aria-busy={saving}>{todo.title}{saving ? " (saving…)" : ""}</li>
+      <li aria-busy={saving}>
+        {todo.title}{saving ? " (saving…)" : ""}
+        {#if !saving && isAddedTodo(todo)}
+          <button
+            aria-label="Remove {todo.title}"
+            onclick={() =>
+              remove({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+          >
+            Remove
+          </button>
+        {/if}
+      </li>
     {/each}
   </ul>
 {:else if todos.current._tag === "Failure"}

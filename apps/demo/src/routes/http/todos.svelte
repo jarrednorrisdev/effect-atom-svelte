@@ -14,10 +14,12 @@
 
   // POST /api/todos
   const createAtom = TodosHttp.mutation("todos", "create");
+  // DELETE /api/todos/:id
+  const removeAtom = TodosHttp.mutation("todos", "remove");
 </script>
 
 <script lang="ts">
-  import type { TitleTooLong } from "@demo/domain";
+  import { isAddedTodo, type TitleTooLong } from "@demo/domain";
   import { Cause, Exit, Match, Option } from "effect";
   import { useAtomSet, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
   import Part from "#lib/docs/kit/part.svelte";
@@ -31,6 +33,7 @@
   const todos = useAtomSuspense(() => todosFor(filter));
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
+  const remove = useAtomSet(removeAtom);
 
   // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
   const describe = (cause: Cause.Cause<TitleTooLong>) => {
@@ -67,7 +70,18 @@
     <!-- No pending snippet, so server rendering waits for the list. -->
     <ul class="mt-2 grid gap-1" data-testid="http-todos">
       {#each await todos.current as todo (todo.id)}
-        <li>{todo.done ? "✔" : "○"} {todo.title}</li>
+        <li>
+          {todo.done ? "✔" : "○"} {todo.title}
+          {#if isAddedTodo(todo)}
+            <button
+              aria-label="Remove {todo.title}"
+              onclick={() =>
+                remove({ params: { id: todo.id }, reactivityKeys: ["todos"] })}
+            >
+              Remove
+            </button>
+          {/if}
+        </li>
       {/each}
     </ul>
   </Part>

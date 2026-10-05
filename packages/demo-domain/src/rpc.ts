@@ -20,6 +20,10 @@ export class TodosRpcs extends RpcGroup.make(
     payload: { id: Schema.Int },
     success: Todo,
   }),
+  Rpc.make("removeTodo", {
+    error: TodoNotFound,
+    payload: { id: Schema.Int },
+  }),
   Rpc.make("ticks", {
     payload: { count: Schema.Int },
     stream: true,

@@ -20,6 +20,7 @@ class TodoStore extends Context.Service<
     readonly get: (id: number) => Effect.Effect<Todo, TodoNotFound>;
     readonly create: (title: string) => Effect.Effect<Todo, TitleTooLong>;
     readonly toggle: (id: number) => Effect.Effect<Todo, TodoNotFound>;
+    readonly remove: (id: number) => Effect.Effect<void, TodoNotFound>;
   }
 >()("demo/TodoStore") {
   static readonly layer = (options: ServerOptions) =>
@@ -35,6 +36,8 @@ class TodoStore extends Context.Service<
         ],
         [2, new Todo({ done: true, id: 2, title: "Write a Svelte adapter" })],
       ]);
+      // Ids are never reused, so removing a todo can't make two share one.
+      let nextId = todos.size + 1;
       const delay = Effect.delay(
         Duration.fromInputUnsafe(options.latency ?? 0)
       );
@@ -51,7 +54,7 @@ class TodoStore extends Context.Service<
             : Effect.sync(() => {
                 const todo = new Todo({
                   done: false,
-                  id: todos.size + 1,
+                  id: nextId++,
                   title,
                 });
                 todos.set(todo.id, todo);
@@ -65,6 +68,13 @@ class TodoStore extends Context.Service<
               (todo) => done === undefined || todo.done === done
             )
           ).pipe(delay),
+        remove: (id) =>
+          find(id).pipe(
+            Effect.map(() => {
+              todos.delete(id);
+            }),
+            delay
+          ),
         toggle: (id) =>
           find(id).pipe(
             Effect.map((todo) => {
@@ -85,6 +95,7 @@ const RpcHandlers = TodosRpcs.toLayer(
       createTodo: ({ title }) => store.create(title),
       getTodo: ({ id }) => store.get(id),
       listTodos: () => store.list(),
+      removeTodo: ({ id }) => store.remove(id),
       ticks: ({ count }) =>
         Stream.fromSchedule(Schedule.spaced("200 millis")).pipe(
           Stream.take(count)
@@ -104,6 +115,7 @@ const HttpHandlers = HttpApiBuilder.group(DemoApi, "todos", (handlers) =>
         store.list(
           query.done === undefined ? undefined : query.done === "true"
         ),
+      remove: ({ params }) => store.remove(params.id),
       toggle: ({ params }) => store.toggle(params.id),
     });
   })

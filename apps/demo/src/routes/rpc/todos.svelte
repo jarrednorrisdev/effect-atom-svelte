@@ -8,10 +8,11 @@
   });
   const createAtom = TodosRpc.mutation("createTodo");
   const toggleAtom = TodosRpc.mutation("toggleTodo");
+  const removeAtom = TodosRpc.mutation("removeTodo");
 </script>
 
 <script lang="ts">
-  import type { TitleTooLong } from "@demo/domain";
+  import { isAddedTodo, type TitleTooLong } from "@demo/domain";
   import { Cause, Exit, Match, Option } from "effect";
   import type { RpcClientError } from "effect/rpc";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
@@ -25,6 +26,7 @@
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
   const toggle = useAtomSet(toggleAtom);
+  const remove = useAtomSet(removeAtom);
 
   let draft = $state("");
   let error = $state("");
@@ -76,6 +78,16 @@
               />
               {todo.title}
             </label>
+            <!-- Only the todos you added; the server's two stay. -->
+            {#if isAddedTodo(todo)}
+              <button
+                aria-label="Remove {todo.title}"
+                onclick={() =>
+                  remove({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+              >
+                Remove
+              </button>
+            {/if}
           </li>
         {/each}
       </ul>
