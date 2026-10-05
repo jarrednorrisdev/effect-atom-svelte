@@ -97,7 +97,7 @@
         "vitest-browser-svelte": "^3.1.0",
       },
       "peerDependencies": {
-        "@sveltejs/kit": "^3.0.0",
+        "@sveltejs/kit": "^2.0.0 || ^3.0.0",
         "effect": "~4.0.0",
         "svelte": "^5.57.0",
       },
