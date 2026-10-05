@@ -91,7 +91,8 @@ import type { Tone } from './tone.ts';
   // Jitters while working, as a running effect does; the cleanup settles it when the work ends.
   const run = (chip: HTMLElement) => {
     if (busy || tone === "running") {
-      return jitter(chip);
+      // A wide tile tilts far at its ends, so a sentence only shakes.
+      return jitter(chip, kind === "message" ? { angle: 0 } : undefined);
     }
     return undefined;
   };
@@ -181,6 +182,9 @@ import type { Tone } from './tone.ts';
     font-family: var(--font-sans);
     font-size: 0.875rem;
     font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    text-wrap: balance;
   }
   /* Overrides the generic pulse that app.css gives anything busy in an example. */
   .chip[aria-busy="true"] {
