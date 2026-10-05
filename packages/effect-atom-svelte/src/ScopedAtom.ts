@@ -31,7 +31,24 @@ export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
 }
 
 /**
+ * Options for `ScopedAtom.make`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category models
+ */
+export interface MakeOptions {
+  /** A name for error messages, such as the one thrown when `use` finds no provider. */
+  readonly name?: string | undefined;
+}
+
+/**
  * Creates a scoped atom from a factory, which runs once per providing component.
+ *
+ * Each provider gets its own atom, so a factory that adds `Atom.serializable` with a fixed key
+ * gives every copy the same key: once two providers are on a page, reading them with
+ * `useAtomResult` or `useAtomSuspense` throws, as two different atoms share the serialization
+ * key. Put the input in the key, or leave scoped atoms unserialized.
  *
  * **Example** (A counter per subtree, started from an input)
  *
@@ -39,7 +56,9 @@ export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
  * import { ScopedAtom } from "effect-atom-svelte";
  * import { Atom } from "effect/reactivity";
  *
- * export const Counter = ScopedAtom.make((start: number) => Atom.make(start));
+ * export const Counter = ScopedAtom.make((start: number) => Atom.make(start), {
+ *   name: "Counter",
+ * });
  * // A parent's script calls Counter.provide(0); descendants call Counter.use()
  * ```
  *
@@ -48,7 +67,8 @@ export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
  * @category constructors
  */
 export const make = <A extends Atom.Atom<unknown>, Input = never>(
-  f: (() => A) | ((input: Input) => A)
+  f: (() => A) | ((input: Input) => A),
+  options?: MakeOptions
 ): ScopedAtom<A, Input> => {
   const [get, set, has] = createContext<A>();
   const provide = (...args: [] | [Input]): A =>
@@ -62,8 +82,11 @@ export const make = <A extends Atom.Atom<unknown>, Input = never>(
     provide: provide as ScopedAtom<A, Input>["provide"],
     use: () => {
       if (!has()) {
+        const name = options?.name;
+        const which = name ? `ScopedAtom "${name}"` : "ScopedAtom";
+        const call = name ? `${name}.provide()` : "its provide()";
         throw new Error(
-          "ScopedAtom used outside of the component that provides it"
+          `${which} used outside of the component that provides it. Call ${call} in a parent component's script.`
         );
       }
       return get();

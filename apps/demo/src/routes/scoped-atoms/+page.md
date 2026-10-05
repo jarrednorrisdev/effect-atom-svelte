@@ -66,7 +66,7 @@ If a component is inside more than one provider, `use` returns the nearest one's
 
 <Aside type="caution" title="use needs a provider above it">
 
-`use` throws if no component above it called `provide`. Like any Svelte context, both must run while the component initializes, at the top level of its script.
+`use` throws if no component above it called `provide`. Like any Svelte context, both must run while the component initializes, at the top level of its script. Give `make` a name, as in `ScopedAtom.make(f, { name: "Draft" })`, and the error says which scoped atom it was.
 
 </Aside>
 
@@ -77,4 +77,4 @@ Both give you more than one atom from one definition. Choose by where the atom b
 - A [family](/families) is keyed by a value. Any component can ask for `todoAtom(1)` and gets the same atom wherever it asks.
 - A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested panels above show.
 
-Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply. Atoms made per instance have no serialization key, so their values aren't sent from the server to the browser: see [Hydration](/hydration).
+Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply. Atoms made per instance have no serialization key, so their values aren't sent from the server to the browser: see [Hydration](/hydration). Don't give them one with a fixed key in the function: every provider's atom would get the same key, and once two are on a page, reading them with `useAtomResult` or `useAtomSuspense` throws. If you need one, put the input in the key.

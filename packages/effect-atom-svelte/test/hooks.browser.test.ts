@@ -588,6 +588,21 @@ describe("ScopedAtom", () => {
       .toContain("failed: ScopedAtom used outside");
   });
 
+  test("names itself in the error when given a name", async () => {
+    const Counter = ScopedAtom.make(() => Atom.make(0), { name: "Counter" });
+    const screen = await render(Harness, {
+      setup: () => {
+        Counter.use();
+        return () => "unreachable";
+      },
+    });
+    await expect
+      .poll(() => screen.container.textContent)
+      .toContain(
+        `failed: ScopedAtom "Counter" used outside of the component that provides it. Call Counter.provide() in a parent component's script.`
+      );
+  });
+
   test("provides one atom per provider, built from its input", async () => {
     const Scoped = ScopedAtom.make((start: number) => Atom.make(start));
     const setup = (start: number) => () => {
