@@ -10,7 +10,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "changeset version && bun install --lockfile-only",
     "check": "turbo run check",
     "test": "turbo run test",
     "lint": "ultracite check",
