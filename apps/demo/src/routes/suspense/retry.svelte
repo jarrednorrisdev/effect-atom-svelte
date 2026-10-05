@@ -26,13 +26,23 @@
   <button onclick={refresh}>Reload</button>
 </div>
 
-<!-- data-branch tells the inspector below which branch rendered. -->
+<!-- data-branch and data-updating tell the inspector below what rendered. -->
 <div class="mt-4">
   <BoundaryFrame>
     <svelte:boundary>
-      <p class="m-0" data-branch="content" data-testid="retry-forecast">
-        {await forecast.current}
-      </p>
+      <div data-branch="content">
+        <p class="m-0" data-testid="retry-forecast">{await forecast.current}</p>
+        <!-- While a reload is in flight, the old forecast stays on screen. -->
+        {#if $effect.pending() > 0}
+          <p
+            class="m-0 text-sm text-muted-foreground"
+            data-testid="retry-updating"
+            data-updating={$effect.pending()}
+          >
+            Updating…
+          </p>
+        {/if}
+      </div>
 
       {#snippet pending()}
         <p class="m-0" data-branch="pending">Loading Paris's forecast…</p>

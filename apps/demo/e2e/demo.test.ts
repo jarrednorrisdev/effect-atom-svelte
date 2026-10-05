@@ -750,6 +750,12 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
   // A failure: the failed snippet takes over, and Try again starts the boundary afresh.
   const weather = page.getByTestId("retry-forecast");
   await expect(weather).toHaveText("18 °C, cloudy");
+  // A reload keeps the old forecast on screen, marked as updating.
+  const retryUpdating = page.getByTestId("retry-updating");
+  await page.getByRole("button", { exact: true, name: "Reload" }).click();
+  await expect(retryUpdating).toBeVisible();
+  await expect(weather).toHaveText("18 °C, cloudy");
+  await expect(retryUpdating).toHaveCount(0);
   const failNext = page.getByRole("button", {
     exact: true,
     name: "Fail the next load",

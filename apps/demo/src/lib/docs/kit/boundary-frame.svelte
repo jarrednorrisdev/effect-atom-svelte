@@ -5,6 +5,8 @@
   or `failed(error, reset)`, plus whether the content is updating. It reads the branch from the
   page: mark each branch's root with `data-branch="pending" | "content" | "failed"`, and an
   "updating" element (shown while `$effect.pending() > 0`) with `data-updating={$effect.pending()}`.
+  Once the reader has used the example, it plays `success` when content arrives or an update
+  settles, and `failure` when the `failed` snippet takes over.
 
   ```svelte
   <BoundaryFrame>
@@ -15,6 +17,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
 
+  import { play } from "./sound.ts";
+  import { exampleTouched, getExampleState } from "./tone.ts";
+
   interface Props {
     readonly children: Snippet;
   }
@@ -24,13 +29,30 @@
   let branch = $state<string>();
   let updating = $state(0);
 
+  const example = getExampleState();
+
+  /** The outcome sound for a change of what the boundary shows, if it ended a load. */
+  const outcome = (before: { branch?: string; updating: number }) => {
+    if (branch === "failed" && before.branch !== "failed") {
+      return "failure";
+    }
+    const arrived = branch === "content" && before.branch !== "content";
+    const settled = branch === "content" && before.updating > 0 && updating === 0;
+    return arrived || settled ? "success" : undefined;
+  };
+
   // Watches the boundary's markup for the branch it renders.
   const watch = (frame: HTMLElement) => {
     const read = () => {
+      const before = { branch, updating };
       branch = frame.querySelector<HTMLElement>("[data-branch]")?.dataset.branch;
       updating = Number(
         frame.querySelector<HTMLElement>("[data-updating]")?.dataset.updating ?? 0
       );
+      const cue = outcome(before);
+      if (cue && exampleTouched(example)) {
+        play(cue);
+      }
     };
     read();
     const observer = new MutationObserver(read);
