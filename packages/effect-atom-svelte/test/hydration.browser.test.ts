@@ -9,13 +9,20 @@ import { commands } from "vitest/browser";
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { queryFetches } from "./fixtures/reactive-query.ts";
+import {
+  resetRevalidate,
+  revalidateComputed,
+  revalidateSeen,
+} from "./fixtures/revalidate.ts";
 import { computed } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
+import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
@@ -250,6 +257,44 @@ describe("hydrating server output", () => {
 
     await expect.poll(output).toBe("a from the browser");
     expect(computed).toEqual(["a"]);
+  });
+
+  describe("revalidateOnHydrate (JND-85)", () => {
+    test("shows the server's result as waiting while the atom runs again", async () => {
+      resetRevalidate();
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-revalidate.svelte",
+        SsrRevalidate
+      );
+
+      await expect.poll(outputs(target)).toEqual(["browser", "browser"]);
+      expect(revalidateSeen).toEqual({
+        result: ["server (waiting)", "browser"],
+        suspense: ["server (waiting)", "browser"],
+      });
+      expect(new Set(revalidateComputed)).toEqual(
+        new Set(["result", "suspense"])
+      );
+    });
+
+    // Pins today's behavior. Svelte's hydratable reads the server's values only while it is
+    // hydrating, and it stops hydrating at a component script's first await, so a hook called after
+    // one gets no seed: its atom runs in the browser like one without a serialization key, and the
+    // component keeps the server's markup until it has the browser's result.
+    test("a hook called after a top-level await gets no seed", async () => {
+      resetRevalidate();
+      const target = await hydrateFromServer(
+        "/test/fixtures/ssr-after-await.svelte",
+        SsrAfterAwait
+      );
+
+      await expect.poll(outputs(target)).toEqual(["server", "browser"]);
+      expect(revalidateSeen).toEqual({
+        "after-await": ["browser"],
+        kept: ["server"],
+      });
+      expect(revalidateComputed).toEqual(["after-await"]);
+    });
   });
 
   test("useAtomResult uses the server's result, then follows its getter", async () => {
