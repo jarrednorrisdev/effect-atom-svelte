@@ -328,27 +328,21 @@ test("hydration: the browser uses the server's result until it computes again", 
 }) => {
   await page.goto("/hydration");
   await page.waitForLoadState("networkidle");
-  const where = page.getByTestId("computed-on");
+  const browserPart = page.getByTestId("where-browser");
   const history = page.getByTestId("where-history").getByRole("listitem");
-  await expect(where).toHaveText("the server");
   await expect(page.getByTestId("where-server")).toContainText(
     "Rendered on the server"
   );
-  await expect(page.getByTestId("where-browser")).toContainText(
-    "Hydrated, not computed"
-  );
+  await expect(browserPart).toContainText("Hydrated, not computed");
   // Give a refetch, if there were one, time to land.
   await page.waitForTimeout(600);
-  await expect(where).toHaveText("the server");
+  await expect(browserPart).toContainText("Hydrated, not computed");
   // Hydrated, the atom never had a loading state: its history starts at Success.
   await expect(history).toHaveCount(1);
   await expect(history.first()).toHaveText(/^0 ms\s*Success the server$/u);
   await page.getByRole("button", { name: "Compute again" }).click();
-  await expect(where).toHaveText("the browser");
+  await expect(browserPart).toContainText("Computed in the browser");
   await expect(page.getByTestId("where-state")).toHaveText("Success");
-  await expect(page.getByTestId("where-browser")).toContainText(
-    "Computed in the browser"
-  );
   await expect(history.nth(1)).toContainText("Success the server, waiting");
   await expect(history.nth(2)).toContainText("Success the browser");
 });

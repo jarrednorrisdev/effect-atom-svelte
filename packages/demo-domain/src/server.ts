@@ -67,11 +67,8 @@ class TodoStore extends Context.Service<
           ).pipe(delay),
         remove: (id) =>
           find(id).pipe(
-            Effect.flatMap(() =>
-              Effect.sync(() => {
-                todos.delete(id);
-              })
-            ),
+            Effect.andThen(Effect.sync(() => todos.delete(id))),
+            Effect.asVoid,
             delay
           ),
         toggle: (id) =>
