@@ -6,7 +6,7 @@
 import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
-import { BROWSER } from "esm-env";
+import { BROWSER, DEV } from "esm-env";
 import { getAbortSignal, hydratable, onDestroy, untrack } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
@@ -980,6 +980,59 @@ interface SeedWait {
 const noSeedMount = (): void => undefined;
 
 /**
+ * The keys of the server's values on this page that a reader has had its chance at, per page: for
+ * each, `hydratable` either returned the server's value or the development warning below was shown.
+ * Svelte keeps the values on `window.__svelte.h` and never removes them, so a key a reader has had
+ * is not missed when a later render, after client-side navigation, reads it again.
+ */
+const claimedKeys = new WeakMap<object, Set<string>>();
+
+const serverValues = (): ReadonlyMap<string, unknown> | undefined =>
+  (globalThis as { __svelte?: { h?: ReadonlyMap<string, unknown> } }).__svelte
+    ?.h;
+
+const warnIfSent = async (key: string, sent: unknown): Promise<void> => {
+  try {
+    if ((await sent) === undefined) {
+      return;
+    }
+  } catch {
+    return;
+  }
+  console.warn(
+    `effect-atom-svelte: the atom with serialization key "${key}" got no value from the server, so it runs again in the browser. Svelte stops hydrating at a component script's first top-level \`await\`, so call useAtomResult and useAtomSuspense before it, for example in one Promise.all. See https://atom.jarrednorris.dev/hydration#call-hooks-before-the-first-await`
+  );
+};
+
+/**
+ * Records that a reader had its chance at the server's value for `key`. Development builds warn
+ * when it missed one the server sent for it: Svelte reads them only while it is hydrating, which
+ * stops at a component script's first top-level `await`, so a hook called after one gets nothing
+ * and its atom runs again in the browser (JND-96). This reads Svelte's internal store only to warn.
+ */
+const claimServerValue = (key: string, missed: boolean): void => {
+  const store = DEV ? serverValues() : undefined;
+  if (store === undefined) {
+    return;
+  }
+  let claimed = claimedKeys.get(store);
+  if (!claimed) {
+    claimed = new Set();
+    claimedKeys.set(store, claimed);
+  }
+  if (claimed.has(key)) {
+    return;
+  }
+  claimed.add(key);
+  if (!missed || !store.has(key)) {
+    return;
+  }
+  // A result the server couldn't pass on, such as a defect, is sent as nothing: missing it changes
+  // nothing. The value may still be on its way, as a promise.
+  void warnIfSent(key, store.get(key));
+};
+
+/**
  * For the getter's first atom, if serializable, resolves it and passes the encoded result from
  * server to client with `hydratable`, so hydration seeds the registry instead of fetching again.
  * Must run synchronously during component init. Returns undefined for atoms without a
@@ -1028,6 +1081,7 @@ const seedFromServer = (
       computedHere = true;
       return undefined;
     });
+    claimServerValue(key, computedHere);
     let holders = 0;
     let revalidating = 0;
     entry = {

@@ -23,11 +23,13 @@
   // Each atom's result and history, side by side.
   import RevalidateParts from "./revalidate-parts.svelte";
 
-  // Keeps the server's result.
-  const kept = await useAtomResult(keptAtom);
-  // Runs again in the browser. It hydrates with the server's result, marked as waiting, then
-  // switches to the browser's.
-  const fresh = await useAtomResult(freshAtom, { revalidateOnHydrate: true });
+  const [kept, fresh] = await Promise.all([
+    // Keeps the server's result.
+    useAtomResult(keptAtom),
+    // Runs again in the browser. It hydrates with the server's result, marked as waiting, then
+    // switches to the browser's.
+    useAtomResult(freshAtom, { revalidateOnHydrate: true }),
+  ]);
 </script>
 
 <RevalidateParts fresh={fresh.current} kept={kept.current} />
