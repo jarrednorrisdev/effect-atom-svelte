@@ -50,7 +50,7 @@ Atoms give all shared state that isolation at once, whether it comes from the se
 
 Here is the signed-in user again, this time loaded by your Effect code:
 
-**Example** (The signed-in user as an Effect atom)
+**Example** (The signed-in user as an atom that runs an Effect)
 
 ```ts
 // user.ts
@@ -114,7 +114,7 @@ export const userAtom = runtime.atom(Users.use((users) => users.current)).pipe(
 
 Next to a `getUser` remote query, the difference is the Effect code: the `Users` service is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error. The server's result still travels with the page, because the atom is serializable.
 
-The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was.
+The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing reads, so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
 
 ## What else atoms handle
 
@@ -123,17 +123,8 @@ Per-request isolation is the problem a module can't solve. Beyond it, atoms brin
 - **Effect in components.** An atom takes an `Effect` or a `Stream` as it is, and can use services from a `Layer`. `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into typed queries and mutations. See [Services and runtimes](/services), [RPC](/rpc) and [HTTP API](/http).
 - **Async state with typed errors.** An atom built from an `Effect` holds an `AsyncResult`: `Initial` before the first value, `Success` or `Failure` after, with the error typed by the effect. The hooks hand that to `<svelte:boundary>`, or let you match on it. See [Async atoms](/async-atoms).
 - **Derived values.** `Atom.make((get) => ...)` reads other atoms, from any module, whether they hold server data or client state, and the registry computes it again only when one of them changes. See [Derived atoms](/derived-atoms).
-- **Cleanup.** When nothing reads an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. A component that unmounts mid-request cancels that request. State in context, by contrast, lasts as long as the layout that created it. See [Lifetimes](/lifetimes).
+- **Cleanup.** When nothing reads an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. A component that unmounts mid-request cancels that request. State in context, by contrast, lasts as long as the layout that created it. In exchange, an atom nothing reads loses its value unless you keep it alive. See [Lifetimes](/lifetimes).
 - **Server data in the browser.** As with a remote `query`, serializable async atoms awaited during server rendering pass their results to the browser, which uses them instead of running the effects again. See [Hydration](/hydration).
-
-## Compared with other tools
-
-| Instead of atoms | Good for | What atoms add |
-| --- | --- | --- |
-| `$state` in a module, or a store | Apps that only render in the browser | Per-request registries on the server, async results, derived values and cleanup |
-| `$state` in context | Per-request state, one `createContext` per piece | The same isolation for every atom at once, plus derived values, cleanup when nothing reads them, and Effect results |
-| `load` and remote functions | Server data: loaded once per request, sent with the page, cached and refreshed in the browser (remote functions are experimental) | Effect code used as it is, with typed errors, services, interruption and streams, and client state in the same model. They combine: pass `load` data to atoms with `initialValues`, as above |
-| TanStack Query | Caching server data in apps that don't use Effect | One graph for server data and client state, typed errors and services from Effect |
 
 ## When you don't need atoms
 
@@ -144,6 +135,6 @@ Per-request isolation is the problem a module can't solve. Beyond it, atoms brin
 
 <Aside type="note" title="Mixing them">
 
-You can mix them. Components can keep local `$state`, read route data from `load` or remote functions, and use atoms for the state they share and for the Effect code behind it.
+You can mix them. Components can keep local `$state`, read route data from `load` or remote functions, and use atoms for the state they share and for the Effect code behind it. To start atoms from `load` data, pass it to `RegistryProvider` as `initialValues`: see [Registry options](/installation#registry-options).
 
 </Aside>

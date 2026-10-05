@@ -1,7 +1,5 @@
 import type { Atom } from "effect/reactivity";
 
-import { moduleDraftAtom } from "./draft-scope.ts";
-
 // For the examples' labels and colors only: which editor provided an atom, looked
 // up by the atom itself, so a part shows the provider Draft.use() really found.
 const names = new WeakMap<Atom.Atom<string>, string>();
@@ -25,6 +23,7 @@ const violet: ProviderColor = {
   text: "light-dark(var(--color-violet-700), var(--color-violet-400))",
 };
 const colors: Readonly<Record<string, ProviderColor>> = {
+  Editors: violet,
   "Note A": amber,
   "Note B": sky,
   Post: amber,
@@ -35,8 +34,7 @@ export const nameProvider = (atom: Atom.Atom<string>, name: string) => {
   names.set(atom, name);
 };
 
-export const providerOf = (atom: Atom.Atom<string>) =>
-  atom === moduleDraftAtom ? "moduleDraftAtom" : (names.get(atom) ?? "?");
+export const providerOf = (atom: Atom.Atom<string>) => names.get(atom) ?? "?";
 
 export const colorOf = (atom: Atom.Atom<string>): ProviderColor =>
-  atom === moduleDraftAtom ? violet : (colors[providerOf(atom)] ?? amber);
+  colors[providerOf(atom)] ?? amber;

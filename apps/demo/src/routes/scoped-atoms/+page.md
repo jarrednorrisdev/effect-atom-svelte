@@ -20,9 +20,9 @@ description: Give each part of the page its own atom, without passing it down by
 
 An atom defined at module level is one atom for the whole app. Sometimes each instance of a widget needs its own, such as a draft per open editor, and the components inside that widget need to find it. A **scoped atom** is created by the component that provides it, and every component below that one reads the same atom.
 
-Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **Module atom** to give both editors one atom made at module level instead, and see what the scope prevents:
+Below, each note editor provides its own draft. Its toolbar, text area and preview are separate components that take no props: each finds the editor's draft with `Draft.use()`. Switch to **One draft for both** to provide a single draft above both editors instead. Every part then finds that one, as they would find an atom defined at module level, and you can see what the scope prevents:
 
-<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textFieldSource, name: "text-field.svelte" }, { html: previewSource, name: "preview.svelte" }]} hint="Write in Note A, putting one or two asterisks around a word for italic or bold: its word count and preview follow, and Note B stays empty. Then pick Module atom and write again: both editors share one draft, so each change shows in both."> <Editors /> </Example>
+<Example files={[{ html: draftScopeSource, name: "draft-scope.ts" }, { html: editorsSource, name: "editors.svelte" }, { html: noteEditorSource, name: "note-editor.svelte" }, { html: toolbarSource, name: "toolbar.svelte" }, { html: textFieldSource, name: "text-field.svelte" }, { html: previewSource, name: "preview.svelte" }]} hint="Write in Note A, putting one or two asterisks around a word for italic or bold: its word count and preview follow, and Note B stays empty. Then pick One draft for both and write again: both editors use the draft provided above them, so each change shows in both."> <Editors /> </Example>
 
 ## Defining a scoped atom
 
@@ -42,9 +42,15 @@ Call `provide` in the component that owns the atom. It runs the function once fo
 ```svelte
 <script lang="ts">
   const { initial } = $props();
-  Draft.provide(initial);
+  // svelte-ignore state_referenced_locally
+  const draft = Draft.provide(initial);
+  useAtomMount(draft);
 </script>
 ```
+
+The function runs once, so `provide` reads its input once: a later change to `initial` doesn't make a new atom. The `svelte-ignore` comment says that reading the prop once is intended.
+
+`provide` only puts the atom in context; it doesn't hold it. If every component below that reads the atom unmounts, the registry disposes of it, and the next reader starts from the initial value. `useAtomMount` in the providing component holds it for as long as that component lives. `Atom.keepAlive` in the function would hold it too, but for as long as the registry lives, long after the component has gone. See [Lifetimes](/lifetimes).
 
 Call `use` in any component below it to get the same atom, then read it with the usual hooks:
 
@@ -71,4 +77,4 @@ Both give you more than one atom from one definition. Choose by where the atom b
 - A [family](/families) is keyed by a value. Any component can ask for `todoAtom(1)` and gets the same atom wherever it asks.
 - A scoped atom is keyed by its place in the component tree. Only components below the provider can reach it, and two providers make two atoms even with the same input, as the nested panels above show.
 
-Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
+Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply. Atoms made per instance have no serialization key, so their values aren't sent from the server to the browser: see [Hydration](/hydration).

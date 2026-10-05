@@ -32,7 +32,9 @@ const doubledAtom = Atom.make((get) => get(countAtom) * 2);
 
 Read it like any other atom, with `useAtomValue`. A derived atom made this way is read-only, so `useAtom` and `useAtomSet` don't accept it.
 
-The registry computes a derived atom once and shares the result with every reader. It runs the function again only after a dependency changes.
+While a derived atom is held, the registry computes it once and shares the result with every reader. It runs the function again only after a dependency changes. Once nothing holds it, it is disposed like any other atom, and the next read computes it again: see [Lifetimes](/lifetimes).
+
+Dependencies are recorded again on every run, so a `get` inside a condition counts only while that branch runs. To read an atom without depending on it, use `get.once(atom)`. For atoms that run an `Effect`, `get.result(atom)` waits for another async atom's value: see [Dependent queries](/cookbook#dependent-queries).
 
 <Aside type="tip" title="Shorthand for one dependency">
 
@@ -66,4 +68,25 @@ const fahrenheitAtom = Atom.writable(
 );
 ```
 
-Only `celsiusAtom` holds a value. Writing to `fahrenheitAtom` writes to `celsiusAtom`, and `fahrenheitAtom` then computes again from it. In the live example above, both inputs use `bind:` and stay in step whichever one you type into.
+Only `celsiusAtom` holds a value. Writing to `fahrenheitAtom` writes to `celsiusAtom`, and `fahrenheitAtom` then computes again from it. In the live example above, both steppers are bound to their hook's `current` with `bind:`, so each press is a write, and they stay in step whichever one you step. Stepping °F leaves °C with a fraction, which the example shows to one decimal place.
+
+## When readers are notified
+
+When a derived atom computes again, the registry compares the new value with the old one, and notifies readers only if they differ. Writes are compared the same way. The comparison is `Object.is`, so a function that returns a new array or object notifies every time, even when its contents are the same.
+
+`Atom.withEquality` sets the comparison. `Equal.equals` from `effect` compares arrays and plain objects by their contents:
+
+**Example** (Notifying only when the list of ids changes)
+
+```ts
+import { Equal } from "effect";
+import { Atom } from "effect/reactivity";
+
+const openIdsAtom = Atom.make((get) =>
+  get(todosAtom)
+    .filter((todo) => !todo.done)
+    .map((todo) => todo.id)
+).pipe(Atom.withEquality(Equal.equals));
+```
+
+Renaming a todo changes `todosAtom`, so `openIdsAtom` computes again, but its readers aren't notified, because the ids are the same. `withEquality` also takes your own function, `(a, b) => boolean`.

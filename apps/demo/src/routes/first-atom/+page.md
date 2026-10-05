@@ -28,7 +28,7 @@ const countAtom = Atom.make(0);
 
 The atom is only a description. Its value lives in the registry you set up in [Installation](/installation), so the same atom can have a different value in each registry: one per request on the server, one per session in the browser.
 
-Define atoms once, outside your components. A plain `.ts` module works, and so does a component's `<script module>`, which runs once rather than once per instance. An atom created inside a component's `<script>` would be a new atom for every instance, each with its own value.
+Define atoms once, outside your components. A plain `.ts` module works, and so does a component's `<script module>`, which runs once rather than once per instance. An atom created inside a component's `<script>` would be a new atom for every instance, each with its own value. That is occasionally what you want: see [Scoped atoms](/scoped-atoms).
 
 ## Read and write it
 
@@ -55,4 +55,4 @@ Every component that reads `countAtom` from the same registry sees the same valu
 In Svelte 5 you could share the counter without atoms, as `export const counter = $state({ count: 0 })` in a `.svelte.ts` module. In the browser the two behave the same. They differ in two ways:
 
 - On the server, a module is shared by every request, so one visitor's count would show up in another visitor's page. Each request gets its own registry, and so its own count. [Why atoms](/why-atoms) shows this in detail.
-- An atom's value is reset when no component reads it; module state keeps its value forever. Click **Hide counters** in the example, then **Show counters**: the count starts again from 0. [Lifetimes](/lifetimes) explains why, and how to keep a value with `Atom.keepAlive`.
+- When no component reads an atom any more, the registry disposes of its value shortly afterwards, so it starts again from its initial value; module state keeps its value forever. Click **Hide counters** in the example, then **Show counters**: the count starts again from 0. [Lifetimes](/lifetimes) explains why, and how to keep a value with `Atom.keepAlive`.

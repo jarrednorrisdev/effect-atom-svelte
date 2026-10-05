@@ -11,15 +11,9 @@ description: Community-built Svelte 5 bindings for Effect Atom.
   import tasteSource from "./taste.svelte?highlight";
 </script>
 
-<Aside type="caution" title="Community project">
+<Aside type="caution" title="Pre-release community project">
 
-effect-atom-svelte is a community project by Jarred Norris. It is not part of Effect, and the Effect team neither makes nor endorses it.
-
-</Aside>
-
-<Aside type="note" title="Written with AI">
-
-Most of effect-atom-svelte, its code and these docs alike, was written with the help of AI (Claude Opus 5.5). The aim is still a library of very high quality, and its behavior is covered by tests in Chromium, Firefox and WebKit.
+effect-atom-svelte is not on npm yet, and its API may change before 0.1.0. It is a community project by Jarred Norris, not part of Effect, and the Effect team neither makes nor endorses it. Most of its code and these docs were written with the help of AI (Claude Opus 5.5); its behavior is covered by tests in Chromium, Firefox and WebKit.
 
 </Aside>
 
@@ -33,7 +27,7 @@ effect-atom-svelte was inspired by Thomas Foster's [Svelte Atoms pull request](h
 
 ## A first look
 
-Three atoms: a number you can change, a value derived from it, and an `Effect` that takes two seconds. The component reads all three with hooks:
+Three atoms: a number you can change, a value derived from it, and an `Effect` that takes two seconds. The component reads all three with hooks. If `Effect` is new to you, [Effect basics](/effect-basics) covers what these docs use.
 
 <Example files={[{ html: tasteSource, name: "taste.svelte" }]} hint="Click Add one: countAtom changes and doubledAtom follows. Click Load again to watch greetingAtom load."> <Taste /> </Example>
 
@@ -46,8 +40,8 @@ Three pieces work together:
 | Piece | What it is |
 | --- | --- |
 | **Atom** | A description of a value: a starting value, how to derive it from other atoms, or an `Effect` or `Stream` that produces it. An atom holds no value itself, so it is safe to define once in a module. |
-| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing reads it any more. On the server each request gets its own registry; in the browser one lasts for the session. |
-| **Hook** | Connects a component to an atom in the nearest registry. It subscribes while the component reads `current`, and unsubscribes when the component is destroyed. |
+| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing reads it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
+| **Hook** | Connects a component to an atom in the nearest registry. It subscribes while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
 
 Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Why atoms](/why-atoms) explains why that matters, and when you don't need atoms at all.
 
@@ -63,12 +57,6 @@ Because values live in the registry rather than in the atom, the same `countAtom
 - `effect` 4.0
 - Svelte 5.57 or later, with experimental async turned on for the async hooks and server rendering
 - SvelteKit 3, if you want the server rendering helpers shown in these docs
-
-<Aside type="caution" title="Pre-release">
-
-effect-atom-svelte is not on npm yet, and its API may change before 0.1.0.
-
-</Aside>
 
 ## How these docs work
 

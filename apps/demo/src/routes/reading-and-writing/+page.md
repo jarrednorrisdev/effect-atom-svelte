@@ -42,7 +42,7 @@ The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/s
 <p>{label}</p>
 ```
 
-The hook only subscribes while something reads `current`. When nothing does, it unsubscribes, and the registry can dispose of the atom.
+The hook only subscribes while something reactive reads `current`. When nothing does, it unsubscribes, and the registry can dispose of the atom. Reading `current` only in an event handler gets the value at that moment but doesn't subscribe, so it doesn't hold the atom either: if nothing else holds it, the next read may start from the atom's initial value.
 
 ### Transforming the value
 
@@ -52,7 +52,7 @@ Pass a function as the second argument to read a value computed from the atom:
 const parity = useAtomValue(countAtom, (n) => (n % 2 === 0 ? "even" : "odd"));
 ```
 
-The transform runs for this hook only. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
+The transform runs for this hook only, and runs again every time `current` is read. If it is expensive, read the plain value and compute in a `$derived`, which runs only when the value changes. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
 
 ## Reading and writing
 
@@ -83,6 +83,8 @@ setCount(0);
 setCount((n) => n * 10);
 ```
 
+Because a function is treated as an update, storing a function in an atom takes one more wrapper: `setHandler(() => handler)`.
+
 The component doesn't read the atom, so it doesn't update when the value changes. It does keep the atom mounted for as long as the component lives, so a value you set is not disposed before something reads it.
 
 <Aside type="tip" title="Setters that return a promise">
@@ -111,17 +113,22 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 <script module lang="ts">
   import { Atom } from "effect/reactivity";
 
-  const draftAtom = Atom.make("");
-  const savedAtom = Atom.make("");
+  // Kept alive, so each keeps its text while the hook follows the other.
+  const draftAtom = Atom.make("").pipe(Atom.keepAlive);
+  const savedAtom = Atom.make("").pipe(Atom.keepAlive);
 </script>
 
 <script lang="ts">
   let followed = $state<"draft" | "saved">("draft");
-  const text = useAtomValue(() => (followed === "saved" ? savedAtom : draftAtom));
+  const text = useAtom(() => (followed === "saved" ? savedAtom : draftAtom));
 </script>
+
+<input bind:value={text.current} />
 ```
 
 <Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+
+When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The snippet keeps both with `Atom.keepAlive`; in the live example, the boxes on the right read both atoms, which holds them too. See [Lifetimes](/lifetimes).
 
 Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 

@@ -24,21 +24,21 @@ A registry keeps an atom's value only while something needs it. When nothing doe
 
 Each box below is an atom, with the number of `<Reader>` components reading it in its corner. **+ Reader** mounts one more and **− Reader** unmounts one. The registry computes an atom for its first reader and disposes of it once its last reader has gone, unless the atom is kept alive or has an idle TTL:
 
-<Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Add two readers to plain, then remove them one at a time: plain is disposed only when its count reaches 0. Then do the same with keepAlive and idle TTL."> <Lifetimes /> </Example>
+<Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Add two readers to plain, then remove them one at a time: plain is disposed only when its count reaches 0. Keeping atoms alive, below, explains the other two."> <Lifetimes /> </Example>
 
 ## Mounted atoms
 
 An atom is **mounted** while something holds it. Each of these holds an atom:
 
 - A hook whose `current` is being read in markup, `$derived` or `$effect`.
-- `useAtomSet` and `useAtomMount`, for as long as their component lives.
+- `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe` and `useAtomResult`, for as long as their component lives.
 - Another mounted atom that reads it with `get`.
 
-When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. Later pages add a few more holders, such as [`useAtomRefresh`](/async-atoms#running-it-again) and a mutation's [promise](/mutations#waiting-for-the-result).
+When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
 
 <Aside type="note" title="On the server">
 
-While a page renders on the server, the hooks hold every atom they read until the render ends. Then the request's registry is disposed, and every atom in it with it. See [Server rendering](/server-rendering#one-registry-per-request).
+While a page renders on the server, the hooks hold every atom they read until the render ends. Then the registry the provider created for the request is disposed, and every atom in it with it. A registry you pass to the provider yourself is yours to dispose of. See [Server rendering](/server-rendering#one-registry-per-request).
 
 </Aside>
 
@@ -64,6 +64,8 @@ const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
 Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
+
+An idle TTL is not exact. The registry groups disposals into time buckets of `timeoutResolution` milliseconds, a `RegistryProvider` option that defaults to 1000, or to half of `defaultIdleTTL` when that is set. An atom can stay up to about two buckets past its TTL.
 
 ### Holding an atom from a component
 

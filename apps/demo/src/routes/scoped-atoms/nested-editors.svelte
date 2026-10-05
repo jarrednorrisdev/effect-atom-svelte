@@ -4,6 +4,6 @@
 
 <!-- Both provide Draft. The reply's parts get the reply's draft: Draft.use()
      returns the nearest provider's atom. -->
-<NoteEditor kind="scoped" name="Post">
-  <NoteEditor kind="scoped" name="Reply" />
+<NoteEditor name="Post">
+  <NoteEditor name="Reply" />
 </NoteEditor>
