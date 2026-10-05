@@ -1,6 +1,28 @@
 # Contributing
 
-How the repository is put together, deployed and tested. [README.md](README.md) has the layout and the commands to run it locally.
+How the repository is put together, deployed and tested.
+
+## Layout
+
+A Bun workspace, with tasks run by Turborepo:
+
+| Path | What |
+| --- | --- |
+| `packages/effect-atom-svelte` | The library. |
+| `packages/demo-domain` | A todo domain served over Effect `HttpApi` and Effect RPC from one store. |
+| `apps/demo-api` | The demo domain on Bun, at `:3010`. |
+| `apps/demo` | The docs site: a SvelteKit 3 app with a guide, live examples and the API reference, at `:5180`. |
+
+## Running it locally
+
+```sh
+bun install
+bun run build                       # builds the library for the demo
+bun run --cwd apps/demo-api dev     # in one shell
+bun run --cwd apps/demo dev         # in another
+```
+
+`bun run check`, `bun run test` and `bun run lint` run across the workspace. Run all three before you commit.
 
 ## Docs site
 
