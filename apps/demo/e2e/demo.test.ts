@@ -755,15 +755,21 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
 
 test.describe("Mutations page", () => {
   test("adding a todo shows pending, then the new todo", async ({ page }) => {
+    // The pretend save takes a second, which a loaded machine can spend before the pending checks
+    // run, so the page's clock is paused while it is in flight.
+    await page.clock.install();
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
     const state = page.getByTestId("add-state");
     await expect(state).toHaveText("Initial");
 
     await page.getByTestId("add-draft").fill("Water the plants");
+    // The page's clock follows the real one until paused, so a second ahead is never in its past.
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.getByTestId("add-submit").click();
     await expect(page.getByRole("button", { name: "Adding…" })).toBeDisabled();
     await expect(state).toHaveText("Initial, waiting");
+    await page.clock.resume();
 
     await expect(page.getByTestId("add-created")).toHaveText(
       /^#\d+ Water the plants$/u
