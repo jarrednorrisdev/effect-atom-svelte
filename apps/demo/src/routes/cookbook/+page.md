@@ -135,7 +135,7 @@ If the server speaks Effect RPC, a procedure declared with `stream: true` gives 
 
 ## Auth headers
 
-Add the token to each request in the client's `transformClient`, as on [HTTP API](/http#defining-the-client). `mapRequest` runs for each request, so a new token is picked up without rebuilding the client. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
+Add the token to each request in the client's `transformClient`, as on [HTTP API](/http#customizing-requests). `mapRequest` runs for each request, so a new token is picked up without rebuilding the client. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
 
 <Example files={[{ html: authSource, name: "auth.svelte" }]} hint="Send GET /api/me: without the header, the server answers 401. Turn on Signed in and send it again: the same client now adds the header."> <Auth /> </Example>
 
