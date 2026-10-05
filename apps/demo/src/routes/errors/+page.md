@@ -11,11 +11,9 @@ description: Typed errors, defects and interruptions, and every place to handle 
   import outcomesSource from "./outcomes.svelte?highlight";
   import Places from "./places.svelte";
   import placesSource from "./places.svelte?highlight";
-  import Recover from "./recover.svelte";
-  import recoverSource from "./recover.svelte?highlight";
 </script>
 
-A request can fail in ways you expect, such as a missing record, and in ways you don't, such as a bug. Effect keeps the two apart, and the type of an async atom lists every error you expect. This page brings together what the other pages say about failure: what a failure holds, how to tell errors apart, and where to handle them.
+A request can fail in ways you expect, such as a missing record, and in ways you don't, such as a bug. Effect keeps the two apart, and the type of an async atom lists every error you expect. This page covers what a failure holds, how to tell errors apart, and every place a component can handle one.
 
 <Example files={[{ html: outcomesSource, name: "outcomes.svelte" }]} hint="Click each outcome. The two typed errors get their own messages from their _tag; a defect and an interruption both reach onDefect, and only the cause tells them apart."> <Outcomes /> </Example>
 
@@ -42,6 +40,7 @@ When an async atom's effect fails, its value is an `AsyncResult` `Failure`. Its 
 | `Cause.findErrorOption(cause)` | The first typed error, as an `Option`. `None` for a defect or an interruption. |
 | `AsyncResult.error(result)` | The same, straight from an `AsyncResult`. |
 | `AsyncResult.matchWithError(result, { ... })` | Calls `onError` with the typed error, or `onDefect` with anything else, as in the example above. |
+| `Cause.hasInterruptsOnly(cause)` | `true` when the effect was interrupted and nothing else went wrong. |
 | `Cause.pretty(cause)` | The whole cause as text, with stack traces. Use it for logs. |
 
 A `Failure` also keeps `previousSuccess`, the last value before the failure, so `AsyncResult.getOrElse` can keep showing it. See [Working with AsyncResult](/async-atoms#working-with-asyncresult).
@@ -79,7 +78,7 @@ const describe = (cause: Cause.Cause<TodoNotFound | Forbidden>) => {
 
 Each way of reading an atom hands you failure in its own form. The example reads one atom three ways:
 
-<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Pick todo 7. useAtomValue gets a Failure, the boundary swaps in its failed snippet, and includeFailure gets the typed error, id and all. Then pick todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
+<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Click Todo 7. useAtomValue and includeFailure get the typed error, id and all; the boundary swaps in its failed snippet, which gets only the tag SvelteKit's handleError kept. Then click Todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
 
 ### With `useAtomValue` or `useAtomResult`
 
@@ -182,9 +181,16 @@ The lookups on the [RPC](/rpc#following-arguments) and [HTTP API](/http#typed-er
 
 Sometimes an error isn't a failure for the page: a missing profile can just mean "no profile yet". Handle it in the effect, before the atom sees it, and it leaves the atom's error type:
 
-<Example files={[{ html: recoverSource, name: "recover.svelte" }]} hint="Todo 2 doesn't exist: todoAtom fails, while recoveredAtom succeeds with null. Pick todo 1 and both succeed."> <Recover /> </Example>
+**Example** (No profile yet is a value, not a failure)
 
-`recoveredAtom`'s error type is `never`, so a reader has nothing to handle but `null`. `Effect.catchTags` handles several tags at once. Read more about recovering in Effect's [Error Management](https://effect.website/docs/v4/error-management/expected-errors) docs.
+```ts
+// AsyncResult<Profile | null, never>: NotFound is handled before the atom sees it.
+const profileAtom = Atom.make(
+  fetchProfile.pipe(Effect.catchTag("NotFound", () => Effect.succeed(null)))
+);
+```
+
+A reader then has nothing to handle but `null`. `Effect.catchTags` handles several tags at once. The [`catchTag` example](/effect-basics#typed-errors) on Effect basics shows the error leaving the type as you turn it on. Read more in Effect's [Error Management](https://effect.website/docs/v4/error-management/expected-errors) docs.
 
 ## Retrying
 

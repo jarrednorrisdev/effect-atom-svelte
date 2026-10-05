@@ -4,7 +4,6 @@
 
   class NotFound extends Data.TaggedError("NotFound")<{
     readonly id: number;
-    readonly message: string;
   }> {}
 
   const titles = new Map([
@@ -19,19 +18,19 @@
     const id = get(idAtom);
     const title = titles.get(id);
     return title === undefined
-      ? Effect.fail(new NotFound({ id, message: `There is no todo ${id}` }))
+      ? Effect.fail(new NotFound({ id }))
       : Effect.succeed(title);
   });
 </script>
 
 <script lang="ts">
-  import { Cause, Option } from "effect";
   import {
     useAtom,
     useAtomRefresh,
     useAtomSuspense,
     useAtomValue,
   } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -45,30 +44,27 @@
   const inPlace = useAtomSuspense(todoAtom, { includeFailure: true });
   // reset alone would render the same Failure again: refresh the atom first.
   const refresh = useAtomRefresh(todoAtom);
-
-  const typed = (cause: Cause.Cause<NotFound>) =>
-    Option.match(Cause.findErrorOption(cause), {
-      onNone: () => "not a typed error",
-      onSome: (e) => `${e._tag} { id: ${e.id} }`,
-    });
 </script>
 
-<select aria-label="Todo" bind:value={id.current} data-testid="places-id">
-  <option value={1}>Todo 1</option>
-  <option value={2}>Todo 2</option>
-  <option value={7}>Todo 7, which doesn't exist</option>
-</select>
+<div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
+  {#each [1, 2, 7] as todoId (todoId)}
+    <button
+      aria-pressed={id.current === todoId}
+      onclick={() => (id.current = todoId)}
+    >
+      Todo {todoId}
+    </button>
+  {/each}
+</div>
 
 <div class="mt-3 grid gap-3 md:grid-cols-3">
   <Part code label="useAtomValue">
     <StateBadge data-testid="places-result-state" result={asResult.current} />
-    <p data-testid="places-result">
-      {#if asResult.current._tag === "Failure"}
-        {typed(asResult.current.cause)}
-      {:else if asResult.current._tag === "Success"}
-        {asResult.current.value}
-      {/if}
-    </p>
+    {#if asResult.current._tag === "Failure"}
+      <CauseView cause={asResult.current.cause} data-testid="places-result" />
+    {:else if asResult.current._tag === "Success"}
+      <p data-testid="places-result">{asResult.current.value}</p>
+    {/if}
   </Part>
 
   <Part code label="boundary">
@@ -77,10 +73,10 @@
         <span data-testid="places-boundary">{await asPromise.current}</span>
       </ResultChip>
       {#snippet failed(error, reset)}
-        <!-- What SvelteKit's handleError hook kept: the tag and the message. -->
+        <!-- What SvelteKit's handleError hook kept: the tag, but not the id. -->
         {@const kept = error as App.Error}
         <ResultChip kind="message" tone="failure">
-          <span data-testid="places-boundary">{kept.tag}: {kept.message}</span>
+          <span data-testid="places-boundary">{kept.tag}</span>
         </ResultChip>
         <p class="text-sm break-all">
           Received <code data-testid="places-received">{JSON.stringify(kept)}</code>
@@ -105,9 +101,7 @@
           <span data-testid="places-in-place">{result.value}</span>
         </ResultChip>
       {:else}
-        <ResultChip kind="message" tone="failure">
-          <span data-testid="places-in-place">{typed(result.cause)}</span>
-        </ResultChip>
+        <CauseView cause={result.cause} data-testid="places-in-place" />
       {/if}
     </svelte:boundary>
   </Part>
