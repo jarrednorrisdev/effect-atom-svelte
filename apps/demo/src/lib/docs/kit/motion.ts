@@ -176,7 +176,8 @@ export const refuse = (element: HTMLElement) => {
 /**
  * Jitters an element while something runs, as effect.kitlangton.com's running effects do: small
  * random tilts and nudges until the returned function is called, which settles it back. Use it in
- * an attachment and return the stop function as its cleanup. Does nothing with reduced motion.
+ * an attachment and return the stop function as its cleanup. `angle: 0` only nudges, for a wide
+ * element whose ends a tilt would swing far. Does nothing with reduced motion.
  */
 export const jitter = (
   element: Element,
@@ -192,7 +193,7 @@ export const jitter = (
       current = animate(
         element,
         {
-          rotate: (Math.random() * angle + 0.5) * sign(),
+          rotate: angle && (Math.random() * angle + 0.5) * sign(),
           x: (Math.random() * offset + 0.5) * sign(),
           y: (Math.random() * offset * 0.4 + 0.1) * sign(),
         },

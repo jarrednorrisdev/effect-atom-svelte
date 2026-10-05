@@ -4,11 +4,13 @@
 
   const countAtom = Atom.make(0);
   const doubledAtom = Atom.make((get) => get(countAtom) * 2);
-  // Stamped with the time, so a new greeting looks different from the old one.
   const greetingAtom = Atom.make(
-    Effect.sync(() => `Hello from an Effect at ${new Date().toLocaleTimeString()}`).pipe(
-      Effect.delay("2 seconds")
-    )
+    Effect.gen(function* () {
+      yield* Effect.sleep("2 seconds");
+      // The time tells a new greeting apart from the old one.
+      const time = new Date().toLocaleTimeString();
+      return `Hello from an Effect at ${time}`;
+    })
   );
 </script>
 
@@ -22,6 +24,7 @@
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   const count = useAtom(countAtom);
@@ -32,16 +35,18 @@
   const reload = useAtomRefresh(greetingAtom);
 </script>
 
-<div class="flex flex-wrap gap-3">
+<Parts>
   <Part code label="countAtom">
-    <span class="button-group">
-      <button data-cue="up" onclick={() => (count.current += 1)}>Add one</button>
-      <FlashValue data-testid="taste-count" value={count.current} />
-    </span>
+    <FlashValue big data-testid="taste-count" value={count.current} />
+    {#snippet actions()}
+      <button data-cue="up" onclick={() => (count.current += 1)}>
+        Add one
+      </button>
+    {/snippet}
   </Part>
   <Arrow label="get" pulse={count.current} />
   <Part code label="doubledAtom">
-    <FlashValue data-testid="taste-doubled" value={doubled.current} />
+    <FlashValue big data-testid="taste-doubled" value={doubled.current} />
   </Part>
   <Part code label="greetingAtom">
     <svelte:boundary>
@@ -57,6 +62,8 @@
         <ResultChip kind="message" tone="running">Loading…</ResultChip>
       {/snippet}
     </svelte:boundary>
-    <p class="mt-2"><button onclick={reload}>Load again</button></p>
+    {#snippet actions()}
+      <button onclick={reload}>Load again</button>
+    {/snippet}
   </Part>
-</div>
+</Parts>
