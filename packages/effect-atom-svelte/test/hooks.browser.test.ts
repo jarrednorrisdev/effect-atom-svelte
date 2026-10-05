@@ -1,5 +1,6 @@
 import { Effect, Stream } from "effect";
 import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import { SvelteMap } from "svelte/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -49,6 +50,55 @@ describe("useAtomValue", () => {
       },
     });
     await expect.element(output(screen)).toHaveTextContent("20");
+  });
+
+  test("keeps a transform's result until the atom changes (JND-25)", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(1);
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom, (n) => ({ n }));
+        return () => {
+          const first = value.current;
+          const second = value.current;
+          return `${first === second} ${first.n}`;
+        };
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("true 1");
+    registry.set(atom, 2);
+    await expect.element(output(screen)).toHaveTextContent("true 2");
+  });
+
+  test("runs a transform again when state it reads changes", async () => {
+    const atom = Atom.make(2);
+    const factor = new SvelteMap([["x", 10]]);
+    const screen = await render(Harness, {
+      setup: () => {
+        const value = useAtomValue(atom, (n) => n * (factor.get("x") ?? 0));
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("20");
+    factor.set("x", 100);
+    await expect.element(output(screen)).toHaveTextContent("200");
+  });
+
+  test("a transformed read outside the markup sees the atom's latest value", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(1);
+    let value!: { readonly current: number };
+    await render(Harness, {
+      registry,
+      setup: () => {
+        value = useAtomValue(atom, (n) => n * 10);
+        return () => "";
+      },
+    });
+    expect(value.current).toBe(10);
+    registry.set(atom, 2);
+    expect(value.current).toBe(20);
   });
 
   test("updates when the atom changes outside the component", async () => {
@@ -222,6 +272,35 @@ describe("useAtomSet", () => {
     const exit = run(undefined, { signal: controller.signal });
     controller.abort();
     await expect(exit).resolves.toMatchObject({ _tag: "Failure" });
+  });
+
+  test("an already aborted signal rejects without writing (JND-25)", async () => {
+    const registry = AtomRegistry.make();
+    let calls = 0;
+    const save = Atom.fn((n: number) =>
+      Effect.sync(() => {
+        calls += 1;
+        return n;
+      })
+    );
+    let run!: (
+      value: number,
+      options?: { signal?: AbortSignal }
+    ) => Promise<unknown>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promiseExit" });
+        return () => "";
+      },
+    });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(run(1, { signal: controller.signal })).resolves.toMatchObject({
+      _tag: "Failure",
+    });
+    expect(calls).toBe(0);
+    expect(registry.get(save)).toMatchObject({ _tag: "Initial" });
   });
 
   test("promise modes reject Atom.Reset instead of waiting forever", async () => {
@@ -858,5 +937,17 @@ describe("ScopedAtom", () => {
     const b = await render(Harness, { setup: setup(2) });
     await expect.element(output(a)).toHaveTextContent("1 true");
     await expect.element(output(b)).toHaveTextContent("2 true");
+  });
+
+  test("provides without an input when the factory's input is optional", async () => {
+    const Scoped = ScopedAtom.make((start?: number) => Atom.make(start ?? 7));
+    const screen = await render(Harness, {
+      setup: () => {
+        Scoped.provide();
+        const value = useAtomValue(Scoped.use());
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("7");
   });
 });

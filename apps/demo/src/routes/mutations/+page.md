@@ -119,7 +119,7 @@ A concurrent mutation still has one result. Each new call waits for every call a
 
 </Aside>
 
-To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted. The call keeps running only while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call.
+To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted. A signal that is already aborted settles it the same way without starting the call, as `fetch` does. The call keeps running only while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 

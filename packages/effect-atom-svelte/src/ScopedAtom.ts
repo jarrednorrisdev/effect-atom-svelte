@@ -6,6 +6,8 @@
 import type { Atom } from "effect/reactivity";
 import { createContext } from "svelte";
 
+// A const and a type of the same name, as in Effect's modules.
+/* oxlint-disable eslint/no-redeclare */
 /**
  * Marks a value as a `ScopedAtom`: every scoped atom has this key, set to this same string, as
  * Effect's own types carry a type id.
@@ -17,16 +19,31 @@ import { createContext } from "svelte";
 export const TypeId = "~effect-atom-svelte/ScopedAtom" as const;
 
 /**
+ * The type of `TypeId`.
+ *
+ * @stability unstable
+ * @since 0.1.0
+ * @category type ids
+ */
+export type TypeId = typeof TypeId;
+/* oxlint-enable eslint/no-redeclare */
+
+/**
  * An atom created per component subtree. `provide` builds it once in a parent and puts it in
- * context; `use` reads it in descendants.
+ * context; `use` reads it in descendants. `provide` takes the factory's input, which may be left
+ * out when the factory's input is optional.
  *
  * @stability unstable
  * @since 0.1.0
  * @category models
  */
 export interface ScopedAtom<A extends Atom.Atom<unknown>, Input = never> {
-  readonly [TypeId]: typeof TypeId;
-  readonly provide: [Input] extends [never] ? () => A : (input: Input) => A;
+  readonly [TypeId]: TypeId;
+  readonly provide: [Input] extends [never]
+    ? () => A
+    : undefined extends Input
+      ? (input?: Input) => A
+      : (input: Input) => A;
   readonly use: () => A;
 }
 
