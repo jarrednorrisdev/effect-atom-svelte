@@ -195,12 +195,6 @@ const subscribedReader = <A>(
     kept?.cancel();
     kept = undefined;
   };
-  $effect(() => {
-    committed = getAtom();
-    if (kept && kept.atom !== committed) {
-      releaseKept();
-    }
-  });
   const follow = (current: Atom.Atom<A>) => {
     if (kept?.atom === current) {
       const { cancel: keptCancel } = kept;
@@ -209,6 +203,22 @@ const subscribedReader = <A>(
     }
     return notify ? registry.subscribe(current, notify) : undefined;
   };
+  $effect(() => {
+    committed = getAtom();
+    if (kept && kept.atom !== committed) {
+      releaseKept();
+    }
+    // A render with the switch rolled back can read the old atom after the render that commits, so
+    // the subscription may follow an atom the commit did not pick. It moves to the committed atom,
+    // or that atom's later changes, a refresh's result or failure included, would not reach the
+    // page (JND-93).
+    if (atom !== undefined && atom !== committed) {
+      const previousCancel = cancel;
+      atom = committed;
+      cancel = follow(committed);
+      previousCancel?.();
+    }
+  });
   const subscribe = createSubscriber((update) => {
     notify = notifyAfterReads(update);
     cancel = atom ? follow(atom) : undefined;
