@@ -12,7 +12,8 @@
   own: `<FlashValue tint={feel === "cold" ? "var(--color-sky-500)" : undefined} … />`.
 
   `big` shows it as a tile as tall as a `ResultChip`, filling its `Part`, for the value a part is
-  about: `<FlashValue big value={doubled.current} />`.
+  about: `<FlashValue big value={doubled.current} />`. A long value (a name, not a number) is set
+  smaller, so it fits a part in a row of three.
 
   Other attributes (`data-testid`, `aria-label`) go on the `<output>`.
 -->
@@ -32,6 +33,9 @@
 
   const { big = false, tint, value, ...rest }: Props = $props();
 
+  // A name rather than a number: set smaller in a big tile.
+  const long = $derived(big && String(value).length > 6);
+
   const flash = onChange(
     () => value,
     (element) => {
@@ -46,7 +50,12 @@
   );
 </script>
 
-<output class={["flash", big && "big"]} style:--tint={tint} {...rest} {@attach flash}>{value}</output>
+<output
+  class={["flash", big && "big", long && "long"]}
+  style:--tint={tint}
+  {...rest}
+  {@attach flash}>{value}</output
+>
 
 <style>
   .flash {
@@ -71,5 +80,9 @@
     min-height: 3.5rem;
     padding: 0.25rem 0.85rem;
     width: 100%;
+  }
+  .big.long {
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
   }
 </style>

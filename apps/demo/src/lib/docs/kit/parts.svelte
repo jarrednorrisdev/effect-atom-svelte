@@ -4,7 +4,9 @@
   width. Every part gets the same width and height, and what a part shows fills it, so values,
   results and `actions` line up across the row. Two parts side by side with no arrow between them
   don't depend on each other: a dashed rule separates them, and on a narrow screen the second one
-  starts a new row.
+  starts a new row. A chain of three or more linked parts is too wide for a phone, so there it
+  stacks, with its arrows pointing down. Set `stack` to stack a shorter chain too, when its parts
+  hold more than a phone's half width can show (a sentence, a component).
 
   ```svelte
   <Parts>
@@ -15,7 +17,7 @@
   </Parts>
   ```
 
-  Other attributes go on the row.
+  Other attributes, and classes (`class="mt-4"`), go on the row.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -23,13 +25,15 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly children: Snippet;
+    /** Stacks the parts on a narrow screen, however few there are. */
+    readonly stack?: boolean;
   }
 
-  const { children, ...rest }: Props = $props();
+  const { children, class: className, stack = false, ...rest }: Props = $props();
 </script>
 
-<div class="parts not-prose" {...rest}>
-  <div class="row">{@render children()}</div>
+<div class={["parts not-prose", className]} {...rest}>
+  <div class={["row", stack && "stack"]}>{@render children()}</div>
 </div>
 
 <style>
@@ -53,6 +57,7 @@
   }
   .parts .row > :global(.part > .body > *) {
     align-items: stretch;
+    text-align: center;
     width: 100%;
   }
   /* A part right after another, with no arrow between: it doesn't depend on the one before. */
@@ -70,6 +75,20 @@
   }
   /* Narrow: each group of linked parts gets its own row. */
   @container (width < 34rem) {
+    .parts .row.stack,
+    .parts .row:has(> :global(.part + .arrow + .part + .arrow + .part)) {
+      flex-direction: column;
+      & > :global(.part) {
+        flex: none;
+      }
+      & > :global(.arrow) {
+        flex-direction: row-reverse;
+        gap: 0.3rem;
+      }
+      & > :global(.arrow svg) {
+        rotate: 90deg;
+      }
+    }
     .parts .row > :global(.part + .part) {
       flex-basis: 100%;
       margin-left: 0;

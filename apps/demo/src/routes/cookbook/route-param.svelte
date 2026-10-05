@@ -6,7 +6,9 @@
 -->
 <script lang="ts">
   import Arrow from "#lib/docs/kit/arrow.svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import TodoPage from "./todo-page.svelte";
 
@@ -25,15 +27,15 @@
     </button>
   {/each}
 </div>
-<div class="mt-4 flex flex-wrap gap-3">
+<Parts class="mt-4" stack>
   <Part code label="params">
-    <code data-testid="route-params">{`{ id: "${id}" }`}</code>
+    <FlashValue big data-testid="route-params" value={`{ id: "${id}" }`} />
   </Part>
   <Arrow label="getter" pulse={id} />
   <Part code label="+page.svelte">
     <TodoPage params={{ id }} />
   </Part>
-</div>
+</Parts>
 
 <style>
   .address {
