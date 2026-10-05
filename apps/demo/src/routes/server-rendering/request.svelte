@@ -13,7 +13,7 @@
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
 
-  const { id, onend }: { id: number; onend: () => void } = $props();
+  const { id }: { id: number } = $props();
 
   // Reads the nearest provider's registry: this request's own.
   const cart = useAtom(cartAtom);
@@ -30,6 +30,5 @@
   </p>
   <p class="mt-2 mb-0">
     <button data-cue="up" onclick={add}>Add to cart</button>
-    <button data-cue="reset" onclick={onend}>End request</button>
   </p>
 </Part>

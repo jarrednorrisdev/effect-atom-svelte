@@ -1,6 +1,7 @@
 <!--
   The diagram for the "One registry per request" example: the requests side by side, each with
-  its own registry, and the module state below them that every request shares.
+  its own registry, and the module state below them that every request shares. Three fit across:
+  two requests in flight and one that has ended.
   Presentation only: requests.svelte and request.svelte hold the example's logic.
 -->
 <script lang="ts">
@@ -40,7 +41,7 @@
   .row {
     display: grid;
     gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   }
   .shared {
     align-items: center;

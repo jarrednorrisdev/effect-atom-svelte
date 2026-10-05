@@ -35,9 +35,9 @@ A request here means one page rendered on the server, not one visitor. When the 
 
 During the render, the hooks hold every atom they read, so nothing is disposed while the render is waiting on something else. When the render ends, the provider disposes of the registry: effects are interrupted and finalizers run.
 
-In the example, two providers stand in for two requests. Each makes its own registry, as the root layout's provider does for every request on the server, so each has its own `cartAtom`. `addedRef` is module state, which every request shares.
+In the example, providers stand in for requests. Each makes its own registry, as the root layout's provider does for every request on the server, so each has its own `cartAtom`. `addedRef` is module state, which every request shares.
 
-<Example files={[{ html: requestSource, name: "request.svelte" }, { html: requestsSource, name: "requests.svelte" }]} hint="Click Add to cart in Request 1: only its cart grows, but addedRef counts it for every request. Then click End request: the next request starts with an empty cart."> <Requests /> </Example>
+<Example files={[{ html: requestSource, name: "request.svelte" }, { html: requestsSource, name: "requests.svelte" }]} hint="Click Add to cart in Request 1: only its cart grows, but addedRef counts it for every request. Then click Send another request: Request 3 starts with an empty cart, and a moment later Request 1 ends, its cart gone, while addedRef keeps its count."> <Requests /> </Example>
 
 If you pass your own registry to `RegistryProvider` with `registry`, it outlives the request. The hooks release the atoms the request read, but the registry itself stays for you to dispose of. Each request still sends the browser only its own [hydration](/hydration) results.
 
