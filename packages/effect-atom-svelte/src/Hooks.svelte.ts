@@ -367,8 +367,9 @@ const subscribedReader = <A>(
 
 /**
  * Reads an atom, optionally through a transform. The atom stays mounted while something reactive
- * reads `.current`, and unmounted when nothing does. The transform is not cached: it runs on every
- * read of `.current`, so keep it cheap, or read it once into a `$derived`.
+ * reads `.current`, and unmounted when nothing does. The transform runs again only when the atom,
+ * or state the transform reads, changes, so a transform that builds an object returns the same
+ * object until then. A read outside a reactive context, such as in an event handler, runs it again.
  *
  * **Example** (Reading an atom through a transform)
  *
@@ -394,7 +395,17 @@ export function useAtomValue<A, B>(
   f?: (value: A) => B
 ): AtomValue<A | B> {
   const read = subscribedReader(getRegistry(), toGetter(input));
-  return new AtomCell<A | B, never>(f ? () => f(read()) : read, readOnly);
+  if (!f) {
+    return new AtomCell<A, never>(read, readOnly);
+  }
+  // A derived keeps the transform's result, and its identity, until the atom or state the transform
+  // reads changes. Outside a reactive context nothing subscribes, so the derived would not hear the
+  // atom change: such a read runs the transform again (JND-25).
+  const mapped = $derived(f(read()));
+  return new AtomCell<B, never>(
+    () => ($effect.tracking() ? mapped : f(read())),
+    readOnly
+  );
 }
 
 /**
@@ -459,7 +470,8 @@ export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
  * In `promise` and `promiseExit` modes the setter waits for the atom's next settled result. The
  * wait holds the atom, so a call still in flight keeps it running after the component is
  * destroyed, until it settles. The call's `signal` cancels only the wait: an `Atom.fn` already
- * running keeps going (send `Atom.Interrupt` to stop it). Calls on one `Atom.fn` share its single
+ * running keeps going (send `Atom.Interrupt` to stop it). A signal that is already aborted settles
+ * the call as interrupted without writing, as `fetch` does. Calls on one `Atom.fn` share its single
  * result, so a new call supersedes one in flight and every pending call resolves with the latest
  * call's result. `Atom.Reset` has no result to wait for, so these modes leave it out of their
  * types and reject it; reset with a `value` mode setter.
@@ -532,7 +544,10 @@ export function useAtomSet(
       AsyncResult.AsyncResult<unknown, unknown>,
       unknown
     >;
-    registry.set(atom, value);
+    // An already aborted signal rejects without writing, as fetch does (JND-25).
+    if (!writeOptions?.signal?.aborted) {
+      registry.set(atom, value);
+    }
     const exit = await awaitResult(
       registry,
       atom,

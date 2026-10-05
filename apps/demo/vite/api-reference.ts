@@ -479,6 +479,16 @@ export const readApiReference = async (
       extra: Partial<ApiExport> = {}
     ) => {
       const { category, doc, since, stability } = tagsOf(node, name);
+      // A type beside a const of the same name, such as a TypeId, joins the const's entry.
+      const at = exports.findIndex((entry) => entry.name === name);
+      const existing = exports[at];
+      if (existing !== undefined) {
+        exports[at] = {
+          ...existing,
+          signature: `${existing.signature};\n${signature}`,
+        };
+        return;
+      }
       const text = extractExamples(
         extra.description ?? doc?.description ?? "",
         `${file}: ${name}`

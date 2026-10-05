@@ -46,7 +46,7 @@ Dependencies are recorded again on every run, so a `get` inside a condition coun
 
 `useAtomValue` also takes a transform, `useAtomValue(countAtom, (n) => n * 2)`. The two differ in where the result lives:
 
-- A **transform** runs inside one hook, for one component. Use it to format a value for display.
+- A **transform** runs inside one hook, for one component, and again only when the atom or state it reads changes. Use it to format a value for display.
 - A **derived atom** lives in the registry, and every component reads the same result. Use it when more than one component needs the value, or when computing it is expensive.
 
 Below, two readers use `doubledAtom` and two hooks use a transform. The corner of each box counts how many times its function has run:

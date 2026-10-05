@@ -8,6 +8,7 @@ import type { AsyncResult, AtomRegistry } from "effect/reactivity";
 import { expectTypeOf } from "vitest";
 
 import {
+  ScopedAtom,
   provideRegistry,
   useAtomSet,
   useAtomSubscribe,
@@ -63,4 +64,19 @@ export const providerOptions = () => {
   provideRegistry({ initialValues: [[count, 1]], revalidateOnHydrate: true });
   // @ts-expect-error -- an existing registry takes no options for a new one
   provideRegistry({ initialValues: [[count, 1]], registry });
+};
+
+// A factory whose input is optional can be provided without one; a required input stays required.
+// The type id is exported as a type too, as Effect's modules do (JND-25).
+export const scopedAtomTypes = () => {
+  const Optional = ScopedAtom.make((start?: number) => Atom.make(start ?? 0));
+  Optional.provide();
+  Optional.provide(1);
+  const Required = ScopedAtom.make((start: number) => Atom.make(start));
+  Required.provide(1);
+  // @ts-expect-error -- the input is required
+  Required.provide();
+  const None = ScopedAtom.make(() => Atom.make(0));
+  None.provide();
+  expectTypeOf(None[ScopedAtom.TypeId]).toEqualTypeOf<ScopedAtom.TypeId>();
 };
