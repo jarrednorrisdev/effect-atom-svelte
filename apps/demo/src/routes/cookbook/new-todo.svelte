@@ -27,6 +27,7 @@
 </script>
 
 <script lang="ts">
+  import { SvelteSet } from "svelte/reactivity";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import { Cause, Exit, Option } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
@@ -36,7 +37,18 @@
   const todos = useAtomValue(optimisticTodosAtom);
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
-  const remove = useAtomSet(removeAtom);
+  // One remove at a time: a second call would interrupt the first.
+  const removing = useAtomValue(removeAtom);
+  const remove = useAtomSet(removeAtom, { mode: "promiseExit" });
+  // The todos being removed: their rows pulse until the list comes back without them.
+  const leaving = new SvelteSet<number>();
+  const removeTodo = async (id: number) => {
+    leaving.add(id);
+    const exit = await remove({ payload: { id }, reactivityKeys: ["todos"] });
+    if (Exit.isFailure(exit)) {
+      leaving.delete(id);
+    }
+  };
 
   let title = $state("");
   let error = $state("");
@@ -76,14 +88,14 @@
   <ul class="[overflow-wrap:anywhere]" data-testid="new-todo-list">
     {#each todos.current.value as todo, index (index)}
       {@const saving = todo.id === 0}
-      <li aria-busy={saving}>
+      <li aria-busy={saving || leaving.has(todo.id)}>
         {todo.title}{saving ? " (saving…)" : ""}
         {#if !saving && isAddedTodo(todo)}
           <button
             aria-label="Remove {todo.title}"
             data-cue="reset"
-            onclick={() =>
-              remove({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+            disabled={removing.current.waiting}
+            onclick={() => removeTodo(todo.id)}
           >
             <Trash2Icon aria-hidden="true" />
           </button>

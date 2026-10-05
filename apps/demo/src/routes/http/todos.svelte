@@ -19,6 +19,7 @@
 </script>
 
 <script lang="ts">
+  import { SvelteSet } from "svelte/reactivity";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import { isAddedTodo, type TitleTooLong } from "@demo/domain";
   import { Cause, Exit, Match, Option } from "effect";
@@ -34,7 +35,18 @@
   const todos = useAtomSuspense(() => todosFor(filter));
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
-  const remove = useAtomSet(removeAtom);
+  // One remove at a time: a second call would interrupt the first.
+  const removing = useAtomValue(removeAtom);
+  const remove = useAtomSet(removeAtom, { mode: "promiseExit" });
+  // The todos being removed: their rows pulse until the list comes back without them.
+  const leaving = new SvelteSet<number>();
+  const removeTodo = async (id: number) => {
+    leaving.add(id);
+    const exit = await remove({ params: { id }, reactivityKeys: ["todos"] });
+    if (Exit.isFailure(exit)) {
+      leaving.delete(id);
+    }
+  };
 
   // A title that is too long fails with the endpoint's typed 422, TitleTooLong.
   const describe = (cause: Cause.Cause<TitleTooLong>) => {
@@ -71,14 +83,14 @@
     <!-- No pending snippet, so server rendering waits for the list. -->
     <ul class="mt-2 grid gap-1" data-testid="http-todos">
       {#each await todos.current as todo (todo.id)}
-        <li>
+        <li aria-busy={leaving.has(todo.id)}>
           {todo.done ? "✔" : "○"} {todo.title}
           {#if isAddedTodo(todo)}
             <button
               aria-label="Remove {todo.title}"
               data-cue="reset"
-              onclick={() =>
-                remove({ params: { id: todo.id }, reactivityKeys: ["todos"] })}
+              disabled={removing.current.waiting}
+              onclick={() => removeTodo(todo.id)}
             >
               <Trash2Icon aria-hidden="true" />
             </button>
