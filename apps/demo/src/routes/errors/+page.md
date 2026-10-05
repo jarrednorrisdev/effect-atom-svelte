@@ -151,7 +151,7 @@ The mutation's own value is an `AsyncResult` too, so `useAtomValue(createAtom)` 
 
 In a SvelteKit app, an error on its way to a `failed` snippet goes through SvelteKit's `handleError` hook, whose default replaces it with `{ message: "Internal Error" }`. The hooks in `effect-atom-svelte/sveltekit` keep its `_tag` as `error.tag`, but not fields such as `id`, so use `includeFailure` when you need those: [Errors in boundaries](/sveltekit#errors-in-boundaries) shows how to install the hooks.
 
-The hooks don't cover [hydration](/hydration#how-the-result-travels). A serializable atom's typed error is sent with the page, fields and all, as part of its schema. A defect or an interruption isn't: the browser computes that atom again.
+The hooks don't cover [hydration](/hydration#how-the-result-travels). A serializable atom's typed error is sent with the page, fields and all, as part of its schema. When `useAtomResult` or `useAtomSuspense` sends the result, a defect or an interruption isn't sent: the browser computes that atom again. `Hydration.dehydrate`, used with `HydrationBoundary`, sends defects too: see [HydrationBoundary](/hydration#hydrationboundary).
 
 ## Typed errors from RPC and HTTP APIs
 

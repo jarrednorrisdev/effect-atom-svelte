@@ -104,7 +104,7 @@ A few things follow from that:
 - **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
-- **A defect isn't sent.** The server sends no result for a failure with a defect or an interruption, as the defect's message and cause could reveal details of the server. The browser computes the atom itself. Typed errors are part of the atom's schema, so they are sent.
+- **The hooks don't send a defect.** For a failure with a defect or an interruption, the hooks send no result, as the defect's message and cause could reveal details of the server. The browser computes the atom itself. Typed errors are part of the atom's schema, so they are sent. Effect's `Hydration.dehydrate` doesn't skip defects: see [HydrationBoundary](#hydrationboundary).
 - **A result the schema can't encode isn't sent.** The server renders it, and the browser computes the atom itself, as Effect's `Hydration.dehydrate` skips it too. In development the server warns, with the schema's error.
 - **A stream sends its latest item, as waiting.** The server's render ends while the stream still runs, so the browser starts from that item and runs the stream again. See [Streams on the server](#streams-on-the-server).
 
@@ -207,6 +207,18 @@ export const load = async () => {
   <TodoList />
 </HydrationBoundary>
 ```
+
+<Aside type="caution" title="dehydrate sends defects too">
+
+`Hydration.dehydrate` sends every result its atom's schema can encode. The schema encodes a failure's whole cause, so defects and interruptions are sent with their messages, unlike the hooks' results. In the example above, `Effect.runPromise` rejects when `todosAtom` fails, so `load` throws before it dehydrates. Other serializable atoms in the registry, such as one `todosAtom` reads, are sent whatever their result. To send only results that aren't failures, filter the entries:
+
+```ts
+const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
+  (entry) => (entry.value as { _tag?: string })._tag !== "Failure"
+);
+```
+
+</Aside>
 
 Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. On the server, they are updated before the children render too. A value for an atom nothing reads waits in the registry until something does, and is dropped when the boundary goes away. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
 
