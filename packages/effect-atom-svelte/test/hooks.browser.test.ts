@@ -21,6 +21,7 @@ import type { AtomState, ProvideRegistryOptions } from "../src/index.ts";
 import Harness from "./fixtures/harness.svelte";
 import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
+import SubscribeIntoState from "./fixtures/subscribe-into-state.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { sleep } from "./helpers.ts";
 
@@ -157,6 +158,9 @@ describe("useAtom", () => {
   });
 });
 
+/** A function for an atom to hold as its value. */
+const storedHandler = () => "b";
+
 describe("useAtomSet", () => {
   test("sets a value or applies an updater", async () => {
     const atom = Atom.make(1);
@@ -218,6 +222,44 @@ describe("useAtomSet", () => {
     const exit = run(undefined, { signal: controller.signal });
     controller.abort();
     await expect(exit).resolves.toMatchObject({ _tag: "Failure" });
+  });
+
+  test("promise modes reject Atom.Reset instead of waiting forever", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    let run!: (value: number) => Promise<number>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(double, { mode: "promise" });
+        return () => "";
+      },
+    });
+    await expect(run(1)).resolves.toBe(2);
+    // Left out of the types: a reset result is Initial, which never settles.
+    await expect(run(Atom.Reset as never)).rejects.toThrow("Atom.Reset");
+    expect(registry.get(double)).toMatchObject({ _tag: "Success", value: 2 });
+  });
+
+  test("value mode stores a function wrapped in an updater", async () => {
+    const registry = AtomRegistry.make();
+    // Atom.make would take a function as the atom's read, not its value.
+    const handler = Atom.writable(
+      (): (() => string) => () => "a",
+      (ctx, value: () => string) => ctx.setSelf(value)
+    );
+    let set!: (
+      value: (() => string) | ((current: () => string) => () => string)
+    ) => void;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        set = useAtomSet(handler);
+        return () => "";
+      },
+    });
+    set(() => storedHandler);
+    expect(registry.get(handler)).toBe(storedHandler);
   });
 });
 
@@ -337,6 +379,58 @@ describe("mounting and lifecycle", () => {
     await expect.poll(() => seen).toEqual(["1x", "2y"]);
   });
 
+  test("useAtomSubscribe computes a derived atom nothing else reads, and hears its changes", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const doubled = Atom.make((get) => get(base) * 2);
+    const seen: number[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(doubled, (value) => seen.push(value));
+        return () => "";
+      },
+    });
+    registry.set(base, 2);
+    registry.set(base, 3);
+    await expect.poll(() => seen).toEqual([4, 6]);
+  });
+
+  test("useAtomSubscribe runs an effect atom nothing else reads", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(
+      Effect.succeed("done").pipe(Effect.delay("20 millis"))
+    );
+    const seen: string[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(atom, (value) => seen.push(value._tag));
+        return () => "";
+      },
+    });
+    await expect.poll(() => seen).toEqual(["Success"]);
+  });
+
+  test("useAtomSubscribe's callback can write $state when a read elsewhere changes the atom", async () => {
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    // Reading this atom writes the watched one, while a $derived is evaluating.
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    const screen = await render(SubscribeIntoState, {
+      read,
+      registry,
+      show: false,
+      watched,
+    });
+    await expect.element(output(screen)).toHaveTextContent("none hidden");
+    await screen.rerender({ show: true });
+    await expect.element(output(screen)).toHaveTextContent("1 read");
+  });
+
   test("useAtomInitialValues applies once per registry", async () => {
     const registry = AtomRegistry.make();
     const atom = Atom.make(0);
@@ -350,6 +444,80 @@ describe("mounting and lifecycle", () => {
     registry.set(atom, 8);
     await render(Harness, { registry, setup });
     expect(registry.get(atom)).toBe(8);
+  });
+
+  test("useAtomInitialValues starts a derived atom that still follows its source", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const doubled = Atom.make((get) => get(base) * 2);
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[doubled, 100]]);
+        const value = useAtomValue(doubled);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("100");
+    registry.set(base, 5);
+    await expect.element(output(screen)).toHaveTextContent("10");
+  });
+
+  test("useAtomInitialValues gives a wrapper's value to its source, as AtomRegistry.make does", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const wrapped = Atom.withRefresh(base, "1 hour");
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[wrapped, 100]]);
+        const value = useAtomValue(wrapped);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("100");
+    expect(registry.get(base)).toBe(100);
+    registry.set(base, 5);
+    await expect.element(output(screen)).toHaveTextContent("5");
+  });
+
+  test("useAtomInitialValues keeps a value until a later component reads it", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(0);
+    // A layout sets the value; the page that reads it comes later.
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        return () => "layout";
+      },
+    });
+    await sleep("50 millis");
+    const page = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(page)).toHaveTextContent("7");
+  });
+
+  test("useAtomInitialValues lets go of its atoms on unmount", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const atom = trackedAtom(log);
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 2]]);
+        return () => "";
+      },
+      show: true,
+    });
+    await expect.poll(() => log).toEqual(["start"]);
+    await screen.rerender({ show: false });
+    await expect.poll(() => log).toEqual(["start", "stop"]);
   });
 });
 

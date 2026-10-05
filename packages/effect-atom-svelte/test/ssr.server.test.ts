@@ -10,6 +10,7 @@ import { render } from "svelte/server";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
 import {
+  useAtomInitialValues,
   useAtomRef,
   useAtomResult,
   useAtomSet,
@@ -464,6 +465,26 @@ describe("server rendering", () => {
 
     await request();
     await request();
+    registry.dispose();
+  });
+
+  test("each request applies its own initial values to a caller-owned registry", async () => {
+    const registry = AtomRegistry.make();
+    const count = Atom.make(0);
+    const page = (start: number) => () => {
+      useAtomInitialValues([[count, start]]);
+      const value = useAtomValue(count);
+      return () => value.current;
+    };
+    const first = await renderSetup(page(1), registry);
+    expect(first.body).toContain("<output>1</output>");
+    const second = await renderSetup(page(2), registry);
+    expect(second.body).toContain("<output>2</output>");
+    // Once the node is swept, the next request starts from a new one.
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const third = await renderSetup(page(3), registry);
+    expect(third.body).toContain("<output>3</output>");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
     registry.dispose();
   });
 

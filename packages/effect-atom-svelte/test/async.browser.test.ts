@@ -260,6 +260,55 @@ describe("useAtomSuspense", () => {
     expect(registry.getNodes().has(slow("b"))).toBe(false);
   });
 
+  test("a getter switch while a serializable atom's first load is pending interrupts it", async () => {
+    const registry = AtomRegistry.make();
+    const pick = Atom.make("a");
+    const log: string[] = [];
+    const slow = slowSerializableFamily(log);
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        const value = useAtomSuspense(() => slow(choice.current));
+        return () => value.current;
+      },
+    });
+    await expect.poll(() => log).toContain("start a");
+    // Neither the component nor the seed holds the first atom: only the render reading it does.
+    registry.set(pick, "b");
+    await expect.poll(text(screen)).toBe("b");
+    await sleep(afterSlowRequest);
+    expect(log.filter((entry) => entry.startsWith("done"))).toEqual(["done b"]);
+    expect(log).toContain("stop a");
+    expect(registry.getNodes().has(slow("a"))).toBe(false);
+  });
+
+  test("atoms that share a pending result each get their own wait", async () => {
+    const source = delayed("a", 30);
+    // Returns its source's result object until it succeeds, so both are pending with one object.
+    const shout = Atom.make((get) => {
+      const result = get(source);
+      return AsyncResult.isSuccess(result)
+        ? AsyncResult.success(result.value.toUpperCase())
+        : result;
+    });
+    let which: typeof source = source;
+    let fromSource!: Promise<unknown>;
+    let fromShout!: Promise<unknown>;
+    await render(Harness, {
+      setup: () => {
+        const value = useAtomSuspense(() => which);
+        fromSource = value.current;
+        which = shout;
+        fromShout = value.current;
+        return () => "";
+      },
+    });
+    await expect(fromSource).resolves.toBe("a");
+    await expect(fromShout).resolves.toBe("A");
+  });
+
   test("a switch away from a pending atom after the first value does not reach the boundary (JND-22)", async () => {
     const registry = AtomRegistry.make();
     const pick = Atom.make("a");
@@ -535,6 +584,26 @@ describe("useAtomResult", () => {
     refresh();
     await expect.poll(text(screen)).toBe("1 waiting");
     await expect.poll(text(screen)).toBe("2");
+  });
+
+  test("a promise not awaited at once lets go of a serializable first atom the getter left while seeding", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const slow = slowSerializableFamily(log);
+    let which = "a";
+    await render(Harness, {
+      registry,
+      setup: () => {
+        void useAtomResult(() => slow(which));
+        // Switched before the component mounts, so its effect holds "b" before the seed is in.
+        which = "b";
+        return () => "";
+      },
+    });
+    await expect.poll(() => log).toContain("done b");
+    await sleep(afterSlowRequest);
+    expect(log).not.toContain("start a");
+    expect(registry.getNodes().has(slow("a"))).toBe(false);
   });
 
   test("unmounting before the first result interrupts the wait (JND-16)", async () => {

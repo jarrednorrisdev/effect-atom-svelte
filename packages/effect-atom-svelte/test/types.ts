@@ -3,7 +3,8 @@
  * component, so each check is a function that is never called.
  */
 import type { Exit } from "effect";
-import type { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
+import { Atom } from "effect/reactivity";
+import type { AsyncResult, AtomRegistry } from "effect/reactivity";
 import { expectTypeOf } from "vitest";
 
 import {
@@ -42,6 +43,18 @@ export const optionTypes = (mode: WriteMode, includeFailure: boolean) => {
     >
   >();
   useAtomSubscribe(count, () => undefined, { immediate: undefined });
+};
+
+declare const mutation: Atom.AtomResultFn<number, string, Error>;
+
+// Atom.Reset never settles a promise-mode wait, so only value mode accepts it.
+export const resetTypes = () => {
+  useAtomSet(mutation)(Atom.Reset);
+  // @ts-expect-error -- a reset result is Initial, which a promise-mode setter would wait on forever
+  void useAtomSet(mutation, { mode: "promise" })(Atom.Reset);
+  // @ts-expect-error -- as in promise mode
+  void useAtomSet(mutation, { mode: "promiseExit" })(Atom.Reset);
+  void useAtomSet(mutation, { mode: "promise" })(1);
 };
 
 // The AtomRegistry.make options apply only to a registry the provider creates (JND-61).
