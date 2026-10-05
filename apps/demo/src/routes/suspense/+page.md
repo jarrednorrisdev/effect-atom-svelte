@@ -64,7 +64,7 @@ The promise stays the same object while the atom's result is unchanged, so Svelt
 
 ## When it fails
 
-When the atom's effect fails, the promise rejects with `Cause.squash` of its cause: the typed error if there is one, otherwise the defect. The boundary then renders its `failed` snippet. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
+When the atom's effect fails, the promise rejects with `Cause.squash` of its cause: the typed error if there is one, otherwise the defect, and otherwise an `Error` saying the effect was interrupted. The boundary then renders its `failed` snippet. The snippet gets the error and a `reset` function, which renders the boundary's content again. Refresh the atom first, so the content has a new result to wait for:
 
 **Example** (Trying again)
 
@@ -197,7 +197,7 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-Svelte restores the component's context after each top-level `await`, so you can call hooks after one. In Svelte 5.57, a bug in production builds affects one case: a function a hook returns after an `await`, passed directly as an event handler such as `onclick={refresh}`, does nothing. To work around it, call that hook before the first `await`, or wrap the handler in an arrow, `onclick={() => refresh()}`. See [Handlers after an await](/troubleshooting#handlers-after-an-await).
+Svelte restores the component's context after each top-level `await`, so you can call hooks after one. In Svelte 5.57, a function a hook returns after an `await` can do nothing as an event handler in a production build: see [Handlers after an await](/troubleshooting#handlers-after-an-await).
 
 Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 
