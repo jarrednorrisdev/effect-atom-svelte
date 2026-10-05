@@ -29,8 +29,10 @@
 
 <script lang="ts">
   import { useAtom, useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+  import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
@@ -40,34 +42,27 @@
 </script>
 
 <!-- loadedAtom picks the runtime's layer, and dieAtom rolls with its Dice. -->
-<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+<Parts>
   <Part code label="loadedAtom">
-    <button
-      aria-pressed={loaded.current}
-      onclick={() => (loaded.current = !loaded.current)}
-    >
-      Loaded dice
-    </button>
+    <FlashValue big value={loaded.current} />
+    {#snippet actions()}
+      <button
+        aria-pressed={loaded.current}
+        onclick={() => (loaded.current = !loaded.current)}
+      >
+        Loaded dice
+      </button>
+    {/snippet}
   </Part>
-  <span
-    aria-hidden="true"
-    class="rotate-90 self-center text-muted-foreground sm:rotate-0"
-  >
-    →
-  </span>
+  <Arrow label="get" pulse={loaded.current} />
   <Part code label="runtime" tone="success">
-    layer
     <FlashValue
+      big
       data-testid="service-layer"
       value={loaded.current ? "LoadedDiceLayer" : "FairDiceLayer"}
     />
   </Part>
-  <span
-    aria-hidden="true"
-    class="rotate-90 self-center text-muted-foreground sm:rotate-0"
-  >
-    →
-  </span>
+  <Arrow label="Dice" pulse={loaded.current} />
   <Part code label="dieAtom" tone={die.current.waiting ? "running" : "success"}>
     {#if die.current._tag === "Success"}
       <ResultChip
@@ -80,10 +75,9 @@
     {:else}
       <ResultChip kind="message" tone="running">Rolling…</ResultChip>
     {/if}
+    {#snippet actions()}
+      <button onclick={roll}>Roll again</button>
+      <StateBadge data-testid="service-state" result={die.current} />
+    {/snippet}
   </Part>
-</div>
-<p class="mt-4 flex flex-wrap items-center gap-3">
-  <button onclick={roll}>Roll again</button>
-  <StateBadge data-testid="service-state" result={die.current} />
-</p>
-
+</Parts>
