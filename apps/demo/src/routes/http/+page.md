@@ -52,7 +52,7 @@ Use `transformClient` to change every request, for example to add a header. It t
 
 The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint, so `runtime.fn` can call it directly, as the example does. Every query and mutation goes through the same transformed client.
 
-On the server, requests don't carry the visitor's cookies, so a query that needs a session fails there, and with a `serializationKey` that failure is what the browser starts from. `transformClient` is the same function for every request, so it can't send each visitor's own credentials. Like RPC's `protocol`, `httpClient` can instead be a function that reads an atom set for each request:
+On the server, requests don't carry the visitor's cookies, so a query that needs a session fails there. With a `serializationKey`, what happens next depends on the error. A status the endpoint doesn't declare is an `HttpClientError`, which the query turns into a defect. Defects aren't sent with the page, so the browser runs the query again, with its cookies. An error the API declares, such as an `Unauthorized` from an auth middleware, is a typed error. It is sent, and the browser starts from it. `transformClient` is the same function for every request, so it can't send each visitor's own credentials. Like RPC's `protocol`, `httpClient` can instead be a function that reads an atom set for each request:
 
 ```ts
 httpClient: (get) =>
