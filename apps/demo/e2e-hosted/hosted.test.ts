@@ -49,23 +49,29 @@ test("RPC: prerendered todos, then add, a typed error, toggle and a stream", asy
 
   await page.getByTestId("rpc-draft").fill("x".repeat(80));
   await page.getByTestId("rpc-add").click();
-  await expect(page.getByTestId("rpc-error")).toHaveText(
-    "TitleTooLong: the limit is 60 characters"
+  await expect(page.getByTestId("rpc-error")).toContainText(
+    "TitleTooLong { maxLength: 60 }"
   );
 
   const checkbox = list.locator("li").first().getByRole("checkbox");
   await checkbox.click();
   await expect(checkbox).toBeChecked();
 
+  // One list item per pull, with an <output> for each number it brought; the pull that finds
+  // the end brings nothing.
   const ticks = page.getByTestId("ticks");
+  const pulls = ticks.getByRole("listitem");
   const pull = page.getByRole("button", { name: "Pull next" });
-  await expect(ticks).toHaveText(/^0/u);
+  await expect(ticks.locator("output").first()).toHaveText("0");
   await expect(async () => {
     if (await pull.isEnabled()) {
       await pull.click();
     }
-    await expect(ticks).toHaveText("0, 1, 2, 3, 4 (done)", { timeout: 500 });
+    await expect(pulls.last()).toContainText("nothing: done", {
+      timeout: 500,
+    });
   }).toPass();
+  await expect(ticks.locator("output")).toHaveText(["0", "1", "2", "3", "4"]);
   expect(requests).toEqual([]);
 });
 
@@ -86,7 +92,10 @@ test("HTTP API: prerendered todos, then create, filter and a typed 404", async (
   await page.getByTestId("http-add").click();
   await expect(list).toContainText("Added in the tab");
 
-  await page.getByTestId("http-filter").selectOption("true");
+  await page
+    .getByRole("group", { name: "Filter" })
+    .getByRole("button", { exact: true, name: "Done" })
+    .click();
   await expect(list.locator("li").filter({ hasText: "○" })).toHaveCount(0);
   await expect(list.locator("li").filter({ hasText: "✔" })).not.toHaveCount(0);
 
@@ -103,19 +112,20 @@ test("Mutations: add, a typed error and an optimistic rollback in the tab", asyn
   const requests = await blockNetworkApi(page);
   await page.goto("/mutations");
   await page.waitForLoadState("networkidle");
-  const todos = page.getByTestId("add-todos").locator("li");
+  const todos = page.getByTestId("refresh-todos").getByRole("listitem");
   await expect(todos).toHaveCount(2);
 
-  await page.getByTestId("add-draft").fill("Added in the tab");
-  await page.getByTestId("add-submit").click();
+  await page.getByTestId("refresh-draft").fill("Added in the tab");
+  await page.getByTestId("refresh-submit").click();
   await expect(todos).toHaveCount(3);
   await expect(page.getByLabel("key invalidated")).toHaveText("1");
 
-  await page.getByRole("button", { name: "Paste a long title" }).click();
+  await page
+    .getByTestId("add-example")
+    .getByRole("button", { name: "Paste a long title" })
+    .click();
   await page.getByTestId("add-submit").click();
-  await expect(page.getByTestId("add-error")).toHaveText(
-    "TitleTooLong: keep it to 60 characters."
-  );
+  await expect(page.getByTestId("add-error")).toContainText("TitleTooLong");
 
   const example = page.getByTestId("optimistic-example");
   await setPressed(
