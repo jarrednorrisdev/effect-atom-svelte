@@ -54,8 +54,8 @@
       </tbody>
     </table>
     <p>
-      Each export says the version that added it. The package isn't published yet, and 0.1.0 is
-      its first planned release, so every export says since v0.1.0.
+      Each export says the version that added it. Everything in 0.1.0, the first release, says
+      since v0.1.0.
     </p>
   {/if}
 
