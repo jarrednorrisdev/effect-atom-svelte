@@ -869,6 +869,7 @@ test.describe("Mutations page", () => {
   test("each mode gives back something else, and Cancel and Reset work", async ({
     page,
   }) => {
+    await page.clock.install();
     await page.goto("/mutations");
     await page.waitForLoadState("networkidle");
     const example = page.getByTestId("modes-example");
@@ -917,10 +918,14 @@ test.describe("Mutations page", () => {
     );
     await expect(state).toHaveText("Failure");
 
+    // The save takes a second and a half, which a loaded machine can spend before Cancel is
+    // clicked, so the page's clock is paused while it is in flight.
+    await page.clock.pauseAt(Date.now() + 1000);
     await call(2).click();
     await expect(state).toHaveText("Failure, waiting");
     const cancel = example.getByRole("button", { exact: true, name: "Cancel" });
     await cancel.click();
+    await page.clock.resume();
     await expect(results("exit").nth(2)).toHaveText(
       "#7: Exit.Failure, interrupted"
     );
