@@ -75,6 +75,7 @@ Keys are compared with Effect's structural equality, so objects and arrays with 
 
 ```ts
 const draftAtom = Atom.family(
+  // The example below adds Atom.keepAlive, explained under Keeping a family's atoms.
   (key: { readonly doc: number; readonly lang: string }) => Atom.make("")
 );
 

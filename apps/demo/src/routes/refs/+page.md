@@ -29,8 +29,9 @@ Below, the editor owns one profile ref. Each field gets a slice of it, and the c
 
 ## AtomRef or `$state`
 
-Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when: With `$state`, you'd pass the whole object, or a getter and a setter.
+Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when:
 
+- **A child should write one slice.** `prop` hands a child a ref to one property, which it can read and set without knowing the whole. With `$state`, you'd pass the whole object, or a getter and a setter.
 - **Code outside Svelte owns the value.** A ref is plain TypeScript with no runes, so a model shared with React or Vue code can hold refs that each framework reads through its own Effect Atom adapter.
 - **Equal values shouldn't notify.** A ref compares values structurally, as described below, so setting an equal copy wakes nobody. `$state` treats a new object as a change.
 
@@ -53,6 +54,8 @@ profile.update((current) => ({ ...current, role: "Rear admiral" }));
 ### Equal values change nothing
 
 A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody.
+
+Atoms are different: they compare with `Object.is` unless you give them [`Atom.withEquality`](/derived-atoms#when-readers-are-notified), so setting an atom to an equal copy notifies its readers.
 
 That matters when code runs on every change. Below, a listener autosaves the draft half a second after each edit. The server answers with its own stored copy, a new object, and the form adopts it as the draft:
 
@@ -86,9 +89,9 @@ const badge = profile.map(({ name, role }) => `${name} · ${role}`);
 | --- | --- |
 | `useAtomRef(ref)` | The ref's value as `current`. Works with any ref, including `map`'s. |
 | `useAtomRefPropValue(ref, "name")` | One property's value as `current`. It updates only when that property changes. |
-| `useAtomRefProp(ref, "name")` | The property's own ref, to pass to a child or to `set`. |
+| `useAtomRefProp(ref, "name")` | The property's own ref, to pass to a child or to `set`. It is `ref.prop("name")`, so it takes a ref, not a getter. |
 
-Like the atom hooks, `useAtomRef` and `useAtomRefPropValue` take a getter, `() => ref`, to follow a different ref when state changes. To write, call `set` or `update` on the ref.
+Like the atom hooks, `useAtomRef` and `useAtomRefPropValue` also take a getter, `() => ref`, to follow a different ref when state changes. To write, call `set` or `update` on the ref.
 
 ## Lists of refs
 
@@ -101,6 +104,8 @@ todos.push({ done: false, title: "Ship it" });
 todos.value[0]?.prop("done").set(true);
 ```
 
+The collection's `value` is one array that `push`, `insertAt` and `remove` change in place, so code that compares it by reference sees no change: read it again, or copy it. Each item's ref has a `key`, a string that stays the same for its life, which suits a keyed `{#each}`.
+
 Below, each `<TodoItem>` gets its item's ref, and the numbers count notifications: the list's in the corner, each item's beside it.
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Tick a todo: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
@@ -111,4 +116,4 @@ A ref has no registry, so it gets none of the [per-request isolation](/server-re
 
 </Aside>
 
-To give each part of the page its own atom instead, see [Scoped atoms](/scoped-atoms).
+For state that each part of the page owns but that still lives in the request's registry, see [Scoped atoms](/scoped-atoms).

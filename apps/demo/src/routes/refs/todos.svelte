@@ -1,18 +1,16 @@
-<script module lang="ts">
+<script lang="ts">
+  import { useAtomRef } from "effect-atom-svelte";
   import { AtomRef } from "effect/reactivity";
+  import Part from "#lib/docs/kit/part.svelte";
 
-  // A list in which each item is its own ref.
+  import TodoItem from "./todo-item.svelte";
+
+  // A list in which each item is its own ref. Made in the component, so each
+  // instance, and each request on the server, gets its own.
   const todos = AtomRef.collection([
     { done: false, title: "Write the docs" },
     { done: true, title: "Fix the bug" },
   ]);
-</script>
-
-<script lang="ts">
-  import { useAtomRef } from "effect-atom-svelte";
-  import Part from "#lib/docs/kit/part.svelte";
-
-  import TodoItem from "./todo-item.svelte";
 
   const list = useAtomRef(todos);
   const open = $derived(list.current.filter((item) => !item.value.done).length);
