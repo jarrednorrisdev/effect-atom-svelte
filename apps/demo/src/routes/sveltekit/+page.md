@@ -9,11 +9,6 @@ description: Set up a SvelteKit app for atoms, keep typed errors through handleE
 
   import BoundaryErrors from "./boundary-errors.svelte";
   import boundaryErrorsSource from "./boundary-errors.svelte?highlight";
-  import BuiltAt from "./built-at.svelte";
-  import builtAtSource from "./built-at.svelte?highlight";
-  import todoCardSource from "./todo-card.svelte?highlight";
-  import TodoCards from "./todo-cards.svelte";
-  import todoCardsSource from "./todo-cards.svelte?highlight";
 </script>
 
 effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error as one your code threw, SvelteKit's own included: they log it and keep its tag, and the client hook its message. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
@@ -22,29 +17,11 @@ effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend 
 
 A SvelteKit app that renders atoms on the server needs these, each covered in more detail elsewhere:
 
-1. **Svelte's options.** Turn on Svelte's experimental async in `vite.config.ts`, and SvelteKit's remote functions if you use them. See [Turn on async mode](/installation#turn-on-async-mode).
+1. **Svelte's options.** Turn on Svelte's experimental async in `vite.config.ts`, as in [Turn on async mode](/installation#turn-on-async-mode). If you use remote functions, add `experimental: { remoteFunctions: true }` beside `compilerOptions`.
 2. **A registry at the root.** Put one `RegistryProvider` in `src/routes/+layout.svelte`, and give it values from the request, such as cookies, through `initialValues`. See [Add a registry](/installation#add-a-registry) and [Starting atoms from request data](#starting-atoms-from-request-data).
 3. **Error hooks.** To tell typed errors apart in `failed` snippets, export the hooks from `src/hooks.client.ts` and `src/hooks.server.ts`, and declare `tag` on `App.Error` in `src/app.d.ts`. See [Errors in boundaries](#errors-in-boundaries).
 4. **API clients.** Give the server absolute URLs, and either send the visitor's credentials from the server or leave those queries to the browser. See [On the server](/rpc#on-the-server) and [Sending the visitor's credentials](#sending-the-visitors-credentials).
 5. **Prerendering and caching.** Prerender the pages that don't depend on the request, and keep pages rendered for one visitor out of shared caches. See [Prerender or render per request](#prerender-or-render-per-request).
-
-**Example** (SvelteKit's options in `vite.config.ts`)
-
-```ts
-// vite.config.ts
-import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
-
-export default defineConfig({
-  plugins: [
-    sveltekit({
-      compilerOptions: { experimental: { async: true } },
-      // Only if the app uses remote functions.
-      experimental: { remoteFunctions: true },
-    }),
-  ],
-});
-```
 
 ## Errors in boundaries
 
@@ -127,11 +104,7 @@ To render a failure on the server without the 500, read the atom with `includeFa
 
 ## Data in components
 
-A component can `await` the atoms it needs, and the server render waits for them, so a page needs no `load` function to render its data. [Server rendering](/server-rendering) covers what the render waits for.
-
-In the example, the page has no `load` function. Each card awaits its own todo, so the server rendered both into the page. After a change, a card loads its new todo in the browser, with the same code.
-
-<Example files={[{ html: todoCardsSource, name: "todo-cards.svelte" }, { html: todoCardSource, name: "todo-card.svelte" }]} hint="Both cards came with the page, computed on the server. Click Show another todo: the second card loads its next todo in the browser by itself."> <TodoCards /> </Example>
+A component can `await` the atoms it needs, and the server render waits for them, so a page needs no `load` function to render its data. After a change, the same component loads its new data in the browser, with the same code. [What the render waits for](/server-rendering#what-the-render-waits-for) shows it.
 
 To hand the results of `load` functions or remote functions to atoms, use [`HydrationBoundary`](/hydration#hydrationboundary).
 
@@ -276,9 +249,7 @@ A page rendered with a visitor's credentials is for that visitor only. See [Prer
 
 A page with `export const prerender = true` is rendered once, at build time. Every visitor gets the same HTML, with the results its serializable atoms had then, until something in the browser refreshes them.
 
-This page is prerendered. The example's atom records when and where it ran, so the time it shows is when the site was built.
-
-<Example files={[{ html: builtAtSource, name: "built-at.svelte" }]} hint="The time is when the site was built: the server ran the atom then, and every visitor gets that result. Click Compute again to run it in the browser, now."> <BuiltAt /> </Example>
+This site's pages are prerendered, so the first example on [Hydration](/hydration) shows a result computed when the site was built.
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build. If a prerendered result shouldn't be as old as the build, run it again in the browser with [`revalidateOnHydrate`](/hydration#running-again-after-hydration).
 
