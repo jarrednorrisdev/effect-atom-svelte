@@ -16,19 +16,15 @@ description: Recipes for common tasks, from route params and infinite scroll to 
   import loadCountSource from "./load-count.svelte?highlight";
   import loadSource from "./+page.server.ts?highlight";
   import messagesSource from "./messages.svelte?highlight";
-  import RouteParam from "./route-param.svelte";
   import Socket from "./socket.svelte";
   import socketSource from "./socket.svelte?highlight";
   import TodoForm from "./todo-form.svelte";
   import todoFormSource from "./todo-form.svelte?highlight";
   import todoFormClassSource from "./todo-form.svelte.ts?highlight";
-  import todoPageSource from "./todo-page.svelte?highlight";
   import Feed from "./feed.svelte";
   import feedSource from "./feed.svelte?highlight";
   import FirstOpen from "./first-open.svelte";
   import firstOpenSource from "./first-open.svelte?highlight";
-  import NewTodo from "./new-todo.svelte";
-  import newTodoSource from "./new-todo.svelte?highlight";
   import Polling from "./polling.svelte";
   import pollingSource from "./polling.svelte?highlight";
   import Search from "./search.svelte";
@@ -38,17 +34,39 @@ description: Recipes for common tasks, from route params and infinite scroll to 
 
 Each recipe on this page solves one common task with the pieces from the rest of the guide. The live ones call the same demo server as the [RPC](/rpc) page, so a todo you add in one shows up in the others.
 
-## A route param that picks the query
+## Queries
 
-A page such as `/todos/[id]` shows one item, chosen by the URL. SvelteKit gives every page its route's params as the `params` prop. Read them inside a getter, so the hook follows them. Here the addresses stand in for the router:
+### A route param that picks the query
 
-<Example files={[{ html: todoPageSource, name: "todo-page.svelte" }]} hint="Pick an address: params.id changes, the getter returns the query for that todo, and the boundary awaits it. /todos/3 doesn't exist until you add a todo below."> <RouteParam /> </Example>
+A page such as `/todos/[id]` shows one item, chosen by the URL. SvelteKit gives every page its route's params as the `params` prop. Read them inside a getter, so the hook follows them:
 
-When you navigate from `/todos/1` to `/todos/2`, SvelteKit keeps the page component and changes its `params`. The getter then returns the query for the new id, and the boundary awaits it while the old todo stays on screen. A query called with the same arguments returns the same atom, so going back to `/todos/1` reuses that atom if it is still in the registry.
+**Example** (One todo per address)
 
-`params` has the same values as `page.params` from `$app/state`, which any component can read. For atoms of your own, put the param into an [`Atom.family`](/families) the same way: `useAtomSuspense(() => todoAtom(Number(params.id)))`. The [RPC page](/rpc#following-arguments) has a version driven by a `<select>`.
+```svelte
+<!-- src/routes/todos/[id]/+page.svelte -->
+<script lang="ts">
+  import { useAtomSuspense } from "effect-atom-svelte";
 
-## Dependent queries
+  import { TodosRpc } from "$lib/clients.ts";
+
+  const { params } = $props();
+  // Read inside the getter, so the hook follows params.id.
+  const todo = useAtomSuspense(() =>
+    TodosRpc.query("getTodo", { id: Number(params.id) })
+  );
+</script>
+
+<svelte:boundary>
+  <h1>{(await todo.current).title}</h1>
+  {#snippet pending()}<p>Loading…</p>{/snippet}
+</svelte:boundary>
+```
+
+When you navigate from `/todos/1` to `/todos/2`, SvelteKit keeps the page component and changes its `params`. The getter then returns the query for the new id, and the boundary awaits it while the old todo stays on screen. A query called with the same arguments returns the same atom, so going back to `/todos/1` reuses that atom if it is still in the registry. [Following arguments](/rpc#following-arguments) on the RPC page has a live version, with buttons in place of the router.
+
+`params` has the same values as `page.params` from `$app/state`, which any component can read. For atoms of your own, put the param into an [`Atom.family`](/families) the same way: `useAtomSuspense(() => todoAtom(Number(params.id)))`.
+
+### Dependent queries
 
 Sometimes one request needs the result of another, such as fetching a todo's details once the list tells you its id. Write an atom that reads the first atom with `get.result`, which waits for its value, and then makes the second request:
 
@@ -58,7 +76,23 @@ Sometimes one request needs the result of another, such as fetching a todo's det
 
 If the second request only needs a value the component already has, a getter is enough: `useAtomValue(() => TodosRpc.query("getTodo", { id: selected }))`.
 
-## Infinite scroll
+### Polling
+
+To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
+
+<Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds. Add a todo in the form under Share form logic in a class, and the count catches up on the next one."> <Polling /> </Example>
+
+The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
+
+### Debounced search
+
+A search box shouldn't send a request for every key press. `Atom.debounce` follows another atom once it has stopped changing for a while, and an async atom that reads it runs once per pause:
+
+<Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
+
+When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`: see [The URL's query string](/browser#the-urls-query-string).
+
+### Infinite scroll
 
 A [pull atom](/streams#pull-atoms) loads one page each time you write to it. Write to it when an element at the end of the list scrolls into view:
 
@@ -68,29 +102,9 @@ The `IntersectionObserver` lives in an [attachment](https://svelte.dev/docs/svel
 
 With an API that takes a cursor, build the stream with `Stream.paginate` around the request, as the example does, and return the next cursor with each page.
 
-## A form with typed errors and an optimistic update
+## Connections
 
-This form adds a todo. It shows the todo straight away, shows the server's typed error if the title is too long, and removes the todo again when the save fails:
-
-<Example files={[{ html: newTodoSource, name: "new-todo.svelte" }, { html: todosSource, name: "todos.ts" }]} hint="Add a todo: it shows up at once, marked as saving. Then try a title longer than 60 characters."> <NewTodo /> </Example>
-
-Three pieces work together:
-
-- **`Atom.optimistic` and `Atom.optimisticFn`** show the provisional list while the mutation runs. When it succeeds, the optimistic atom refreshes `todosAtom`, so the mutation doesn't need `reactivityKeys`. See [Optimistic updates](/mutations#optimistic-updates).
-- **`mode: "promiseExit"`** gives the submit handler the mutation's `Exit`, which never rejects.
-- **`Cause.findErrorOption`** takes the first typed error out of the cause. Its type is the procedure's errors plus `RpcClientError`, so checking `_tag` narrows it to `TitleTooLong` and its `maxLength`.
-
-To check a form before sending anything, decode its fields with a `Schema` in the submit handler, and show the issues the same way.
-
-## Polling
-
-To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
-
-<Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds. Add a todo in the form above, and the count catches up on the next one."> <Polling /> </Example>
-
-The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
-
-## A WebSocket or server-sent events
+### A WebSocket or server-sent events
 
 A socket pushes messages whenever it likes. `Stream.callback` turns that into a stream: it hands you a queue, and you offer each message to it. An atom made from the stream holds the latest value. This one listens to server-sent events from the demo server with an `EventSource`:
 
@@ -133,7 +147,7 @@ If the server speaks Effect RPC, a procedure declared with `stream: true` gives 
 
 </Aside>
 
-## Auth headers
+### Auth headers
 
 Add the token to each request in the client's `transformClient`, as on [HTTP API](/http#customizing-requests). `mapRequest` runs for each request, so a new token is picked up without rebuilding the client. The demo server's `GET /api/me` answers `401 Unauthorized` unless the request carries `Authorization: Bearer demo-token`:
 
@@ -141,15 +155,9 @@ Add the token to each request in the client's `transformClient`, as on [HTTP API
 
 The example keeps the token in module state, which is safe only in the browser: a module-level client serves every request on the server. To send each visitor's token from the server, see [On the server](/rpc#on-the-server).
 
-## Debounced search
+## Structuring an app
 
-A search box shouldn't send a request for every key press. `Atom.debounce` follows another atom once it has stopped changing for a while, and an async atom that reads it runs once per pause. Here the query also lives in the URL, through `Atom.searchParam`:
-
-<Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
-
-When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. [Browser atoms](/browser#the-urls-query-string) covers `Atom.searchParam`, including what the server sees.
-
-## Share form logic in a class
+### Share form logic in a class
 
 The hooks need a component's context, but not its markup. A class in a `.svelte.ts` file that calls them in its constructor works, as long as a component creates it while it initializes:
 
@@ -157,7 +165,7 @@ The hooks need a component's context, but not its markup. A class in a `.svelte.
 
 Create it at the top level of the script, not in an event handler or after an `await` inside a function. See [can only be used during component initialisation](/troubleshooting#can-only-be-used-during-component-initialisation).
 
-## Write atoms from a plain function
+### Write atoms from a plain function
 
 `getRegistry()` returns the registry the hooks use. Call it while the component initializes, and keep the result for later, for example to read or write atoms from code that isn't reactive:
 
@@ -165,7 +173,7 @@ Create it at the top level of the script, not in an event handler or after an `a
 
 It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing mounts is disposed shortly afterwards. See [Lifetimes](/lifetimes).
 
-## Read an atom in a load function
+### Read an atom in a load function
 
 A `load` function runs outside any component, so it makes a registry of its own, and disposes of it when it is done. `AtomRegistry.getResult` waits for an async atom's result as an `Effect`. This page's own `+page.server.ts` counts the todos:
 
@@ -173,7 +181,7 @@ A `load` function runs outside any component, so it makes a registry of its own,
 
 What `load` returns is plain data, rendered once: it changes only when the page loads again. To prefetch atoms into the browser's registry instead, see [HydrationBoundary](/hydration#hydrationboundary).
 
-## Reset state when the user changes
+### Reset state when the user changes
 
 Atom values outlive the components that show them, so after a sign-out the next user could see the last one's data. Give each user a registry of their own: key the `RegistryProvider` in the root layout by the user's id.
 
@@ -194,14 +202,9 @@ Atom values outlive the components that show them, so after a sign-out the next 
 
 When the id changes, `{#key}` destroys the old provider, which disposes of its registry and every atom in it, and creates a new one. Everything below it mounts again, so component state starts over too. To reset only some atoms, add the user's id to a [family](/families)'s key instead.
 
-## Retry with backoff
+## Elsewhere in these docs
 
-Pipe the effect through `Effect.retry` with a `Schedule`, as in [Retrying](/errors#retrying). For an `AtomRpc` or `AtomHttpApi` query, call the client in an effect of your own, as in [Calling the client yourself](/rpc#calling-the-client-yourself), and retry that.
-
-## Cancel a mutation in flight
-
-Write `Atom.Interrupt` to the mutation, for example from a Cancel button's `onclick`. See [Canceling and resetting](/mutations#canceling-and-resetting).
-
-## Keep a value across reloads
-
-Store it with `Atom.kvs`, backed by `localStorage` in the browser and an in-memory store on the server. See [Persisting to localStorage](/browser#persisting-to-localstorage).
+- **Retry with backoff:** pipe the effect through `Effect.retry` with a `Schedule`, as in [Retrying](/errors#retrying). For an `AtomRpc` or `AtomHttpApi` query, call the client in an effect of your own, as in [Calling the client yourself](/rpc#calling-the-client-yourself), and retry that.
+- **Cancel a mutation in flight:** write `Atom.Interrupt` to it, for example from a Cancel button. See [Canceling and resetting](/mutations#canceling-and-resetting).
+- **An optimistic form with typed errors:** see [Optimistic updates](/mutations#optimistic-updates) and [Mutations: `promise` and `promiseExit`](/errors#mutations-promise-and-promiseexit).
+- **Keep a value across reloads:** store it with `Atom.kvs`. See [Persisting to localStorage](/browser#persisting-to-localstorage).
