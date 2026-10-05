@@ -21,7 +21,7 @@ description: Run an Effect when the user does something, and refresh what it cha
 
 An async atom runs its effect when something reads it. A **mutation** runs its effect when you write to it, such as saving a form or deleting a row. Its state is an `AsyncResult`, so a component can show that a save is in progress, what it returned, or why it failed.
 
-This form saves a todo with a pretend save that takes a second. Under it, the mutation's type marks how the last call ended: with its success type or its error type. Its state follows each call:
+This form saves a todo with a pretend save that takes a second. Under the form, the mutation's type lists what a call can end with: a todo or a `TitleTooLong` error. The side the last call ended on lights up, and a badge beside it shows the mutation's state:
 
 <Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
@@ -146,11 +146,11 @@ Reset with a `"value"` setter. After a reset the state is `Initial`, which a pro
 
 ## Mutations from RPC and HTTP APIs
 
-The rest of this page uses an RPC client, `TodosRpc`, and its queries and mutations. [RPC](/rpc) introduces them; you only need the idea that a query is an async atom and a mutation is an `Atom.fn`.
+The rest of this page uses the demo server's todos over an RPC client, `TodosRpc`. [RPC](/rpc) introduces it; you only need the idea that a query is an async atom and a mutation is an `Atom.fn`.
 
 `AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are the same thing, made for you: `TodosRpc.mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
 
-The rest of this page uses the demo server's todos over RPC, from `todos.ts`:
+The queries and mutations below, in `todos.ts`, are the ones [Refreshing what changed](#refreshing-what-changed) uses. The optimistic example defines its own.
 
 <Example files={[{ html: todosSource, name: "todos.ts" }]} />
 
