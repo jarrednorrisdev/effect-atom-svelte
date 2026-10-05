@@ -107,7 +107,7 @@ A few things follow from that:
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
 - **The hooks don't send a defect.** For a failure with a defect or an interruption, the hooks send no result, as the defect's message and cause could reveal details of the server. The browser computes the atom itself. Typed errors are part of the atom's schema, so they are sent. Effect's `Hydration.dehydrate` doesn't skip defects: see [HydrationBoundary](#hydrationboundary).
 - **A result the schema can't encode isn't sent.** The server renders it, and the browser computes the atom itself, as Effect's `Hydration.dehydrate` skips it too. In development the server warns, with the schema's error.
-- **A stream sends its latest item, as waiting.** The server's render ends while the stream still runs, so the browser starts from that item and runs the stream again. See [Streams on the server](#streams-on-the-server).
+- **A [stream atom](/streams) sends its latest item, as waiting.** The server's render ends while the stream still runs, and its stream stops with the registry. The browser starts from that item and runs the stream again, and until its first item arrives, the page keeps showing the server's, so it doesn't flash a loading state. To keep a stream off the server, see [Server values](/server-rendering#server-values).
 
 The example reads three atoms that record where they ran. All three were in the server's HTML, but only the serializable one read by `useAtomResult` kept the server's result: the atom without a key ran again in the browser, and so did the one read with `useAtomValue`, which the server rendered as `Initial`.
 
@@ -133,10 +133,6 @@ Call every `useAtomResult` and `useAtomSuspense` before the script's first `awai
 ```
 
 `useAtomSuspense` returns its promise without waiting, so a `useAtomSuspense` call is only affected if an `await` comes before it in the script. In development, a hook that misses the server's result warns in the browser's console, naming the atom's serialization key.
-
-## Streams on the server
-
-A [stream atom](/streams) read with `useAtomResult` or `useAtomSuspense` is in the page with the latest item it had when the render ended, marked as waiting. The server's stream stops with its registry, so the browser runs the stream again. Until the browser's first item arrives, the page keeps showing the server's, so it doesn't flash a loading state. To keep a stream off the server, see [Server values](/server-rendering#server-values).
 
 ## Running again after hydration
 
