@@ -204,7 +204,14 @@ test.describe("Cookbook page", () => {
 
     await connect.click();
     await expect(messages.first()).toHaveText("Message 1");
-    await expect(messages.nth(1)).toHaveText("Message 2");
+    // Firefox sometimes delivers several messages at once, and the list keeps the last five, so
+    // check that they arrive in order rather than where each one lands.
+    await expect.poll(() => messages.count()).toBeGreaterThanOrEqual(2);
+    const texts = await messages.allTextContents();
+    const numbers = texts.map((text) => Number(text.replace("Message ", "")));
+    expect(numbers).toEqual(
+      numbers.map((_, index) => (numbers[0] ?? 0) + index)
+    );
     await expect(page.getByTestId("socket-count")).not.toHaveText("0");
 
     await page.getByRole("button", { name: "Disconnect" }).click();
