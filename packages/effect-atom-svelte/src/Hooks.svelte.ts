@@ -1008,7 +1008,8 @@ const warnIfSent = async (key: string, sent: unknown): Promise<void> => {
  * Records that a reader had its chance at the server's value for `key`. Development builds warn
  * when it missed one the server sent for it: Svelte reads them only while it is hydrating, which
  * stops at a component script's first top-level `await`, so a hook called after one gets nothing
- * and its atom runs again in the browser (JND-96). This reads Svelte's internal store only to warn.
+ * and its atom runs again in the browser (JND-96, fix proposed in sveltejs/svelte#18927). This reads
+ * Svelte's internal store only to warn.
  */
 const claimServerValue = (key: string, missed: boolean): void => {
   const store = DEV ? serverValues() : undefined;
