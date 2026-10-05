@@ -1000,19 +1000,31 @@ test("AtomRef: an autosave stops when the server's copy equals the draft", async
 test("scoped atoms: each provider has its own atom", async ({ page }) => {
   await page.goto("/scoped-atoms");
   await page.waitForLoadState("networkidle");
-  const count = (name: string) =>
-    page.getByLabel(`${name} count`, { exact: true });
-  await page.getByRole("button", { name: "Left, first: add one" }).click();
-  // Both counters below the left provider share its atom.
-  await expect(count("Left, first")).toHaveText("1");
-  await expect(count("Left, second")).toHaveText("1");
-  await expect(count("Right, first")).toHaveText("100");
-  await expect(count("Right, second")).toHaveText("100");
-  await page.getByRole("button", { name: "Right, second: add one" }).click();
-  await expect(count("Right, first")).toHaveText("101");
-  await expect(count("Right, second")).toHaveText("101");
-  await expect(count("Left, first")).toHaveText("1");
-  await expect(count("Left, second")).toHaveText("1");
+  const note = (name: string) => page.getByRole("group", { exact: true, name });
+  const draft = (name: string) =>
+    note(name).getByLabel("Draft", { exact: true });
+
+  // Each editor provides a draft of its own: its parts follow it, the other stays empty.
+  await draft("Note A").fill("Some *new* words");
+  await expect(note("Note A")).toContainText("3 words");
+  await expect(note("Note A").locator("em")).toHaveText("new");
+  await expect(note("Note B")).toContainText("0 words");
+  await expect(note("Note B")).toContainText("Nothing written yet.");
+  await expect(draft("Note B")).toHaveValue("");
+
+  // One draft provided above both: a change in either shows in both.
+  await page.getByRole("button", { name: "One draft for both" }).click();
+  await draft("Note B").fill("Shared **draft**");
+  await expect(draft("Note A")).toHaveValue("Shared **draft**");
+  await expect(note("Note A")).toContainText("2 words");
+  await expect(note("Note A").locator("strong")).toHaveText("draft");
+  await note("Note A").getByRole("button", { name: "Clear" }).click();
+  await expect(draft("Note B")).toHaveValue("");
+
+  // Back to a draft per editor: each starts empty again.
+  await page.getByRole("button", { name: "A draft per editor" }).click();
+  await expect(draft("Note A")).toHaveValue("");
+  await expect(draft("Note B")).toHaveValue("");
 });
 
 test("browser atoms: localStorage kvs survives a reload, the server renders its default", async ({
@@ -1043,7 +1055,13 @@ test("browser atoms: a cookie-backed theme is right in the server's markup", asy
   const { errors } = watch(page);
   await page.goto("/browser");
   await page.waitForLoadState("networkidle");
-  await page.getByTestId("theme").selectOption("dark");
+  const themed = page.getByTestId("themed");
+  const theme = (name: string) =>
+    themed
+      .getByRole("group", { name: "Theme" })
+      .getByRole("button", { exact: true, name });
+  await theme("dark").click();
+  await expect(page.getByTestId("theme-name")).toHaveText("dark");
 
   const html = await serverHtml(page, "/browser");
   expect(html).toContain('data-theme="dark"');
@@ -1055,10 +1073,13 @@ test("browser atoms: a cookie-backed theme is right in the server's markup", asy
     .click();
   await reloaded;
   await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("theme")).toHaveValue("dark");
+  await expect(theme("dark")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("theme-name")).toHaveText("dark");
   await expect(page.getByTestId("themed")).toContainText(
     "The dark theme, read from the pref-theme cookie."
   );
+  // The chip shows the server's markup: it read the cookie too.
+  await expect(themed.getByRole("status")).toHaveText("dark");
   await expect(page.getByTestId("themed")).toHaveAttribute(
     "data-theme",
     "dark"
