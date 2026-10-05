@@ -35,7 +35,7 @@ A request here means one page rendered on the server, not one visitor. When the 
 
 During the render, the hooks hold every atom they read, so nothing is disposed while the render is waiting on something else. When the render ends, the provider disposes of the registry: effects are interrupted and finalizers run.
 
-In the example, providers stand in for requests. Each makes its own registry, as the root layout's provider does for every request on the server, so each has its own `cartAtom`. `addedRef` is module state, which every request shares.
+In the example, providers stand in for requests. Each makes its own registry, as the root layout's provider does for every request on the server, so each has its own `cartAtom`. `addedRef` is module state, which every request shares: see [Module state is shared between visitors](#module-state-is-shared-between-visitors).
 
 <Example files={[{ html: requestSource, name: "request.svelte" }, { html: requestsSource, name: "requests.svelte" }]} hint="Click Add to cart in Request 1: only its cart grows, but addedRef counts it for every request. Then click Send another request: Request 3 starts with an empty cart, and a moment later Request 1 ends, its cart gone, while addedRef keeps its count."> <Requests /> </Example>
 
@@ -45,11 +45,51 @@ In the example, providers stand in for requests. Each makes its own registry, as
 
 </Aside>
 
-<Aside type="caution" title="State outside the registry is shared">
+## Module state is shared between visitors
 
-Only state in the request's registry is per request. Anything held at module level, such as an [`AtomRef`](/refs) or a plain variable, is shared by every request the server handles.
+Only state in the request's registry is per request. A module is loaded once per server process, so anything it holds is shared by every request the server handles: an [`AtomRef`](/refs), `$state` in a `.svelte.ts` module, a store or a plain variable.
+
+<Aside type="danger" title="Never write one visitor's data to module state on the server">
+
+A value written there during a server render is what the next visitor's render reads, and it ends up in their HTML. That is a data leak, not just a bug.
 
 </Aside>
+
+**Example** (A signed-in user in a module-level ref)
+
+```ts
+// session.ts
+import { AtomRef } from "effect/reactivity";
+
+export const currentUser = AtomRef.make<{ name: string } | null>(null);
+```
+
+```svelte
+<!-- +layout.svelte -->
+<script lang="ts">
+  import { currentUser } from "$lib/session";
+
+  const { children, data } = $props();
+  if (data.user) {
+    currentUser.set(data.user);
+  }
+</script>
+
+{@render children()}
+```
+
+Alice signs in and loads a page: the server sets `currentUser` to Alice. Bob, who isn't signed in, loads a page next. His render doesn't set the ref, so it reads Alice, and his page says "Signed in as Alice". Setting it on every request, `null` included, doesn't fix it. With async rendering, requests take turns at each `await`, so Bob's render can read the ref just after Alice's has set it.
+
+Module state is fine when it is the same for every visitor. Configuration, feature flags, constants, a cache of public data, a connection pool, a rate limiter or metrics can all live in a module. Reading shared state is fine. The danger is writing anything that belongs to one visitor or one request. Atom definitions are safe at module level for the same reason: an atom holds no value, and its values live in the request's registry.
+
+For per-visitor state, use one of these instead:
+
+- **An atom read through the hooks.** Each request gets its own registry, so each gets its own value. Give it the request's data with `initialValues` on `RegistryProvider` (see [Registry options](/installation#registry-options)) or [`useAtomInitialValues`](/reading-and-writing#starting-values-from-a-component).
+- **A ref created inside a component.** A ref made in a component's script is new for each render. Pass it down as a prop, or through context.
+- **A [scoped atom](/scoped-atoms),** for state that belongs to one part of the page, such as each open editor's draft.
+- **A write in the browser only.** Event handlers and `$effect` never run on the server, so a module-level ref they write is shared only within one visitor's tab.
+
+The library can't detect this for you: it can't tell a ref made at module level from one made in a component, and writes to a ref don't go through it.
 
 ## What the render waits for
 

@@ -32,7 +32,7 @@ export const user = $state({ name: "" });
 {@render children()}
 ```
 
-In the browser this works. On the server it doesn't: a module is loaded once per server process, so every request shares the same `user`. A page that doesn't set it shows whoever was rendered last. With async rendering it is worse, because requests take turns at each `await`: one visitor's render can pick up the name another visitor's request has just set.
+In the browser this works. On the server it doesn't: a module is loaded once per server process, so every request shares the same `user`. A page that doesn't set it shows whoever was rendered last. With async rendering it is worse, because requests take turns at each `await`: one visitor's render can pick up the name another visitor's request has just set. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) walks through the leak, and when module state is safe.
 
 ### What Svelte and SvelteKit offer
 
