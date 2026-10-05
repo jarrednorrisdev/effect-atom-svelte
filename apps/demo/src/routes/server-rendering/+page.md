@@ -119,7 +119,15 @@ const widthAtom = Atom.make((get) => {
 
 Without the server value, reading `window` on the server would throw.
 
-For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. `useAtomResult` has nothing to wait for, so the server renders the `Initial` result. In the browser, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`. `useAtomSuspense` has nothing to resolve with, so on the server it rejects: read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. Without one, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). A serializable atom with a server value isn't passed to the browser, since the server never computed it. [Browser atoms](/browser) covers browser-only atoms in detail.
+For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. What follows depends on the hook:
+
+- **`useAtomResult`** has nothing to wait for, so the server renders the `Initial` result.
+- **In the browser**, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`.
+- **`useAtomSuspense`** has nothing to resolve with, so on the server it rejects. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead.
+- **Without that `pending` snippet**, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error. See [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status).
+- **A serializable atom** with a server value isn't passed to the browser, since the server never computed it.
+
+[Browser atoms](/browser) covers browser-only atoms in detail.
 
 <Example files={[{ html: serverValuesSource, name: "server-values.svelte" }]} hint="Compare each value with what the HTML has: the server rendered 1024 and Initial. Then resize the window and watch the width follow."> <ServerValues /> </Example>
 

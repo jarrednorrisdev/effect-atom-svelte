@@ -27,12 +27,12 @@
         }
         const client = yield* TodosRpc;
         return yield* client("toggleTodo", { id });
-      }),
-    { reactivityKeys: ["todos"] }
+      })
   );
 
-  // Shows the todo toggled while toggleAtom runs. On success the list is read
-  // again; on failure it goes back to what it was.
+  // Shows the todo toggled while toggleAtom runs. On success it refreshes
+  // todosAtom, so toggleAtom needs no reactivityKeys; on failure it goes back
+  // to what it was.
   const optimisticTodosAtom = Atom.optimistic(todosAtom);
   const toggleOptimisticAtom = optimisticTodosAtom.pipe(
     Atom.optimisticFn({

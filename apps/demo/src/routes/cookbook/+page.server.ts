@@ -4,6 +4,8 @@ import { AtomRegistry } from "effect/reactivity";
 import { todosAtom } from "./todos.ts";
 
 // Runs on the server, outside any component, so it makes its own registry.
+// getResult holds todosAtom only until its result arrives, which is enough to
+// read the value. To dehydrate the registry afterwards, mount the atom first.
 export const load = async () => {
   const registry = AtomRegistry.make();
   try {

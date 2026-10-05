@@ -2,10 +2,6 @@
   import { Effect, Queue, Stream } from "effect";
   import { Atom } from "effect/reactivity";
 
-  // The browser's EventSource. The hosted site runs the demo API in this
-  // tab, and there this one reads the events from it.
-  import { EventSource } from "#lib/in-tab-api.ts";
-
   // The demo server sends a numbered message every 600 milliseconds.
   const messages = Stream.callback<string>((queue) =>
     Effect.acquireRelease(

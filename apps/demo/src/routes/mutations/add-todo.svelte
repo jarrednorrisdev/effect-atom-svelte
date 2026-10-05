@@ -3,7 +3,7 @@
   import { Atom } from "effect/reactivity";
 
   class TitleTooLong extends Data.TaggedError("TitleTooLong")<{
-    readonly max: number;
+    readonly maxLength: number;
   }> {}
 
   let lastId = 0;
@@ -14,7 +14,7 @@
     Effect.gen(function* save() {
       yield* Effect.sleep("1 second");
       if (title.length > 60) {
-        return yield* new TitleTooLong({ max: 60 });
+        return yield* new TitleTooLong({ maxLength: 60 });
       }
       lastId += 1;
       return { id: lastId, title };

@@ -19,6 +19,8 @@ In the browser, a component with no provider above it uses a shared default regi
 
 ## "can only be used during component initialisation"
 
+The heading quotes Svelte's message, which uses British spelling.
+
 The hooks find the registry through Svelte's context, which is only available while a component initializes. Svelte throws `lifecycle_outside_component` when a hook is called later, such as from an event handler, a `setTimeout`, or after an `await` inside a function of your own. Call hooks at the top level of the script. To use the registry later, keep what the hook returns, or call [`getRegistry()`](/cookbook#write-atoms-from-a-plain-function) at the top level and keep the registry.
 
 ## Async mode is not turned on
@@ -36,7 +38,7 @@ experimental_async_required
 Cannot use `hydratable(...)` unless the `experimental.async` compiler option is `true`
 ```
 
-Turn on async mode in `svelte.config.js`, and in a separate Vitest config if you have one. See [Turn on async mode](/installation#turn-on-async-mode).
+Turn on async mode in `vite.config.ts`, and in a separate Vitest config if you have one. See [Turn on async mode](/installation#turn-on-async-mode).
 
 ## Two copies of effect
 
@@ -70,7 +72,7 @@ It usually means a fixed key on an atom that has more than one copy: `Atom.seria
 
 ## "useAtomSuspense read an atom whose server value is pending"
 
-On the server, `useAtomSuspense` read an atom whose [server value](/hydration) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.
+On the server, `useAtomSuspense` read an atom whose [server value](/server-rendering#server-values) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.
 
 ## "provideRegistry takes an existing registry or options for a new one, not both"
 

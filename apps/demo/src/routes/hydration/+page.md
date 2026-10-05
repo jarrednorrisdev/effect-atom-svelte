@@ -71,7 +71,9 @@ const todosAtom = TodosRpc.query("listTodos", undefined, {
 
 Two different atoms with the same key on one page make the server render throw. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
 
-The keys go to Svelte's `hydratable`, which everything on the page shares, other libraries included. Give yours a prefix of your own, such as `app/`. `AtomRpc` and `AtomHttpApi` already prefix theirs with the client and procedure or endpoint, so `serializationKey: "todos"` becomes `AtomRpc:listTodos:todos`.
+The keys go to Svelte's `hydratable`, which everything on the page shares, other libraries included. Give yours a prefix of your own, such as `app/`. `AtomRpc` and `AtomHttpApi` prefix theirs with a fixed word and the procedure or endpoint: `AtomRpc:${tag}:${serializationKey}` and `AtomHttpApi:${group}:${endpoint}:${serializationKey}`. So `serializationKey: "todos"` on `listTodos` becomes `AtomRpc:listTodos:todos`.
+
+The prefix doesn't name the client. Two RPC clients with a procedure of the same name, or two HTTP API clients with the same group and endpoint, give the same key for the same `serializationKey`. Make the `serializationKey`s differ, for example by starting each with the client's name.
 
 </Aside>
 
@@ -89,7 +91,7 @@ Leaving out an atom whose value could travel costs time. A component that awaits
 
 <Aside type="danger" title="A serialized result is in the page">
 
-The encoded results are plain text in the page's HTML, where anyone who gets the page can read them, whether or not a component shows them. Never serialize data the visitor mustn't see. A page whose serialized results belong to one visitor must not be prerendered or kept by a shared cache: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
+The encoded results are plain text in the page's HTML, where anyone who gets the page can read them, whether or not a component shows them. Never serialize data the visitor mustn't see. For a page whose serialized results belong to one visitor, see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
 
 </Aside>
 
@@ -99,7 +101,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 A few things follow from that:
 
-- **Only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
+- **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
 
@@ -175,6 +177,8 @@ import { AtomRegistry, Hydration } from "effect/reactivity";
 
 export const load = async () => {
   const registry = AtomRegistry.make();
+  // getResult lets go of the atom once its result arrives. The mount keeps it
+  // in the registry until dehydrate has read it.
   const release = registry.mount(todosAtom);
   await Effect.runPromise(AtomRegistry.getResult(registry, todosAtom));
   const state = Hydration.dehydrate(registry);

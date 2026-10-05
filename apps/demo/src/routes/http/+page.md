@@ -44,9 +44,9 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 ) {}
 ```
 
-Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else, and give the server an absolute URL, because a relative one can't be resolved when the page renders there.
+Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else.
 
-Use `transformClient` to change every request, for example to add a header. It takes the `HttpClient` and returns another, so any of `HttpClient`'s combinators work there. The example adds a header and logs each request and its status. [Auth headers](/cookbook#auth-headers) in the cookbook uses it to send a token:
+Use `transformClient` to change every request, for example to add a header. It takes the `HttpClient` and returns another, so any of `HttpClient`'s combinators work there. The example adds an `x-reader` header to every request. Its client also logs each request it sends, for the panel under the example. [Auth headers](/cookbook#auth-headers) in the cookbook uses `transformClient` to send a token:
 
 <Example files={[{ html: transformSource, name: "transform.svelte" }]} hint="Get todo 1, then todo 99: each request carries the x-reader header, and the log shows the 200 and the 404."> <Transform /> </Example>
 
@@ -62,7 +62,7 @@ httpClient: (get) =>
   ).pipe(Layer.provide(FetchHttpClient.layer)),
 ```
 
-[On the server](/rpc#on-the-server) on the RPC page has the whole recipe: `withToken`, `tokenAtom`, how the root layout sets it, and what not to pass that way.
+[On the server](/rpc#on-the-server) on the RPC page has the whole recipe: `withToken`, `tokenAtom`, how the root layout keeps it current, and what not to pass that way.
 
 ## Queries
 
@@ -84,7 +84,7 @@ As with RPC, the same request gives the same atom, so a getter can build the que
 
 ### Typed errors
 
-An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. A request that fails, or a response that doesn't decode, is a defect rather than a typed error.
+An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error. When you call the client yourself, as the `transformClient` example does, those two stay in the error type.
 
 Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in your markup. [Errors](/errors) covers the other ways.
 
@@ -112,6 +112,6 @@ await create({
 
 Queries and mutations succeed with the decoded body. Set `responseMode` in a query's request, or in `mutation`'s third argument, to change that. `"decoded-and-response"` gives a `[body, response]` pair, so you can read the status or headers. `"response-only"` gives the `HttpClientResponse` without decoding it.
 
-A response can't be sent to the browser, so a query's `serializationKey` only applies with the default, `"decoded-only"`, and is ignored with the other two. The same goes for mutations: only a `"decoded-only"` mutation is serializable.
+A response can't be sent to the browser, so a query's `serializationKey` only applies with the default, `"decoded-only"`, and is ignored with the other two.
 
 </Aside>

@@ -16,14 +16,14 @@ description: Set up a SvelteKit app for atoms, keep typed errors through handleE
   import todoCardsSource from "./todo-cards.svelte?highlight";
 </script>
 
-effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks leave every error as it is. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
+effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, needs the `kind` field that SvelteKit 3 passes to `handleError`, so use them with SvelteKit 3. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
 
 ## Setting up an app
 
 A SvelteKit app that renders atoms on the server needs these, each covered in more detail elsewhere:
 
 1. **Svelte's options.** Turn on Svelte's experimental async in `vite.config.ts`, and SvelteKit's remote functions if you use them. See [Turn on async mode](/installation#turn-on-async-mode).
-2. **A registry at the root.** Put one `RegistryProvider` in `src/routes/+layout.svelte`. Pass values from the request, such as cookies, from the root layout's `load` through `initialValues`, and give those atoms `Atom.keepAlive`. See [Add a registry](/installation#add-a-registry) and [Preferences in a cookie](/browser#preferences-in-a-cookie).
+2. **A registry at the root.** Put one `RegistryProvider` in `src/routes/+layout.svelte`. Pass values from the request, such as cookies, from the root layout's `load` through `initialValues`, and give those atoms `Atom.keepAlive`. A value that changes during the visit, such as a token, also needs writing to its atom when `data` changes: see [On the server](/rpc#on-the-server). See [Add a registry](/installation#add-a-registry) and [Preferences in a cookie](/browser#preferences-in-a-cookie).
 3. **Error hooks.** To tell typed errors apart in `failed` snippets, export the hooks from `src/hooks.client.ts` and `src/hooks.server.ts`, and declare `tag` on `App.Error` in `src/app.d.ts`. See [Errors in boundaries](#errors-in-boundaries).
 4. **API clients.** Give the server absolute URLs, and either send the visitor's credentials from the server or leave those queries to the browser. See [On the server](/rpc#on-the-server).
 5. **Prerendering and caching.** Prerender the pages that don't depend on the request, and keep pages rendered for one visitor out of shared caches. See [Prerender or render per request](#prerender-or-render-per-request).
@@ -145,7 +145,7 @@ This page is prerendered. The example's atom records when and where it ran, so t
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build. If a prerendered result shouldn't be as old as the build, run it again in the browser with [`revalidateOnHydrate`](/hydration#running-again-after-hydration).
 
-A page rendered from a visitor's cookies or credentials holds that visitor's data, in its markup and in its [serialized results](/hydration#which-atoms-to-serialize). Never prerender it, and don't let a shared cache, such as a CDN, keep it and serve it to someone else. Send `Cache-Control: private` from its `load`, or `Vary: Cookie` if a shared cache should keep one copy for each set of cookies:
+A page rendered from a visitor's cookies or credentials holds that visitor's data, in its markup and in its [serialized results](/hydration#which-atoms-to-serialize). Never prerender it, and don't let a shared cache, such as a CDN, keep it and serve it to someone else. Send `Cache-Control: private` from its `load`, or `private, no-store` if the browser shouldn't keep it either:
 
 **Example** (Keeping a visitor's page out of shared caches)
 
@@ -155,6 +155,12 @@ export const load = ({ setHeaders }) => {
   setHeaders({ "cache-control": "private" });
 };
 ```
+
+<Aside type="caution" title="Vary: Cookie is not enough">
+
+`Vary: Cookie` asks a shared cache to keep one copy per `Cookie` header. Some CDNs ignore `Vary` apart from `Accept-Encoding`, so they would serve one visitor's page to the next. Those that honor it key on the whole header, so any other cookie, such as an analytics ID, makes a copy per visitor. Consider it only for a page that varies by a preference cookie with a few values, such as a theme, and check how your CDN treats it. For a page with a visitor's own data, send `Cache-Control: private`.
+
+</Aside>
 
 <Aside type="note" title="This site">
 

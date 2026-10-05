@@ -49,12 +49,6 @@ export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {
 
 The class is also an Effect service, with a `runtime` that builds the protocol layer the first time an atom needs it.
 
-<Aside type="caution" title="Use an absolute URL on the server">
-
-When a page renders on the server, its queries run there too, and a relative URL such as `/api/rpc` has no origin to resolve against. Give the server the full URL, for example by checking `import.meta.env.SSR` when you build the protocol layer. The server also doesn't send the visitor's cookies: see [On the server](#on-the-server).
-
-</Aside>
-
 ## Queries
 
 `query` takes a procedure's tag and its payload, and returns an async atom of the result:
@@ -177,7 +171,7 @@ export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {
 }) {}
 ```
 
-The root layout sets the atom through `initialValues`, as [Preferences in a cookie](/browser#preferences-in-a-cookie) does for cookies:
+The root layout gives the atom the visitor's token. `initialValues` sets it once, when the registry is created, which is all a server render needs. In the browser, the registry lasts the whole visit, so after a sign-in or a sign-out the atom would keep the old token, or the previous user's. An `$effect.pre` writes each new token to the atom:
 
 ```ts
 // src/routes/+layout.server.ts
@@ -187,18 +181,28 @@ export const load = ({ cookies }) => ({ token: cookies.get("token") });
 ```svelte
 <!-- src/routes/+layout.svelte -->
 <script lang="ts">
-  import { RegistryProvider } from "effect-atom-svelte";
+  import { provideRegistry } from "effect-atom-svelte";
 
   import { tokenAtom } from "$lib/clients.ts";
 
   const { children, data } = $props();
+
+  // The token the request came with, for the server render and the first render in the browser.
+  // Read once, as the registry is created once.
+  // svelte-ignore state_referenced_locally
+  const registry = provideRegistry({
+    initialValues: [[tokenAtom, data.token]],
+  });
+
+  // In the browser, write each new token to the atom. Effects don't run on the server.
+  $effect.pre(() => registry.set(tokenAtom, data.token));
 </script>
 
-<RegistryProvider initialValues={[[tokenAtom, data.token]]}>
-  {@render children()}
-</RegistryProvider>
+{@render children()}
 ```
+
+The layout's `data` changes when its `load` runs again, so call `invalidateAll()` after signing in or out. A new token rebuilds the client, and the queries that use it run again. Other atoms still hold what the previous user saw: to start every atom over, key the provider by the user instead, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
 
 Data from a server `load` is written into the page, where any script can read it. That suits a token the page's scripts already hold, but not an `HttpOnly` session cookie. For data behind one of those, either fetch it in a server `load` with SvelteKit's `fetch`, which forwards the visitor's cookies to your own domain and its subdomains, and hand it to atoms with [`HydrationBoundary`](/hydration#hydrationboundary); or leave the query to the browser, inside a `<svelte:boundary>` with a `pending` snippet.
 
-A page rendered with a visitor's credentials is for that visitor only: don't prerender it, and don't let a shared cache keep it. See [SvelteKit](/sveltekit#prerender-or-render-per-request).
+A page rendered with a visitor's credentials is for that visitor only. See [Prerender or render per request](/sveltekit#prerender-or-render-per-request) for how to keep it out of shared caches.

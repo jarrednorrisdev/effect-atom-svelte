@@ -2,38 +2,21 @@
   import { DemoApi } from "@demo/domain";
   import { Effect } from "effect";
   import { HttpClient, HttpClientRequest } from "effect/http";
-  import type { HttpClientResponse } from "effect/http";
   import { AtomHttpApi } from "effect/reactivity";
-  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
-  import { baseUrl, httpClient } from "#lib/clients.ts";
+  import { baseUrl } from "#lib/clients.ts";
 
-  // What the client sent and got back, for the log under the example.
-  const wire = new EventLogState();
-
-  const logRequest = ({ headers, method, url }: HttpClientRequest.HttpClientRequest) =>
-    Effect.sync(() => {
-      const path = new URL(url, location.href).pathname;
-      const header = `x-reader: ${headers["x-reader"]}`;
-      wire.add(`${method} ${path}, ${header}`, { tone: "running" });
-    });
-
-  const logResponse = ({ status }: HttpClientResponse.HttpClientResponse) =>
-    Effect.sync(() => {
-      wire.add(`${status}`, { tone: status < 400 ? "success" : "failure" });
-    });
+  // The demo's HTTP client, which also logs each request for the panel below.
+  import { loggedHttpClient, wire } from "./logged-client.ts";
 
   class SignedHttp extends AtomHttpApi.Service<SignedHttp>()("docs/SignedHttp", {
     api: DemoApi,
     baseUrl,
-    httpClient,
-    // Wraps every request the client sends: add a header, such as a token, and log.
-    transformClient: (client) =>
-      client.pipe(
-        HttpClient.mapRequest(HttpClientRequest.setHeader("x-reader", "docs")),
-        HttpClient.tapRequest(logRequest),
-        HttpClient.tap(logResponse)
-      ),
+    httpClient: loggedHttpClient,
+    // Changes every request the client sends: here, adds a header.
+    transformClient: HttpClient.mapRequest(
+      HttpClientRequest.setHeader("x-reader", "docs")
+    ),
   }) {}
 
   // The service is also the HttpApi client, with a method for each endpoint.

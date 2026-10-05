@@ -104,58 +104,75 @@ interface DocBlock {
 
 const packageName = "effect-atom-svelte";
 
+/** `Hooks.svelte.ts` is the module `Hooks`. */
+const moduleName = (file: string) => file.replace(/(?:\.svelte)?\.ts$/u, "");
+
 /**
- * The guide page that teaches each export, by name. An export missing here gets no guide link;
- * a page missing from the sidebar, or a section missing from its page, fails the build.
+ * The guide page that teaches each export, by module and name, so two modules can export the same
+ * name. An export missing here gets no guide link; a page missing from the sidebar, or a section
+ * missing from its page, fails the build.
  */
-const guides: Readonly<Record<string, string>> = {
-  AsyncResult: "/async-atoms#asyncresult",
-  Atom: "/first-atom",
-  AtomHttpApi: "/http",
-  AtomInput: "/reading-and-writing#following-a-different-atom",
-  AtomRef: "/refs",
-  AtomRegistry: "/installation#add-a-registry",
-  AtomRpc: "/rpc",
-  AtomState: "/reading-and-writing",
-  AtomValue: "/reading-and-writing",
-  CaughtError: "/sveltekit#errors-in-boundaries",
-  EffectErrorBody: "/sveltekit#errors-in-boundaries",
-  Hooks: "/reading-and-writing",
-  Hydration: "/hydration",
-  HydrationBoundary: "/hydration#hydrationboundary",
-  ProvideExistingRegistry: "/installation#registry-options",
-  ProvideNewRegistry: "/installation#registry-options",
-  ProvideRegistryOptions: "/installation#registry-options",
-  RegistryContext: "/installation#add-a-registry",
-  RegistryOptions: "/installation#registry-options",
-  RegistryProvider: "/installation#add-a-registry",
-  ResultOptions: "/suspense#awaiting-in-the-script",
-  ScopedAtom: "/scoped-atoms",
-  SuspenseOptions: "/suspense",
-  TypeId: "/scoped-atoms",
-  WriteMode: "/mutations",
-  WriteOptions: "/mutations",
-  getRegistry: "/cookbook",
-  handleClientError: "/sveltekit#errors-in-boundaries",
-  handleServerError: "/sveltekit#errors-in-boundaries",
-  make: "/scoped-atoms",
-  provideRegistry: "/installation#registry-options",
-  useAtom: "/reading-and-writing#reading-and-writing",
-  useAtomMount: "/lifetimes#holding-an-atom-from-a-component",
-  useAtomRef: "/refs#reading-a-ref-in-a-component",
-  useAtomRefProp: "/refs#reading-a-ref-in-a-component",
-  useAtomRefPropValue: "/refs#reading-a-ref-in-a-component",
-  useAtomRefresh: "/async-atoms#running-it-again",
-  useAtomResult: "/suspense#awaiting-in-the-script",
-  useAtomSet: "/reading-and-writing#writing",
-  useAtomSubscribe: "/reading-and-writing#running-code-on-every-change",
-  useAtomSuspense: "/suspense",
-  useAtomValue: "/reading-and-writing#reading",
+const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  Hooks: {
+    AtomInput: "/reading-and-writing#following-a-different-atom",
+    AtomState: "/reading-and-writing",
+    AtomValue: "/reading-and-writing",
+    ResultOptions: "/suspense#awaiting-in-the-script",
+    SuspenseOptions: "/suspense",
+    WriteMode: "/mutations",
+    WriteOptions: "/mutations",
+    useAtom: "/reading-and-writing#reading-and-writing",
+    useAtomMount: "/lifetimes#holding-an-atom-from-a-component",
+    useAtomRef: "/refs#reading-a-ref-in-a-component",
+    useAtomRefProp: "/refs#reading-a-ref-in-a-component",
+    useAtomRefPropValue: "/refs#reading-a-ref-in-a-component",
+    useAtomRefresh: "/async-atoms#running-it-again",
+    useAtomResult: "/suspense#awaiting-in-the-script",
+    useAtomSet: "/reading-and-writing#writing",
+    useAtomSubscribe: "/reading-and-writing#running-code-on-every-change",
+    useAtomSuspense: "/suspense",
+    useAtomValue: "/reading-and-writing#reading",
+  },
+  RegistryContext: {
+    ProvideExistingRegistry: "/installation#registry-options",
+    ProvideNewRegistry: "/installation#registry-options",
+    ProvideRegistryCommon: "/installation#registry-options",
+    ProvideRegistryOptions: "/installation#registry-options",
+    RegistryOptions: "/installation#registry-options",
+    getRegistry: "/cookbook#write-atoms-from-a-plain-function",
+    provideRegistry: "/installation#registry-options",
+  },
+  ScopedAtom: {
+    ScopedAtom: "/scoped-atoms",
+    TypeId: "/scoped-atoms",
+    make: "/scoped-atoms",
+  },
+  SvelteKit: {
+    CaughtError: "/sveltekit#errors-in-boundaries",
+    EffectErrorBody: "/sveltekit#errors-in-boundaries",
+    handleClientError: "/sveltekit#errors-in-boundaries",
+    handleServerError: "/sveltekit#errors-in-boundaries",
+  },
+  index: {
+    AsyncResult: "/async-atoms#asyncresult",
+    Atom: "/first-atom",
+    AtomHttpApi: "/http",
+    AtomRef: "/refs",
+    AtomRegistry: "/installation#add-a-registry",
+    AtomRpc: "/rpc",
+    Hooks: "/reading-and-writing",
+    Hydration: "/hydration",
+    HydrationBoundary: "/hydration#hydrationboundary",
+    RegistryContext: "/installation#add-a-registry",
+    RegistryProvider: "/installation#add-a-registry",
+    ScopedAtom: "/scoped-atoms",
+  },
 };
 
-/** The guide for an export, titled from the sidebar. */
-const guideOf = (name: string): ApiGuide | undefined => {
-  const href = guides[name];
+/** The guide for an export of a module, titled from the sidebar. */
+const guideOf = (file: string, name: string): ApiGuide | undefined => {
+  const module = moduleName(file);
+  const href = guides[module]?.[name];
   if (href === undefined) {
     return undefined;
   }
@@ -163,7 +180,7 @@ const guideOf = (name: string): ApiGuide | undefined => {
   const page = pages.find((entry) => entry.href === pathname);
   if (!page) {
     throw new Error(
-      `The guide for ${name}, ${href}, is not a page in src/lib/docs/nav.ts`
+      `The guide for ${module}.${name}, ${href}, is not a page in src/lib/docs/nav.ts`
     );
   }
   return { href, title: page.title };
@@ -172,9 +189,6 @@ const guideOf = (name: string): ApiGuide | undefined => {
 /** A Markdown description's first sentence, for a summary. */
 const firstSentence = (text: string) =>
   /^[\s\S]*?\.(?=\s|$)/u.exec(text.trim())?.[0] ?? text.trim();
-
-/** `Hooks.svelte.ts` is the module `Hooks`. */
-const moduleName = (file: string) => file.replace(/(?:\.svelte)?\.ts$/u, "");
 
 /** The page for a module: `/reference/Hooks`, and `/reference` for the index. */
 const moduleHref = (file: string) => {
@@ -467,7 +481,7 @@ export const readApiReference = async (
       }));
       exports.push({
         category,
-        guide: guideOf(name),
+        guide: guideOf(file, name),
         name,
         signature,
         since,
@@ -524,7 +538,7 @@ export const readApiReference = async (
         description: doc?.description ?? "",
         from: specifier,
         modules: clause.elements.map((element) => ({
-          guide: guideOf(element.name.text),
+          guide: guideOf(file, element.name.text),
           name: element.name.text,
           source: sourceUrl(
             specifier,

@@ -91,7 +91,7 @@ Both give you the `AsyncResult`, failures included. Check `_tag` in the markup, 
 
 The snippet's `reset` renders the boundary's content again, but the atom still holds the same `Failure`. Refresh the atom first, with `useAtomRefresh`, as the example's **Try again** does.
 
-Before the `failed` snippet sees the error, SvelteKit passes it through its `handleError` hook, as the next section explains.
+In a SvelteKit app, the error passes through SvelteKit's `handleError` hook before the `failed` snippet sees it: see [SvelteKit's `handleError`](#sveltekits-handleerror).
 
 ### In place, with `includeFailure`
 
@@ -149,30 +149,14 @@ The mutation's own value is an `AsyncResult` too, so `useAtomValue(createAtom)` 
 
 ## SvelteKit's `handleError`
 
-In a SvelteKit app, an error that reaches a boundary's `failed` snippet goes through SvelteKit's `handleError` hook first. The default hook replaces it with `{ message: "Internal Error" }`, so the snippet can't tell one error from another.
-
-`effect-atom-svelte/sveltekit` has hooks that keep the error's `_tag` as `error.tag`. The client hook keeps the message too. The server hook doesn't, because a message from the server can reveal details of it. With them, a `failed` snippet can match on the tag:
-
-```svelte
-{#snippet failed(error)}
-  {#if (error as App.Error).tag === "TodoNotFound"}
-    <p>No such todo.</p>
-  {:else}
-    <p>Something went wrong.</p>
-  {/if}
-{/snippet}
-```
-
-Only the tag and message survive the hook, not the error's other fields: in the [example above](#where-to-handle-failure), the boundary receives `NotFound`'s tag and message, but not its `id`. When you need those, use `includeFailure` instead. [SvelteKit](/sveltekit#errors-in-boundaries) shows how to install the hooks.
-
-Without SvelteKit, nothing sits in between: the `failed` snippet gets the value of `Cause.squash` itself, the error object with all its fields.
+In a SvelteKit app, an error on its way to a `failed` snippet goes through SvelteKit's `handleError` hook, whose default replaces it with `{ message: "Internal Error" }`. The hooks in `effect-atom-svelte/sveltekit` keep its `_tag` as `error.tag`, but not fields such as `id`, so use `includeFailure` when you need those: [Errors in boundaries](/sveltekit#errors-in-boundaries) shows how to install the hooks.
 
 ## Typed errors from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` decode errors from the server with their schemas, so they arrive as the same tagged classes, fields and all:
 
 - **An RPC procedure** fails with the errors in its `error` schema, plus `RpcClientError` when the request itself fails, for example because the server can't be reached.
-- **An HTTP API endpoint** fails with the errors it declares. A request that fails, or a response that doesn't decode, is a defect rather than a typed error, so the only typed errors are your own.
+- **An HTTP API endpoint** fails with the errors it declares. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error. When you call the client yourself, those two stay typed. See [Typed errors](/http#typed-errors).
 
 Both also fail with the errors of any middleware the procedure or endpoint uses, such as an `Unauthorized` from an auth middleware.
 

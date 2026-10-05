@@ -21,7 +21,7 @@ description: Run an Effect when the user does something, and refresh what it cha
 
 An async atom runs its effect when something reads it. A **mutation** runs its effect when you write to it, such as saving a form or deleting a row. Its state is an `AsyncResult`, so a component can show that a save is in progress, what it returned, or why it failed.
 
-This form saves a todo with a pretend save that takes a second. Under it, the mutation's type lights up the way the last call ended, and its state follows each call:
+This form saves a todo with a pretend save that takes a second. Under it, the mutation's type marks how the last call ended: with its success type or its error type. Its state follows each call:
 
 <Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
@@ -88,7 +88,7 @@ const submit = async () => {
   const error = Cause.findErrorOption(exit.cause);
   // None when the call was interrupted or died, rather than failing.
   if (Option.isSome(error)) {
-    message = `Keep it to ${error.value.max} characters.`;
+    message = `Keep it to ${error.value.maxLength} characters.`;
   }
 };
 ```
@@ -119,7 +119,7 @@ A concurrent mutation still has one result. Each new call waits for every call a
 
 </Aside>
 
-To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted, but the mutation itself keeps running.
+To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted. The call keeps running only while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 
@@ -143,6 +143,8 @@ setSave(Atom.Reset);
 After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
 
 ## Mutations from RPC and HTTP APIs
+
+The rest of this page uses an RPC client, `TodosRpc`, and its queries and mutations. [RPC](/rpc) introduces them; you only need the idea that a query is an async atom and a mutation is an `Atom.fn`.
 
 `AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are the same thing, made for you: `TodosRpc.mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
 
@@ -197,7 +199,7 @@ A round trip to the server can make the page feel slow. An **optimistic update**
 
 `Atom.optimistic` wraps the atom to update, and `Atom.optimisticFn` wraps the mutation with a `reducer` that computes the provisional value from the current value and the mutation's argument. Read the optimistic atom instead of the original, and call the wrapped mutation instead of the original one.
 
-While the mutation runs, the optimistic atom holds the reducer's value, marked `waiting`. When the mutation succeeds, the optimistic atom reads the original atom again. When it fails, it goes back to the original atom's value, and the wrapped mutation's state is the `Failure`, so you can say what happened.
+While the mutation runs, the optimistic atom holds the reducer's value, marked `waiting`. When the mutation succeeds, the optimistic atom refreshes the original atom, so the mutation needs no `reactivityKeys` for it. When it fails, it goes back to the original atom's value, and the wrapped mutation's state is the `Failure`, so you can say what happened.
 
 The example fails on purpose without sending anything: its mutation is a `TodosRpc.runtime.fn` that checks a flag before it calls the server. A real failure, such as a lost connection, rolls back the same way.
 
