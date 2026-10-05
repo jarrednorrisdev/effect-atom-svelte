@@ -170,7 +170,7 @@ test.describe("Atoms pages: an example for every feature", () => {
     await page.waitForLoadState("networkidle");
     const family = page.getByRole("textbox", { name: "Atom.family draft" });
     const map = page.getByRole("textbox", { name: "new Map() draft" });
-    // The same-key example comes first; the kept-drafts example has the same pickers.
+    // The same-key example's language pickers.
     const lang = (value: string) =>
       page
         .getByRole("button", { exact: true, name: `lang: "${value}"` })
@@ -189,43 +189,6 @@ test.describe("Atoms pages: an example for every feature", () => {
       "2 atoms for 2 keys"
     );
     await expect(page.getByTestId("made-map")).toHaveText("3 atoms for 2 keys");
-  });
-
-  test("families: plain, idle TTL and keepAlive families keep their atoms differently", async ({
-    page,
-  }) => {
-    await page.goto("/families");
-    await page.waitForLoadState("networkidle");
-    const names = ["plain", 'setIdleTTL("5 seconds")', "keepAlive"];
-    const draft = (name: string) =>
-      page.getByRole("textbox", { name: `${name} draft` });
-    const state = (id: string) =>
-      page.getByTestId(`states-${id}`).locator('[data-key="1 en"] span');
-    // The kept-drafts example comes after the same-key one, so take its last pickers.
-    const lang = (value: string) =>
-      page
-        .getByRole("button", { exact: true, name: `lang: "${value}"` })
-        .last()
-        .click();
-    for (const name of names) {
-      await draft(name).fill("Hello");
-    }
-    // Straight back: only plain has lost its draft.
-    await lang("fr");
-    await expect(state("plain")).toHaveText("disposed");
-    await expect(state("idle")).toContainText("left");
-    await expect(state("kept")).toHaveText("kept, no reader");
-    await lang("en");
-    await expect(draft("plain")).toHaveValue("");
-    await expect(draft('setIdleTTL("5 seconds")')).toHaveValue("Hello");
-    await expect(draft("keepAlive")).toHaveValue("Hello");
-    // Waiting out the idle TTL loses that draft too.
-    await lang("fr");
-    await expect(state("idle")).toHaveText("disposed", { timeout: 10_000 });
-    await expect(state("kept")).toHaveText("kept, no reader");
-    await lang("en");
-    await expect(draft('setIdleTTL("5 seconds")')).toHaveValue("");
-    await expect(draft("keepAlive")).toHaveValue("Hello");
   });
 
   test("AtomRef: a collection notifies an item's readers and the list's", async ({

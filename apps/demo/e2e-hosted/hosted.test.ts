@@ -75,7 +75,7 @@ test("RPC: prerendered todos, then add, a typed error, toggle and a stream", asy
   expect(requests).toEqual([]);
 });
 
-test("HTTP API: prerendered todos, then create, filter and a typed 404", async ({
+test("HTTP API: prerendered todos, then a filter and a typed 404", async ({
   page,
   request,
 }) => {
@@ -87,10 +87,6 @@ test("HTTP API: prerendered todos, then create, filter and a typed 404", async (
   await page.goto("/http");
   await page.waitForLoadState("networkidle");
   const list = page.getByTestId("http-todos");
-
-  await page.getByTestId("http-draft").fill("Added in the tab");
-  await page.getByTestId("http-add").click();
-  await expect(list).toContainText("Added in the tab");
 
   await page
     .getByRole("group", { name: "Filter" })

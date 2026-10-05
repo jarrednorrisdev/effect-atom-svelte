@@ -51,58 +51,6 @@ test.describe("Cookbook page", () => {
     await expect(page.getByTestId("feed-state")).toHaveText("Success");
   });
 
-  test("form: an optimistic todo, then the saved one, and a typed error rolls back", async ({
-    page,
-  }) => {
-    // The demo API runs without latency in e2e; hold the create request to see the optimistic
-    // state.
-    const held = Promise.withResolvers<undefined>();
-    await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"createTodo"')) {
-        await held.promise;
-      }
-      await route.continue();
-    });
-    await page.goto("/cookbook");
-    await page.waitForLoadState("networkidle");
-    const list = page.getByTestId("new-todo-list");
-    const add = page.getByTestId("new-todo-add");
-    const state = page.getByTestId("new-todo-state");
-    await expect(list.locator("li")).toHaveCount(2);
-    await expect(state).toHaveText("Initial");
-
-    await page.getByTestId("new-todo").fill("Cook something");
-    await add.click();
-    await expect(list).toContainText("Cook something (saving…)");
-    await expect(list.locator("li").last()).toHaveAttribute(
-      "aria-busy",
-      "true"
-    );
-    await expect(add).toBeDisabled();
-    await expect(add).toHaveText("Adding…");
-    await expect(state).toHaveText("Initial, waiting");
-    held.resolve(undefined);
-    await expect(list.locator("li").last()).toHaveText("Cook something");
-    await expect(state).toHaveText("Success");
-    await expect(add).toHaveText("Add");
-    await expect(page.getByTestId("new-todo")).toHaveValue("");
-
-    await page.getByTestId("new-todo").fill("z".repeat(80));
-    await add.click();
-    await expect(page.getByTestId("new-todo-error")).toHaveText(
-      "Keep it to 60 characters."
-    );
-    await expect(state).toHaveText("Failure");
-    await expect(list.locator("li")).toHaveCount(3);
-    await expect(list).not.toContainText("zzz");
-
-    // A good title clears the error.
-    await page.getByTestId("new-todo").fill("Short");
-    await add.click();
-    await expect(page.getByTestId("new-todo-error")).toHaveCount(0);
-    await expect(list.locator("li").last()).toHaveText("Short");
-  });
-
   test("polling: the list is fetched again on a timer", async ({ page }) => {
     await page.goto("/cookbook");
     const polled = page.getByTestId("polled");
@@ -119,13 +67,12 @@ test.describe("Cookbook page", () => {
     await expect(page.getByTestId("polled-state")).toHaveText("Success");
   });
 
-  test("debounced search: searchParam drives the URL and the search", async ({
+  test("debounced search: the search follows the debounced query", async ({
     page,
   }) => {
     await page.goto("/cookbook");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("search").fill("str");
-    await expect(page).toHaveURL(/\?q=str/u);
     await expect(page.getByTestId("debounced")).toHaveText("str");
     await expect(page.getByTestId("search-results").locator("li")).toHaveText([
       "Stream",
@@ -156,35 +103,6 @@ test.describe("Cookbook page", () => {
     await expect(
       timeline.getByRole("list", { name: "search" }).getByRole("listitem")
     ).toHaveText([/search started/u, /1 found/u]);
-  });
-
-  test("route param: the page follows params to the next todo", async ({
-    page,
-  }) => {
-    await page.goto("/cookbook");
-    await page.waitForLoadState("networkidle");
-    const todo = page.getByTestId("route-todo");
-    const params = page.getByTestId("route-params");
-    await expect(todo).toHaveText("Read the Effect Atom source");
-    await expect(params).toHaveText('{ id: "1" }');
-
-    await page.getByRole("button", { name: "/todos/2" }).click();
-    await expect(params).toHaveText('{ id: "2" }');
-    await expect(todo).toHaveText("Write a Svelte adapter");
-    await expect(
-      page.getByRole("button", { name: "/todos/2" })
-    ).toHaveAttribute("aria-pressed", "true");
-
-    // The third address is a typed TodoNotFound until a recipe adds a third item.
-    await page.getByRole("button", { name: "/todos/3" }).click();
-    await expect(todo).toHaveText("There is no todo 3.");
-    await page.getByTestId("new-todo").fill("Third");
-    await page.getByTestId("new-todo-add").click();
-    await expect(page.getByTestId("new-todo-state")).toHaveText("Success");
-    await page.getByRole("button", { name: "/todos/1" }).click();
-    await expect(todo).toHaveText("Read the Effect Atom source");
-    await page.getByRole("button", { name: "/todos/3" }).click();
-    await expect(todo).toHaveText("Third");
   });
 
   test("server-sent events: messages arrive while connected, and Disconnect closes the connection", async ({
@@ -279,9 +197,7 @@ test.describe("Cookbook page", () => {
     await expect(count).toHaveText("3");
     await expect(page.getByTestId("class-title")).toHaveValue("");
     // The mutation invalidated "todos", so the other recipes' lists have it too.
-    await expect(page.getByTestId("new-todo-list")).toContainText(
-      "Saved by a class"
-    );
+    await expect(page.getByTestId("load-live-count")).toHaveText("3");
   });
 
   test("outside components: a plain function writes through the registry", async ({
@@ -315,8 +231,11 @@ test.describe("Cookbook page", () => {
     const live = page.getByTestId("load-live-count");
     await expect(loaded).toHaveText("2");
     await expect(live).toHaveText("2");
-    await page.getByTestId("new-todo").fill("One more");
-    await page.getByTestId("new-todo-add").click();
+    await page.getByTestId("class-title").fill("One more");
+    await page
+      .getByRole("button", { exact: true, name: "Save" })
+      .first()
+      .click();
     await expect(live).toHaveText("3");
     await expect(loaded).toHaveText("2");
   });
