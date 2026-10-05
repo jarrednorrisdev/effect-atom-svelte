@@ -31,7 +31,7 @@ Each box below is an atom, with the number of `<Reader>` components reading it i
 An atom is **mounted** while something holds it. Each of these holds an atom:
 
 - A hook whose `current` is being read in markup, `$derived` or `$effect`.
-- `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe` and `useAtomResult`, for as long as their component lives.
+- `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe`, `useAtomInitialValues` and `useAtomResult`, for as long as their component lives.
 - Another mounted atom that reads it with `get`.
 
 When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.

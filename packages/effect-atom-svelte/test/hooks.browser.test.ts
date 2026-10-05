@@ -404,6 +404,80 @@ describe("mounting and lifecycle", () => {
     await render(Harness, { registry, setup });
     expect(registry.get(atom)).toBe(8);
   });
+
+  test("useAtomInitialValues starts a derived atom that still follows its source", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const doubled = Atom.make((get) => get(base) * 2);
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[doubled, 100]]);
+        const value = useAtomValue(doubled);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("100");
+    registry.set(base, 5);
+    await expect.element(output(screen)).toHaveTextContent("10");
+  });
+
+  test("useAtomInitialValues gives a wrapper's value to its source, as AtomRegistry.make does", async () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1);
+    const wrapped = Atom.withRefresh(base, "1 hour");
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[wrapped, 100]]);
+        const value = useAtomValue(wrapped);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("100");
+    expect(registry.get(base)).toBe(100);
+    registry.set(base, 5);
+    await expect.element(output(screen)).toHaveTextContent("5");
+  });
+
+  test("useAtomInitialValues keeps a value until a later component reads it", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(0);
+    // A layout sets the value; the page that reads it comes later.
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        return () => "layout";
+      },
+    });
+    await sleep("50 millis");
+    const page = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(page)).toHaveTextContent("7");
+  });
+
+  test("useAtomInitialValues lets go of its atoms on unmount", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const atom = trackedAtom(log);
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 2]]);
+        return () => "";
+      },
+      show: true,
+    });
+    await expect.poll(() => log).toEqual(["start"]);
+    await screen.rerender({ show: false });
+    await expect.poll(() => log).toEqual(["start", "stop"]);
+  });
 });
 
 describe("mutations and unmounting", () => {

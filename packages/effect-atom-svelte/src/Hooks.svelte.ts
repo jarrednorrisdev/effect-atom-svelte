@@ -95,6 +95,20 @@ const duringRead = <A>(f: () => A): A => {
   }
 };
 
+/**
+ * Runs `f` when the component is destroyed, even while its script is still awaiting. In the browser
+ * `onDestroy` only takes effect once the component mounts, so a component removed while pending
+ * would never call it. A pre effect runs during init and is torn down with the component (JND-16).
+ * On the server, `onDestroy` runs when the render ends.
+ */
+const onTeardown = (f: () => void): void => {
+  if (BROWSER) {
+    $effect.pre(() => f);
+  } else {
+    onDestroy(f);
+  }
+};
+
 /** Holds read and write closures; a class so `.current` is a real accessor `bind:` can use. */
 class AtomCell<R, W> {
   readonly #read: () => R;
@@ -527,22 +541,54 @@ const setNodeValue = (
     .setValue(value);
 };
 
+/**
+ * Gives an atom a starting value as `AtomRegistry.make({ initialValues })` does: on the atom that
+ * receives it (a wrapper such as `withRefresh` passes it to its source), kept as the value of the
+ * node's first build, which still reads and follows the atom's sources.
+ */
+const setInitialValue = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>,
+  value: unknown
+): void => {
+  let target = atom;
+  while (target.initialValueTarget) {
+    target = target.initialValueTarget;
+  }
+  // SAFETY: ensureNode is on the registry implementation, not the interface (Effect 4.0.0), as
+  // in setNodeValue.
+  (
+    registry as unknown as {
+      ensureNode: (atom: Atom.Atom<unknown>) => {
+        setInitialValue: (value: unknown) => void;
+      };
+    }
+  )
+    .ensureNode(target)
+    .setInitialValue(value);
+};
+
 const initialValuesApplied = new WeakMap<
   AtomRegistry.AtomRegistry,
   WeakSet<Atom.Atom<unknown>>
 >();
 
 /**
- * Sets starting values once per registry, before anything reads the atoms.
+ * Sets starting values once per registry, as `AtomRegistry.make({ initialValues })` would. The
+ * atoms are mounted while the component lives, so a value set in a layout is still there when a
+ * page reads it later; mounting an atom computes it, as reading it would. On the server the
+ * record lasts one render, so each request against a shared registry applies its own values.
  *
  * **Example** (Starting an atom from a prop)
  *
  * ```ts
+ * import { untrack } from "svelte";
  * import { useAtomInitialValues, useAtomValue } from "effect-atom-svelte";
  * import { countAtom } from "./atoms.ts";
  *
  * const { start } = $props();
- * useAtomInitialValues([[countAtom, start]]);
+ * // Only the first value counts, so untrack says a later change to the prop is not followed.
+ * useAtomInitialValues([[countAtom, untrack(() => start)]]);
  * const count = useAtomValue(countAtom);
  * ```
  *
@@ -558,13 +604,30 @@ export const useAtomInitialValues = (
   if (!applied) {
     applied = new WeakSet();
     initialValuesApplied.set(registry, applied);
+    if (!BROWSER) {
+      // A registry passed in by the caller outlives the request, and the next request's values must
+      // apply too. onDestroy runs when the server render ends.
+      onDestroy(() => initialValuesApplied.delete(registry));
+    }
   }
+  const releases: (() => void)[] = [];
   for (const [atom, value] of initialValues) {
     if (!applied.has(atom)) {
       applied.add(atom);
-      setNodeValue(registry, atom, value);
+      setInitialValue(registry, atom, value);
+    }
+    // Held, or the registry sweeps a node nothing has read yet and the value is lost for good, as
+    // it is recorded as applied. As in subscribedReader, the server never computes an atom with a
+    // server value.
+    if (BROWSER || !hasServerValue(atom)) {
+      releases.push(duringRead(() => registry.mount(atom)));
     }
   }
+  onTeardown(() => {
+    for (const release of releases) {
+      release();
+    }
+  });
 };
 
 /**
@@ -663,20 +726,6 @@ export const useAtomRefPropValue = <A, K extends keyof A>(
 // its own first await, so it works anywhere Svelte has restored component context: at the top level
 // of a component script, including after earlier top-level awaits.
 // ---------------------------------------------------------------------------------------------
-
-/**
- * Runs `f` when the component is destroyed, even while its script is still awaiting. In the browser
- * `onDestroy` only takes effect once the component mounts, so a component removed while pending
- * would never call it. A pre effect runs during init and is torn down with the component (JND-16).
- * On the server, `onDestroy` runs when the render ends.
- */
-const onTeardown = (f: () => void): void => {
-  if (BROWSER) {
-    $effect.pre(() => f);
-  } else {
-    onDestroy(f);
-  }
-};
 
 // Internal shorthand; exported signatures spell the type out so the API reference shows it.
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
