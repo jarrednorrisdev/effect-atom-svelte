@@ -29,11 +29,11 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
 - `Initial` until the first item arrives.
 - `Success` with the latest item, and `waiting` set while the stream is still running.
-- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom still has an item from an earlier run, which it then keeps as a `Success`.
+- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`.
 
 A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
 
-<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails, and Emits nothing, and compare the cause and the history."> <Countdown /> </Example>
+<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails: the stream fails after 1, and the atom still gives 1. Pick Emits nothing, and there is no item to keep."> <Countdown /> </Example>
 
 <Aside type="tip" title="Keep browser-only streams off the server">
 
@@ -48,7 +48,7 @@ A stream hands over its items in **chunks**: groups of items that are ready at t
 - `items`: every item pulled so far.
 - `done`: whether the stream has ended.
 
-<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until the button says No more fruit, and watch the pulls: each brings a page of three, and the last brings nothing but done."> <Fruit /> </Example>
+<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until the button says No more fruit: each pull brings one chunk, a page of three, and the last brings nothing but done. Then turn on disableAccumulation and load again: items holds only the latest page, and the end arrives as a NoSuchElementError failure instead of done."> <Fruit /> </Example>
 
 **Example** (Loading the next page)
 
@@ -75,4 +75,4 @@ A pull atom finds out that a stream has ended only when it pulls and nothing com
 
 </Aside>
 
-To keep only the latest chunk in `items` instead of every item so far, pass `{ disableAccumulation: true }` as `Atom.pull`'s second argument.
+To keep only the latest chunk in `items` instead of every item so far, pass `{ disableAccumulation: true }` as `Atom.pull`'s second argument, as the example's toggle does. The end then shows up differently: the pull that finds it has no items to give, so it fails with `NoSuchElementError` rather than setting `done`, and the atom keeps the last page as its previous success.

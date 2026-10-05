@@ -32,6 +32,7 @@
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
+  import Emitted from "./emitted.svelte";
 
   let ending = $state("Ends");
   const count = useAtomValue(() => countdownAtom(ending));
@@ -48,6 +49,7 @@
   </span>
   <button data-cue="start" onclick={restart}>Restart</button>
 </p>
+<Emitted result={count.current} />
 <p class="flex flex-wrap items-center gap-3">
   Latest item:
   <!-- A failure keeps the last item, so getOrElse still shows it. -->

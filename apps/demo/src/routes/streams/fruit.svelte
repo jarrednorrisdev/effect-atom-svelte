@@ -14,46 +14,75 @@
 
   // Reads the first page, then the next one each time it is written to.
   const fruitAtom = Atom.pull(fruitStream);
+  // The same, but items holds only the latest page.
+  const latestPageAtom = Atom.pull(fruitStream, { disableAccumulation: true });
 </script>
 
 <script lang="ts">
+  import { AsyncResult } from "effect/reactivity";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
+  import Chunks from "./chunks.svelte";
 
-  const page = useAtomValue(fruitAtom);
-  const loadMore = useAtomSet(fruitAtom);
+  let accumulate = $state(true);
+  const atom = () => (accumulate ? fruitAtom : latestPageAtom);
+
+  const page = useAtomValue(atom);
+  const loadMore = useAtomSet(atom);
+
+  // The latest items, kept through a failure. With disableAccumulation, the pull
+  // that finds the end fails with NoSuchElementError instead of setting done.
+  const latest = $derived(AsyncResult.getOrElse(page.current, () => undefined));
+  const ended = $derived(page.current._tag === "Failure" || latest?.done === true);
+  // How the pull that found the end ended, for the chunks.
+  const ending = $derived.by(() => {
+    if (page.current._tag === "Failure") {
+      return "NoSuchElementError";
+    }
+    return latest?.done ? "done" : undefined;
+  });
 
   // For the history under the example.
   const describe = (value: unknown) => {
     const { done, items } = value as { done: boolean; items: string[] };
-    return `${items.length} items, done: ${done}`;
+    return `${items.length} ${items.length === 1 ? "item" : "items"}, done: ${done}`;
   };
 </script>
 
-{#if page.current._tag === "Success"}
-  <ul class="flex list-none flex-wrap gap-1.5 p-0" data-testid="fruit">
-    {#each page.current.value.items as item (item)}
-      <li class="m-0"><output>{item}</output></li>
-    {/each}
-  </ul>
+<p>
+  <button aria-pressed={!accumulate} onclick={() => (accumulate = !accumulate)}>
+    disableAccumulation: true
+  </button>
+</p>
+{#if latest}
+  <!-- Groups the items by the pull that brought them. -->
+  {#key accumulate}
+    <Chunks end={ending} items={latest.items} />
+  {/key}
   <p class="flex flex-wrap items-center gap-3">
-    <button
-      disabled={page.current.value.done || page.current.waiting}
-      onclick={() => loadMore()}
-    >
-      {page.current.value.done ? "No more fruit" : "Load more"}
+    <button disabled={ended || page.current.waiting} onclick={() => loadMore()}>
+      {#if page.current.waiting}
+        Loading…
+      {:else if ended}
+        No more fruit
+      {:else}
+        Load more
+      {/if}
     </button>
     <span>
       done:
-      <FlashValue data-testid="fruit-done" value={page.current.value.done} />
+      <FlashValue data-testid="fruit-done" value={latest.done} />
     </span>
     <StateBadge data-testid="fruit-state" result={page.current} />
   </p>
+  {#if page.current._tag === "Failure"}
+    <CauseView cause={page.current.cause} data-testid="fruit-cause" />
+  {/if}
 {:else}
   <p>Loading…</p>
 {/if}
 <!-- Each pull adds a chunk: one page of three, or nothing once the stream ends. -->
 <ResultHistory format={describe} label="Pulls" result={page.current} />
-
