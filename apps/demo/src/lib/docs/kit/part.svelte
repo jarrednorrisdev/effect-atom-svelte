@@ -15,6 +15,15 @@
   Set `code` when the label is a name from the code (`countAtom`, `useAtomSet`): it then keeps its
   case instead of being shown in capitals.
 
+  `actions` holds the part's controls, kept at the bottom so they line up across a row of parts:
+
+  ```svelte
+  <Part code label="countAtom">
+    <FlashValue big value={count.current} />
+    {#snippet actions()}<button onclick={add}>Add one</button>{/snippet}
+  </Part>
+  ```
+
   Other attributes go on the box; the counter is an `<output>` named by `countLabel`.
 -->
 <script lang="ts">
@@ -28,6 +37,8 @@
   import type { Tone } from "./tone.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
+    /** Controls, at the bottom of the part. */
+    readonly actions?: Snippet;
     readonly children?: Snippet;
     /** Shows the label as code, in its own case. */
     readonly code?: boolean;
@@ -44,6 +55,7 @@
   }
 
   const {
+    actions,
     children,
     code = false,
     count,
@@ -100,6 +112,9 @@
   </div>
   {#if children}
     <div class="body">{@render children()}</div>
+  {/if}
+  {#if actions}
+    <div class="actions">{@render actions()}</div>
   {/if}
 </div>
 
@@ -172,6 +187,16 @@
     flex: 1;
     font-size: 0.875rem;
     margin-top: 0.4rem;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  /* Overrides the margins .demo gives buttons, so a part's controls sit on its edges. */
+  .actions :global(button) {
+    margin: 0;
   }
   .top .body {
     align-content: start;
