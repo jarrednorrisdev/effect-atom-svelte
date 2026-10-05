@@ -23,7 +23,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
-The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense) and `useAtomMount` in [Lifetimes](/lifetimes). [Hooks](/reference/Hooks) in the API reference lists them all.
+The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense), `useAtomMount` in [Lifetimes](/lifetimes), and `useAtomInitialValues` in [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). [Hooks](/reference/Hooks) in the API reference lists them all.
 
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click +, − or Reset and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
@@ -95,26 +95,29 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 
 </Aside>
 
-## Starting values from a component
+<Aside type="note" title="When updates arrive">
 
-`useAtomInitialValues` gives atoms their starting values from a component, as `initialValues` on `RegistryProvider` does from the root. Use it when the value comes from a prop or page data:
+A write from an event handler updates every reader at once: the handler's next line already reads the new value, from the atom and from atoms derived from it.
+
+</Aside>
+
+## Following a different atom
+
+Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
 
 ```svelte
 <script lang="ts">
-  import { untrack } from "svelte";
-  import { useAtomInitialValues, useAtomValue } from "effect-atom-svelte";
-
-  const { start } = $props();
-  // Only the first value counts, so untrack says a later change to the prop isn't followed.
-  useAtomInitialValues([[countAtom, untrack(() => start)]]);
-  const count = useAtomValue(countAtom);
+  let followed = $state<"draft" | "saved">("draft");
+  // Runs again when followed changes, and the hook moves to the atom it returns.
+  const text = useAtom(() => (followed === "saved" ? savedAtom : draftAtom));
 </script>
 ```
 
-- **Once while the atom is held.** Each atom takes the first value a component gives it. A component that mounts again while something still holds the atom, or gets a new prop, doesn't set it again; once the atom has been disposed, the next component to mount sets it again. To follow a prop, write the atom with `useAtomSet`.
-- **Held while the component lives.** The hook holds its atoms, so a value set in a layout is still there when a page reads it later. It doesn't compute them: the first component to read an atom does, and the atom keeps the value it was given.
-- **Once per render on the server.** Each server render sets its values again, and renders them without running the atom, so an atom that reads `localStorage` or fetches can still be given a value there. Two renders at once on a shared registry share one value: give each request its own registry.
-- **Where `initialValues` puts it.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+
+When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The example keeps both with `Atom.keepAlive`. See [Lifetimes](/lifetimes).
+
+Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
 ## Running code on every change
 
@@ -129,36 +132,3 @@ The function isn't called for the value the atom already has, only for changes. 
 The function may write `$state`. A change that comes while another component is reading an atom, when Svelte forbids writing state, reaches the function on a microtask instead.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
-
-## Following a different atom
-
-Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
-
-```svelte
-<script module lang="ts">
-  import { Atom } from "effect/reactivity";
-
-  // Kept alive, so each keeps its text while the hook follows the other.
-  const draftAtom = Atom.make("Half a thought").pipe(Atom.keepAlive);
-  const savedAtom = Atom.make("Published post").pipe(Atom.keepAlive);
-</script>
-
-<script lang="ts">
-  let followed = $state<"draft" | "saved">("draft");
-  const text = useAtom(() => (followed === "saved" ? savedAtom : draftAtom));
-</script>
-
-<input bind:value={text.current} />
-```
-
-<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
-
-When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. `Atom.keepAlive` keeps both here. See [Lifetimes](/lifetimes).
-
-Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
-
-<Aside type="note" title="When updates arrive">
-
-A write from an event handler updates every reader at once: the handler's next line already reads the new value, from the atom and from atoms derived from it.
-
-</Aside>
