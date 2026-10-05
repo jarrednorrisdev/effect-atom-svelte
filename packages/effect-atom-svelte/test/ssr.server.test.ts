@@ -1,5 +1,11 @@
 import { Effect, Schema } from "effect";
-import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import {
+  AsyncResult,
+  Atom,
+  AtomRef,
+  AtomRegistry,
+  Hydration,
+} from "effect/reactivity";
 import { render } from "svelte/server";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
@@ -11,6 +17,7 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import HydrateAbove from "./fixtures/hydrate-above.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
@@ -76,6 +83,22 @@ const allWarnings = () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   onTestFinished(() => warn.mockRestore());
   return () => warn.mock.calls.map((call) => String(call[0]));
+};
+
+/** A serializable number atom for HydrationBoundary to hydrate. */
+const numberAtom = (key: string) =>
+  Atom.make(0).pipe(
+    Atom.keepAlive,
+    Atom.serializable({ key, schema: Schema.Number })
+  );
+
+/** The state Hydration.dehydrate gives for a registry where the atom is `value`. */
+const stateWith = (atom: Atom.Atom<number>, value: number) => {
+  const registry = AtomRegistry.make();
+  registry.set(atom as Atom.Writable<number>, value);
+  const state = Hydration.dehydrate(registry);
+  registry.dispose();
+  return state;
 };
 
 describe("server rendering", () => {
@@ -241,6 +264,39 @@ describe("server rendering", () => {
       const output = await renderSetup(readTag(streamAtom));
       expect(output.body).toContain("Success");
       expect(output.head).toContain("waiting:true");
+    });
+  });
+
+  describe("HydrationBoundary", () => {
+    test("updates an atom read above it before its children render", async () => {
+      const atom = numberAtom("boundary-above");
+      const output = await render(HydrateAbove, {
+        props: {
+          atom,
+          readAbove: true,
+          readInside: true,
+          state: stateWith(atom, 5),
+        },
+      });
+      // Above the boundary, the server had already rendered the atom's value before it.
+      expect(output.body).toContain("<p>0</p>");
+      expect(output.body).toContain("<output>5</output>");
+    });
+
+    test("drops the values nobody read when the render ends", async () => {
+      const atom = numberAtom("boundary-unread");
+      const registry = AtomRegistry.make();
+      const props = { atom, readAbove: false, registry };
+      const first = await render(HydrateAbove, {
+        props: { ...props, readInside: false, state: stateWith(atom, 42) },
+      });
+      expect(first.body).toContain("<output>-</output>");
+      // Kept, the first request's value would be the next request's.
+      const second = await render(HydrateAbove, {
+        props: { ...props, readInside: true, state: undefined },
+      });
+      expect(second.body).toContain("<output>0</output>");
+      registry.dispose();
     });
   });
 

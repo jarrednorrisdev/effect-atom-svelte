@@ -143,6 +143,19 @@ describe("HydrationBoundary", () => {
     expect(seen[0]).toBe(1);
   });
 
+  test("drops the values nobody read when it is destroyed", async () => {
+    const registry = AtomRegistry.make();
+    const screen = await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state: serverState([countAtom], (server) => server.set(countAtom, 42)),
+    });
+    await screen.unmount();
+    // Kept, the value would wait in the registry for whoever reads the atom next, however late.
+    expect(registry.get(countAtom)).toBe(0);
+    registry.dispose();
+  });
+
   test("an Initial result dehydrated as a promise finishes on the client", async () => {
     const slowAtom = Atom.make(
       Effect.succeed("from server").pipe(Effect.delay("100 millis"))
