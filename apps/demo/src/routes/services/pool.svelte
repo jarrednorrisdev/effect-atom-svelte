@@ -2,19 +2,25 @@
   import { Context, Effect, Layer } from "effect";
   import { Atom } from "effect/reactivity";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
+  import { untrack } from "svelte";
 
   // When the pool was built and released, for the log under the example.
   const log = new EventLogState();
   let built = 0;
+  // The pool that is open now, for the status under the example. Set untracked, because
+  // the pool opens while Svelte reads the atom.
+  const pools = $state<{ open: number | undefined }>({ open: undefined });
 
   const openPool = Effect.sync(() => {
     built += 1;
     log.add(`pool ${built} built`, { tone: "running" });
+    untrack(() => (pools.open = built));
     return { id: built };
   });
   const closePool = (pool: { id: number }) =>
     Effect.sync(() => {
       log.add(`pool ${pool.id} released`, { tone: "interrupted" });
+      untrack(() => (pools.open = undefined));
     });
 
   // A service that is costly to build, such as a database connection pool.
@@ -33,8 +39,8 @@
 
   // Two atoms from one runtime share its pool.
   const atoms = {
-    ordersAtom: runtime.atom(Pool.use((pool) => Effect.succeed(pool.id))),
-    usersAtom: runtime.atom(Pool.use((pool) => Effect.succeed(pool.id))),
+    ordersAtom: runtime.atom(Pool.useSync((pool) => pool.id)),
+    usersAtom: runtime.atom(Pool.useSync((pool) => pool.id)),
   };
 </script>
 
@@ -46,9 +52,6 @@
   // Whether each atom has a reader on the page.
   const reading = $state({ ordersAtom: false, usersAtom: false });
   const inUse = $derived(Object.values(reading).filter(Boolean).length);
-  // The open pool, from the log's latest entry ("pool 2 built").
-  const latest = $derived(log.entries.at(-1)?.label ?? "");
-  const open = $derived(/^pool (?<id>\d+) built$/u.exec(latest)?.groups?.id);
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
@@ -75,8 +78,8 @@
     tone={inUse > 0 ? "success" : "idle"}
   >
     <p class="m-0" data-testid="pool-status">
-      {#if open !== undefined}
-        Holds pool {open}, shared by {inUse} {inUse === 1 ? "atom" : "atoms"}
+      {#if pools.open !== undefined}
+        Holds pool {pools.open}, shared by {inUse} {inUse === 1 ? "atom" : "atoms"}
       {:else}
         No pool open
       {/if}

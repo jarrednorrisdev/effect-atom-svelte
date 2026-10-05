@@ -61,7 +61,7 @@ const runtime = Atom.runtime(RemoteTodosLayer.pipe(Layer.provide(HttpLayer)));
 
 <Aside type="caution" title="Make runtimes in a module">
 
-Like atoms, runtimes belong in a module, or a component's `<script module>`. `Atom.runtime` called in a component's script makes a new runtime for each instance, and new atoms from it, so the instances share no services or results.
+Like atoms, runtimes belong in a module, or a component's `<script module>`. `Atom.runtime` called in a component's script makes a new runtime for each instance, and new atoms from it, so each instance runs its effects itself and keeps its own results. The services are still built once per registry, as long as the layer itself comes from a module: see [When the layer is built](#when-the-layer-is-built).
 
 </Aside>
 
