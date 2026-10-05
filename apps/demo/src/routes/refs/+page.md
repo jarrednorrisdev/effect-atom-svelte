@@ -7,24 +7,32 @@ description: A reactive value you can read and update by property, without a reg
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
-  import Profile from "./profile.svelte";
-  import profileSource from "./profile.svelte?highlight";
+  import Autosave from "./autosave.svelte";
+  import autosaveSource from "./autosave.svelte?highlight";
+  import cardSource from "./profile-card.svelte?highlight";
+  import ProfileEditor from "./profile-editor.svelte";
+  import editorSource from "./profile-editor.svelte?highlight";
+  import fieldSource from "./profile-field.svelte?highlight";
+  import apiSource from "./profile-api.ts?highlight";
   import todoItemSource from "./todo-item.svelte?highlight";
   import Todos from "./todos.svelte";
   import todosSource from "./todos.svelte?highlight";
 </script>
 
-An `AtomRef` holds a reactive value itself, with no registry. It runs no effects and is never disposed: you create it, read it, and set it. It suits plain local data that several components edit, such as a form draft or a document in an editor, where you want to read and update single properties.
+An `AtomRef` holds a reactive value itself, with no registry. It runs no effects and is never disposed: you create it, read it, and set it.
 
-<Example files={[{ html: profileSource, name: "profile.svelte" }]} hint="Type a name: the name ref sets profile, and badge, mapped from profile, follows. Then click Set an equal copy: the copy equals the current value, so nobody is notified."> <Profile /> </Example>
+It's built for one object that several components edit piece by piece, such as a form draft or a document in an editor. `prop` hands a component a writable slice of the value: one property, however deep. The component reads and sets its slice without knowing the shape of the whole, and everything that reads the whole value sees the change.
+
+Below, the editor owns one profile ref. Each field gets a slice of it, and the card reads the whole thing:
+
+<Example files={[{ html: editorSource, name: "profile-editor.svelte" }, { html: fieldSource, name: "profile-field.svelte" }, { html: cardSource, name: "profile-card.svelte" }]} hint="Edit any field: the card, which reads the whole profile, follows. City lives two levels deep, inside address, yet its field is the same component as Name's: setting it writes a new address into the profile."> <ProfileEditor /> </Example>
 
 ## AtomRef or `$state`
 
-Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when:
+Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when: With `$state`, you'd pass the whole object, or a getter and a setter.
 
 - **Code outside Svelte owns the value.** A ref is plain TypeScript with no runes, so a model shared with React or Vue code can hold refs that each framework reads through its own Effect Atom adapter.
 - **Equal values shouldn't notify.** A ref compares values structurally, as described below, so setting an equal copy wakes nobody. `$state` treats a new object as a change.
-- **A child should edit one property.** `prop` hands a child a ref it can read and set without knowing the shape of the parent value.
 
 ## Creating and updating a ref
 
@@ -40,7 +48,17 @@ profile.set({ name: "Grace", role: "Admiral" });
 profile.update((current) => ({ ...current, role: "Rear admiral" }));
 ```
 
-A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody. In the example above, **Set an equal copy** sets `{ ...profile.value }`, and the notifications count, kept by a listener added with `profile.subscribe`, stays where it was.
+`subscribe` adds a listener that runs whenever the value changes, and returns a function that removes it.
+
+### Equal values change nothing
+
+A ref compares the new value with the current one using Effect's structural equality. Setting a value equal to the current one, even as a different object, changes nothing and notifies nobody.
+
+That matters when code runs on every change. Below, a listener autosaves the draft half a second after each edit. The server answers with its own stored copy, a new object, and the form adopts it as the draft:
+
+<Example files={[{ html: autosaveSource, name: "autosave.svelte" }, { html: apiSource, name: "profile-api.ts" }]} hint="Change the name to Ada Byron and pause: one request goes out. The server's answer equals the draft, so setting it notifies nobody and nothing saves again. Then type a name in lowercase: the server capitalizes it, that copy is a real change, so it saves once more and then stops."> <Autosave /> </Example>
+
+If the ref compared objects by reference, every answer would count as a change: it would save again, get another new object back, and loop forever.
 
 ### Properties
 

@@ -6,67 +6,88 @@
     readonly lang: string;
   }
 
-  let recipeRuns = 0;
+  // keepAlive, so a draft outlives the moment you switch away from it
+  // (see Keeping a family's atoms, below).
+  const newDraft = () => Atom.make("").pipe(Atom.keepAlive);
 
-  const draftAtom = Atom.family((key: Key) => {
-    recipeRuns += 1;
-    return Atom.make(`Doc ${key.doc} in ${key.lang}`);
-  });
+  // The family compares keys by their contents.
+  const draftAtom = Atom.family((key: Key) => newDraft());
+
+  // A hand-rolled cache: a Map compares object keys by reference.
+  const byMap = new Map<Key, Atom.Writable<string>>();
+  const mapDraftAtom = (key: Key) => {
+    const cached = byMap.get(key);
+    if (cached) {
+      return cached;
+    }
+    const atom = newDraft();
+    byMap.set(key, atom);
+    return atom;
+  };
 </script>
 
 <script lang="ts">
-  import Slots from "#lib/docs/kit/slots.svelte";
-
-  interface Call {
-    readonly atom: Atom.Atom<string>;
-    readonly key: Key;
-    readonly ran: boolean;
-  }
+  import { useAtom } from "effect-atom-svelte";
+  import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import Part from "#lib/docs/kit/part.svelte";
+  import { SvelteSet } from "svelte/reactivity";
 
   let doc = $state(1);
   let lang = $state("en");
-  // Every call so far, with the atom it returned.
-  let calls = $state.raw<readonly Call[]>([]);
+  // A new key object every time the document or the language changes.
+  const key = $derived({ doc, lang });
 
-  const call = () => {
-    const before = recipeRuns;
-    // A new key object on every click.
-    const atom = draftAtom({ doc, lang });
-    calls = [...calls, { atom, key: { doc, lang }, ran: recipeRuns > before }];
-  };
+  const stores = [
+    { draft: useAtom(() => draftAtom(key)), get: draftAtom, id: "family", name: "Atom.family" },
+    { draft: useAtom(() => mapDraftAtom(key)), get: mapDraftAtom, id: "map", name: "new Map()" },
+  ];
 
-  const firstCall = (atom: Atom.Atom<string>) =>
-    calls.findIndex((earlier) => earlier.atom === atom) + 1;
-  // The last five calls, numbered from the first.
-  const first = $derived(Math.max(0, calls.length - 5));
-  const made = $derived([
-    ...new Set(calls.map(({ key }) => `${key.doc} ${key.lang}`)),
-  ]);
+  // The different keys visited, and the different atoms each store has handed out for them.
+  const keys = new SvelteSet<string>();
+  const made = stores.map(() => new SvelteSet<Atom.Atom<string>>());
+  $effect(() => {
+    keys.add(`${key.doc} ${key.lang}`);
+    for (const [index, store] of stores.entries()) {
+      made[index]?.add(store.get(key));
+    }
+  });
 </script>
 
 <p>
-  <select aria-label="Document" bind:value={doc} data-testid="key-doc">
-    <option value={1}>doc: 1</option>
-    <option value={2}>doc: 2</option>
-  </select>
-  <select aria-label="Language" bind:value={lang} data-testid="key-lang">
-    <option value="en">lang: "en"</option>
-    <option value="fr">lang: "fr"</option>
-  </select>
-  <button onclick={call}>Call draftAtom</button>
+  <span class="button-group">
+    {#each [1, 2] as value (value)}
+      <button aria-pressed={doc === value} onclick={() => (doc = value)}>doc: {value}</button>
+    {/each}
+  </span>
+  <span class="button-group">
+    {#each ["en", "fr"] as value (value)}
+      <button aria-pressed={lang === value} onclick={() => (lang = value)}>lang: "{value}"</button>
+    {/each}
+  </span>
 </p>
-<ol aria-label="Calls" class="my-2 list-decimal pl-6 text-sm" start={first + 1}>
-  {#each calls.slice(first) as { atom, key, ran }, offset (first + offset)}
-    <li>
-      <code>draftAtom(&#123; doc: {key.doc}, lang: "{key.lang}" &#125;)</code>
-      {#if ran}
-        <strong class="text-(--tone-success-text)">new atom: the recipe ran</strong>
-      {:else if firstCall(atom) <= first + offset}
-        same atom as call {firstCall(atom)}
-      {:else}
-        the atom the family already had
-      {/if}
-    </li>
+<p class="text-sm text-muted-foreground">
+  Key: <code>&#123; doc: {key.doc}, lang: "{key.lang}" &#125;</code>
+</p>
+<div class="grid gap-3 sm:grid-cols-2">
+  {#each stores as { draft, id, name }, index (id)}
+    {@const atoms = made[index]?.size ?? 0}
+    <!-- More atoms than keys: some key's earlier atom is still stored, but nothing can reach it. -->
+    <Part code label={name} tone={atoms > keys.size ? "failure" : "idle"}>
+      <textarea
+        aria-label="{name} draft"
+        bind:value={draft.current}
+        class="h-20 w-full resize-none"
+        placeholder="Type a draft"
+      ></textarea>
+      <p class="mt-2 mb-0 text-sm" data-testid="made-{id}">
+        <FlashValue
+          class={[atoms > keys.size && "text-(--tone-failure-text)"]}
+          value={atoms}
+        />
+        {atoms === 1 ? "atom" : "atoms"} for
+        <FlashValue value={keys.size} />
+        {keys.size === 1 ? "key" : "keys"}
+      </p>
+    </Part>
   {/each}
-</ol>
-<Slots capacity={4} data-testid="key-atoms" items={made} label="keys called" />
+</div>

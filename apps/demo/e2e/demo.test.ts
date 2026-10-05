@@ -964,27 +964,50 @@ test("streams: a stream atom ticks, and a pull atom loads page by page", async (
   ).toHaveCount(1);
 });
 
-test("AtomRef: a property ref updates the ref and its derived ref", async ({
+test("AtomRef: each field edits a slice, and the card reads the whole", async ({
   page,
 }) => {
   await page.goto("/refs");
   await page.waitForLoadState("networkidle");
-  const notified = page.getByLabel("profile notifications", { exact: true });
-  await expect(notified).toHaveText("0");
-  await page.getByRole("textbox", { name: "Name" }).fill("Grace");
-  await expect(page.getByTestId("ref-name")).toHaveText("Grace");
-  await expect(page.getByTestId("ref-badge")).toHaveText("Grace · Engineer");
-  await expect(page.getByTestId("ref-profile")).toHaveText(
-    '{"name":"Grace","role":"Engineer"}'
+  const card = page.getByTestId("profile-card");
+  await page
+    .getByRole("textbox", { name: "Name" })
+    .first()
+    .fill("Grace Hopper");
+  await page.getByRole("textbox", { name: "City" }).fill("New York");
+  await expect(card).toContainText("Grace Hopper");
+  await expect(card).toContainText("Engineer · New York");
+  // The nested slice wrote a new address into the profile.
+  await expect(page.getByTestId("profile-value")).toContainText(
+    '"city": "New York"'
   );
-  await expect(notified).toHaveText("1");
-  // An equal copy is no change, so the ref notifies nobody.
-  await page.getByRole("button", { name: "Set an equal copy" }).click();
-  await page.waitForTimeout(200);
-  await expect(notified).toHaveText("1");
-  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
-  await expect(notified).toHaveText("2");
-  await expect(page.getByTestId("ref-badge")).toHaveText("Ada · Engineer");
+});
+
+test("AtomRef: an autosave stops when the server's copy equals the draft", async ({
+  page,
+}) => {
+  await page.goto("/refs");
+  await page.waitForLoadState("networkidle");
+  const requests = page
+    .getByRole("list", { name: "Requests" })
+    .getByRole("listitem");
+  // The editor example above has its own Name field.
+  const name = page.getByRole("textbox", { name: "Name" }).last();
+  await name.fill("Ada Byron");
+  await expect(requests).toHaveText([/"Ada Byron", "Engineer"\s*saved/u]);
+  // The answer equals the draft, so setting it saves nothing more.
+  await page.waitForTimeout(1500);
+  await expect(requests).toHaveCount(1);
+  // A tidied answer is a change: it saves once more, then stops.
+  await name.fill("grace hopper");
+  await expect(requests).toHaveText([
+    /"Ada Byron"/u,
+    /"grace hopper", "Engineer"\s*saved, tidied/u,
+    /"Grace Hopper", "Engineer"\s*saved/u,
+  ]);
+  await expect(name).toHaveValue("Grace Hopper");
+  await page.waitForTimeout(1500);
+  await expect(requests).toHaveCount(3);
 });
 
 test("scoped atoms: each provider has its own atom", async ({ page }) => {
