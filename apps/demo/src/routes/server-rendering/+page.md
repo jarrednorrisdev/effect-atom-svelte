@@ -127,6 +127,8 @@ For an async atom, `Atom.withServerValueInitial` makes the server read it as `In
 - **Without that `pending` snippet**, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error. See [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status).
 - **A serializable atom** with a server value isn't passed to the browser, since the server never computed it.
 
+An atom nothing has started, such as an `Atom.fn` no one has called, never leaves `Initial` either. On the server, `useAtomResult` and `useAtomSuspense` reject for it with an error that says so, rather than holding the response open. In the browser they wait, since something may still write it.
+
 [Browser atoms](/browser) covers browser-only atoms in detail.
 
 <Example files={[{ html: serverValuesSource, name: "server-values.svelte" }]} hint="Compare each value with what the HTML has: the server rendered 1024 and Initial. Then resize the window and watch the width follow."> <ServerValues /> </Example>

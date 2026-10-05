@@ -23,6 +23,7 @@ import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import SsrChangingSeed from "./fixtures/ssr-changing-seed.svelte";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
@@ -349,6 +350,39 @@ describe("server rendering", () => {
     });
   });
 
+  describe("the async hooks with an atom nothing has started", () => {
+    const save = Atom.fn((value: string) => Effect.succeed(value));
+
+    test("useAtomResult rejects instead of hanging", async () => {
+      await expect(renderSetup(readTag(save))).rejects.toThrow(
+        "has not started"
+      );
+    });
+
+    test("useAtomSuspense rejects instead of hanging", async () => {
+      await expect(
+        renderSetup(() => {
+          const value = useAtomSuspense(save);
+          return () => value.current;
+        })
+      ).rejects.toThrow("has not started");
+    });
+
+    test("a serializable one rejects instead of hanging while it seeds", async () => {
+      const idle = Atom.make<AsyncResult.AsyncResult<string>>(
+        AsyncResult.initial()
+      ).pipe(
+        Atom.serializable({
+          key: "idle-seed",
+          schema: AsyncResult.Schema({ success: Schema.String }),
+        })
+      );
+      await expect(renderSetup(readTag(idle))).rejects.toThrow(
+        "has not started"
+      );
+    });
+  });
+
   describe("a serializable atom read inside a boundary with a pending snippet (JND-86)", () => {
     // Pins today's behavior: the hook seeds at init, before Svelte knows the read is never rendered.
     test("with the hook outside the boundary, the server still computes, waits and embeds it", async () => {
@@ -488,6 +522,32 @@ describe("server rendering", () => {
     registry.dispose();
   });
 
+  test("an initial value starts a browser-only atom on the server without computing it", async () => {
+    let computed = 0;
+    const theme = Atom.make((): string => {
+      computed += 1;
+      throw new Error("localStorage is not defined");
+    });
+    const { body } = await renderSetup(() => {
+      useAtomInitialValues([[theme, "dark"]]);
+      const value = useAtomValue(theme);
+      return () => value.current;
+    });
+    expect(body).toContain("<output>dark</output>");
+    expect(computed).toBe(0);
+  });
+
+  test("an initial value nothing reads leaves its async atom unstarted on the server", async () => {
+    let fetched = 0;
+    const user = Atom.make(Effect.sync(() => (fetched += 1)));
+    const { body } = await renderSetup(() => {
+      useAtomInitialValues([[user, AsyncResult.success(0)]]);
+      return () => "layout";
+    });
+    expect(body).toContain("<output>layout</output>");
+    expect(fetched).toBe(0);
+  });
+
   test("repeated renders leave nothing behind (JND-21)", async () => {
     const cycles = 10;
     const log: string[] = [];
@@ -565,6 +625,21 @@ describe("server rendering", () => {
       expect(output.body).toContain(expected);
       await expectBalanced();
     });
+  });
+
+  test("readers of one serialization key embed the first reader's seed, even if the atom changes between them", async () => {
+    // Svelte's dev build runs every reader's hydratable callback and throws hydratable_clobbering if
+    // what they encode differs.
+    const atom = Atom.make<AsyncResult.AsyncResult<string>>(
+      AsyncResult.success("seeded")
+    ).pipe(
+      Atom.serializable({
+        key: "changing-seed",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const output = await render(SsrChangingSeed, { props: { atom } });
+    expect(output.head + output.body).toContain("seeded");
   });
 
   test("two different atoms with the same serialization key are rejected", async () => {

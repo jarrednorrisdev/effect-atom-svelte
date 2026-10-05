@@ -178,6 +178,60 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     }
   });
 
+  test("useAtomSuspense read outside a reaction lets go of each settled result's abort listener", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make<AsyncResult.AsyncResult<number>>(
+      AsyncResult.success(0)
+    );
+    const add = AbortSignal.prototype.addEventListener;
+    const remove = AbortSignal.prototype.removeEventListener;
+    // Abort listeners still attached, per signal.
+    const attached = new Map<AbortSignal, number>();
+    const count = (signal: AbortSignal, delta: number) =>
+      attached.set(signal, (attached.get(signal) ?? 0) + delta);
+    AbortSignal.prototype.addEventListener = function addEventListener(
+      this: AbortSignal,
+      ...args: Parameters<AbortSignal["addEventListener"]>
+    ) {
+      if (args[0] === "abort") {
+        count(this, 1);
+      }
+      add.apply(this, args);
+    };
+    AbortSignal.prototype.removeEventListener = function removeEventListener(
+      this: AbortSignal,
+      ...args: Parameters<AbortSignal["removeEventListener"]>
+    ) {
+      if (args[0] === "abort") {
+        count(this, -1);
+      }
+      remove.apply(this, args);
+    };
+    try {
+      let read: (() => unknown) | undefined;
+      const screen = await render(Toggle, {
+        registry,
+        setup: () => {
+          const value = useAtomSuspense(atom);
+          read = () => value.current;
+          return () => "";
+        },
+        show: true,
+      });
+      // As an event handler would: each read outside a reaction, of a new result, holds a wait on the
+      // component's lifetime signal.
+      for (let index = 1; index <= 50; index += 1) {
+        registry.set(atom, AsyncResult.success(index));
+        read?.();
+      }
+      await expect.poll(() => Math.max(...attached.values())).toBeLessThan(5);
+      await screen.unmount();
+    } finally {
+      AbortSignal.prototype.addEventListener = add;
+      AbortSignal.prototype.removeEventListener = remove;
+    }
+  });
+
   test("useAtomResult", async () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];
