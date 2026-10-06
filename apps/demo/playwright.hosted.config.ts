@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// The same offset as portOffset in e2e/servers.ts.
+// The same host and offset as in e2e/servers.ts.
 const portOffset = Number(process.env.E2E_PORT_OFFSET ?? 0);
 
 // The hosted build (VITE_DEMO_API=in-tab), previewed with no demo API running: the examples must
@@ -12,7 +12,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
   testDir: "e2e-hosted",
   use: {
-    baseURL: `http://localhost:${5300 + portOffset}`,
+    baseURL: `http://127.0.0.1:${5300 + portOffset}`,
     trace: "retain-on-failure",
   },
 });

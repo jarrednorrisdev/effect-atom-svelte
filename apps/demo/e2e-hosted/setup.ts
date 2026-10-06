@@ -1,7 +1,7 @@
 import { buildDemo } from "../e2e/build.ts";
-import { demoDir, portOffset, start, viteBin } from "../e2e/servers.ts";
+import { demoDir, host, portOffset, start, viteBin } from "../e2e/servers.ts";
 
-const origin = `http://localhost:${5300 + portOffset}`;
+const origin = `http://${host}:${5300 + portOffset}`;
 
 /**
  * Builds the site as it is hosted, with the demo API running in the page, then previews it. The
@@ -11,7 +11,15 @@ export default async function setup() {
   buildDemo({ VITE_DEMO_API: "in-tab" });
   const preview = await start(
     process.execPath,
-    [viteBin, "preview", "--port", new URL(origin).port, "--strictPort"],
+    [
+      viteBin,
+      "preview",
+      "--host",
+      host,
+      "--port",
+      new URL(origin).port,
+      "--strictPort",
+    ],
     // Nothing listens there, so a request that reaches the network instead of the in-tab API
     // fails.
     {

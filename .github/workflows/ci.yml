@@ -48,14 +48,23 @@ jobs:
   check:
     # Lint, types and the Vitest suites. The browser tests in the library run in all three engines.
     runs-on: ubuntu-latest
+    # Playwright's image comes with all three browsers and their system libraries, which took up to
+    # a minute and a half to install per job. Its version must match Playwright's in bun.lock; if it
+    # doesn't, Playwright says so when it launches a browser. The e2e and hosted jobs reuse it.
+    container: &playwright
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      # The runner's user, who owns the job's HOME and workspace: Firefox won't start as root in
+      # another user's HOME.
+      options: --user 1001
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run lint
       # Turbo builds the library (and not the site) first: the site's check depends on its build,
       # and so does the site's Vitest run below. The e2e jobs build the site themselves.
@@ -77,6 +86,7 @@ jobs:
     # job picks the engines.
     needs: scope
     runs-on: ubuntu-latest
+    container: *playwright
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -85,11 +95,12 @@ jobs:
         shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps ${{ matrix.engine }}
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/2
         working-directory: apps/demo
@@ -105,14 +116,16 @@ jobs:
   hosted:
     # The site built as it is hosted (the demo API in the page), checked in Chromium.
     runs-on: ubuntu-latest
+    container: *playwright
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test -c playwright.hosted.config.ts
         working-directory: apps/demo
