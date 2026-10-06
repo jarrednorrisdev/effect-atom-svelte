@@ -53,15 +53,17 @@ jobs:
     # doesn't, Playwright says so when it launches a browser. The e2e and hosted jobs reuse it.
     container: &playwright
       image: mcr.microsoft.com/playwright:v1.63.0-noble
-      # The job's HOME belongs to another user, and Firefox won't start as root unless HOME is
-      # root's own.
-      env:
-        HOME: /root
+      # The runner's user, who owns the job's HOME and workspace: Firefox won't start as root in
+      # another user's HOME.
+      options: --user 1001
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead.
-      - run: npm install --global bun@1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run lint
       # Turbo builds the library (and not the site) first: the site's check depends on its build,
@@ -93,8 +95,11 @@ jobs:
         shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
-      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead.
-      - run: npm install --global bun@1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/2
@@ -115,8 +120,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead.
-      - run: npm install --global bun@1.4.2
+      # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
+      # as the job isn't root.
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test -c playwright.hosted.config.ts

@@ -15,10 +15,17 @@ export const viteBin = fileURLToPath(
 /** Added to every e2e port, for running the suite in two worktrees at once (`E2E_PORT_OFFSET=50`). */
 export const portOffset = Number(process.env.E2E_PORT_OFFSET ?? 0);
 
+/**
+ * The address every e2e server listens on and is reached at. Not `localhost`: where it resolves to
+ * ::1 first, as in Playwright's Docker image, Vite listens on IPv6 alone while Playwright's worker
+ * connects over IPv4.
+ */
+export const host = "127.0.0.1";
+
 export interface Servers {
-  /** Origin of the demo API, e.g. `http://localhost:3100`. */
+  /** Origin of the demo API, e.g. `http://127.0.0.1:3100`. */
   readonly api: string;
-  /** Origin of the production build's preview server, e.g. `http://localhost:5200`. */
+  /** Origin of the production build's preview server, e.g. `http://127.0.0.1:5200`. */
   readonly web: string;
 }
 
@@ -84,8 +91,8 @@ export const test = base.extend<
       // Away from the dev servers (3010, 5180) and the default preview port (5181).
       // E2E_PORT_OFFSET moves them, so runs in two worktrees don't share servers.
       const port = portOffset + workerInfo.parallelIndex;
-      const api = `http://localhost:${3100 + port}`;
-      const web = `http://localhost:${5200 + port}`;
+      const api = `http://${host}:${3100 + port}`;
+      const web = `http://${host}:${5200 + port}`;
       const apiProcess = await start(
         "bun",
         ["src/main.ts"],
@@ -101,7 +108,15 @@ export const test = base.extend<
       );
       const webProcess = await start(
         process.execPath,
-        [viteBin, "preview", "--port", new URL(web).port, "--strictPort"],
+        [
+          viteBin,
+          "preview",
+          "--host",
+          host,
+          "--port",
+          new URL(web).port,
+          "--strictPort",
+        ],
         { cwd: demoDir, env: { ...process.env, DEMO_API_ORIGIN: api } },
         web
       ).catch((error: unknown) => {
