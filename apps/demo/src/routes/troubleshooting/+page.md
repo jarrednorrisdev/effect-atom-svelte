@@ -115,32 +115,6 @@ export default defineConfig({
 
 If Vitest has a config of its own, it needs the same setting. To see how many copies are installed, ask your package manager, for example with `npm ls effect`.
 
-### Handlers after an await
-
-In Svelte 5.57, a production build attaches event handlers before the script has finished its top-level awaits. A handler that a hook returns after an `await` is still `undefined` at that point, so `onclick={refresh}` does nothing. Development builds don't show the problem.
-
-**Example** (A refresh button that works)
-
-```svelte
-<script lang="ts">
-  import { useAtomRefresh, useAtomResult } from "effect-atom-svelte";
-
-  // Called before the await, so `refresh` exists when the button is set up.
-  const refresh = useAtomRefresh(todosAtom);
-  const todos = await useAtomResult(todosAtom);
-</script>
-
-<button onclick={refresh}>Refresh</button>
-```
-
-Either call such hooks before the first `await`, or wrap the handler in an arrow function, `onclick={() => refresh()}`, which looks `refresh` up when the button is clicked.
-
-<Aside type="tip" title="Test against a production build">
-
-Because development builds hide this, run your end-to-end tests against `vite build` and `vite preview`, not the dev server.
-
-</Aside>
-
 ### An atom loads forever, or starts over on every read
 
 A hook that gets a new atom on every read starts it again each time. An async atom then never settles, and a writable one loses each write. Look for a new atom made where the hook reads it:

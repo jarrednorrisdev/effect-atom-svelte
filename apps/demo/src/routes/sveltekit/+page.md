@@ -11,7 +11,7 @@ description: Set up a SvelteKit app for atoms, keep typed errors through handleE
   import boundaryErrorsSource from "./boundary-errors.svelte?highlight";
 </script>
 
-effect-atom-svelte works in any app on Svelte 5.57 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error as one your code threw, SvelteKit's own included: they log it and keep its tag, and the client hook its message. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
+effect-atom-svelte works in any app on Svelte 5.57.2 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error as one your code threw, SvelteKit's own included: they log it and keep its tag, and the client hook its message. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
 
 ## Setting up an app
 
