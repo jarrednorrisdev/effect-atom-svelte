@@ -22,6 +22,7 @@ For the whole site at once (repeats across pages, the sidebar's order), use the 
   - Check dark and light mode, a 390 px phone width and a 1280 px desktop width.
   - Watch the console for errors.
   - `scripts/shots.mjs` screenshots every example's result on a page; `scripts/shot-examples.mjs` takes whole examples, shown code included. See each file's header.
+  - The scripts are in this skill's `scripts/` folder. Run them from the repo root as `bun .claude/skills/improve-docs-page/scripts/<name>.mjs`; the browser ones need `MSYS_NO_PATHCONV=1` in Git Bash.
 
 ### 2. Assess
 
@@ -53,7 +54,7 @@ If he asks a question about an example ("I don't understand the point of X"), an
 
 - Make one commit per finding, or per tight group of findings, on the current branch. Use conventional commits and no emoji.
 - Don't run the test suites per change. Instead, record every e2e test the change breaks in the session notes file, if one exists, under a "Tests a change will break" heading. Give the `file:line`, the old selector or text, and what replaces it. Find them by grepping `apps/demo/e2e/` and `apps/demo/e2e-hosted/` for the example's testids, button names and texts.
-- When you rename, move or remove a heading, fix the links to it, then run `bun scripts/check-links.mjs`, which also checks the API reference's guide links and the READMEs.
+- When you rename, move or remove a heading, fix the links to it, then run `bun .claude/skills/improve-docs-page/scripts/check-links.mjs`, which also checks the API reference's guide links and the READMEs.
 - Keep existing `data-testid`s where the element survives. Add new testids for new outputs, named `<example>-<thing>`.
 - If you rebuild `packages/effect-atom-svelte` (`bun run --cwd packages/effect-atom-svelte build`), restart dev afterwards (see pitfalls).
 - If you find a library bug, don't hide it with a workaround in the example. Tell Jarred, and offer to file it on Linear with the personal `linearis` CLI, team JND.

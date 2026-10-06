@@ -5,13 +5,13 @@ description: Review the effect-atom-svelte docs site as a whole, then plan, make
 
 # Review the docs site
 
-The site is `apps/demo`: one `+page.md` per page in `apps/demo/src/routes/<page>/`, in the order of `apps/demo/src/lib/docs/nav.ts`, each with live examples beside it. One page at a time is the job of the `improve-docs-page` skill (`.claude/skills/improve-docs-page/`); this skill looks across pages, and reuses that skill's rubric, pitfalls and scripts. Its scripts are referred to below as `scripts/…`, meaning `.claude/skills/improve-docs-page/scripts/`.
+The site is `apps/demo`: one `+page.md` per page in `apps/demo/src/routes/<page>/`, in the order of `apps/demo/src/lib/docs/nav.ts`, each with live examples beside it. One page at a time is the job of the `improve-docs-page` skill (`.claude/skills/improve-docs-page/`); this skill looks across pages, and reuses that skill's rubric, pitfalls and scripts. Its scripts are referred to below as `scripts/…`, meaning `.claude/skills/improve-docs-page/scripts/`; run them from the repo root by that full path.
 
 ## 1. Read everything
 
 - Read every `+page.md` in full, in sidebar order. Done when you can name, for each page, its sections and its examples.
 - Read the source of every example that looks like another page's, and the kit `README.md`.
-- `bun scripts/code-size.mjs` lists how much example source and snippet code each page shows.
+- `bun .claude/skills/improve-docs-page/scripts/code-size.mjs` lists how much example source and snippet code each page shows.
 - Start dev from the repo root in the background, with the longest timeout allowed (`bun run dev`; site on :5180). A background task stops at its time limit: when a page stops loading, start dev again.
 - Look at the examples: `scripts/shots.mjs` shoots every result on the site, and `scripts/shot-examples.mjs` a page's whole examples, code included. See each file's header.
 
@@ -47,7 +47,7 @@ Follow step 4 of `improve-docs-page` (one commit per finding, no test runs, reco
 
 ## 6. Sweep, then hand over
 
-- `bun scripts/check-links.mjs`: every page and section link, the API reference's guide links, and the READMEs.
+- `bun .claude/skills/improve-docs-page/scripts/check-links.mjs`: every page and section link, the API reference's guide links, and the READMEs.
 - `scripts/check-pages.mjs`, then with `--phone --light`. Report wide pages you didn't cause as found, not fixed.
 - `bun run format`, `bun run lint`, `bun run check`. `check` restores the library build, so restart dev afterwards.
 - Report by area: what changed, the judgment calls Jarred should look at, and anything you found but left alone. Ask him to review it on :5180.
