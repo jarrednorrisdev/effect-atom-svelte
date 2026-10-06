@@ -22,10 +22,10 @@ jobs:
     # Which engines the e2e suite runs in. The hooks depend on each engine's microtask timing, so a
     # change to the library, the e2e setup, dependencies or this workflow runs all three; docs and
     # examples alone run Chromium (JND-91). A new branch, a force push or a manual run runs all
-    # three.
+    # three. Its output is the e2e matrix: one entry per shard of each engine.
     runs-on: ubuntu-latest
     outputs:
-      engines: ${{ steps.engines.outputs.engines }}
+      shards: ${{ steps.engines.outputs.shards }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,7 +42,12 @@ jobs:
           else
             engines='["chromium"]'
           fi
-          echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          # WebKit runs the suite slowest, so it gets more shards to finish with the others. Shards
+          # split by test count, not time: with three, one held most of the slow tests.
+          counts='{"chromium":2,"firefox":2,"webkit":4}'
+          shards=$(jq -nc --argjson engines "$engines" --argjson counts "$counts" \
+            '[$engines[] as $e | range(1; $counts[$e] + 1) | {engine: $e, shard: ., of: $counts[$e]}]')
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
           echo "::notice::e2e engines: $engines"
 
   check:
@@ -80,10 +85,9 @@ jobs:
           retention-days: 7
 
   e2e:
-    # The e2e suite, split into two jobs per engine (JND-91). It ran as one job of about 420 tests,
-    # which took 19 minutes. Each job keeps Playwright's default of one worker on the two-core
-    # runner: two workers per job made timing-sensitive tests miss in Firefox and WebKit. The scope
-    # job picks the engines.
+    # The e2e suite, split into shards that run as separate jobs (JND-91). It ran as one job of about
+    # 420 tests, which took 19 minutes. The scope job picks the engines and each one's shards.
+    name: e2e (${{ matrix.engine }}, ${{ matrix.shard }}/${{ matrix.of }})
     needs: scope
     runs-on: ubuntu-latest
     container: *playwright
@@ -91,8 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: ${{ fromJSON(needs.scope.outputs.engines) }}
-        shard: [1, 2]
+        include: ${{ fromJSON(needs.scope.outputs.shards) }}
     steps:
       - uses: actions/checkout@v7
       # setup-bun needs unzip, which the image lacks; its Node can install Bun instead, under HOME
@@ -102,7 +105,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
-      - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/2
+      - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/${{ matrix.of }}
         working-directory: apps/demo
       - uses: actions/upload-artifact@v7
         if: failure()
