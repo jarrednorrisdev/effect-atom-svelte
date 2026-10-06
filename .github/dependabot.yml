@@ -1,0 +1,12 @@
+# Keeps the actions in .github/workflows current. Updates come as one grouped PR a week.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
