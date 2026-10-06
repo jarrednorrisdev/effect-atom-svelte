@@ -42,8 +42,9 @@ jobs:
           else
             engines='["chromium"]'
           fi
-          # WebKit runs the suite slowest, so it gets a third shard to finish with the others.
-          counts='{"chromium":2,"firefox":2,"webkit":3}'
+          # WebKit runs the suite slowest, so it gets more shards to finish with the others. Shards
+          # split by test count, not time: with three, one held most of the slow tests.
+          counts='{"chromium":2,"firefox":2,"webkit":4}'
           shards=$(jq -nc --argjson engines "$engines" --argjson counts "$counts" \
             '[$engines[] as $e | range(1; $counts[$e] + 1) | {engine: $e, shard: ., of: $counts[$e]}]')
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
