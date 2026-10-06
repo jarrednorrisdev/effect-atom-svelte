@@ -7,9 +7,15 @@ on:
   # Run by hand (Actions tab or `gh workflow run CI`) to test every engine whatever changed.
   workflow_dispatch:
 
+# No job writes to the repository. Deploy uses Cloudflare's secrets, not the token.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push to a PR replaces its old run, but every commit on main runs to the end, so each one
+  # gets a result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   scope:
@@ -21,7 +27,7 @@ jobs:
     outputs:
       engines: ${{ steps.engines.outputs.engines }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: engines
@@ -44,20 +50,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run lint
-      # Only the library: the e2e jobs build the site themselves, as their tests need.
-      - run: bun run --cwd packages/effect-atom-svelte build
+      # Turbo builds the library (and not the site) first: the site's check depends on its build,
+      # and so does the site's Vitest run below. The e2e jobs build the site themselves.
       - run: bun run check
       - run: bun run --cwd packages/effect-atom-svelte test
       - run: bunx vitest run
         working-directory: apps/demo
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: vitest-results
@@ -78,7 +84,7 @@ jobs:
         engine: ${{ fromJSON(needs.scope.outputs.engines) }}
         shard: [1, 2]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -87,7 +93,7 @@ jobs:
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/2
         working-directory: apps/demo
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-results-${{ matrix.engine }}-${{ matrix.shard }}
@@ -101,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -110,7 +116,7 @@ jobs:
       - run: bun run --cwd packages/effect-atom-svelte build
       - run: bunx playwright test -c playwright.hosted.config.ts
         working-directory: apps/demo
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: hosted-results
@@ -136,7 +142,7 @@ jobs:
       - if: env.CLOUDFLARE_API_TOKEN == ''
         run: echo "::notice::No Cloudflare secrets yet, so the docs site was not deployed."
       - if: env.CLOUDFLARE_API_TOKEN != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: env.CLOUDFLARE_API_TOKEN != ''
         uses: oven-sh/setup-bun@v2
         with:
@@ -150,11 +156,12 @@ jobs:
         run: bun run --cwd apps/demo deploy --yes --no-input
 
   changeset:
-    # A change to the library should come with a changeset describing it for the changelog.
-    if: github.event_name == 'pull_request'
+    # A change to the library should come with a changeset describing it for the changelog. The
+    # Version Packages PR is skipped: it consumes the changesets, so it never has one.
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
@@ -162,3 +169,16 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bunx changeset status --since=origin/main
+
+  ci-ok:
+    # The one check for branch protection to require. The e2e matrix changes with the scope job, so
+    # its job names do; this job's name doesn't. A skipped job (changeset outside a PR) is a pass.
+    needs: [scope, check, e2e, hosted, changeset]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::A required job failed or was cancelled."
+          exit 1
+      - run: echo "Every required job passed."
