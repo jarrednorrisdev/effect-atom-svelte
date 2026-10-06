@@ -1,5 +1,12 @@
 # effect-atom-svelte
 
+## 0.1.1
+
+### Patch Changes
+
+- 08cfb3b: Fix a hook whose getter switches atoms in `onMount` computing the atom it left again. The hook released the old atom before Svelte had committed the switch, so the registry could sweep it while renders still read it, and they built it afresh, re-running its effect. The old atom is now kept until a later commit picks another.
+- c4ffc6a: Require Svelte 5.57.2 or later. It fixes event handlers assigned after a top-level `await`, which were `undefined` in production builds, so `onclick={refresh}` did nothing when a hook after the `await` returned `refresh`.
+
 ## 0.1.0
 
 ### Minor Changes
