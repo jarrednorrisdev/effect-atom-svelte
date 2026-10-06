@@ -170,7 +170,7 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-Svelte restores the component's context after each top-level `await`, so you can call hooks after one. Two things are lost there, though. Svelte stops hydrating at the first `await`, so a serializable atom read after it runs again in the browser instead of starting from the server's result: see [Call hooks before the first await](/hydration#call-hooks-before-the-first-await). And in Svelte 5.57, a function a hook returns after an `await` can do nothing as an event handler in a production build: see [Handlers after an await](/troubleshooting#handlers-after-an-await).
+Svelte restores the component's context after each top-level `await`, so you can call hooks after one. But Svelte stops hydrating at the first `await`, so a serializable atom read after it runs again in the browser instead of starting from the server's result. See [Call hooks before the first await](/hydration#call-hooks-before-the-first-await).
 
 Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 

@@ -25,7 +25,6 @@
   // The two boxes in the result: the server render and the browser.
   import WhereParts from "./where-parts.svelte";
 
-  // Before the await: see "Handlers after an await" on the Troubleshooting page.
   const refresh = useAtomRefresh(whereAtom);
 
   // The server waits for the first result and sends it with the page.
