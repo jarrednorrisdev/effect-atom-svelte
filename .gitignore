@@ -16,3 +16,6 @@ playwright-report
 
 # Alchemy local state
 .alchemy/
+
+# Agent worktrees (T3 Code)
+.claude/worktrees/
