@@ -46,6 +46,9 @@ jobs:
         uses: changesets/action/select-mode@v2
 
   version:
+    # The PR this opens with GITHUB_TOKEN gets CI runs that wait for a maintainer to approve them
+    # (docs.github.com/en/actions/concepts/security/github_token). That one click stays cheaper than
+    # a GitHub App token for a single maintainer.
     if: needs.select-mode.outputs.mode == 'version'
     needs: select-mode
     runs-on: ubuntu-latest
