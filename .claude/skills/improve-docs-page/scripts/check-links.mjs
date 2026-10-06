@@ -4,9 +4,11 @@
 // Usage: bun .claude/skills/improve-docs-page/scripts/check-links.mjs
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repo = "D:/Code/effect-atom-svelte";
-const routes = `${repo}/apps/demo/src/routes`;
+// The repo root, four levels up from this file, so the checkout or worktree it sits in is checked.
+const repo = fileURLToPath(new URL("../../../../", import.meta.url));
+const routes = join(repo, "apps/demo/src/routes");
 
 // rehype-slug's ids (github-slugger): lowercase, punctuation dropped, spaces to hyphens.
 const slug = (text) =>
@@ -48,12 +50,12 @@ for (const [href, { text }] of pages) {
     if (m[1] || m[2]) check(href, m[1] ?? href, m[2]);
   }
 }
-const apiReference = readFileSync(`${repo}/apps/demo/vite/api-reference.ts`, "utf8");
+const apiReference = readFileSync(join(repo, "apps/demo/vite/api-reference.ts"), "utf8");
 for (const m of apiReference.matchAll(/"(\/[a-z-]+)(?:#([\w-]+))?"/gu)) {
   check("vite/api-reference.ts", m[1], m[2]);
 }
 for (const readme of ["README.md", "packages/effect-atom-svelte/README.md"]) {
-  const text = readFileSync(`${repo}/${readme}`, "utf8");
+  const text = readFileSync(join(repo, readme), "utf8");
   for (const m of text.matchAll(/atom\.jarrednorris\.dev(\/[a-z\-/]*)?(?:#([\w-]+))?/gu)) {
     if (m[1] && m[1] !== "/") check(readme, m[1].replace(/\/$/u, ""), m[2]);
   }

@@ -5,8 +5,12 @@
 //     [--index n] [--click "<button name>"] [--light] [--phone]
 // Files are <outPrefix>-<n>.png. --click presses that button inside each example first.
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
-const require = createRequire("D:/Code/effect-atom-svelte/apps/demo/package.json");
+// apps/demo in the checkout or worktree this file sits in.
+const require = createRequire(
+  fileURLToPath(new URL("../../../../apps/demo/package.json", import.meta.url))
+);
 const { chromium } = require("@playwright/test");
 
 const args = process.argv.slice(2);

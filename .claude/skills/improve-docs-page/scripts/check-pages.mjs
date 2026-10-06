@@ -5,12 +5,13 @@
 // Prints only problems, then a count. A page is "wide" when the document scrolls sideways; the
 // elements listed are the outermost ones past the edge that no scroller contains.
 import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const demo = "D:/Code/effect-atom-svelte/apps/demo";
-const require = createRequire(`${demo}/package.json`);
+// apps/demo in the checkout or worktree this file sits in.
+const demo = fileURLToPath(new URL("../../../../apps/demo/", import.meta.url));
+const require = createRequire(`${demo}package.json`);
 const { chromium } = require("@playwright/test");
-const { pages } = await import(pathToFileURL(`${demo}/src/lib/docs/nav.ts`).href);
+const { pages } = await import(pathToFileURL(`${demo}src/lib/docs/nav.ts`).href);
 
 const args = process.argv.slice(2);
 const only = args.find((a) => a.startsWith("/"))?.split(",");

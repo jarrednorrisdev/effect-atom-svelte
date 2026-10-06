@@ -3,8 +3,10 @@
 // Usage: bun .claude/skills/improve-docs-page/scripts/code-size.mjs
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const routes = "D:/Code/effect-atom-svelte/apps/demo/src/routes";
+// The docs pages in the checkout or worktree this file sits in.
+const routes = fileURLToPath(new URL("../../../../apps/demo/src/routes", import.meta.url));
 const lines = (path) => (existsSync(path) ? readFileSync(path, "utf8").split("\n").length : 0);
 
 const rows = [];

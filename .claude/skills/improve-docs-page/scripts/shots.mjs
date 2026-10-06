@@ -4,10 +4,11 @@
 // Files are named <page>-<n>.png. Without a page list it shoots every non-reference page.
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const demo = "D:/Code/effect-atom-svelte/apps/demo";
-const require = createRequire(`${demo}/package.json`);
+// apps/demo in the checkout or worktree this file sits in.
+const demo = fileURLToPath(new URL("../../../../apps/demo/", import.meta.url));
+const require = createRequire(`${demo}package.json`);
 const { chromium } = require("@playwright/test");
 
 const args = process.argv.slice(2);
@@ -24,7 +25,7 @@ const viewport = flags.has("--phone")
   : { height: 900, width: 1280 };
 
 mkdirSync(out, { recursive: true });
-const { nav } = await import(pathToFileURL(`${demo}/src/lib/docs/nav.ts`).href);
+const { nav } = await import(pathToFileURL(`${demo}src/lib/docs/nav.ts`).href);
 const pages = nav
   .flatMap((s) => s.pages.map((p) => p.href))
   .filter((h) => !h.startsWith("/reference"))
