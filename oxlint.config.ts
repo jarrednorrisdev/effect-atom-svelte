@@ -47,6 +47,15 @@ export default defineConfig({
         "eslint/no-await-in-loop": "off",
       },
     },
+    {
+      // The docs skills' browser scripts visit pages one at a time, as e2e steps do, and the helpers
+      // they pass to page.evaluate run in the page, so they can't move to the module's scope.
+      files: [".claude/skills/**/scripts/**"],
+      rules: {
+        "eslint/no-await-in-loop": "off",
+        "unicorn/consistent-function-scoping": "off",
+      },
+    },
   ],
   rules: {
     // Effect APIs take an explicit `undefined` for void payloads (AtomRpc.query, Atom.Writable<_, void>);
