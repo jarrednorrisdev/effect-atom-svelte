@@ -3,12 +3,12 @@
 // Run it after renaming, moving or removing a heading or a page.
 // Usage: bun .claude/skills/improve-docs-page/scripts/check-links.mjs
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // The repo root, four levels up from this file, so the checkout or worktree it sits in is checked.
 const repo = fileURLToPath(new URL("../../../../", import.meta.url));
-const routes = join(repo, "apps/demo/src/routes");
+const routes = path.join(repo, "apps/demo/src/routes");
 
 // rehype-slug's ids (github-slugger): lowercase, punctuation dropped, spaces to hyphens.
 const slug = (text) =>
@@ -16,19 +16,24 @@ const slug = (text) =>
     .replaceAll("`", "")
     .trim()
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\- _]/gu, "")
+    .replaceAll(/[^\p{L}\p{N}\- _]/gu, "")
     .replaceAll(" ", "-");
 
 const pages = new Map();
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) walk(path);
-    else if (name === "+page.md") {
-      const rel = relative(routes, dir).replaceAll("\\", "/");
-      const text = readFileSync(path, "utf8");
-      const body = text.replace(/```[\s\S]*?```/gu, "");
-      const anchors = new Set([...body.matchAll(/^#{2,4} (.+)$/gmu)].map((m) => slug(m[1])));
+    const file = path.join(dir, name);
+    if (statSync(file).isDirectory()) {
+      walk(file);
+    } else if (name === "+page.md") {
+      const rel = path.relative(routes, dir).replaceAll("\\", "/");
+      const text = readFileSync(file, "utf-8");
+      const body = text.replaceAll(/```[\s\S]*?```/gu, "");
+      const anchors = new Set(
+        [...body.matchAll(/^#{2,4} (?<heading>.+)$/gmu)].map((m) =>
+          slug(m.groups.heading)
+        )
+      );
       pages.set(rel === "" ? "/" : `/${rel}`, { anchors, text });
     }
   }
@@ -37,27 +42,48 @@ walk(routes);
 
 let bad = 0;
 const check = (from, target, anchor) => {
-  if (target.startsWith("/reference")) return;
+  if (target.startsWith("/reference")) {
+    return;
+  }
   const page = pages.get(target);
-  if (!page) console.log(`${from}: no page ${target}`);
-  else if (anchor && !page.anchors.has(anchor)) console.log(`${from}: no section ${target}#${anchor}`);
-  else return;
+  if (!page) {
+    console.log(`${from}: no page ${target}`);
+  } else if (anchor && !page.anchors.has(anchor)) {
+    console.log(`${from}: no section ${target}#${anchor}`);
+  } else {
+    return;
+  }
   bad += 1;
 };
 
 for (const [href, { text }] of pages) {
-  for (const m of text.matchAll(/\]\((\/[a-z\-/]*)?(?:#([\w-]+))?\)/gu)) {
-    if (m[1] || m[2]) check(href, m[1] ?? href, m[2]);
+  for (const m of text.matchAll(
+    /\]\((?<target>\/[a-z\-/]*)?(?:#(?<anchor>[\w-]+))?\)/gu
+  )) {
+    const { anchor, target } = m.groups;
+    if (target || anchor) {
+      check(href, target ?? href, anchor);
+    }
   }
 }
-const apiReference = readFileSync(join(repo, "apps/demo/vite/api-reference.ts"), "utf8");
-for (const m of apiReference.matchAll(/"(\/[a-z-]+)(?:#([\w-]+))?"/gu)) {
-  check("vite/api-reference.ts", m[1], m[2]);
+const apiReference = readFileSync(
+  path.join(repo, "apps/demo/vite/api-reference.ts"),
+  "utf-8"
+);
+for (const m of apiReference.matchAll(
+  /"(?<target>\/[a-z-]+)(?:#(?<anchor>[\w-]+))?"/gu
+)) {
+  check("vite/api-reference.ts", m.groups.target, m.groups.anchor);
 }
 for (const readme of ["README.md", "packages/effect-atom-svelte/README.md"]) {
-  const text = readFileSync(join(repo, readme), "utf8");
-  for (const m of text.matchAll(/atom\.jarrednorris\.dev(\/[a-z\-/]*)?(?:#([\w-]+))?/gu)) {
-    if (m[1] && m[1] !== "/") check(readme, m[1].replace(/\/$/u, ""), m[2]);
+  const text = readFileSync(path.join(repo, readme), "utf-8");
+  for (const m of text.matchAll(
+    /atom\.jarrednorris\.dev(?<target>\/[a-z\-/]*)?(?:#(?<anchor>[\w-]+))?/gu
+  )) {
+    const { anchor, target } = m.groups;
+    if (target && target !== "/") {
+      check(readme, target.replace(/\/$/u, ""), anchor);
+    }
   }
 }
 console.log(`${bad} broken link(s)`);

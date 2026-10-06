@@ -69,6 +69,6 @@ If he asks a question about an example ("I don't understand the point of X"), an
 
 - **Follow the kit's rule: fit the example, don't shoehorn.** Add a visual piece only when it shows what the section teaches.
 - **Show errors with `CauseView` and types with `EffectType`.** Don't write string helpers that flatten an error.
-- **Use `aria-pressed` buttons and `role="group"` button groups, not checkboxes, radios or selects.** The exception is when the checkbox *is* the data, such as a todo's `done`.
+- **Use `aria-pressed` buttons and `role="group"` button groups, not checkboxes, radios or selects.** The exception is when the checkbox _is_ the data, such as a todo's `done`.
 - **Keep the shown code free of presentation noise.** Diagrams and inspectors go in separate components beside the example.
 - **Make the prose and the example agree exactly.** Every claim the prose makes about behavior should be something the reader can trigger and see.

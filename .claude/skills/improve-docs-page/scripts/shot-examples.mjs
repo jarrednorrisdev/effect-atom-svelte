@@ -20,14 +20,18 @@ const value = (name) => {
   return i === -1 ? undefined : args[i + 1];
 };
 const [path, out] = args.filter(
-  (a, i) => !a.startsWith("--") && !args[i - 1]?.match(/^--(index|click)$/u)
+  (a, i) => !a.startsWith("--") && !args[i - 1]?.match(/^--(?:index|click)$/u)
 );
 if (!path || !out) {
-  console.error("usage: shot-examples.mjs /page <outPrefix> [--index n] [--click name] [--light] [--phone]");
+  console.error(
+    "usage: shot-examples.mjs /page <outPrefix> [--index n] [--click name] [--light] [--phone]"
+  );
   process.exit(1);
 }
 const theme = flag("--light") ? "light" : "dark";
-const viewport = flag("--phone") ? { height: 844, width: 390 } : { height: 900, width: 1280 };
+const viewport = flag("--phone")
+  ? { height: 844, width: 390 }
+  : { height: 900, width: 1280 };
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ colorScheme: theme, viewport });
@@ -40,15 +44,24 @@ await page.waitForTimeout(1200);
 const examples = page.locator("figure[data-example]");
 const n = await examples.count();
 for (let i = 0; i < n; i += 1) {
-  if (value("--index") !== undefined && String(i) !== value("--index")) continue;
+  if (value("--index") !== undefined && String(i) !== value("--index")) {
+    continue;
+  }
   const example = examples.nth(i);
   const click = value("--click");
   if (click) {
     const button = example.getByRole("button", { name: click });
-    if (await button.count()) await button.first().click();
+    if (await button.count()) {
+      await button.first().click();
+    }
     await page.waitForTimeout(400);
   }
   await example.screenshot({ path: `${out}-${i}.png` });
 }
-console.log(path, n, "examples", errors.length ? `errors: ${errors.join(" | ")}` : "no errors");
+console.log(
+  path,
+  n,
+  "examples",
+  errors.length ? `errors: ${errors.join(" | ")}` : "no errors"
+);
 await browser.close();

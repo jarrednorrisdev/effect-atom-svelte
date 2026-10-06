@@ -11,7 +11,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const demo = fileURLToPath(new URL("../../../../apps/demo/", import.meta.url));
 const require = createRequire(`${demo}package.json`);
 const { chromium } = require("@playwright/test");
-const { pages } = await import(pathToFileURL(`${demo}src/lib/docs/nav.ts`).href);
+const { pages } = await import(
+  pathToFileURL(`${demo}src/lib/docs/nav.ts`).href
+);
 
 const args = process.argv.slice(2);
 const only = args.find((a) => a.startsWith("/"))?.split(",");
@@ -29,27 +31,49 @@ for (const { href } of pages.filter((p) => !only || only.includes(p.href))) {
   const onConsole = (m) => m.type() === "error" && errors.push(m.text());
   page.on("pageerror", onError);
   page.on("console", onConsole);
-  const response = await page.goto(`http://localhost:5180${href}`, { waitUntil: "networkidle" });
+  const response = await page.goto(`http://localhost:5180${href}`, {
+    waitUntil: "networkidle",
+  });
   await page.waitForTimeout(800);
   const wide = await page.evaluate(() => {
-    if (document.documentElement.scrollWidth <= window.innerWidth + 1) return [];
+    if (document.documentElement.scrollWidth <= window.innerWidth + 1) {
+      return [];
+    }
     const scrolls = (el) => {
       for (let p = el.parentElement; p; p = p.parentElement) {
-        if (["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(p).overflowX)) return true;
+        if (
+          ["auto", "scroll", "hidden", "clip"].includes(
+            getComputedStyle(p).overflowX
+          )
+        ) {
+          return true;
+        }
       }
       return false;
     };
     return [...document.querySelectorAll("body *")]
-      .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && !scrolls(el))
+      .filter(
+        (el) =>
+          el.getBoundingClientRect().right > window.innerWidth + 1 &&
+          !scrolls(el)
+      )
       .filter((el, _, all) => !all.includes(el.parentElement))
       .slice(0, 4)
-      .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].slice(0, 2).join(".")} "${(el.textContent ?? "").trim().slice(0, 40)}"`);
+      .map(
+        (el) =>
+          `${el.tagName.toLowerCase()}.${[...el.classList].slice(0, 2).join(".")} "${(el.textContent ?? "").trim().slice(0, 40)}"`
+      );
   });
   page.off("pageerror", onError);
   page.off("console", onConsole);
   if (response?.status() !== 200 || errors.length || wide.length) {
     problems += 1;
-    console.log(href, response?.status(), errors.length ? `errors: ${errors.join(" | ").slice(0, 300)}` : "", wide.length ? `wide: ${wide.join("; ")}` : "");
+    console.log(
+      href,
+      response?.status(),
+      errors.length ? `errors: ${errors.join(" | ").slice(0, 300)}` : "",
+      wide.length ? `wide: ${wide.join("; ")}` : ""
+    );
   }
 }
 console.log(`${problems} page(s) with problems`);
