@@ -12,6 +12,7 @@
   import TodoList from "#lib/landing/todo-list.svelte";
   import TodoLookup from "#lib/landing/todo-lookup.svelte";
   import Visitors from "#lib/landing/visitors.svelte";
+  import cartSource from "#lib/landing/cart.ts?highlight";
   import reportSource from "#lib/landing/report.svelte?highlight";
   import todoListSource from "#lib/landing/todo-list.svelte?highlight";
   import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
@@ -219,20 +220,22 @@
     </div>
   </section>
 
-  <section aria-labelledby="server-rendering" class="reason">
+  <section aria-labelledby="shared-state" class="reason">
     <div class="min-w-0">
-      {@render heading("03", "Server rendering that keeps visitors apart", "server-rendering")}
+      {@render heading("03", "Shared state in plain modules", "shared-state")}
       <p class="mt-4 text-muted-foreground">
-        Module-level <code class="font-mono text-[0.9em]">$state</code> is shared by every request
-        the server handles, so one visitor can see another's data, and async rendering makes that
-        easier to hit.
+        Svelte keeps shared state apart for each request with context: each piece is set in a
+        layout, and read while a component is set up. That works, and it adds up as shared state
+        grows.
       </p>
       <p class="mt-4 text-muted-foreground">
-        Atoms keep their values in a registry, and one provider in your root layout gives each
-        request its own. Results awaited on the server are sent with the page, so the browser
-        doesn't fetch them again.
+        An atom is defined in a plain module and imported where it's needed, and derived atoms
+        read other atoms from any module. Values live in a registry, and one provider in your root
+        layout gives each request its own, for every atom. Results awaited on the server are sent
+        with the page, so the browser doesn't fetch them again.
       </p>
       {@render links([
+        { href: "/why-atoms", title: "Why atoms" },
         { href: "/server-rendering", title: "Server rendering" },
         { href: "/hydration", title: "Hydration" },
       ])}
@@ -241,10 +244,11 @@
       <Example
         cap={22}
         files={[
-          { html: visitorSource, name: "visitor.svelte" },
+          { html: cartSource, name: "cart.ts" },
           { html: visitorsSource, name: "visitors.svelte" },
+          { html: visitorSource, name: "visitor.svelte" },
         ]}
-        hint="Add to Ada's cart: Grace's cartAtom stays at 0, but the module $state shows Ada's count to Grace too."
+        hint="Click Add to cart for Ada three times: Ada's freeShippingAtom turns true, and Grace's cart stays at 0."
       >
         <Visitors />
       </Example>

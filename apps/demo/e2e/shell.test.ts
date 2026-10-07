@@ -264,11 +264,16 @@ test.describe("docs shell", () => {
     await list.getByRole("checkbox", { name: "Feed the cat" }).check();
     await expect(open).toHaveText("1");
 
-    // 03: each registry keeps its own cart; module state is shared.
-    await page.getByRole("button", { name: "Add to cart" }).first().click();
-    await expect(page.getByTestId("Ada-atom")).toHaveText("1");
+    // 03: each registry keeps its own cart, and what derives from it.
+    const addToCart = page.getByRole("button", { name: "Add to cart" }).first();
+    await addToCart.click();
+    await addToCart.click();
+    await expect(page.getByTestId("Ada-shipping")).toHaveText("false");
+    await addToCart.click();
+    await expect(page.getByTestId("Ada-atom")).toHaveText("3");
+    await expect(page.getByTestId("Ada-shipping")).toHaveText("true");
     await expect(page.getByTestId("Grace-atom")).toHaveText("0");
-    await expect(page.getByTestId("Grace-state")).toHaveText("1");
+    await expect(page.getByTestId("Grace-shipping")).toHaveText("false");
 
     // 04: hiding the report before it finishes interrupts its effect.
     const show = page.getByRole("button", { name: "Show the report" });
