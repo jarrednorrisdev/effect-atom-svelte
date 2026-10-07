@@ -26,11 +26,11 @@ bun run --cwd apps/demo dev         # in another
 
 ## Docs site
 
-`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/first-atom`). The RPC and HTTP API pages need the demo API, so they are only prerendered in the hosted build.
+`apps/demo` is also the docs site. The sidebar, page titles and prev/next links come from one list, `src/lib/docs/nav.ts`. A docs page is a `+page.md` (mdsvex, laid out by `src/lib/docs/markdown-layout.svelte`). It shows a live example and that example's source with `<Example>`, imports the source with `?highlight` and uses `<Aside>` for callouts (see `src/routes/first-atom`). The landing page and the RPC and HTTP API pages need the demo API, so they are only prerendered in the hosted build.
 
 Search uses Pagefind, and only works in a build (`vite build` then `vite preview`). It indexes the prerendered pages (`export const prerender = true` in `+page.ts`). A page in the sidebar that isn't prerendered is indexed from its `+page.md` instead, without its live examples' source (`vite/pagefind.ts`).
 
-For language models, the build also writes the docs as Markdown (`src/lib/docs/llms.ts`): `/llms.txt` lists every page, `/llms-full.txt` has them all in one file, and each page has its own at its address plus `.md` (`/index.md` for the introduction). A guide page's Markdown is its `+page.md` with each `<Example>` replaced by its hint, a link to try it and its source files, and each `<Aside>` by a blockquote (`vite/llms.ts`). A component that file doesn't know fails the build, so teach it a new one when a page uses it. The API reference's Markdown comes from `vite/api-reference.ts`.
+For language models, the build also writes the docs as Markdown (`src/lib/docs/llms.ts`): `/llms.txt` lists every page, `/llms-full.txt` has them all in one file, and each page in the sidebar has its own at its address plus `.md`. A guide page's Markdown is its `+page.md` with each `<Example>` replaced by its hint, a link to try it and its source files, and each `<Aside>` by a blockquote (`vite/llms.ts`). A component that file doesn't know fails the build, so teach it a new one when a page uses it. The API reference's Markdown comes from `vite/api-reference.ts`.
 
 ## Hosting
 

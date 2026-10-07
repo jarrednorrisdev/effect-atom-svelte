@@ -20,7 +20,7 @@
     <p class="lead">{page.error?.message ?? "The page failed to load."}</p>
   {/if}
   <p>
-    Go to the <a href="/">introduction</a>, pick a page from the sidebar, or press
+    Go to the <a href="/introduction">introduction</a>, pick a page from the sidebar, or press
     <kbd>{shortcut.current}</kbd> to search.
   </p>
 </div>

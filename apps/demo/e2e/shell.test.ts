@@ -1,3 +1,4 @@
+import { pages as navPages } from "../src/lib/docs/nav.ts";
 import { expect, test } from "./servers.ts";
 
 test.describe("docs shell", () => {
@@ -211,6 +212,93 @@ test.describe("docs shell", () => {
     await expect(description).toHaveAttribute("content", /Hooks module/u);
   });
 
+  test("the landing page has the whole width and links to every page", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Atoms for the rest/u })
+    ).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "https://atom.jarrednorris.dev/"
+    );
+    // No sidebar on wide screens: the page map at the foot lists the pages instead.
+    await expect(page.locator("[data-slot=sidebar]")).toHaveCount(0);
+    const map = page.getByRole("navigation", { name: "All pages" });
+    await expect(map.getByRole("link")).toHaveCount(navPages.length);
+    await expect(page.locator("footer")).toContainText(
+      "not made or endorsed by the Effect team"
+    );
+
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("link", { name: "Get started" }).first().click();
+    await expect(page).toHaveURL(/\/introduction$/u);
+    await expect(
+      page
+        .locator("[data-slot=sidebar]")
+        .getByRole("link", { name: "Introduction" })
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  test("the landing page's examples show each reason to use atoms", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // 01: a typed TodoNotFound, matched in markup.
+    const lookup = page.getByTestId("lookup");
+    await expect(lookup).toHaveText("Read the Effect Atom source");
+    await page.getByRole("button", { name: "Todo 99" }).click();
+    await expect(lookup).toHaveText("There is no todo 99");
+
+    // 02: the mutation invalidates "todos", so the list and what derives from it follow. The
+    // prerendered list is whatever the API held at build time, so the counts start after the
+    // refetch, from this test's own store: two seeded todos, one done, and the new one.
+    const open = page.getByTestId("home-open");
+    await page.getByRole("button", { exact: true, name: "Add" }).click();
+    const list = page.getByTestId("home-todos");
+    await expect(list).toContainText("Feed the cat");
+    await expect(open).toHaveText("2");
+    await list.getByRole("checkbox", { name: "Feed the cat" }).check();
+    await expect(open).toHaveText("1");
+
+    // 03: each registry keeps its own cart; module state is shared.
+    await page.getByRole("button", { name: "Add to cart" }).first().click();
+    await expect(page.getByTestId("Ada-atom")).toHaveText("1");
+    await expect(page.getByTestId("Grace-atom")).toHaveText("0");
+    await expect(page.getByTestId("Grace-state")).toHaveText("1");
+
+    // 04: hiding the report before it finishes interrupts its effect.
+    const show = page.getByRole("button", { name: "Show the report" });
+    const log = page.getByTestId("report-log");
+    await show.click();
+    await expect(log).toContainText("effect started");
+    await show.click();
+    await expect(log).toContainText("effect interrupted");
+    await show.click();
+    await expect(page.getByTestId("report")).toHaveText(
+      "Your report is ready",
+      {
+        timeout: 6000,
+      }
+    );
+  });
+
+  test("on a phone the landing page's menu opens the sidebar sheet", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ height: 800, width: 390 });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("link", { name: "Installation" }).click();
+    await expect(page).toHaveURL(/\/installation$/u);
+    await expect(sheet).toBeHidden();
+  });
+
   test("the favicon, preview image and sitemap are served", async ({
     request,
   }) => {
@@ -225,7 +313,9 @@ test.describe("docs shell", () => {
       true,
     ]);
     const sitemap = await request.get("/sitemap.xml");
-    expect(await sitemap.text()).toContain(
+    const urls = await sitemap.text();
+    expect(urls).toContain("<loc>https://atom.jarrednorris.dev/</loc>");
+    expect(urls).toContain(
       "<loc>https://atom.jarrednorris.dev/reference/Hooks</loc>"
     );
   });
@@ -243,11 +333,14 @@ test.describe("docs shell", () => {
       "[Hooks](https://atom.jarrednorris.dev/reference/Hooks.md)"
     );
 
-    // Each linked page is served, the introduction as /index.md.
+    // Each linked page is served.
     const pages = await Promise.all(
-      ["/index.md", "/streams.md", "/reference.md", "/reference/Hooks.md"].map(
-        (path) => request.get(path)
-      )
+      [
+        "/introduction.md",
+        "/streams.md",
+        "/reference.md",
+        "/reference/Hooks.md",
+      ].map((path) => request.get(path))
     );
     expect(pages.map((response) => response.ok())).toEqual([
       true,
@@ -334,19 +427,41 @@ test.describe("docs shell", () => {
     await expect(code).not.toContainText("Atom.make");
   });
 
-  test("the theme switch persists and applies before any app script runs", async ({
+  test("the theme menu persists the choice and applies it before any app script runs", async ({
     page,
   }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/first-atom");
     await page.waitForLoadState("networkidle");
     const html = page.locator("html");
-    await expect(html).not.toHaveClass(/dark/u);
-    await page.getByRole("button", { name: "Toggle theme" }).click();
     await expect(html).toHaveClass(/dark/u);
+    await page.getByRole("button", { name: "Theme" }).click();
+    await page.getByRole("menuitemradio", { name: "Light" }).click();
+    await expect(html).not.toHaveClass(/dark/u);
+    await expect(html).toHaveAttribute("data-theme", "light");
+    // Stored by Atom.kvs, as JSON.
+    expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe(
+      '"light"'
+    );
 
     // Without the app's JavaScript, only the inline script in app.html can set the class.
     await page.route("**/_app/**/*.js", (route) => route.abort());
     await page.reload();
+    await expect(html).not.toHaveClass(/dark/u);
+    await expect(
+      page.getByRole("button", { name: "Theme" }).locator(".theme-light-icon")
+    ).toBeVisible();
+  });
+
+  test("System follows the system setting as it changes", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/first-atom");
+    await page.waitForLoadState("networkidle");
+    const html = page.locator("html");
+    await page.getByRole("button", { name: "Theme" }).click();
+    await page.getByRole("menuitemradio", { name: "System" }).click();
+    await expect(html).not.toHaveClass(/dark/u);
+    await page.emulateMedia({ colorScheme: "dark" });
     await expect(html).toHaveClass(/dark/u);
   });
 
@@ -465,12 +580,14 @@ test.describe("docs shell", () => {
     ).toBeFocused();
   });
 
-  test("with no stored choice the theme follows the system", async ({
+  test("with no stored choice the theme is dark, whatever the system prefers", async ({
     page,
   }) => {
-    await page.emulateMedia({ colorScheme: "dark" });
+    await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("html")).toHaveClass(/dark/u);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
   test("Ctrl+K searches the prerendered pages with Pagefind", async ({

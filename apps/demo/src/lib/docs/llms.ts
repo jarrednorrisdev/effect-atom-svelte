@@ -98,7 +98,7 @@ export const llmsIndex = () =>
     `# ${siteName}`,
     `> ${summary}`,
     essentials,
-    `The links below are Markdown; any page's address with \`.md\` added gives its Markdown (\`/index.md\` for the introduction). Every page in one file: [llms-full.txt](${siteUrl}/llms-full.txt)`,
+    `The links below are Markdown; any page's address with \`.md\` added gives its Markdown. Every page in one file: [llms-full.txt](${siteUrl}/llms-full.txt)`,
     ...sections.map((section) =>
       [
         `## ${section.title}`,

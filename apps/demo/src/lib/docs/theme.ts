@@ -1,59 +1,71 @@
 /**
- * Light and dark mode. The choice lives in localStorage, and an inline script in `app.html` applies
- * it before first paint, so prerendered pages (which never see a request's cookies) don't flash.
- * With no stored choice the page follows `prefers-color-scheme`. Keep that script in step with
- * this module.
+ * Dark, light, or whatever the system prefers. The choice is an `Atom.kvs` atom kept in
+ * localStorage under `theme`, dark until the visitor picks another. An inline script in `app.html`
+ * applies the stored choice before first paint, so prerendered pages (which never see the
+ * visitor's storage) don't flash. Keep that script in step with this module.
  */
 
-export type Theme = "light" | "dark";
+import { browser } from "$app/env";
+import { Schema } from "effect";
+import { KeyValueStore } from "effect/persistence";
+import { Atom } from "effect/reactivity";
 
-const storageKey = "theme";
-const darkQuery = "(prefers-color-scheme: dark)";
+export const themeChoices = ["dark", "light", "system"] as const;
+export type ThemeChoice = (typeof themeChoices)[number];
+export type Theme = "dark" | "light";
 
-const stored = (): Theme | undefined => {
-  try {
-    const value = localStorage.getItem(storageKey);
-    return value === "light" || value === "dark" ? value : undefined;
-  } catch {
-    return undefined;
+// localStorage only exists in the browser; the server renders the default.
+const storage = Atom.runtime(
+  browser
+    ? KeyValueStore.layerStorage(() => localStorage)
+    : KeyValueStore.layerMemory
+);
+
+/** The visitor's choice, stored as JSON: `"dark"`, `"light"` or `"system"`. */
+export const themeChoiceAtom = Atom.kvs({
+  defaultValue: (): ThemeChoice => "dark",
+  key: "theme",
+  runtime: storage,
+  schema: Schema.Literals(themeChoices),
+});
+
+/** Whether the system prefers dark, following changes while something reads it. */
+const systemDarkAtom = Atom.make((get) => {
+  if (!browser) {
+    return true;
   }
-};
+  const query = window.matchMedia("(prefers-color-scheme: dark)");
+  const onChange = () => get.setSelf(query.matches);
+  query.addEventListener("change", onChange);
+  get.addFinalizer(() => query.removeEventListener("change", onChange));
+  return query.matches;
+});
 
-const isDark = () => document.documentElement.classList.contains("dark");
+/** The theme the page shows: the choice, with "system" resolved. */
+export const themeAtom = Atom.make((get): Theme => {
+  const choice = get(themeChoiceAtom);
+  if (choice !== "system") {
+    return choice;
+  }
+  return get(systemDarkAtom) ? "dark" : "light";
+});
 
 /**
- * Switches the class on `<html>` with transitions off, so colors change at once instead of
- * animating on every element that has a transition.
+ * Marks `<html>` with the choice (for the header's icon) and the theme. A change of theme switches
+ * with transitions off, so colors change at once instead of animating on every element that has a
+ * transition.
  */
-const apply = (theme: Theme) => {
+export const applyTheme = (choice: ThemeChoice, theme: Theme) => {
+  const root = document.documentElement;
+  root.dataset.theme = choice;
+  if (root.classList.contains("dark") === (theme === "dark")) {
+    return;
+  }
   const style = document.createElement("style");
   style.textContent = "*,*::before,*::after{transition:none!important}";
   document.head.append(style);
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  root.classList.toggle("dark", theme === "dark");
   // Force a style recalculation before transitions come back.
   window.getComputedStyle(document.body).getPropertyValue("opacity");
   style.remove();
-};
-
-/** Flips the theme and remembers the choice. */
-export const toggleTheme = () => {
-  const next: Theme = isDark() ? "light" : "dark";
-  try {
-    localStorage.setItem(storageKey, next);
-  } catch {
-    // Storage can be unavailable (private windows); the switch still applies to this page.
-  }
-  apply(next);
-};
-
-/** Follows the system setting while the visitor has made no choice. Returns a cleanup. */
-export const followSystemTheme = () => {
-  const query = window.matchMedia(darkQuery);
-  const onChange = () => {
-    if (stored() === undefined) {
-      apply(query.matches ? "dark" : "light");
-    }
-  };
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
 };

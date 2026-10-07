@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -15,14 +15,19 @@
       rel="apple-touch-icon"
       href="%sveltekit.assets%/apple-touch-icon.png"
     />
-    <!-- Applies the theme before first paint; see src/lib/docs/theme.ts. -->
+    <!-- Applies the theme before first paint; see src/lib/docs/theme.ts. <html> starts dark, the
+         default. The choice is stored as JSON, such as "light" with its quotes. -->
     <script>
       try {
-        const theme = localStorage.getItem("theme");
+        const stored = localStorage.getItem("theme")?.replaceAll('"', "");
+        const choice = ["dark", "light", "system"].includes(stored)
+          ? stored
+          : "dark";
         const dark =
-          theme === "dark" ||
-          (theme !== "light" &&
+          choice === "dark" ||
+          (choice === "system" &&
             matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = choice;
         document.documentElement.classList.toggle("dark", dark);
       } catch {}
     </script>

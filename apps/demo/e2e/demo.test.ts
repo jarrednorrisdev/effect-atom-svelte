@@ -323,10 +323,10 @@ test("introduction: a count, its double and an Effect's greeting", async ({
   page,
 }) => {
   // The server renders the boundary's pending state; the browser runs the Effect.
-  expect(await serverHtml(page, "/")).toMatch(
+  expect(await serverHtml(page, "/introduction")).toMatch(
     /data-tone="running"[^>]*><span class="content[^"]*">(?:<!---->)*Loading…/u
   );
-  await page.goto("/");
+  await page.goto("/introduction");
   const greeting = page.getByTestId("taste-greeting");
   await expect(greeting).toHaveText(/^Hello from an Effect at /u);
   await page.waitForLoadState("networkidle");
