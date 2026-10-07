@@ -228,7 +228,7 @@ test.describe("docs shell", () => {
     await page.waitForLoadState("networkidle");
     await page.getByRole("tab", { name: "Which to use?" }).click();
     await expect(page.getByTestId("comparison")).toContainText(
-      "Atoms with reactivity keys"
+      "A mutation atom with reactivity keys"
     );
     await expect(page.getByTestId("hero-code")).toBeHidden();
     // See it run scrolls down to the reasons, rather than leaving the page.

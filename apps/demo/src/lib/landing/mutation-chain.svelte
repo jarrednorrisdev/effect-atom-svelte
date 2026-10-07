@@ -1,0 +1,81 @@
+<!--
+  @component
+  The chain one mutation sets off in example 04: createTodo, its "todos" key, todosAtom refetching,
+  openCountAtom following, components re-rendering. The first time it scrolls into view, each step
+  lights up in turn, once; under reduced motion it stays still.
+
+  ```svelte
+  <MutationChain />
+  ```
+-->
+<script lang="ts">
+  import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import type { Attachment } from "svelte/attachments";
+
+  /** Each step, declared once, where its atom is defined. */
+  const chain = [
+    { name: "createTodo", note: "a mutation" },
+    { name: '"todos"', note: "its key" },
+    { name: "todosAtom", note: "refetches" },
+    { name: "openCountAtom", note: "follows" },
+    { name: "Components", note: "re-render" },
+  ] as const;
+
+  let played = $state(false);
+
+  // Plays the steps once, when the chain is mostly on screen.
+  const play: Attachment<HTMLElement> = (element) => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          played = true;
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.8 }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
+</script>
+
+<figure class="mt-6 mb-0 rounded-xl border bg-background p-4" data-testid="chain" {@attach play}>
+  <ol class="m-0 flex list-none flex-wrap items-start gap-x-1.5 gap-y-3 p-0" data-played={played || undefined}>
+    {#each chain as step, index (step.name)}
+      <li class="flex items-start gap-1.5">
+        {#if index > 0}
+          <ArrowRightIcon aria-hidden="true" class="mt-1.5 size-3.5 shrink-0 text-subtle-foreground" />
+        {/if}
+        <span class="grid gap-1">
+          <code class="step font-mono text-xs" style:--step={index}>{step.name}</code>
+          <span class="text-xs text-muted-foreground">{step.note}</span>
+        </span>
+      </li>
+    {/each}
+  </ol>
+  <figcaption class="mt-3 text-xs text-muted-foreground">
+    One mutation, and everything downstream follows. Each link is declared once, where its atom is
+    defined; the mutation names only its key.
+  </figcaption>
+</figure>
+
+<style>
+  .step {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.2rem 0.45rem;
+  }
+  /* The change runs down the chain once: each step lights up in turn. */
+  @media (prefers-reduced-motion: no-preference) {
+    [data-played] .step {
+      animation: step 0.5s ease-out both;
+      animation-delay: calc(0.15s + var(--step) * 0.22s);
+    }
+  }
+  @keyframes step {
+    40% {
+      background: color-mix(in oklab, var(--tone-running) 22%, transparent);
+      border-color: var(--tone-running);
+    }
+  }
+</style>

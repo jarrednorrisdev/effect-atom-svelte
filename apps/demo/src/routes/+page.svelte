@@ -9,6 +9,7 @@
   import { nav } from "#lib/docs/nav.ts";
   import PageDescription from "#lib/docs/page-description.svelte";
   import HeroPanel from "#lib/landing/hero-panel.svelte";
+  import MutationChain from "#lib/landing/mutation-chain.svelte";
   // Each example twice: the component, and its source from a ?highlight import.
   /* oxlint-disable import/no-duplicates */
   import Report from "#lib/landing/report.svelte";
@@ -139,10 +140,9 @@
     <div class="min-w-0">
       {@render heading("01", "One Effect, shared by every component that reads it", "shared-effect")}
       <p class="mt-4 text-muted-foreground">
-        For server data, a remote query is already shared between components. For Effect code that
-        runs in the browser, <code class="font-mono text-[0.9em]">Effect.runPromise</code> is enough
-        in one component. Once a second needs the result, you want one run, shared, and a way to run
-        it again for both.
+        In one component, <code class="font-mono text-[0.9em]">Effect.runPromise</code> is enough.
+        Once a second component needs the result, you want one run, shared, and a way to run it
+        again for both.
       </p>
       <p class="mt-4 text-muted-foreground">
         An atom gives you that. It's defined once, in a plain module, and any component reads it,
@@ -248,11 +248,7 @@
         those links for you: the mutation names only its key, not the queries or what derives from
         them.
       </p>
-      <p class="mt-4 text-muted-foreground">
-        SvelteKit can refresh queries after a mutation too, even in the same request, which saves a
-        round trip. But each mutation lists the queries to refresh, so a query you add later means
-        editing every mutation that affects it.
-      </p>
+      <MutationChain />
       {@render links([
         { href: "/rpc", title: "RPC" },
         { href: "/http", title: "HTTP API" },
