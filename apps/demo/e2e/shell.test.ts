@@ -1,4 +1,4 @@
-import { pages } from "../src/lib/docs/nav.ts";
+import { pages as navPages } from "../src/lib/docs/nav.ts";
 import { expect, test } from "./servers.ts";
 
 test.describe("docs shell", () => {
@@ -226,7 +226,7 @@ test.describe("docs shell", () => {
     // No sidebar on wide screens: the page map at the foot lists the pages instead.
     await expect(page.locator("[data-slot=sidebar]")).toHaveCount(0);
     const map = page.getByRole("navigation", { name: "All pages" });
-    await expect(map.getByRole("link")).toHaveCount(pages.length);
+    await expect(map.getByRole("link")).toHaveCount(navPages.length);
     await expect(page.locator("footer")).toContainText(
       "not made or endorsed by the Effect team"
     );
