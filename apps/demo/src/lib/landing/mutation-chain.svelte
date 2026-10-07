@@ -91,8 +91,8 @@
   /* The change runs down the chain once: each step lights up in turn. */
   @media (prefers-reduced-motion: no-preference) {
     [data-played] .step {
-      animation: step 0.5s ease-out both;
-      animation-delay: calc(0.15s + var(--step) * 0.22s);
+      animation: step 1.6s ease-in-out both;
+      animation-delay: calc(0.3s + var(--step) * 1.1s);
     }
   }
   /* Nothing moves under reduced motion, so there is nothing to replay. */
