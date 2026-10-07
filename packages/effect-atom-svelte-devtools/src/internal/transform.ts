@@ -107,23 +107,23 @@ const propertyName = (property: Node): string | undefined => {
 };
 
 /** Every node below `node`, depth first. */
-function* descendants(node: Node): Generator<Node> {
+const descendants = (node: Node, found: Node[] = []): Node[] => {
   for (const value of Object.values(node)) {
     const children = Array.isArray(value) ? value : [value];
     for (const child of children) {
       if (typeof child === "object" && child !== null && "type" in child) {
-        yield child as Node;
-        yield* descendants(child as Node);
+        found.push(child as Node);
+        descendants(child as Node, found);
       }
     }
   }
-}
+  return found;
+};
 
 /**
- * The calls to wrap in a program, offset by `base`: those its top-level declarations make, also
- * inside object literals (`oneByOne.todosAtom` in `const oneByOne = { todosAtom: Atom.make(...) }`),
- * and `Atom.*` calls declared anywhere else, such as in a function that makes atoms. Elsewhere only
- * `Atom.*` calls, so a function's every call isn't wrapped.
+ * The calls to wrap in a program, offset by `base`: every call its top-level declarations make,
+ * also inside object literals (`oneByOne.todosAtom` in `const oneByOne = { todosAtom: ... }`), and
+ * any `Atom.*` call declared elsewhere, such as in a function that makes atoms.
  */
 const sites = (program: Node, base: number, defaultName: string): Site[] => {
   const found: Site[] = [];
