@@ -3,4 +3,6 @@ declare module "virtual:api-reference" {
   import type { ApiModuleHtml } from "../vite/api-reference.ts";
 
   export const modules: readonly ApiModuleHtml[];
+  /** Each module's page as Markdown, without its title. */
+  export const markdown: readonly { href: string; text: string }[];
 }

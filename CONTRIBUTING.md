@@ -30,6 +30,8 @@ bun run --cwd apps/demo dev         # in another
 
 Search uses Pagefind, and only works in a build (`vite build` then `vite preview`). It indexes the prerendered pages (`export const prerender = true` in `+page.ts`). A page in the sidebar that isn't prerendered is indexed from its `+page.md` instead, without its live examples' source (`vite/pagefind.ts`).
 
+For language models, the build also writes the docs as Markdown (`src/lib/docs/llms.ts`): `/llms.txt` lists every page, `/llms-full.txt` has them all in one file, and each page in the sidebar has its own at its address plus `.md`. A guide page's Markdown is its `+page.md` with each `<Example>` replaced by its hint, a link to try it and its source files, and each `<Aside>` by a blockquote (`vite/llms.ts`). A component that file doesn't know fails the build, so teach it a new one when a page uses it. The API reference's Markdown comes from `vite/api-reference.ts`.
+
 ## Hosting
 
 The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing.

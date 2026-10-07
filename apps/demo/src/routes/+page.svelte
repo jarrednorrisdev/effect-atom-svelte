@@ -344,6 +344,8 @@
       >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect team. It is
       at 0.x, so a minor release can change its API: see the
       <a class="underline underline-offset-4" href={changelogUrl}>changelog</a>.
+      The docs are also Markdown, for AI assistants:
+      <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.
     </p>
   </footer>
 </div>
