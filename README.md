@@ -226,7 +226,7 @@ Types: [`CaughtError`](https://atom.jarrednorris.dev/reference/SvelteKit#CaughtE
 | --- | --- | --- |
 | `effect` | `~4.0.0` | Pinned to 4.0.x, not `^4.0.0`: the bindings use parts of the atom registry that aren't public API, which a minor release of `effect` can change. Load one copy of `effect` in your app: see [Two copies of effect](https://atom.jarrednorris.dev/troubleshooting#two-copies-of-effect). |
 | `svelte` | `^5.57.2` | `experimental.async` is needed for `useAtomSuspense`, `useAtomResult` and server rendering. The other hooks work without it. |
-| `@sveltejs/kit` | `^3.0.0` or `^2.0.0`, optional | The docs site and its tests run on SvelteKit 3. On SvelteKit 2, the `effect-atom-svelte/sveltekit` error hooks work with less detail: see [SvelteKit](https://atom.jarrednorris.dev/sveltekit). |
+| `@sveltejs/kit` | `^3.0.0` or `^2.0.0`, optional | The docs site and its tests run on SvelteKit 3. On SvelteKit 2, the `effect-atom-svelte/sveltekit` error hooks work with less detail: see [Errors in boundaries](https://atom.jarrednorris.dev/sveltekit#errors-in-boundaries). |
 
 SvelteKit is optional: see [Plain Svelte](https://atom.jarrednorris.dev/installation#plain-svelte-no-sveltekit). The test suites run in Chromium, Firefox and WebKit.
 
