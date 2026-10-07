@@ -1,13 +1,13 @@
 ---
 title: Why atoms
-description: What atoms solve that module state, stores and load functions don't, and when you don't need them.
+description: What atoms add to context, remote functions and load functions, and when you don't need them.
 ---
 
 <script>
   import Aside from "#lib/docs/aside.svelte";
 </script>
 
-Svelte 5 already has reactive state that works anywhere: `$state` in a `.svelte.ts` module. This page starts from that, shows where it breaks, and what atoms do about it. It ends with the cases where you don't need atoms at all.
+Svelte and SvelteKit already share state safely: context keeps it separate per request, and remote functions handle server data. This page starts from those, shows what they leave to you, and what atoms do about it. It ends with the cases where you don't need atoms at all.
 
 In short, atoms give you what runes alone don't:
 
@@ -20,42 +20,48 @@ If you need none of these, see [When you don't need atoms](#when-you-dont-need-a
 
 ## State shared between components
 
-Say several components need the signed-in user. The shortest way is a module:
+Say several components need the signed-in user. In Svelte, the way to share it is context: set it in the root layout, and read it in any component below. `createContext` gives you a typed getter and setter in one line:
 
-**Example** (Module state, set from layout data)
+**Example** (The signed-in user in context, set from layout data)
 
 ```ts
-// user.svelte.ts
-export const user = $state({ name: "" });
+// user-context.ts
+import { createContext } from "svelte";
+
+import type { User } from "./user.ts";
+
+export const [getUser, setUser] = createContext<() => User>();
 ```
 
 ```svelte
 <!-- +layout.svelte -->
 <script lang="ts">
-  import { user } from "$lib/user.svelte";
+  import { setUser } from "$lib/user-context";
 
   const { children, data } = $props();
-  user.name = data.user.name;
+  setUser(() => data.user);
 </script>
 
 {@render children()}
 ```
 
-In the browser this works. On the server it doesn't: a module is loaded once per server process, so every request shares the same `user`. A page that doesn't set it shows whoever was rendered last. With async rendering it is worse, because requests take turns at each `await`: one visitor's render can pick up the name another visitor's request has just set. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) walks through the leak, and when module state is safe.
+Context isn't shared between requests, so this is safe on the server. A `$state` object exported from a module is not: a module is loaded once per server process, so every request would share the same user, and with async rendering one visitor's render can pick up the name another visitor's request has just set. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) walks through the leak, and when module state is safe.
 
-### What Svelte and SvelteKit offer
+For data from the server, SvelteKit's remote functions go further. A `query` runs once per request on the server however many components call it, its result is sent with the page so the browser doesn't fetch it again, and in the browser it is cached by its arguments, with `loading`, `error` and `refresh()`. With a `getUser` query, the example above needs no context at all.
 
-The fix Svelte recommends is context: create the state once per request in the root layout, and read it in components. `createContext` gives you a typed getter and setter in one line, so each piece of state costs little.
+### What context leaves to you
 
-For data from the server, SvelteKit's remote functions go further. A `query` runs once per request on the server however many components call it, its result is sent with the page so the browser doesn't fetch it again, and in the browser it is cached by its arguments, with `loading`, `error` and `refresh()`. With a `getUser` query, the example above needs no shared state at all.
+So for server data, SvelteKit already does a lot, and context keeps everything else separate per request. What it costs shows up as the shared state grows, with the state that doesn't come from the server, such as a filter, a draft or a selected item:
 
-So for server data, SvelteKit already does a lot. Where you still write things by hand is the state components share that doesn't come from the server, such as a filter, a draft or a selected item: each one needs its own context set up in a layout, and it stays in memory for as long as the app is open, whether or not anything still shows it.
+- Each piece needs its own context, set in a layout above every component that reads it.
+- Context can only be read while a component is set up, below the one that set it. A plain module can't read it, so one piece of state can't be derived from another outside a component.
+- It stays in memory for as long as the layout that set it, whether or not anything still shows it.
 
 None of these tools works with Effect directly, either. Inside a remote function you run the effect yourself, and its typed errors reach the component as thrown errors, so the component can't match on them. An atom takes an `Effect` or a `Stream` as it is, and components get its typed result.
 
 ### With atoms
 
-Atoms give all shared state that isolation at once, whether it comes from the server or not. An atom is a description and holds no value, so it can live in a module. Values live in a **registry**, and one `RegistryProvider` in the root layout gives each request its own, for every atom.
+Atoms keep state separate per request too. What they change is where shared state is defined. An atom is a description and holds no value, so it lives in a plain module and can read other atoms from any module. Values live in a **registry**, and one `RegistryProvider` in the root layout gives each request its own, for every atom, with no context to set up for each one.
 
 Here is the signed-in user again, this time loaded by your Effect code:
 
@@ -110,7 +116,7 @@ export const userAtom = Atom.make(currentUser);
 
 Next to a `getUser` remote query, the difference is the Effect code: `currentUser` is used as it is, and a failure reaches the component as a typed `SignedOut`, not a thrown error, so the badge can tell a signed-out visitor from a defect. Effect code that needs services, such as an HTTP client, gets them from a [runtime](/services). Made [serializable](/hydration#serializable-atoms), the atom sends the server's result with the page, as a remote query does.
 
-The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing [holds](/reading-and-writing#reading), so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
+The same `RegistryProvider` covers client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared across the app, as state in context set in the root layout would be. One difference: the registry disposes of an atom nothing [holds](/reading-and-writing#reading), so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
 
 ## Talking to an Effect backend
 
@@ -150,7 +156,7 @@ SvelteKit's remote functions can refresh queries after a mutation too, in the sa
 
 ## What else atoms handle
 
-Per-request isolation is the problem a module can't solve. Beyond it, atoms bring your Effect code into components and handle the work around shared state. Some of it overlaps with remote functions for server data; the difference is that atoms do it for Effect code, and for client state too.
+Beyond where shared state lives, atoms bring your Effect code into components and handle the work around shared state. Some of it overlaps with remote functions for server data; the difference is that atoms do it for Effect code, and for client state too.
 
 - **Effect in components.** An atom takes an `Effect` or a `Stream` as it is, and can use services from a `Layer`. See [Services and runtimes](/services). For RPC and `HttpApi` clients, see [Talking to an Effect backend](#talking-to-an-effect-backend).
 - **Async state with typed errors.** An atom built from an `Effect` holds an `AsyncResult`: `Initial` before the first value, `Success` or `Failure` after, with the error typed by the effect. The hooks hand that to `<svelte:boundary>`, or let you match on it. See [Async atoms](/async-atoms).
