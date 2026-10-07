@@ -313,9 +313,9 @@ A test gives the runtime a different layer, such as a fake API or data held in m
 
 ## Why not TanStack Query?
 
-TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`, and every query whose key starts with `"todos"` refetches. For an Effect backend, atoms differ in four ways:
+TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`. Every query whose key starts with `"todos"` is marked stale, and the ones on screen refetch. For an Effect backend, atoms differ in four ways:
 
-- **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue in every query. An atom runs the effect itself.
+- **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue yourself, in each query or in a helper. An atom runs the effect itself.
 - **Error types are checked.** TanStack Query types a query's error as `Error` unless you register another type or pass one per query, and either way it's an assertion: nothing checks what the query function throws. An atom's error type is inferred from the effect, or from the procedure's schema.
 - **Client state lives alongside.** A derived atom reads a query and a filter alike. TanStack Query can combine queries, but client state lives outside it, in a store or a context.
 - **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. The registry disposes of an atom when its last reader goes, unless you give it an idle TTL or keep it alive.
