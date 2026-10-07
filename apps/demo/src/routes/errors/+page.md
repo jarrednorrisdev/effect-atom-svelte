@@ -86,9 +86,7 @@ Both give you the `AsyncResult`, failures included. Check `_tag` in the markup, 
 
 ### In a boundary
 
-`useAtomSuspense` rejects when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. The promise rejects with `Cause.squash(cause)`: the first typed error if there is one, otherwise the defect, otherwise an `Error` saying the effect was interrupted. See [When it fails](/suspense#when-it-fails).
-
-The snippet's `reset` renders the boundary's content again, but the atom still holds the same `Failure`. Refresh the atom first, with `useAtomRefresh`, and read it with `suspendOnWaiting: true`, so the content waits for the refresh's result instead of rejecting again with the old failure: see [When it fails](/suspense#when-it-fails). The example's **Try again** gets away without it, because by the time you click it, Todo 1 has already loaded.
+`useAtomSuspense` rejects with `Cause.squash(cause)` when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. To try again, refresh the atom, call the snippet's `reset`, and read the atom with `suspendOnWaiting: true`: [When it fails](/suspense#when-it-fails) explains each step. The example's **Try again** gets away without `suspendOnWaiting`, because by the time you click it, Todo 1 has already loaded.
 
 In a SvelteKit app, the error passes through SvelteKit's `handleError` hook before the `failed` snippet sees it: see [SvelteKit's `handleError`](#sveltekits-handleerror).
 
