@@ -20,7 +20,7 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
 | None | `await useAtomResult(atom)` in the script |
 | `useAtomMount`, `useAtomRefresh` | The same |
-| `useAtomSubscribe` | The same, but it computes the atom, so a derived atom nothing else reads still runs |
+| `useAtomSubscribe` | The same, but it always computes the atom, so a derived atom nothing else reads still runs. React's computes it only with `immediate: true` |
 | `useAtomInitialValues` | Also holds its atoms while the component lives, and gives a wrapped atom's value to its source, as `initialValues` does. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data) |
 | `useAtomRef(ref)`, `useAtomRefPropValue(ref, prop)` | The same, read through `current` |
 | `useAtomRefProp(ref, prop)` | The same |
