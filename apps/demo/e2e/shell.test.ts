@@ -13,9 +13,7 @@ test.describe("docs shell", () => {
       sidebar.getByRole("link", { name: "Reading and writing" })
     ).toHaveAttribute("aria-current", "page");
     const pager = page.getByRole("navigation", { name: "Pages" });
-    await expect(
-      pager.getByRole("link", { name: /Your first atom/u })
-    ).toBeVisible();
+    await expect(pager.getByRole("link", { name: /Why atoms/u })).toBeVisible();
     await pager.getByRole("link", { name: /Derived atoms/u }).click();
     await expect(page).toHaveURL(/\/derived-atoms$/u);
     await expect(

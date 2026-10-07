@@ -23,6 +23,8 @@ Effect Atom (`effect/reactivity`) keeps your application's state in **atoms**: s
 
 Its API follows the adapters the Effect team maintains, `@effect/atom-react` and `@effect/atom-vue`, but it is a separate project. If you have used atoms in React or Vue, you already know the atoms; only the hooks change. Coming from React, see [Migrating from atom-react](/migrating-from-react).
 
+Deciding whether you need atoms at all? [Why atoms](/why-atoms) sets each one against the code you'd write without it, and says when you don't need them.
+
 effect-atom-svelte was inspired by Thomas Foster's [Svelte Atoms pull request](https://github.com/Effect-TS/effect-smol/pull/2443) to effect-smol. The design of the live examples in these docs is inspired by Kit Langton's [Visual Effect](https://effect.kitlangton.com/).
 
 ## A first look
@@ -43,7 +45,7 @@ Three pieces work together:
 | **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing holds it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
 | **Hook** | Connects a component to an atom in the nearest registry. It [holds](/reading-and-writing#reading) the atom while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
 
-Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) explains why that matters, and [Why atoms](/why-atoms) what atoms add, and when you don't need them at all.
+Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) explains why that matters.
 
 ## What you get
 

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { Plugin } from "vite";
 
+import { guide, guideCaption } from "../src/lib/docs/atoms-guide.ts";
 import { pages } from "../src/lib/docs/nav.ts";
 import { headingId } from "./heading-links.ts";
 import { field } from "./pagefind.ts";
@@ -10,9 +11,9 @@ import { field } from "./pagefind.ts";
 /**
  * The guide pages as plain Markdown, for `/llms.txt`, `/llms-full.txt` and each page's `.md`:
  * each `+page.md` with its components replaced by what they show. A live example becomes its hint,
- * a link to try it and the source of its files; an aside becomes a blockquote and the install
- * command its commands. A component this doesn't know fails the build, so a new one can't leave a
- * bare tag in the text.
+ * a link to try it and the source of its files; an aside becomes a blockquote, the install command
+ * its commands and the atoms guide a table. A component this doesn't know fails the build, so a new
+ * one can't leave a bare tag in the text.
  */
 
 /** A guide page as Markdown: its frontmatter's title and description, and its body. */
@@ -32,6 +33,15 @@ const fence = (code: string, lang: string) => {
   const marks = "`".repeat(longest + 1);
   return `${marks}${lang}\n${code}\n${marks}`;
 };
+
+/** The guide to when to reach for atoms, which the page shows as a table, as a Markdown table. */
+const guideTable = [
+  `${guideCaption}:`,
+  "",
+  "| You need | Reach for |",
+  "| --- | --- |",
+  ...guide.map((row) => `| ${row.need} | **${row.tool}**: ${row.why} |`),
+].join("\n");
 
 const asideLabels: Readonly<Record<string, string>> = {
   caution: "Caution",
@@ -164,6 +174,7 @@ const readPage = async (
         aside(type, asideTitle ?? "", content)
     )
     .replaceAll("<InstallCommand />", installCommands)
+    .replaceAll("<AtomsGuide />", guideTable)
     .trim();
 
   const tag = leftoverTag(body);
