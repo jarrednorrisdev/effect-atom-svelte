@@ -5,7 +5,7 @@
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
   import DocsSidebar from "#lib/docs/docs-sidebar.svelte";
-  import { neighbors } from "#lib/docs/nav.ts";
+  import { markdownHref, neighbors } from "#lib/docs/nav.ts";
   import { previewImage, siteName, siteUrl } from "#lib/docs/site.ts";
   import Pager from "#lib/docs/pager.svelte";
   import SiteHeader from "#lib/docs/site-header.svelte";
@@ -55,6 +55,8 @@
   <!-- Each page adds its own description (page-description.svelte), so there is none here. -->
   {#if canonical}
     <link href={canonical} rel="canonical" />
+    <!-- The page as Markdown, for language models (src/lib/docs/llms.ts). -->
+    <link href="{siteUrl}{markdownHref(page.url.pathname)}" rel="alternate" type="text/markdown" />
     <meta content={canonical} property="og:url" />
   {/if}
   <meta content={fullTitle} property="og:title" />
@@ -96,7 +98,8 @@
               <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
                 >Jarred Norris</a
               >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
-              team.
+              team. The docs are also Markdown, for AI assistants:
+              <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.
             </footer>
           </div>
           <aside class="hidden w-56 shrink-0 xl:block">

@@ -10,6 +10,7 @@ import { defineConfig } from "vite";
 import { apiReference } from "./vite/api-reference.ts";
 import { headingLinks } from "./vite/heading-links.ts";
 import { highlightImports, highlightMarkdown } from "./vite/highlight.ts";
+import { llms } from "./vite/llms.ts";
 import { pagefindIndex } from "./vite/pagefind.ts";
 
 // The e2e suite runs a demo API per worker and points each preview server at its own.
@@ -20,6 +21,7 @@ export default defineConfig({
     tailwindcss(),
     highlightImports(),
     apiReference(),
+    llms(),
     sveltekit({
       adapter: adapter(),
       compilerOptions: { experimental: { async: true } },

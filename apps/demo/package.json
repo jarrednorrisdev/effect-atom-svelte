@@ -13,9 +13,9 @@
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run && playwright test && playwright test -c playwright.hosted.config.ts",
-    "deploy": "alchemy deploy --stage prod --profile personal",
-    "deploy:plan": "alchemy plan --stage prod --profile personal",
-    "alchemy:profile": "alchemy profile edit --profile personal"
+    "deploy": "alchemy deploy --stage prod --profile jnd",
+    "deploy:plan": "alchemy plan --stage prod --profile jnd",
+    "alchemy:profile": "alchemy profile edit --profile jnd"
   },
   "dependencies": {
     "@demo/domain": "workspace:*",
