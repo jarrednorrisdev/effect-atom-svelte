@@ -54,5 +54,5 @@ Every component that reads `countAtom` from the same registry sees the same valu
 
 In Svelte 5 you could share the counter without atoms, as `export const counter = $state({ count: 0 })` in a `.svelte.ts` module. In the browser the two behave the same. They differ in two ways:
 
-- On the server, a module is shared by every request, so one visitor's count would show up in another visitor's page. Each request gets its own registry, and so its own count. [Why atoms](/why-atoms) shows this in detail.
+- On the server, a module is shared by every request, so one visitor's count would show up in another visitor's page. Each request gets its own registry, and so its own count. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) shows this in detail.
 - When no component reads an atom any more, the registry disposes of its value shortly afterwards, so it starts again from its initial value; module state keeps its value forever. Click **Hide counters** in the example, then **Show counters**: the count starts again from 0. [Lifetimes](/lifetimes) explains why, and how to keep a value with `Atom.keepAlive`.

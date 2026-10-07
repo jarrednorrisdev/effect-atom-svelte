@@ -43,7 +43,7 @@ Three pieces work together:
 | **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing holds it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
 | **Hook** | Connects a component to an atom in the nearest registry. It [holds](/reading-and-writing#reading) the atom while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
 
-Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Why atoms](/why-atoms) explains why that matters, and when you don't need atoms at all.
+Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) explains why that matters, and [Why atoms](/why-atoms) what atoms add, and when you don't need them at all.
 
 ## What you get
 
