@@ -15,9 +15,9 @@ export const nav: readonly NavSection[] = [
   {
     pages: [
       { href: "/introduction", title: "Introduction" },
-      { href: "/why-atoms", title: "Why atoms" },
       { href: "/installation", title: "Installation" },
       { href: "/first-atom", title: "Your first atom" },
+      { href: "/why-atoms", title: "Why atoms" },
     ],
     title: "Getting started",
   },

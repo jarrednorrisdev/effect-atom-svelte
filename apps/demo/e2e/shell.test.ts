@@ -14,7 +14,7 @@ test.describe("docs shell", () => {
     ).toHaveAttribute("aria-current", "page");
     const pager = page.getByRole("navigation", { name: "Pages" });
     await expect(
-      pager.getByRole("link", { name: /Your first atom/u })
+      pager.getByRole("link", { name: /Why atoms/u })
     ).toBeVisible();
     await pager.getByRole("link", { name: /Derived atoms/u }).click();
     await expect(page).toHaveURL(/\/derived-atoms$/u);
