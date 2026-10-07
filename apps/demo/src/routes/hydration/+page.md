@@ -99,7 +99,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 `useAtomResult` and `useAtomSuspense` do the work. On the server, each one waits for the atom's result and hands it to Svelte's `hydratable`, which writes it into the page. In the browser, the same hook finds the result there and puts it in the registry before the atom computes, so the atom's effect never runs.
 
-A few things follow from that:
+What that means in practice:
 
 - **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.

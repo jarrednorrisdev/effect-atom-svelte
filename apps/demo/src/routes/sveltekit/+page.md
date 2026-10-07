@@ -243,7 +243,7 @@ A page rendered with a visitor's credentials is for that visitor only. See [Prer
 - **Once while the atom is held.** Each atom takes the first value a component gives it. A component that mounts again while something still holds the atom, or gets a new prop, doesn't set it again; once the atom has been disposed, the next component to mount sets it again. To follow a prop, write the atom with `useAtomSet`.
 - **Held while the component lives.** The hook holds its atoms, so a value set in a layout is still there when a page reads it later. It doesn't compute them: the first component to read an atom does, and the atom keeps the value it was given.
 - **Once per render on the server.** Each server render sets its values again, and renders them without running the atom, so an atom that reads `localStorage` or fetches can still be given a value there. Two renders at once on a shared registry share one value: give each request its own registry.
-- **Where `initialValues` puts it.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
+- **Wrapped and derived atoms.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
 
 ## Prerender or render per request
 
