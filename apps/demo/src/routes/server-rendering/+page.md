@@ -130,7 +130,7 @@ A server render waits for every atom it awaits, however long it takes. A slow AP
 
 </Aside>
 
-The example reads four atoms in those four ways. Each atom records where it ran, and **In the HTML** shows what the page's HTML has in that place, fetched again from the server. This site prerenders its pages, so here the server is the build.
+The example reads four atoms in those four ways. Each atom records where it ran, and **In the HTML** shows what the page's HTML has in that place, fetched again from the server. On this site the server ran when the site was built: see [How these docs work](/introduction#how-these-docs-work).
 
 <Example files={[{ html: waitsSource, name: "waits.svelte" }, { html: laterSource, name: "later.svelte" }]} hint="The first two rows were in the HTML, computed on the server. Click Reload the page and watch the last two: the HTML had a pending snippet and Initial, and the browser fills them in."> <Waits /> </Example>
 
@@ -159,13 +159,13 @@ const widthAtom = Atom.make((get) => {
 
 Without the server value, reading `window` on the server would throw.
 
-For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. What follows depends on the hook:
+For an async atom, `Atom.withServerValueInitial` makes the server read it as `Initial`. On the server:
 
 - **`useAtomResult`** has nothing to wait for, so the server renders the `Initial` result.
-- **In the browser**, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`.
-- **`useAtomSuspense`** has nothing to resolve with, so on the server it rejects. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead.
-- **Without that `pending` snippet**, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error. See [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status).
-- **A serializable atom** with a server value isn't passed to the browser, since the server never computed it.
+- **`useAtomSuspense`** has nothing to resolve with, so it rejects. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. Without one, the server render fails, and SvelteKit responds with a 500 status, even when a `failed` snippet catches the error: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status).
+- **Hydration** sends nothing for the atom, even when it is serializable, since the server never computed it.
+
+In the browser, the hook runs the atom and waits for it as usual, so the component hydrates with the browser's result in place of the server's `Initial`.
 
 An atom nothing has started, such as an `Atom.fn` no one has called, never leaves `Initial` either. On the server, `useAtomResult` and `useAtomSuspense` reject for it with an error that says so, rather than holding the response open. In the browser they wait, since something may still write it.
 

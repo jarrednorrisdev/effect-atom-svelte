@@ -31,7 +31,7 @@ Below, the editor owns one profile ref. Each field gets a slice of it, and the c
 
 Svelte's `$state` covers much of this: a `$state` object is deeply reactive, and changing one property updates only what reads it. In an app where only Svelte components touch the data, `$state` is simpler. `AtomRef` is worth it when:
 
-- **A child should write one slice.** `prop` hands a child a ref to one property, which it can read and set without knowing the whole. With `$state`, you'd pass the whole object, or a getter and a setter.
+- **A child should write one field.** `prop` hands a child a ref to one property, however deep, which it can read and set without knowing the whole. With `$state`, a child given a nested object, such as `profile.address`, can already write to it. But a child given a string or a number gets a copy, so you'd need `bind:`, or a getter and a setter.
 - **Code outside Svelte owns the value.** A ref is plain TypeScript with no runes, so a model shared with React or Vue code can hold refs that each framework reads through its own Effect Atom adapter.
 - **Equal values shouldn't notify.** A ref compares values structurally, as described below, so setting an equal copy wakes nobody. `$state` treats a new object as a change.
 

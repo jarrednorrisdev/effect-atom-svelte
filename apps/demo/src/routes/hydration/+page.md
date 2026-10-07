@@ -99,7 +99,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 `useAtomResult` and `useAtomSuspense` do the work. On the server, each one waits for the atom's result and hands it to Svelte's `hydratable`, which writes it into the page. In the browser, the same hook finds the result there and puts it in the registry before the atom computes, so the atom's effect never runs.
 
-A few things follow from that:
+What that means in practice:
 
 - **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
@@ -115,7 +115,7 @@ The example reads three atoms that record where they ran. All three were in the 
 
 ## Call hooks before the first await
 
-Svelte reads the results in the page only while it is hydrating, and in a component whose script has a top-level `await`, hydrating stops at that `await`. This is a Svelte bug, with a fix proposed in [sveltejs/svelte#18927](https://github.com/sveltejs/svelte/pull/18927). A hook called after it gets nothing from the server: its atom runs again in the browser, and the page keeps the server's HTML until the browser's result arrives.
+Svelte reads the results in the page only while it is hydrating, and in a component whose script has a top-level `await`, hydrating stops at that `await`. As of October 2026, this is an open Svelte bug, with a fix proposed in [sveltejs/svelte#18927](https://github.com/sveltejs/svelte/pull/18927). A hook called after it gets nothing from the server: its atom runs again in the browser, and the page keeps the server's HTML until the browser's result arrives.
 
 Call every `useAtomResult` and `useAtomSuspense` before the script's first `await`. To wait for several results, await them together:
 
@@ -191,7 +191,7 @@ The example saves its filter with `Atom.kvs`, whose server store is in memory, s
 
 ## HydrationBoundary
 
-Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
+Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
 
 **Example** (Hydrating from a load function)
 
@@ -238,7 +238,15 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 
 </Aside>
 
-Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. On the server, they are updated before the children render too. A value for an atom nothing reads waits in the registry until something does, and is dropped when the boundary goes away. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
+When the boundary puts its values into the registry:
+
+- **Atoms the registry doesn't have yet** get their values before the children render.
+- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render.
+- **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+
+`HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Running again after hydration](#running-again-after-hydration).
+
+Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options.
 
 The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
 

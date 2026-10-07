@@ -52,16 +52,18 @@ Because values live in the registry rather than in the atom, the same `countAtom
 - **Hooks with a reactive `current`**, Svelte's convention for reactive values. Read it in markup, assign to it, or `bind:` to it.
 - **Async atoms you can `await`**: `useAtomSuspense` and `useAtomResult` build on Svelte's experimental async support, so pending and failed states go through `<svelte:boundary>`.
 - **Server rendering and hydration**: each request gets its own registry, and the results of serializable async atoms awaited on the server travel to the browser, which uses them instead of running the effects again.
-- **Effect services in components**: `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
+- **Effect services and remote APIs in components**: atoms run effects with services from a `Layer`, and `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
 
 ## Requirements
 
 - `effect` 4.0.x (not 4.1)
 - Svelte 5.57.2 or later, with experimental async turned on for the async hooks and server rendering
-- SvelteKit 3 for the `effect-atom-svelte/sveltekit` error hooks (on SvelteKit 2 they work with less detail: see [SvelteKit](/sveltekit))
+- SvelteKit 3 for the `effect-atom-svelte/sveltekit` error hooks (on SvelteKit 2 they work with less detail: see [Errors in boundaries](/sveltekit#errors-in-boundaries))
 
 ## How these docs work
 
 Most pages have a live example. The code under each example is the file that runs on the page, so what you read is what you see working. Some examples talk to a small demo API that keeps a todo list and serves it over Effect `HttpApi` and Effect RPC. On this site, the demo API runs in your browser tab, so the todos you add last until you reload the page.
+
+Nearly every page is prerendered: the server rendered it once, when the site was built. So where an example says a value was computed on the server, it was computed during the build, against a copy of the demo API that ran there. [SvelteKit](/sveltekit#prerender-or-render-per-request) covers prerendering your own pages.
 
 The docs are also written as Markdown for AI assistants and other tools that read them. [llms.txt](/llms.txt) lists every page, [llms-full.txt](/llms-full.txt) has them all in one file, and any page's address with `.md` added gives that page, such as [/streams.md](/streams.md).

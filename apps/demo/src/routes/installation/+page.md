@@ -74,9 +74,9 @@ Most apps need no options. Two are worth knowing from the start:
 | Option | Does |
 | --- | --- |
 | `initialValues` | Starting values, as `[atom, value]` pairs, such as data from a `load` function. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). |
-| `registry` | An existing registry to provide instead of creating one. You dispose of it yourself. Passing it with `initialValues`, `defaultIdleTTL`, `timeoutResolution` or `scheduleTask` throws, as those only shape a new registry. `revalidateOnHydrate` still applies. On the server, never pass one that outlives the request: see [One registry per request](/server-rendering#one-registry-per-request). |
+| `registry` | An existing registry to provide instead of creating one, such as one a test made. You dispose of it yourself, and it can't be combined with the options that shape a new registry. On the server, never pass one that outlives the request: see [One registry per request](/server-rendering#one-registry-per-request). |
 
-The rest come up later: `defaultIdleTTL` in [Lifetimes](/lifetimes#keeping-atoms-alive) (a number of milliseconds, where `Atom.setIdleTTL` takes a duration), and `revalidateOnHydrate` in [Hydration](/hydration#running-again-after-hydration). [RegistryProvider](/reference#RegistryProvider) in the API reference lists them all. The provider reads its props once, when it creates the registry: changing `initialValues` or another prop later doesn't change the registry or create a new one.
+The rest come up later: `defaultIdleTTL` in [Lifetimes](/lifetimes#keeping-atoms-alive), and `revalidateOnHydrate` in [Hydration](/hydration#running-again-after-hydration). [RegistryProvider](/reference#RegistryProvider) in the API reference lists them all. The provider reads its props once, when it creates the registry: changing `initialValues` or another prop later doesn't change the registry or create a new one.
 
 To provide a registry from a component's script instead of its markup, call `provideRegistry` with the same options. It returns the registry.
 

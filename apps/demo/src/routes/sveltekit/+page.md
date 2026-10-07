@@ -11,7 +11,7 @@ description: Set up a SvelteKit app for atoms, keep typed errors through handleE
   import boundaryErrorsSource from "./boundary-errors.svelte?highlight";
 </script>
 
-effect-atom-svelte works in any app on Svelte 5.57.2 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error as one your code threw, SvelteKit's own included: they log it and keep its tag, and the client hook its message. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
+This page covers what a SvelteKit app needs beyond [Installation](/installation): error hooks that keep typed errors through `handleError`, starting atoms from request data, sending the visitor's credentials from the server, and choosing between prerendering and rendering per request. effect-atom-svelte itself doesn't depend on SvelteKit: for an app without it, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
 
 ## Setting up an app
 
@@ -73,6 +73,8 @@ The two hooks differ in one way:
 
 Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
 
+They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error, SvelteKit's own included, as one your code threw: both keep its tag, and the client hook keeps its message too.
+
 This site uses both hooks. In the example, the `failed` snippet tells the errors apart by their tag, and the panel below it shows the error it received.
 
 <Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 7, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
@@ -98,7 +100,7 @@ export const handleError: HandleClientError = (input) => {
 
 ### A failure on the server sets the status
 
-When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. A prerendered page can't fail that way: the build stops at the 500. The example fails only in the browser for that reason: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
+When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. On a prerendered page, the 500 stops the build. The example fails only in the browser: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
 
 To render a failure on the server without the 500, read the atom with `includeFailure`, so the failure is a value the component shows rather than an error.
 
@@ -243,13 +245,11 @@ A page rendered with a visitor's credentials is for that visitor only. See [Prer
 - **Once while the atom is held.** Each atom takes the first value a component gives it. A component that mounts again while something still holds the atom, or gets a new prop, doesn't set it again; once the atom has been disposed, the next component to mount sets it again. To follow a prop, write the atom with `useAtomSet`.
 - **Held while the component lives.** The hook holds its atoms, so a value set in a layout is still there when a page reads it later. It doesn't compute them: the first component to read an atom does, and the atom keeps the value it was given.
 - **Once per render on the server.** Each server render sets its values again, and renders them without running the atom, so an atom that reads `localStorage` or fetches can still be given a value there. Two renders at once on a shared registry share one value: give each request its own registry.
-- **Where `initialValues` puts it.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
+- **Wrapped and derived atoms.** An atom wrapped with `Atom.withRefresh`, `Atom.swr` or `Atom.debounce` passes the value to its source. The atom starts from the value and still reads its sources, so a derived atom computes again when one of them changes.
 
 ## Prerender or render per request
 
 A page with `export const prerender = true` is rendered once, at build time. Every visitor gets the same HTML, with the results its serializable atoms had then, until something in the browser refreshes them.
-
-This site's pages are prerendered, so the first example on [Hydration](/hydration) shows a result computed when the site was built.
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build. If a prerendered result shouldn't be as old as the build, run it again in the browser with [`revalidateOnHydrate`](/hydration#running-again-after-hydration).
 

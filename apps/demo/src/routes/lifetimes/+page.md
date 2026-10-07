@@ -22,7 +22,7 @@ description: When an atom's value is kept, when it is disposed, and how to clean
 
 A registry keeps an atom's value only while something needs it. When nothing does, it disposes of the value and runs the atom's finalizers. This keeps memory, timers and open connections in check without you releasing anything by hand. It also means an atom nobody is reading forgets its value, unless you ask the registry to keep it.
 
-Each box below is an atom, with the number of `<Reader>` components reading it in its corner. **+ Reader** mounts one more and **− Reader** unmounts one. The registry computes an atom for its first reader and disposes of it once its last reader has gone, unless the atom is kept alive or has an idle TTL:
+Each box below is an atom, with the number of `<Reader>` components reading it in its corner. **+ Reader** mounts one more and **− Reader** unmounts one:
 
 <Example files={[{ html: lifetimesSource, name: "lifetimes.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Add two readers to plain, then remove them one at a time: plain is disposed only when its count reaches 0. Keeping atoms alive, below, explains the other two."> <Lifetimes /> </Example>
 
@@ -34,7 +34,7 @@ An atom is [held](/reading-and-writing#reading) while something tells the regist
 - `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe`, `useAtomInitialValues` and `useAtomResult`, for as long as their component lives.
 - Another atom that reads it with `get`, while that atom is itself held or kept alive.
 
-When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
+When the last of them stops holding it, the registry disposes of the atom once the current task ends, so code in the same event handler still sees its value. After that, the next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
 
 <Aside type="note" title="On the server">
 
@@ -50,7 +50,7 @@ Choose how long an atom outlives its readers:
 | --- | --- |
 | For as long as the registry lives | `atom.pipe(Atom.keepAlive)` |
 | For a while after the last reader goes | `atom.pipe(Atom.setIdleTTL("5 minutes"))` |
-| For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider` |
+| For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider`, in milliseconds |
 | For as long as a component is mounted, even if nothing reads it | `useAtomMount(atom)` in that component: see [Holding an atom from a component](#holding-an-atom-from-a-component) |
 
 **Example** (State that survives navigation)

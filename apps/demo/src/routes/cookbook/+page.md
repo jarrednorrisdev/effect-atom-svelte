@@ -80,7 +80,9 @@ If the second request only needs a value the component already has, a getter is 
 
 To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
 
-<Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds. Add a todo in the form under Share form logic in a class, and the count catches up on the next one."> <Polling /> </Example>
+<Example files={[{ html: pollingSource, name: "polling.svelte" }]} hint="Watch the checks: the list is fetched again every three seconds."> <Polling /> </Example>
+
+Polling picks up changes made elsewhere: add a todo with the form in [Share form logic in a class](#share-form-logic-in-a-class), further down, and the count catches up on the next check.
 
 The timer runs only while something reads the polled atom. When the last reader goes, the registry disposes of the signal and its finalizer clears the interval. `Atom.refreshOnWindowFocus` works the same way, with the tab becoming visible as its signal (see [Browser atoms](/browser#refreshing-when-the-tab-comes-back)).
 
@@ -90,7 +92,7 @@ A search box shouldn't send a request for every key press. `Atom.debounce` follo
 
 <Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
 
-When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`: see [The URL's query string](/browser#the-urls-query-string).
+When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`. In a SvelteKit app, do that only when nothing else reads the parameter, as SvelteKit's router doesn't see its changes: see [The URL's query string](/browser#the-urls-query-string).
 
 ### Infinite scroll
 
@@ -171,7 +173,7 @@ Create it at the top level of the script, not in an event handler or after an `a
 
 <Example files={[{ html: historySource, name: "history.ts" }, { html: draftHistorySource, name: "draft-history.svelte" }]} hint="Type a draft and save it: save, a plain function, writes both atoms through the registry, and the hooks show the change."> <DraftHistory /> </Example>
 
-It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing mounts is disposed shortly afterwards. See [Lifetimes](/lifetimes).
+It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing holds is disposed once the current task ends, so `mount` the atom, or keep it alive, if code reads it later. See [Lifetimes](/lifetimes#held-atoms).
 
 ### Read an atom in a load function
 
@@ -183,7 +185,7 @@ What `load` returns is plain data, rendered once: it changes only when the page 
 
 ### Reset state when the user changes
 
-Atom values outlive the components that show them, so after a sign-out the next user could see the last one's data. Give each user a registry of their own: key the `RegistryProvider` in the root layout by the user's id.
+Atoms that are kept alive, have an idle TTL or are held by the layout survive a sign-out, so the next user could see the last one's data. Give each user a registry of their own: key the `RegistryProvider` in the root layout by the user's id.
 
 **Example** (A new registry for each user)
 

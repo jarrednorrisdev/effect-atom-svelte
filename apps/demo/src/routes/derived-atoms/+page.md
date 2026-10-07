@@ -32,7 +32,7 @@ const doubledAtom = Atom.make((get) => get(countAtom) * 2);
 
 Read it like any other atom, with `useAtomValue`. A derived atom made this way is read-only, so `useAtom` and `useAtomSet` don't accept it.
 
-While a derived atom is [held](/reading-and-writing#reading), the registry computes it once and shares the result with every reader. It runs the function again only after a dependency changes. Once nothing holds it, it is disposed like any other atom, and the next read computes it again: see [Lifetimes](/lifetimes).
+While a derived atom is [held](/reading-and-writing#reading), the registry computes it once and shares the result with every reader. It runs the function again only after a dependency changes. Once nothing holds it, it is [disposed](/lifetimes) like any other atom.
 
 Dependencies are recorded again on every run, so a `get` inside a condition counts only while that branch runs. To read an atom without depending on it, use `get.once(atom)`.
 

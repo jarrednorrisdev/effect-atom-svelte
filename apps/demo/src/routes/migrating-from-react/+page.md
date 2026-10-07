@@ -104,9 +104,9 @@ Here, `useAtomSuspense` returns a promise that you `await` in markup, inside a `
 | No provider: a module-level default registry | No provider: a shared default registry in the browser, and an error on the server |
 | Registry work runs on React's scheduler, at low priority. The default registry also has `defaultIdleTTL: 400` | Effect's default scheduler, and no idle TTL unless you pass `defaultIdleTTL` |
 
-`RegistryProvider` takes the same `initialValues`, `scheduleTask`, `timeoutResolution` and `defaultIdleTTL`. It also takes `registry`, to provide one you made yourself, and `revalidateOnHydrate`. See [Registry options](/installation#registry-options).
-
 So an atom nothing reads lasts 400 milliseconds in React's default registry, but is dropped here once the current task ends. React's `RegistryProvider` has no idle TTL either, unless you pass one.
+
+`RegistryProvider` takes the same `initialValues`, `scheduleTask`, `timeoutResolution` and `defaultIdleTTL`. It also takes `registry`, to provide one you made yourself, and `revalidateOnHydrate`. See [Registry options](/installation#registry-options).
 
 React's default registry, used when there is no provider, is one module-level registry, on the server too. Here, the server throws `No AtomRegistry in context` instead, so a page can't share one visitor's state with another. Put a `RegistryProvider` in your root layout.
 

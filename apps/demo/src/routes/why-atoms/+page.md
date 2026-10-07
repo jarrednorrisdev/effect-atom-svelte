@@ -8,7 +8,7 @@ description: What atoms add to Svelte, set against the code you'd write without 
   import AtomsGuide from "#lib/docs/atoms-guide.svelte";
 </script>
 
-Runes still handle what belongs to one component, and atoms handle the rest. When your backend is written in Effect, such as Effect RPC (remote procedure calls) or an `HttpApi`, this is what to reach for:
+This page answers what to reach for, runes or atoms, in a Svelte app whose backend is written in Effect, such as with Effect RPC (remote procedure calls) or an `HttpApi`. Runes handle what belongs to one component, and atoms handle the rest:
 
 <AtomsGuide />
 
@@ -181,7 +181,7 @@ Without reactivity keys, every mutation lists the queries it affects, and the co
 </script>
 ```
 
-Every component that creates, edits or deletes a todo repeats that list. When you add a query later, such as one todo by its id, you add it to each of them.
+Every mutation has to know which queries read what it changed. You can gather that list in one helper, but the helper still names every reader, and a query you add later, such as one todo by its id, has to be added to it.
 
 **Reactivity keys** turn that around. You tag each query with a key, and the mutation names the key it changed:
 
@@ -255,7 +255,7 @@ export const notificationsAtom = Atom.make(notifications);
 
 A bell icon and a toast can both read `notificationsAtom`, and they share one stream. When both unmount, the stream is interrupted, the socket closes, and finalizers run.
 
-**What it costs:** an atom that nothing reads loses its value, and starts again from the beginning next time. To keep it, [keep it alive](/lifetimes#keeping-atoms-alive) or give it an idle time. See [Streams](/streams) and [Lifetimes](/lifetimes).
+**What it costs:** an atom that nothing reads loses its value, and starts again from the beginning next time. To keep it, [keep it alive](/lifetimes#keeping-atoms-alive) or give it an idle TTL. See [Streams](/streams) and [Lifetimes](/lifetimes).
 
 ## Errors as values
 
@@ -283,8 +283,11 @@ Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes 
   <p>{todo.current.value.title}</p>
 {:else if Option.isSome(error) && error.value._tag === "TodoNotFound"}
   <p>There is no todo {id}.</p>
-{:else}
+{:else if Option.isSome(error) && error.value._tag === "RpcClientError"}
   <p>Couldn't reach the server.</p>
+{:else}
+  <!-- A defect: something failed that the type doesn't describe. -->
+  <p>Something went wrong.</p>
 {/if}
 ```
 
@@ -292,7 +295,7 @@ You can match on the result like this, or let a `<svelte:boundary>` show failure
 
 ## Services, and swapping them in tests
 
-Services decide what a test has to fake. Effects that need services get them from a [`Layer`](/effect-basics#services-and-layers). Without atoms, you'd provide the layer in every `runPromise` call, and a test would mock the module that builds it.
+Effects that need services get them from a [`Layer`](/effect-basics#services-and-layers). Without atoms, you'd provide the layer in every `runPromise` call, and a test would mock the module that builds it.
 
 `Atom.runtime` takes the layer once, and atoms made from it run with its services. Here `Todos` is a service and `TodosLayer` builds it:
 
@@ -313,17 +316,17 @@ A test gives the runtime a different layer, such as a fake API or data held in m
 TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`, and every query whose key starts with `"todos"` refetches. For an Effect backend, atoms differ in four ways:
 
 - **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue in every query. An atom runs the effect itself.
-- **Errors are typed per query.** TanStack Query gives every query the same error type, `Error` unless you register another. An atom's error is the effect's, or the procedure's.
+- **Error types are checked.** TanStack Query types a query's error as `Error` unless you register another type or pass one per query, and either way it's an assertion: nothing checks what the query function throws. An atom's error type is inferred from the effect, or from the procedure's schema.
 - **Client state lives alongside.** A derived atom reads a query and a filter alike. TanStack Query can combine queries, but client state lives outside it, in a store or a context.
-- **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. The registry disposes of an atom when its last reader goes, unless you give it an idle time or keep it alive.
+- **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. The registry disposes of an atom when its last reader goes, unless you give it an idle TTL or keep it alive.
 
-TanStack Query is ahead on devtools, infinite queries, persisting the cache, and the size of its community. Without Effect, it's the better choice.
+TanStack Query is ahead on devtools, infinite queries (refetching every loaded page, and loading in both directions), persisting the cache, and the size of its community. Without Effect, it's the better choice.
 
 ## When you don't need atoms
 
 Three cases don't need atoms:
 
-- **Apps without Effect.** Atoms are part of Effect. Without it, context, remote functions or TanStack Query share state between components, and learning Effect only for this costs more than it saves.
+- **Apps without Effect.** Effect Atom is part of the `effect` package. Without it, context, remote functions or TanStack Query share state between components, and learning Effect only for this costs more than it saves.
 - **An effect only one component runs.** `Effect.runPromise` with `getAbortSignal` is enough, as in the first example.
 - **Route data that doesn't change on the page.** A `load` function is enough.
 

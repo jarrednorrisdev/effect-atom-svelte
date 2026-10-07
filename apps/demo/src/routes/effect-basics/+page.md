@@ -36,7 +36,7 @@ Effect<Success, Error, Requirements>;
 - `Error` is how it is expected to fail. `never` means it doesn't.
 - `Requirements` are the services it needs before it can run. `never` means none.
 
-Unlike a promise, an effect is lazy. Creating one runs nothing: it runs when something runs it, and it can be run again. In these docs, that something is an atom. An async atom runs its effect when a component first reads it, runs it again when an atom it read changes, and interrupts it when nothing reads it any more.
+Unlike a promise, an effect is lazy. Creating one runs nothing: it runs when something runs it, and it can be run again. In these docs, that something is an atom: [Async atoms](/async-atoms) says when it runs.
 
 **Example** (Effects that succeed and fail)
 
@@ -132,7 +132,7 @@ An effect can fail in three ways, and only the first is in its type:
 
 A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`, as in the failures above. `Cause.findErrorOption(cause)` gives the typed error, as an `Option`, and `Cause.pretty(cause)` renders the whole cause as text for logs. [Errors](/errors#what-a-failure-holds) covers the rest, and how to handle each kind in a component.
 
-Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It is what a settled promise is to a promise, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
+Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It plays the part of the `{ status, value }` or `{ status, reason }` objects `Promise.allSettled` gives, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
 
 **Example** (Reading how an effect ended)
 

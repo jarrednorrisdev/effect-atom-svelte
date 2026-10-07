@@ -26,7 +26,7 @@ export const guide: readonly {
     atoms: true,
     need: "State shared across components or parts of your app (the signed-in user, a cart, a filter)",
     tool: "An atom in a plain module",
-    why: "any component imports it, with no context to set up, and one provider gives each request its own values, so the server renders each visitor's page with their own data",
+    why: "any component imports it, with no context to set up; one provider gives each request its own values",
   },
   {
     atoms: true,
@@ -54,9 +54,9 @@ export const guide: readonly {
   },
   {
     atoms: true,
-    need: "Errors",
-    tool: "An atom's result",
-    why: "typed per procedure, and matched as values",
+    need: "Failures your UI must handle",
+    tool: "An atom's AsyncResult",
+    why: "the error is typed by the effect, and matched as a value",
   },
 ];
 

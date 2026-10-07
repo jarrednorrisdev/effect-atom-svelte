@@ -142,8 +142,8 @@
         again for both.
       </p>
       <p class="mt-4 text-muted-foreground">
-        An atom gives you that. It's defined once, in a plain module, and any component reads it,
-        with no context or cache to write for each one. One provider in your root layout gives each
+        An atom gives you that. It's defined once, in a plain module, and any component reads it.
+        One provider in your root layout gives each
         request its own values.
       </p>
       {@render links([
@@ -177,8 +177,8 @@
       </p>
       <p class="mt-4 text-muted-foreground">
         Here the type comes from the server's RPC schema, so the component matches on
-        <code class="font-mono text-[0.9em]">TodoNotFound</code>, and tells it apart from a server it
-        couldn't reach.
+        <code class="font-mono text-[0.9em]">TodoNotFound</code> instead of guessing from whatever was
+        thrown.
       </p>
       {@render links([
         { href: "/errors", title: "Errors" },
@@ -205,7 +205,7 @@
       {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
       <p class="mt-4 text-muted-foreground">
         When the last component reading an atom goes away, its effect is interrupted and its
-        finalizers run: a request is cancelled, a stream stops, a socket closes. With one component,
+        finalizers run: a request is canceled, a stream stops, a socket closes. With one component,
         an <code class="font-mono text-[0.9em]">$effect</code>'s teardown does this. When several
         share the work, the registry counts the readers for you.
       </p>
@@ -256,7 +256,7 @@
       <Example
         cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
-        hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows. The mutation names neither."}
+        hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows."}
       >
         <TodoList />
       </Example>
