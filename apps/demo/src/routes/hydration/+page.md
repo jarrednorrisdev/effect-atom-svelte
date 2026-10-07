@@ -191,7 +191,7 @@ The example saves its filter with `Atom.kvs`, whose server store is in memory, s
 
 ## HydrationBoundary
 
-Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
+Sometimes the data for a page comes from somewhere other than a component's render, such as a `load` function or a remote function. `Hydration.dehydrate` collects the serializable atoms of a registry, and `<HydrationBoundary>` puts them into the browser's registry:
 
 **Example** (Hydrating from a load function)
 
@@ -238,7 +238,15 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 
 </Aside>
 
-Atoms the browser's registry doesn't have yet are hydrated before the children render. Atoms it already has are updated after the render, so the page on screen doesn't change halfway through a render. On the server, they are updated before the children render too. A value for an atom nothing reads waits in the registry until something does, and is dropped when the boundary goes away. `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks it keeps the registry's behavior of running wrapped atoms again.
+When the boundary puts its values into the registry:
+
+- **Atoms the registry doesn't have yet** get their values before the children render.
+- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render.
+- **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+
+`HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Different from @effect/atom-react](#running-again-after-hydration).
+
+Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options.
 
 The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
 

@@ -129,6 +129,6 @@ useAtomSubscribe(draftAtom, (draft) => localStorage.setItem("draft", draft));
 
 The function isn't called for the value the atom already has, only for changes. Pass `{ immediate: true }` to also call it once with the current value when the component mounts. Like `useAtomSet`, it holds the atom while the component lives, and it computes the atom, so a derived or async atom that nothing else reads still runs.
 
-The function may write `$state`. A change that comes while another component is reading an atom, when Svelte forbids writing state, reaches the function on a microtask instead.
+The function may write `$state`. Svelte forbids writing state while it renders, so a change that arrives during a render reaches the function on the next microtask instead.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
