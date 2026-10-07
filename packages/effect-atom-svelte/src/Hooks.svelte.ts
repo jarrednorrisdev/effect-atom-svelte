@@ -554,16 +554,21 @@ export function useAtomSet(
       AsyncResult.AsyncResult<unknown, unknown>,
       unknown
     >;
-    // An already aborted signal rejects without writing, as fetch does (JND-25).
-    if (!writeOptions?.signal?.aborted) {
+    // An already aborted signal settles as interrupted without writing, as fetch does (JND-25). It
+    // skips the wait too: Effect checks the signal only after a first run, which would return a
+    // result the atom already holds from an earlier call.
+    let exit: Exit.Exit<unknown, unknown>;
+    if (writeOptions?.signal?.aborted) {
+      exit = Exit.interrupt();
+    } else {
       registry.set(atom, value);
+      exit = await awaitResult(
+        registry,
+        atom,
+        { suspendOnWaiting: true },
+        writeOptions?.signal
+      );
     }
-    const exit = await awaitResult(
-      registry,
-      atom,
-      { suspendOnWaiting: true },
-      writeOptions?.signal
-    );
     return mode === "promiseExit" ? exit : valueOrThrow(exit);
   };
 }
