@@ -43,7 +43,7 @@
   let scrollY = $state(0);
 
   const notNeeded = [
-    "Apps without Effect: context and remote functions cover them well.",
+    "Apps without Effect: context, remote functions or TanStack Query cover them well.",
     "An effect that only one component runs: Effect.runPromise with getAbortSignal is enough.",
     "Route data that doesn't change on the page: a load function is enough.",
   ];
