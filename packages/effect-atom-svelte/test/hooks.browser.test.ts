@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Cause, Effect, Exit, Stream } from "effect";
 import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { SvelteMap } from "svelte/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
@@ -274,34 +274,63 @@ describe("useAtomSet", () => {
     await expect(exit).resolves.toMatchObject({ _tag: "Failure" });
   });
 
-  test("an already aborted signal rejects without writing (JND-25)", async () => {
-    const registry = AtomRegistry.make();
-    let calls = 0;
-    const save = Atom.fn((n: number) =>
-      Effect.sync(() => {
-        calls += 1;
-        return n;
-      })
-    );
-    let run!: (
-      value: number,
-      options?: { signal?: AbortSignal }
-    ) => Promise<unknown>;
-    await render(Harness, {
-      registry,
-      setup: () => {
-        run = useAtomSet(save, { mode: "promiseExit" });
-        return () => "";
-      },
-    });
-    const controller = new AbortController();
-    controller.abort();
-    await expect(run(1, { signal: controller.signal })).resolves.toMatchObject({
-      _tag: "Failure",
-    });
-    expect(calls).toBe(0);
-    expect(registry.get(save)).toMatchObject({ _tag: "Initial" });
-  });
+  describe.each(["promise", "promiseExit"] as const)(
+    "an already aborted signal in %s mode",
+    (mode) => {
+      // An earlier call's settled result must not stand in for the aborted call's.
+      test.each([
+        { prior: false, state: "Initial" },
+        { prior: true, state: "Success" },
+      ])(
+        "settles as interrupted without writing, with the atom $state (JND-25)",
+        async ({ prior, state }) => {
+          const registry = AtomRegistry.make();
+          let calls = 0;
+          const save = Atom.fn((n: number) =>
+            Effect.sync(() => {
+              calls += 1;
+              return n;
+            })
+          );
+          let run!: (
+            value: number,
+            options?: { signal?: AbortSignal }
+          ) => Promise<unknown>;
+          await render(Harness, {
+            registry,
+            setup: () => {
+              run =
+                mode === "promise"
+                  ? useAtomSet(save, { mode: "promise" })
+                  : useAtomSet(save, { mode: "promiseExit" });
+              return () => "";
+            },
+          });
+          if (prior) {
+            await run(1);
+          }
+          const controller = new AbortController();
+          controller.abort();
+          const settled = run(2, { signal: controller.signal });
+          if (mode === "promiseExit") {
+            const exit = (await settled) as Exit.Exit<number>;
+            expect(
+              Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
+            ).toBe(true);
+          } else {
+            // The same rejection an abort during the wait gives.
+            await expect(settled).rejects.toThrow(
+              "All fibers interrupted without error"
+            );
+          }
+          expect(calls).toBe(prior ? 1 : 0);
+          expect(registry.get(save)).toMatchObject(
+            prior ? { _tag: state, value: 1 } : { _tag: state }
+          );
+        }
+      );
+    }
+  );
 
   test("promise modes reject Atom.Reset instead of waiting forever", async () => {
     const registry = AtomRegistry.make();
