@@ -34,7 +34,7 @@
 
   /**
    * A tagged error with a message as `SchemaError: Expected …`, one without as
-   * `NotFound { id: 7 }`, anything else as its string.
+   * `NotFound { id: 99 }`, anything else as its string.
    */
   const show = (value: unknown): string => {
     if (typeof value !== "object" || value === null || !("_tag" in value)) {

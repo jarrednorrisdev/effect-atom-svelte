@@ -517,11 +517,11 @@ test("errors: typed errors match on _tag, and a defect is told apart", async ({
   const state = page.getByTestId("outcome-state");
   // The cause's reasons: Fail for a typed error, Die for a defect, Interrupt.
   const reasons = page.getByTestId("outcome-cause").getByRole("listitem");
-  await expect(message).toHaveText("NotFound: there is no todo 7");
+  await expect(message).toHaveText("NotFound: there is no todo 99");
   await expect(state).toHaveText("Failure");
   await expect(reasons).toHaveCount(1);
   await expect(reasons).toHaveAttribute("data-reason", "Fail");
-  await expect(reasons).toContainText("NotFound { id: 7 }");
+  await expect(reasons).toContainText("NotFound { id: 99 }");
   await setPressed(
     outcome.getByRole("button", { exact: true, name: "Fail with Forbidden" }),
     true

@@ -78,7 +78,7 @@ const describe = (cause: Cause.Cause<TodoNotFound | Forbidden>) => {
 
 Each way of reading an atom hands you failure in its own form. The example reads one atom three ways:
 
-<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Click Todo 7. useAtomValue and includeFailure get the typed error, id and all; the boundary swaps in its failed snippet, which gets only the tag SvelteKit's handleError kept. Then click Todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
+<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Click Todo 99. useAtomValue and includeFailure get the typed error, id and all; the boundary swaps in its failed snippet, which gets only the tag SvelteKit's handleError kept. Then click Todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
 
 ### With `useAtomValue` or `useAtomResult`
 

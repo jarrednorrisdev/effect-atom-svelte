@@ -77,7 +77,7 @@ They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. S
 
 This site uses both hooks. In the example, the `failed` snippet tells the errors apart by their tag, and the panel below it shows the error it received.
 
-<Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 7, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
+<Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 99, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
 
 <Aside type="tip" title="Your own handleError">
 

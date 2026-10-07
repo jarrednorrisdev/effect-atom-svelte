@@ -49,7 +49,7 @@ test("an error response fails with the endpoint's typed error", async () => {
     initialValues: [
       [
         TodosHttp.runtime.layer,
-        TodosHttpTest({ _tag: "TodoNotFound", id: 7 }, 404),
+        TodosHttpTest({ _tag: "TodoNotFound", id: 99 }, 404),
       ],
     ],
   });
@@ -57,7 +57,7 @@ test("an error response fails with the endpoint's typed error", async () => {
   const error = await Effect.runPromise(
     AtomRegistry.getResult(
       registry,
-      TodosHttp.query("todos", "get", { params: { id: 7 } })
+      TodosHttp.query("todos", "get", { params: { id: 99 } })
     ).pipe(Effect.flip)
   );
   expect(error._tag).toBe("TodoNotFound");
