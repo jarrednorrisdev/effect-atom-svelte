@@ -223,6 +223,14 @@ test.describe("docs shell", () => {
       "href",
       "https://atom.jarrednorris.dev/"
     );
+    // The hero opens on the code, and its other tab compares Svelte with atoms.
+    await expect(page.getByTestId("hero-code")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("tab", { name: "Svelte or atoms?" }).click();
+    await expect(page.getByTestId("comparison")).toContainText(
+      "One atom, one run, shared"
+    );
+    await expect(page.getByTestId("hero-code")).toBeHidden();
     // No sidebar on wide screens: the page map at the foot lists the pages instead.
     await expect(page.locator("[data-slot=sidebar]")).toHaveCount(0);
     const map = page.getByRole("navigation", { name: "All pages" });

@@ -1,12 +1,11 @@
 <script lang="ts">
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import { dev } from "$app/env";
   import { Button } from "#lib/components/ui/button/index.ts";
   import Example from "#lib/docs/example.svelte";
   import InstallCommand from "#lib/docs/install-command.svelte";
   import { nav } from "#lib/docs/nav.ts";
   import PageDescription from "#lib/docs/page-description.svelte";
+  import HeroPanel from "#lib/landing/hero-panel.svelte";
   // Each example twice: the component, and its source from a ?highlight import.
   /* oxlint-disable import/no-duplicates */
   import Report from "#lib/landing/report.svelte";
@@ -15,9 +14,6 @@
   import TodoLookup from "#lib/landing/todo-lookup.svelte";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import exchangeRateSource from "#lib/landing/exchange-rate.ts?highlight";
-  import userBadgeSource from "#lib/landing/hero/user-badge.svelte?highlight";
-  // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
-  import userSource from "#lib/landing/hero/user.ts?highlight";
   import rateSource from "#lib/landing/rate.svelte?highlight";
   import reportSource from "#lib/landing/report.svelte?highlight";
   import sharedRateSource from "#lib/landing/shared-rate.svelte?highlight";
@@ -29,63 +25,6 @@
 
   const repositoryUrl = "https://github.com/jarrednorrisdev/effect-atom-svelte";
   const changelogUrl = `${repositoryUrl}/blob/main/packages/effect-atom-svelte/CHANGELOG.md`;
-
-  /**
-   * The hero's table: what Svelte and SvelteKit already cover, and where atoms take over. `fits`
-   * marks the side that is the better answer for that need.
-   */
-  const comparison: readonly {
-    readonly atoms: string;
-    readonly fits: "atoms" | "svelte";
-    readonly need: string;
-    readonly svelte: string;
-  }[] = [
-    {
-      atoms: "Not needed",
-      fits: "svelte",
-      need: "State one component owns",
-      svelte: "$state",
-    },
-    {
-      atoms: "Atoms, when it's derived with Effect state",
-      fits: "svelte",
-      need: "Client state components share",
-      svelte: "A class with $state fields, in a root context",
-    },
-    {
-      atoms: "Atoms, when it comes from Effect code",
-      fits: "svelte",
-      need: "Server data components read",
-      svelte: "A remote query",
-    },
-    {
-      atoms: "One atom, one run, shared",
-      fits: "atoms",
-      need: "An Effect result several components read",
-      svelte: "A run in each, or a cache in context you write",
-    },
-    {
-      atoms: "Typed, as a value you match on",
-      fits: "atoms",
-      need: "A failure",
-      svelte: "Thrown, as unknown",
-    },
-    {
-      atoms: "Interrupted, and finalizers run",
-      fits: "atoms",
-      need: "Shared work nothing reads any more",
-      svelte: "Count the readers yourself",
-    },
-    {
-      atoms: "Keys refetch what changed",
-      fits: "atoms",
-      need: "After a mutation",
-      svelte: "Name each query to refresh",
-    },
-  ];
-
-  /** Which of the hero's two drafts to show: a dev-only switch, until one is picked. */
-  let hero = $state<"code" | "table">("code");
 
   const notNeeded = [
     "State one component owns, such as a form field or an open menu: that is $state.",
@@ -121,7 +60,7 @@
 
 <section class="hero relative overflow-hidden border-b">
   <div
-    class="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-24"
+    class="mx-auto grid w-full max-w-7xl items-start gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-24"
   >
     <div class="min-w-0">
       <p
@@ -151,74 +90,10 @@
     </div>
 
     <div class="min-w-0">
-      {#if dev}
-        <!-- A draft switch, gone from builds: pick one hero, then remove the other. -->
-        <div aria-label="Hero draft" class="mb-3 flex gap-2" role="group">
-          <Button
-            aria-pressed={hero === "code"}
-            onclick={() => (hero = "code")}
-            size="sm"
-            variant={hero === "code" ? "default" : "outline"}
-          >
-            Code
-          </Button>
-          <Button
-            aria-pressed={hero === "table"}
-            onclick={() => (hero = "table")}
-            size="sm"
-            variant={hero === "table" ? "default" : "outline"}
-          >
-            Table
-          </Button>
-        </div>
-      {/if}
-      {#if hero === "code"}
-        <!-- Both files at once: the atom in a module, and a component that reads it. -->
-        <div class="hero-code grid grid-cols-1 gap-3" data-testid="hero-code">
-          <Example files={[{ html: userSource, name: "user.ts" }]} />
-          <Example cap={30} files={[{ html: userBadgeSource, name: "user-badge.svelte" }]} />
-        </div>
-      {:else}
-        <figure class="min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
-          <figcaption class="border-b px-5 py-3 text-sm font-semibold">Svelte or atoms?</figcaption>
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[32rem] text-left text-sm" data-testid="comparison">
-              <thead class="text-xs text-muted-foreground">
-                <tr>
-                  <th class="w-[30%] px-5 py-2 font-medium" scope="col">You need</th>
-                  <th class="px-3 py-2 font-medium" scope="col">Svelte and SvelteKit</th>
-                  <th class="px-5 py-2 font-medium text-brand-text" scope="col">Atoms</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each comparison as row (row.need)}
-                  <tr class="border-t align-top">
-                    <th class="px-5 py-3 font-medium" scope="row">{row.need}</th>
-                    {@render cell(row.svelte, row.fits === "svelte", "px-3")}
-                    {@render cell(row.atoms, row.fits === "atoms", "px-5")}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </figure>
-      {/if}
+      <HeroPanel />
     </div>
   </div>
 </section>
-
-{#snippet cell(text: string, fits: boolean, padding: string)}
-  <td class={[padding, "py-3", !fits && "text-muted-foreground"]}>
-    {#if fits}
-      <span class="inline-flex items-start gap-1.5">
-        <CheckIcon class="mt-0.5 size-4 shrink-0 text-brand-text" />
-        {text}
-      </span>
-    {:else}
-      {text}
-    {/if}
-  </td>
-{/snippet}
 
 <div class="mx-auto w-full max-w-7xl px-6 lg:px-10">
   <section aria-labelledby="where-atoms-fit" class="pt-20">
@@ -462,8 +337,7 @@
     margin-top: 3rem;
     padding-top: 3rem;
   }
-  .reason :global(.example),
-  .hero-code :global(.example) {
+  .reason :global(.example) {
     margin: 0;
   }
   @media (width >= 64rem) {
