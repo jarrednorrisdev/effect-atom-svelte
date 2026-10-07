@@ -27,24 +27,24 @@
   /** The hero's comparison: where runes are enough, and where atoms take over. */
   const comparison = [
     {
-      atoms: "Atoms in modules, one provider",
+      atoms: "Atoms in plain modules; one provider keeps each request apart",
       need: "State components share",
-      runes: "A context for each piece",
+      runes: "A context for each piece, set in a layout",
     },
     {
-      atoms: "A registry for each request",
-      need: "Server rendering",
-      runes: "Module state leaks between visitors",
+      atoms: "Derived atoms, in any module",
+      need: "State derived from shared state",
+      runes: "Derived in a component that reads each context",
     },
     {
       atoms: "AtomRpc and AtomHttpApi, typed errors",
       need: "An Effect backend",
-      runes: "A fetch layer; errors arrive thrown",
+      runes: "A remote function for each procedure; errors arrive thrown",
     },
     {
       atoms: "Keys refetch what changed",
       need: "After a mutation",
-      runes: "Refresh the queries it affects",
+      runes: "Name each query to refresh",
     },
   ];
 
@@ -56,7 +56,7 @@
 </script>
 
 <PageDescription
-  description="Svelte 5 bindings for Effect Atom. Keep $state for local state, and use atoms for shared state, a typed Effect RPC or HttpApi backend, refetching by key, and server rendering that keeps visitors apart."
+  description="Svelte 5 bindings for Effect Atom. Keep $state for local state, and use atoms for shared state defined in plain modules, a typed Effect RPC or HttpApi backend, and refetching by key."
 />
 
 {#snippet links(items: readonly { readonly href: string; readonly title: string }[])}
@@ -94,8 +94,8 @@
       </h1>
       <p class="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
         effect-atom-svelte brings Effect Atom to Svelte 5, for the state your components share and
-        the Effect backend they talk to: typed queries and mutations, refetching by key, and server
-        rendering that keeps every visitor's data apart.
+        the Effect backend they talk to: typed queries and mutations, refetching by key, and shared
+        state defined in plain modules, kept apart for each request by one provider.
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <Button class="px-4" href="/introduction" size="lg">
