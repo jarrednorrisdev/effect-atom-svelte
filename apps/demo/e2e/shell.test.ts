@@ -218,6 +218,55 @@ test.describe("docs shell", () => {
     );
   });
 
+  test("llms.txt links each page's Markdown, and llms-full.txt has them all", async ({
+    request,
+  }) => {
+    const index = await request.get("/llms.txt");
+    expect(index.headers()["content-type"]).toContain("text/plain");
+    const indexText = await index.text();
+    expect(indexText).toContain(
+      "- [Streams](https://atom.jarrednorris.dev/streams.md): "
+    );
+    expect(indexText).toContain(
+      "[Hooks](https://atom.jarrednorris.dev/reference/Hooks.md)"
+    );
+
+    // Each linked page is served, the introduction as /index.md.
+    const pages = await Promise.all(
+      ["/index.md", "/streams.md", "/reference.md", "/reference/Hooks.md"].map(
+        (path) => request.get(path)
+      )
+    );
+    expect(pages.map((response) => response.ok())).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    const streams = await pages[1]?.text();
+    expect(streams).toMatch(/^# Streams\n\n> Follow a Stream's/u);
+    // A live example: its hint and a link to try it, then the source of its files.
+    expect(streams).toContain(
+      "**Live example** ([try it](https://atom.jarrednorris.dev/streams#stream-atoms)): Turn on Reader B"
+    );
+    expect(streams).toContain("`clock.ts`:\n\n```ts\n");
+    expect(streams).toContain(
+      "> **Tip: Keep browser-only streams off the server**"
+    );
+
+    // The HTML page points to its Markdown.
+    const html = await request.get("/streams");
+    expect(await html.text()).toContain(
+      'href="https://atom.jarrednorris.dev/streams.md" rel="alternate" type="text/markdown"'
+    );
+
+    const fullResponse = await request.get("/llms-full.txt");
+    const full = await fullResponse.text();
+    expect(full).toContain("## About the examples");
+    expect(full).toContain("# Streams\n\n> Follow a Stream's");
+    expect(full).toContain("export declare function useAtomValue");
+  });
+
   test("an unknown path shows a not-found page inside the docs shell", async ({
     page,
   }) => {

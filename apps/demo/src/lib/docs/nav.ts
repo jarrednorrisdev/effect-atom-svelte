@@ -88,6 +88,10 @@ export const pages: readonly NavPage[] = nav.flatMap(
   (section) => section.pages
 );
 
+/** The address of a page's Markdown (`src/lib/docs/llms.ts`): `/streams.md`, and `/index.md` for `/`. */
+export const markdownHref = (href: string) =>
+  href === "/" ? "/index.md" : `${href}.md`;
+
 /** The pages either side of `pathname`, for the links at the foot of a page. */
 export interface Neighbors {
   readonly next: NavPage | undefined;

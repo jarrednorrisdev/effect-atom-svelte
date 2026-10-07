@@ -717,13 +717,16 @@ const renderMarkdown = (text: string) => markdown.parse(text);
 const renderInline = (text: string) => markdown.parseInline(text);
 
 /** Signatures are wrapped to fit the code frame, as oxfmt formats the library itself. */
-const renderSignature = async (signature: string) => {
+const formatSignature = async (signature: string) => {
   const formatted = await format("signature.ts", signature, { printWidth: 80 });
   if (formatted.errors.length > 0) {
     throw new Error(`Cannot format the signature:\n${signature}`);
   }
-  return highlight(formatted.code.trimEnd(), "ts");
+  return formatted.code.trimEnd();
 };
+
+const renderSignature = async (signature: string) =>
+  highlight(await formatSignature(signature), "ts");
 
 const renderExport = async (entry: ApiExport): Promise<ApiExportHtml> => ({
   ...entry,
@@ -763,6 +766,88 @@ const renderApiModule = async (module: ApiModule): Promise<ApiModuleHtml> => {
       }))
     ),
   };
+};
+
+const capitalize = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1);
+
+/** The version that added an export, and its stability, as the page's footnote says them. */
+const sinceLine = (entry: { since: string; stability?: string | undefined }) =>
+  `Since v${entry.since}${entry.stability ? ` · ${capitalize(entry.stability)}` : ""}`;
+
+/**
+ * A module's page as Markdown, for `/llms-full.txt`: what `src/lib/docs/api-module.svelte` shows,
+ * in the same order.
+ */
+const apiModuleMarkdown = async (module: ApiModule) => {
+  // The title is left to the page that includes it, as the sidebar names it.
+  const blocks = [
+    module.description,
+    module.import.namespace
+      ? `Import it as the \`${module.import.namespace}\` namespace from \`${module.import.from}\`.`
+      : `Import from \`${module.import.from}\`.`,
+  ];
+  if (module.entryPoints) {
+    blocks.push(
+      "## Entry points",
+      "An app imports from these entry points, the `exports` in the package's `package.json`:",
+      [
+        "| Import from | What it has |",
+        "| --- | --- |",
+        ...module.entryPoints.map(
+          // A table row is one line; the summary is wrapped like the comment it came from.
+          (entry) =>
+            `| [\`${entry.from}\`](${entry.href}) | ${entry.summary.replaceAll(/\s*\n\s*/gu, " ")} |`
+        ),
+      ].join("\n")
+    );
+  }
+  const signatures = await Promise.all(
+    module.exports.map((entry) => formatSignature(entry.signature))
+  );
+  const titles = [...new Set(module.exports.map((entry) => entry.category))];
+  for (const title of titles) {
+    blocks.push(`## ${capitalize(title)}`);
+    for (const [index, entry] of module.exports.entries()) {
+      if (entry.category !== title) {
+        continue;
+      }
+      blocks.push(`### ${entry.name}`, entry.description);
+      if (entry.guide) {
+        blocks.push(`Guide: [${entry.guide.title}](${entry.guide.href})`);
+      }
+      // An `export *` has no signature worth showing, only its module's page.
+      blocks.push(
+        entry.module
+          ? `See [${entry.name}](${entry.module}) for what it exports.`
+          : `\`\`\`ts\n${signatures[index]}\n\`\`\``
+      );
+      for (const example of entry.examples) {
+        blocks.push(
+          `**Example**${example.title ? ` (${example.title})` : ""}`,
+          example.code
+        );
+      }
+      blocks.push(sinceLine(entry));
+    }
+  }
+  for (const group of module.reExports) {
+    blocks.push(
+      `## ${capitalize(group.category)}`,
+      group.description,
+      `Re-exported from \`${group.from}\`. Each links to the guide that teaches it, and to its source in Effect, where it is documented.`,
+      [
+        "| Module | Guide | Source |",
+        "| --- | --- | --- |",
+        ...group.modules.map(
+          (entry) =>
+            `| \`${entry.name}\` | ${entry.guide ? `[${entry.guide.title}](${entry.guide.href})` : ""} | [${group.from}/${entry.name}.ts](${entry.source}) |`
+        ),
+      ].join("\n"),
+      sinceLine(group)
+    );
+  }
+  return blocks.filter((block) => block !== "").join("\n\n");
 };
 
 /** Fails when a guide link names a section its page doesn't have. */
@@ -807,7 +892,8 @@ const resolvedId = `\0${id}`;
 
 /**
  * `import { modules } from "virtual:api-reference"` gives the library's API reference, read from
- * its source when the docs are built, so it is never out of date.
+ * its source when the docs are built, so it is never out of date. `markdown` has each module's
+ * page as Markdown, for `/llms-full.txt`.
  */
 export const apiReference = (): Plugin => {
   let packageDir = "";
@@ -840,7 +926,13 @@ export const apiReference = (): Plugin => {
       }
       await checkGuideSections(modules, routes);
       const rendered = await Promise.all(modules.map(renderApiModule));
-      return `export const modules = ${JSON.stringify(rendered)};`;
+      const texts = await Promise.all(
+        modules.map(async (module) => ({
+          href: module.href,
+          text: await apiModuleMarkdown(module),
+        }))
+      );
+      return `export const modules = ${JSON.stringify(rendered)};\nexport const markdown = ${JSON.stringify(texts)};`;
     },
     name: "api-reference",
     resolveId(source) {

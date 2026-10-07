@@ -22,7 +22,7 @@ const escapeHtml = (text: string) =>
     .replaceAll('"', "&quot;");
 
 /** A frontmatter field, unquoted. The docs' frontmatter is one line per field. */
-const field = (frontmatter: string, name: string) =>
+export const field = (frontmatter: string, name: string) =>
   new RegExp(`^${name}:\\s*(?<value>.*)$`, "mu")
     .exec(frontmatter)
     ?.groups?.value?.trim()
