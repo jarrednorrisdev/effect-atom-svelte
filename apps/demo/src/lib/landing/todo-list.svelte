@@ -20,6 +20,7 @@
   import { Option } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
+  import LoadingBar from "#lib/docs/kit/loading-bar.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
@@ -36,10 +37,16 @@
   const toggle = useAtomSet(toggleAtom);
   // The typed error, if createTodo failed with one.
   const createError = $derived(AsyncResult.error(creating.current));
-  // Anything in flight: a mutation, or the refetch it starts.
-  const busy = $derived(
-    creating.current.waiting || toggling.current.waiting || todos.current.waiting
-  );
+  // The step in flight, for the loading bar: a mutation, then the refetch it starts.
+  const step = $derived.by(() => {
+    if (creating.current.waiting) {
+      return "Running createTodo";
+    }
+    if (toggling.current.waiting) {
+      return "Running toggleTodo";
+    }
+    return todos.current.waiting ? 'Refetching todosAtom ("todos")' : undefined;
+  });
   // For the counter: each time the list is fetched from the browser.
   const requests = new RequestCount(() => todosAtom);
 
@@ -56,8 +63,11 @@
     {creating.current.waiting ? "Adding…" : "Add"}
   </button>
 </form>
+<div class="mt-3">
+  <LoadingBar label={step} />
+</div>
 {#if creating.current._tag === "Failure"}
-  <div class="mt-3">
+  <div class="mb-3">
     <ResultChip kind="message" tone="failure">
       {Option.isSome(createError) && createError.value._tag === "TitleTooLong"
         ? `Titles can be ${createError.value.maxLength} characters at most`
@@ -65,13 +75,13 @@
     </ResultChip>
   </div>
 {/if}
-<div class="mt-3 grid gap-3 sm:grid-cols-[3fr_2fr]">
+<div class="grid gap-3 sm:grid-cols-[3fr_2fr]">
   <Part
     code
     count={requests.current}
     countLabel="fetches"
     label="todosAtom"
-    tone={busy ? "running" : "idle"}
+    tone={step ? "running" : "idle"}
   >
     {#if todos.current._tag === "Success"}
       <ul aria-busy={todos.current.waiting} class="m-0 grid gap-1" data-testid="home-todos">
