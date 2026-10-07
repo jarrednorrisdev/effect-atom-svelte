@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Option } from "effect";
   import { AsyncResult } from "effect/reactivity";
-  import { useAtomSuspense } from "effect-atom-svelte";
+  import { useAtomResult } from "effect-atom-svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosRpc } from "#lib/clients.ts";
@@ -9,9 +9,10 @@
   let id = $state(1);
 
   // Typed by the server's RpcGroup: a Todo, or a TodoNotFound failure.
-  const todo = useAtomSuspense(() => TodosRpc.query("getTodo", { id }), {
-    includeFailure: true,
-  });
+  const todo = await useAtomResult(() => TodosRpc.query("getTodo", { id }));
+  // A match on the typed error, not on whatever was thrown.
+  const error = $derived(AsyncResult.error(todo.current));
+  const notFound = $derived(Option.isSome(error) && error.value._tag === "TodoNotFound");
 </script>
 
 <div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
@@ -22,24 +23,18 @@
   {/each}
 </div>
 
-<svelte:boundary>
-  {@const result = await todo.current}
-  {@const error = AsyncResult.error(result)}
-  {@const busy = $effect.pending() > 0}
-  <div class="mt-3" data-testid="lookup">
-    {#if result._tag === "Success"}
-      <ResultChip {busy} kind="message" tone="success">{result.value.title}</ResultChip>
-    {:else if Option.isSome(error) && error.value._tag === "TodoNotFound"}
-      <ResultChip {busy} kind="message" tone="failure">
-        There is no todo {error.value.id}
-      </ResultChip>
-    {:else}
-      <ResultChip {busy} kind="message" tone="failure">Couldn't reach the server</ResultChip>
-    {/if}
-  </div>
-  {#snippet pending()}
-    <div class="mt-3">
-      <ResultChip kind="message" tone="running">Loading…</ResultChip>
-    </div>
-  {/snippet}
-</svelte:boundary>
+<div class="mt-3" data-testid="lookup">
+  {#if todo.current._tag === "Success"}
+    <ResultChip busy={todo.current.waiting} kind="message" tone="success">
+      {todo.current.value.title}
+    </ResultChip>
+  {:else if notFound}
+    <ResultChip busy={todo.current.waiting} kind="message" tone="failure">
+      There is no todo {id}
+    </ResultChip>
+  {:else if todo.current._tag === "Failure"}
+    <ResultChip kind="message" tone="failure">Couldn't reach the server</ResultChip>
+  {:else}
+    <ResultChip kind="message" tone="running">Loading…</ResultChip>
+  {/if}
+</div>

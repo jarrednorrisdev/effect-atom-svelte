@@ -1,69 +1,63 @@
 <script lang="ts">
+  import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
-  import CheckIcon from "@lucide/svelte/icons/check";
+  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import { Button } from "#lib/components/ui/button/index.ts";
   import Example from "#lib/docs/example.svelte";
   import InstallCommand from "#lib/docs/install-command.svelte";
+  import { reducedMotion } from "#lib/docs/kit/motion.ts";
   import { nav } from "#lib/docs/nav.ts";
   import PageDescription from "#lib/docs/page-description.svelte";
+  import HeroPanel from "#lib/landing/hero-panel.svelte";
+  import MutationChain from "#lib/landing/mutation-chain.svelte";
   // Each example twice: the component, and its source from a ?highlight import.
   /* oxlint-disable import/no-duplicates */
   import Report from "#lib/landing/report.svelte";
+  import SharedRate from "#lib/landing/shared-rate.svelte";
   import TodoList from "#lib/landing/todo-list.svelte";
   import TodoLookup from "#lib/landing/todo-lookup.svelte";
-  import Visitors from "#lib/landing/visitors.svelte";
+  // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
+  import exchangeRateSource from "#lib/landing/exchange-rate.ts?highlight";
+  import rateSource from "#lib/landing/rate.svelte?highlight";
   import reportSource from "#lib/landing/report.svelte?highlight";
+  import sharedRateSource from "#lib/landing/shared-rate.svelte?highlight";
   import todoListSource from "#lib/landing/todo-list.svelte?highlight";
   import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
-  import visitorSource from "#lib/landing/visitor.svelte?highlight";
-  import visitorsSource from "#lib/landing/visitors.svelte?highlight";
   /* oxlint-enable import/no-duplicates */
+  import { reveal } from "#lib/landing/reveal.ts";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import rpcSource from "../../../../packages/demo-domain/src/rpc.ts?highlight";
 
   const repositoryUrl = "https://github.com/jarrednorrisdev/effect-atom-svelte";
   const changelogUrl = `${repositoryUrl}/blob/main/packages/effect-atom-svelte/CHANGELOG.md`;
 
-  /** The hero's comparison: where runes are enough, and where atoms take over. */
-  const comparison = [
-    {
-      atoms: "Atoms in modules, one provider",
-      need: "State components share",
-      runes: "A context for each piece",
-    },
-    {
-      atoms: "A registry for each request",
-      need: "Server rendering",
-      runes: "Module state leaks between visitors",
-    },
-    {
-      atoms: "AtomRpc and AtomHttpApi, typed errors",
-      need: "An Effect backend",
-      runes: "A fetch layer; errors arrive thrown",
-    },
-    {
-      atoms: "Keys refetch what changed",
-      need: "After a mutation",
-      runes: "Refresh the queries it affects",
-    },
-  ];
+  /** Scrolls to the first reason, smoothly unless the reader asked for less motion. */
+  const seeItRun = (event: MouseEvent) => {
+    event.preventDefault();
+    document
+      .querySelector("#where-atoms-fit")
+      ?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+
+  // The scroll cue fades once the reader has started scrolling.
+  let scrollY = $state(0);
 
   const notNeeded = [
-    "State one component owns, such as a form field or an open menu: that is $state.",
-    "Apps without Effect: context and remote functions cover shared state well.",
+    "Apps without Effect: context and remote functions cover them well.",
+    "An effect that only one component runs: Effect.runPromise with getAbortSignal is enough.",
     "Route data that doesn't change on the page: a load function is enough.",
   ];
 </script>
 
 <PageDescription
-  description="Svelte 5 bindings for Effect Atom. Keep $state for local state, and use atoms for shared state, a typed Effect RPC or HttpApi backend, refetching by key, and server rendering that keeps visitors apart."
+  description="Svelte 5 bindings for Effect Atom. Share the results of your Effect code across components, typed, cleaned up and refreshed, and talk to an Effect RPC or HttpApi backend."
 />
 
 {#snippet links(items: readonly { readonly href: string; readonly title: string }[])}
   <p class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
     {#each items as item (item.href)}
       <a
-        class="inline-flex items-center gap-1 font-medium text-brand-text hover:underline hover:underline-offset-4"
+        class="inline-flex items-center gap-1 py-0.5 font-medium text-brand-text hover:underline hover:underline-offset-4"
         href={item.href}
       >
         {item.title} <ArrowRightIcon class="size-3.5" />
@@ -77,113 +71,124 @@
   <h3 class="mt-2 text-2xl font-semibold tracking-tight text-balance" {id}>{title}</h3>
 {/snippet}
 
+<svelte:window bind:scrollY />
+
 <section class="hero relative overflow-hidden border-b">
   <div
-    class="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-24"
+    class="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 py-16 lg:min-h-[calc(100svh-3.5rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-10"
   >
     <div class="min-w-0">
       <p
-        class="mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
+        style:--rise="0"
+        class="rise mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
       >
         <span class="size-1.5 rounded-full bg-brand"></span>
         Effect Atom for Svelte 5 · community project at 0.x
       </p>
-      <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-[2.75rem] xl:text-5xl">
-        <span class="sm:whitespace-nowrap">Runes for local state.</span><br />
-        <span class="text-brand-text sm:whitespace-nowrap">Atoms for the rest.</span>
+      <h1 style:--rise="1" class="rise text-[2.25rem] leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
+        <span class="text-balance">Write it in Effect.</span><br />
+        <span class="text-balance text-brand-text">Read it in any component.</span>
       </h1>
-      <p class="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
-        effect-atom-svelte brings Effect Atom to Svelte 5, for the state your components share and
-        the Effect backend they talk to: typed queries and mutations, refetching by key, and server
-        rendering that keeps every visitor's data apart.
+      <p style:--rise="2" class="rise mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+        Share the results of your Effect code across components: typed, cleaned up and refreshed,
+        with no context or cache to write. Plus a typed client for your Effect backend.
       </p>
-      <div class="mt-8 flex flex-wrap gap-3">
+      <div style:--rise="3" class="rise mt-8 flex flex-wrap gap-3">
         <Button class="px-4" href="/introduction" size="lg">
           Get started <ArrowRightIcon />
         </Button>
-        <Button class="px-4" href="/why-atoms" size="lg" variant="outline">Why atoms</Button>
+        <Button class="px-4" href="#where-atoms-fit" onclick={seeItRun} size="lg" variant="outline">
+          See it run <ArrowDownIcon />
+        </Button>
       </div>
-      <div class="mt-8 max-w-xl">
+      <div style:--rise="4" class="rise mt-8 max-w-xl">
         <InstallCommand />
       </div>
     </div>
 
-    <figure class="min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
-      <figcaption class="border-b px-5 py-3 text-sm font-semibold">Runes or atoms?</figcaption>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[30rem] text-left text-sm" data-testid="comparison">
-          <thead class="text-xs text-muted-foreground">
-            <tr>
-              <th class="w-[30%] px-5 py-2 font-medium" scope="col">You need</th>
-              <th class="px-3 py-2 font-medium" scope="col">Runes and context</th>
-              <th class="px-5 py-2 font-medium text-brand-text" scope="col">Atoms</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-t align-top">
-              <th class="px-5 py-3 font-medium" scope="row">State one component owns</th>
-              <td class="px-3 py-3">
-                <span class="inline-flex items-start gap-1.5">
-                  <CheckIcon class="mt-0.5 size-4 shrink-0 text-brand-text" />
-                  <span><code class="font-mono text-[0.9em]">$state</code>: use this</span>
-                </span>
-              </td>
-              <td class="px-5 py-3 text-muted-foreground">Not needed</td>
-            </tr>
-            {#each comparison as row (row.need)}
-              <tr class="border-t align-top">
-                <th class="px-5 py-3 font-medium" scope="row">{row.need}</th>
-                <td class="px-3 py-3 text-muted-foreground">{row.runes}</td>
-                <td class="px-5 py-3">
-                  <span class="inline-flex items-start gap-1.5">
-                    <CheckIcon class="mt-0.5 size-4 shrink-0 text-brand-text" />
-                    {row.atoms}
-                  </span>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </figure>
+    <div style:--rise="3" class="rise min-w-0">
+      <HeroPanel />
+    </div>
   </div>
+  <!-- On wide screens the hero fills the first screen; this says there is more below. -->
+  <a
+    aria-hidden="true"
+    class="scroll-cue absolute inset-x-0 bottom-3 mx-auto hidden w-max items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:flex"
+    class:scrolled={scrollY > 40}
+    href="#where-atoms-fit"
+    onclick={seeItRun}
+    tabindex="-1"
+  >
+    Four reasons, each running on this page <ChevronDownIcon class="scroll-cue-icon size-4" />
+  </a>
 </section>
 
 <div class="mx-auto w-full max-w-7xl px-6 lg:px-10">
-  <section aria-labelledby="why-not-state" class="pt-20">
-    <h2 class="text-3xl font-semibold tracking-tight" id="why-not-state">
-      Why not just <code class="font-mono">$state</code>?
-    </h2>
+  <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
+    <h2 class="text-3xl font-semibold tracking-tight" id="where-atoms-fit">Where atoms fit</h2>
     <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
-      For state one component owns, atoms aren't better: use
-      <code class="font-mono text-[0.9em]">$state</code>. They earn their place in four other
-      places. Each example below runs on this page, and the code under it is the file that runs.
+      Runes handle what belongs to one component. When your logic is written in Effect, atoms hold
+      the rest: shared state, backend data, and everything derived from them. Each example below
+      runs on this page, and the code under it is the file that runs.
     </p>
   </section>
 
-  <section aria-labelledby="typed-backend" class="reason">
+  <section aria-labelledby="shared-effect" class="reason" {@attach reveal}>
     <div class="min-w-0">
-      {@render heading("01", "Your Effect backend, as typed atoms", "typed-backend")}
+      {@render heading("01", "One Effect, shared by every component that reads it", "shared-effect")}
       <p class="mt-4 text-muted-foreground">
-        If your server speaks Effect RPC or <code class="font-mono text-[0.9em]">HttpApi</code>,
-        <code class="font-mono text-[0.9em]">AtomRpc</code> and
-        <code class="font-mono text-[0.9em]">AtomHttpApi</code> turn it into atoms for queries and
-        mutations, with no fetch layer to write.
+        In one component, <code class="font-mono text-[0.9em]">Effect.runPromise</code> is enough.
+        Once a second component needs the result, you want one run, shared, and a way to run it
+        again for both.
       </p>
       <p class="mt-4 text-muted-foreground">
-        They use the server's own schemas, so results and errors are typed end to end. A component
-        matches on <code class="font-mono text-[0.9em]">TodoNotFound</code> instead of catching whatever
-        was thrown.
+        An atom gives you that. It's defined once, in a plain module, and any component reads it,
+        with no context or cache to write for each one. One provider in your root layout gives each
+        request its own values.
       </p>
       {@render links([
-        { href: "/rpc", title: "RPC" },
-        { href: "/http", title: "HTTP API" },
-        { href: "/errors", title: "Errors" },
+        { href: "/why-atoms", title: "Why atoms" },
+        { href: "/async-atoms", title: "Async atoms" },
+        { href: "/server-rendering", title: "Server rendering" },
       ])}
     </div>
     <div class="min-w-0">
       <Example
-        cap={22}
+        cap={20}
+        files={[
+          { html: exchangeRateSource, name: "exchange-rate.ts" },
+          { html: rateSource, name: "rate.svelte" },
+          { html: sharedRateSource, name: "shared-rate.svelte" },
+        ]}
+        hint="Show the header: the effect runs once. Show the checkout too: it reads the same rate, and the effect doesn't run again. Click Refresh in either: one run updates both."
+      >
+        <SharedRate />
+      </Example>
+    </div>
+  </section>
+
+  <section aria-labelledby="typed-errors" class="reason" {@attach reveal}>
+    <div class="min-w-0">
+      {@render heading("02", "Errors you can match on", "typed-errors")}
+      <p class="mt-4 text-muted-foreground">
+        <code class="font-mono text-[0.9em]">Effect.runPromise</code> throws, so a component gets an <code class="font-mono text-[0.9em]">unknown</code>. An atom holds an
+        <code class="font-mono text-[0.9em]">AsyncResult</code> instead, with the error typed by the
+        effect.
+      </p>
+      <p class="mt-4 text-muted-foreground">
+        Here the type comes from the server's RPC schema, so the component matches on
+        <code class="font-mono text-[0.9em]">TodoNotFound</code>, and tells it apart from a server it
+        couldn't reach.
+      </p>
+      {@render links([
+        { href: "/errors", title: "Errors" },
+        { href: "/async-atoms", title: "Async atoms" },
+        { href: "/rpc", title: "RPC" },
+      ])}
+    </div>
+    <div class="min-w-0">
+      <Example
+        cap={16}
         files={[
           { html: todoLookupSource, name: "todo-lookup.svelte" },
           { html: rpcSource, name: "rpc.ts" },
@@ -195,84 +200,26 @@
     </div>
   </section>
 
-  <section aria-labelledby="refetch-by-key" class="reason">
+  <section aria-labelledby="cleanup" class="reason" {@attach reveal}>
     <div class="min-w-0">
-      {@render heading("02", "Mutations refresh what they change", "refetch-by-key")}
+      {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
       <p class="mt-4 text-muted-foreground">
-        Tag a query with a key such as <code class="font-mono text-[0.9em]">"todos"</code>. When a
-        mutation with the same key succeeds, every atom reading that query fetches again, and atoms
-        derived from it follow. There is no refresh to call.
+        When the last component reading an atom goes away, its effect is interrupted and its
+        finalizers run: a request is cancelled, a stream stops, a socket closes. With one component,
+        an <code class="font-mono text-[0.9em]">$effect</code>'s teardown does this. When several
+        share the work, the registry counts the readers for you.
+      </p>
+      <p class="mt-4 text-muted-foreground">
+        The trade-off: an atom nothing reads loses its value, unless you keep it alive.
       </p>
       {@render links([
-        { href: "/mutations", title: "Mutations" },
-        { href: "/derived-atoms", title: "Derived atoms" },
-      ])}
-    </div>
-    <div class="min-w-0">
-      <Example
-        cap={22}
-        files={[{ html: todoListSource, name: "todo-list.svelte" }]}
-        hint={'Add a todo, or tick one off: each mutation invalidates "todos", todosAtom fetches again, and openCountAtom follows.'}
-      >
-        <TodoList />
-      </Example>
-    </div>
-  </section>
-
-  <section aria-labelledby="server-rendering" class="reason">
-    <div class="min-w-0">
-      {@render heading("03", "Server rendering that keeps visitors apart", "server-rendering")}
-      <p class="mt-4 text-muted-foreground">
-        Module-level <code class="font-mono text-[0.9em]">$state</code> is shared by every request
-        the server handles, so one visitor can see another's data, and async rendering makes that
-        easier to hit.
-      </p>
-      <p class="mt-4 text-muted-foreground">
-        Atoms keep their values in a registry, and one provider in your root layout gives each
-        request its own. Results awaited on the server are sent with the page, so the browser
-        doesn't fetch them again.
-      </p>
-      {@render links([
-        { href: "/server-rendering", title: "Server rendering" },
-        { href: "/hydration", title: "Hydration" },
-      ])}
-    </div>
-    <div class="min-w-0">
-      <Example
-        cap={22}
-        files={[
-          { html: visitorSource, name: "visitor.svelte" },
-          { html: visitorsSource, name: "visitors.svelte" },
-        ]}
-        hint="Add to Ada's cart: Grace's cartAtom stays at 0, but the module $state shows Ada's count to Grace too."
-      >
-        <Visitors />
-      </Example>
-    </div>
-  </section>
-
-  <section aria-labelledby="effects" class="reason">
-    <div class="min-w-0">
-      {@render heading("04", "Any Effect or Stream, awaited in markup", "effects")}
-      <p class="mt-4 text-muted-foreground">
-        Put an <code class="font-mono text-[0.9em]">Effect</code> or a
-        <code class="font-mono text-[0.9em]">Stream</code> in an atom and
-        <code class="font-mono text-[0.9em]">await</code> it in markup, with
-        <code class="font-mono text-[0.9em]">&lt;svelte:boundary&gt;</code> for loading and failure.
-      </p>
-      <p class="mt-4 text-muted-foreground">
-        When nothing reads the atom any more, its effect is interrupted and its finalizers run.
-      </p>
-      {@render links([
-        { href: "/async-atoms", title: "Async atoms" },
-        { href: "/suspense", title: "Suspense" },
-        { href: "/streams", title: "Streams" },
         { href: "/lifetimes", title: "Lifetimes" },
+        { href: "/streams", title: "Streams" },
       ])}
     </div>
     <div class="min-w-0">
       <Example
-        cap={22}
+        cap={21}
         files={[{ html: reportSource, name: "report.svelte" }]}
         hint="Show the report, then hide it before three seconds pass: nothing reads reportAtom, so its effect is interrupted."
       >
@@ -281,7 +228,43 @@
     </div>
   </section>
 
+  <section aria-labelledby="typed-backend" class="reason" {@attach reveal}>
+    <div class="min-w-0">
+      {@render heading("04", "Your Effect backend, refreshed by key", "typed-backend")}
+      <p class="mt-4 text-muted-foreground">
+        If your server speaks Effect RPC or <code class="font-mono text-[0.9em]">HttpApi</code>,
+        <code class="font-mono text-[0.9em]">AtomRpc</code> and
+        <code class="font-mono text-[0.9em]">AtomHttpApi</code> turn it into atoms for queries and
+        mutations, using the server's own schemas, with no fetch layer to write.
+      </p>
+      <p class="mt-4 text-muted-foreground">
+        Tag a query with a key such as <code class="font-mono text-[0.9em]">"todos"</code>. When a
+        mutation with the same key succeeds, the query fetches again, and every atom derived from it
+        follows, here <code class="font-mono text-[0.9em]">openCountAtom</code>. The registry tracks
+        those links for you: the mutation names only its key, not the queries or what derives from
+        them.
+      </p>
+      <MutationChain />
+      {@render links([
+        { href: "/rpc", title: "RPC" },
+        { href: "/http", title: "HTTP API" },
+        { href: "/mutations", title: "Mutations" },
+        { href: "/mutations#optimistic-updates", title: "Optimistic updates" },
+      ])}
+    </div>
+    <div class="min-w-0">
+      <Example
+        cap={17}
+        files={[{ html: todoListSource, name: "todo-list.svelte" }]}
+        hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows. The mutation names neither."}
+      >
+        <TodoList />
+      </Example>
+    </div>
+  </section>
+
   <section
+    {@attach reveal}
     aria-labelledby="get-started"
     class="mt-20 grid gap-10 rounded-2xl border bg-card p-8 md:grid-cols-2 md:p-10"
   >
@@ -376,6 +359,39 @@
   .hero > * {
     position: relative;
   }
+  /* The hero's parts rise into place on load, one after another, once. */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise {
+      animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      animation-delay: calc(var(--rise) * 70ms);
+    }
+    /* A few slow nudges after the hero has settled, then it rests. */
+    .scroll-cue :global(.scroll-cue-icon) {
+      animation: nudge 1.6s ease-in-out 1.2s 3;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+  @keyframes nudge {
+    50% {
+      transform: translateY(3px);
+    }
+  }
+  /* Absolute, over .hero > *'s relative: it sits on the hero's bottom edge. */
+  .scroll-cue {
+    position: absolute;
+    transition:
+      opacity 0.3s,
+      color 0.15s;
+  }
+  .scroll-cue.scrolled {
+    opacity: 0;
+    pointer-events: none;
+  }
   /* A reason: its explanation beside its live example on wide screens, above it on narrow ones. */
   .reason {
     align-items: start;
@@ -392,6 +408,11 @@
     .reason {
       gap: 4rem;
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    }
+    /* The explanation stays beside its example, which is usually much taller, as you scroll. */
+    .reason > :first-child {
+      position: sticky;
+      top: 6rem;
     }
   }
 </style>

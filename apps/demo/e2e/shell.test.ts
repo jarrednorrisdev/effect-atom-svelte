@@ -217,12 +217,26 @@ test.describe("docs shell", () => {
   }) => {
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: /Atoms for the rest/u })
+      page.getByRole("heading", { level: 1, name: /Read it in any component/u })
     ).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
       "https://atom.jarrednorris.dev/"
     );
+    // The hero opens on when to reach for atoms, and its other tab shows the code.
+    await expect(page.getByTestId("comparison")).toContainText(
+      "A mutation atom with reactivity keys"
+    );
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("tab", { name: "Code" }).click();
+    await expect(page.getByTestId("hero-code")).toBeVisible();
+    await expect(page.getByTestId("comparison")).toBeHidden();
+    // See it run scrolls down to the reasons, rather than leaving the page.
+    await page.getByRole("link", { name: "See it run" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Where atoms fit" })
+    ).toBeInViewport();
+    await expect(page).toHaveURL(/\/$/u);
     // No sidebar on wide screens: the page map at the foot lists the pages instead.
     await expect(page.locator("[data-slot=sidebar]")).toHaveCount(0);
     const map = page.getByRole("navigation", { name: "All pages" });
@@ -247,13 +261,43 @@ test.describe("docs shell", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // 01: a typed TodoNotFound, matched in markup.
+    // 01: two components read rateAtom and share one run; a refresh runs it once, for both.
+    const log = page.getByTestId("rate-log");
+    const started = log.getByText("effect started");
+    await page.getByRole("button", { name: "Show the header" }).click();
+    const header = page.getByTestId("header-rate");
+    await expect(header).toHaveText(/^\d\.\d{4}$/u);
+    await page.getByRole("button", { name: "Show the checkout" }).click();
+    const checkout = page.getByTestId("checkout-rate");
+    await expect(checkout).toHaveText((await header.textContent()) ?? "");
+    await expect(started).toHaveCount(1);
+    await page.getByRole("button", { name: "Refresh" }).first().click();
+    await expect(started).toHaveCount(2);
+    await expect(log.getByText("effect returned")).toHaveCount(2);
+    await expect(checkout).toHaveText((await header.textContent()) ?? "");
+
+    // 02: a typed TodoNotFound, matched in markup.
     const lookup = page.getByTestId("lookup");
     await expect(lookup).toHaveText("Read the Effect Atom source");
     await page.getByRole("button", { name: "Todo 99" }).click();
     await expect(lookup).toHaveText("There is no todo 99");
 
-    // 02: the mutation invalidates "todos", so the list and what derives from it follow. The
+    // 03: hiding the report before it finishes interrupts its effect.
+    const show = page.getByRole("button", { name: "Show the report" });
+    const reportLog = page.getByTestId("report-log");
+    await show.click();
+    await expect(reportLog).toContainText("effect started");
+    await show.click();
+    await expect(reportLog).toContainText("effect interrupted");
+    await show.click();
+    await expect(page.getByTestId("report")).toHaveText(
+      "Your report is ready",
+      {
+        timeout: 6000,
+      }
+    );
+
+    // 04: the mutation invalidates "todos", so the list and what derives from it follow. The
     // prerendered list is whatever the API held at build time, so the counts start after the
     // refetch, from this test's own store: two seeded todos, one done, and the new one.
     const open = page.getByTestId("home-open");
@@ -263,27 +307,6 @@ test.describe("docs shell", () => {
     await expect(open).toHaveText("2");
     await list.getByRole("checkbox", { name: "Feed the cat" }).check();
     await expect(open).toHaveText("1");
-
-    // 03: each registry keeps its own cart; module state is shared.
-    await page.getByRole("button", { name: "Add to cart" }).first().click();
-    await expect(page.getByTestId("Ada-atom")).toHaveText("1");
-    await expect(page.getByTestId("Grace-atom")).toHaveText("0");
-    await expect(page.getByTestId("Grace-state")).toHaveText("1");
-
-    // 04: hiding the report before it finishes interrupts its effect.
-    const show = page.getByRole("button", { name: "Show the report" });
-    const log = page.getByTestId("report-log");
-    await show.click();
-    await expect(log).toContainText("effect started");
-    await show.click();
-    await expect(log).toContainText("effect interrupted");
-    await show.click();
-    await expect(page.getByTestId("report")).toHaveText(
-      "Your report is ready",
-      {
-        timeout: 6000,
-      }
-    );
   });
 
   test("on a phone the landing page's menu opens the sidebar sheet", async ({
