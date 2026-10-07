@@ -76,7 +76,7 @@ The same request gives the same atom, compared by value, so a getter can build t
 
 ### Typed errors
 
-An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error. When you call the client yourself, as in [Customizing requests](#customizing-requests), those two stay in the error type.
+An endpoint's declared errors come back as typed failures. A `TodoNotFound` declared with status 404 fails the query with a `TodoNotFound`, not a generic HTTP error. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error: Effect's `AtomHttpApi` turns them into defects itself, where `AtomRpc` keeps its `RpcClientError` typed. When you call the client yourself, as in [Customizing requests](#customizing-requests), those two stay in the error type.
 
 Pass `includeFailure: true` to `useAtomSuspense` to handle the typed error in your markup. [Errors](/errors) covers the other ways.
 

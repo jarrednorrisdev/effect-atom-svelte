@@ -27,7 +27,7 @@ An effect can end without a value in three ways:
 | **Defect** | An exception thrown inside the effect, or `Effect.die`. Usually a bug. | No. |
 | **Interruption** | Something stopped the effect, such as writing `Atom.Interrupt` to a mutation, or `Effect.interrupt`. | No. |
 
-Handle typed errors where they happen, because they are part of what the user can do: a todo can be missing, a title can be too long. Defects and interruptions are rarely something a component can fix, so show a general message and log them. [Effect basics](/effect-basics#exit-and-cause) introduces these with Effect's own docs.
+Handle typed errors where they happen, because they are normal outcomes the page should explain: a todo can be missing, a title can be too long. Defects and interruptions are rarely something a component can fix, so show a general message and log them. [Effect basics](/effect-basics#exit-and-cause) introduces these with Effect's own docs.
 
 The registry also interrupts effects itself: when it disposes of an atom nobody reads, and when an atom runs again before its last run finished. Those interruptions never show up as a `Failure`. The atom is gone, or the new run's result takes the old one's place.
 
@@ -150,14 +150,14 @@ The mutation's own value is an `AsyncResult` too, so `useAtomValue(createAtom)` 
 
 In a SvelteKit app, an error on its way to a `failed` snippet goes through SvelteKit's `handleError` hook, whose default replaces it with `{ message: "Internal Error" }`. The hooks in `effect-atom-svelte/sveltekit` keep its `_tag` as `error.tag`, but not fields such as `id`, so use `includeFailure` when you need those: [Errors in boundaries](/sveltekit#errors-in-boundaries) shows how to install the hooks.
 
-The hooks don't cover [hydration](/hydration#how-the-result-travels). A serializable atom's typed error is sent with the page, fields and all, as part of its schema. When `useAtomResult` or `useAtomSuspense` sends the result, a defect or an interruption isn't sent: the browser computes that atom again. `Hydration.dehydrate`, used with `HydrationBoundary`, sends defects too: see [HydrationBoundary](/hydration#hydrationboundary).
+Errors sent with the page for hydration don't pass through these hooks: see [How the result travels](/hydration#how-the-result-travels).
 
 ## Typed errors from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` decode errors from the server with their schemas, so they arrive as the same tagged classes, fields and all:
 
 - **An RPC procedure** fails with the errors in its `error` schema, plus `RpcClientError` when the request itself fails, for example because the server can't be reached.
-- **An HTTP API endpoint** fails with the errors it declares. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error. When you call the client yourself, those two stay typed. See [Typed errors](/http#typed-errors).
+- **An HTTP API endpoint** fails with the errors it declares. In a `query` or `mutation`, a request that fails (`HttpClientError`) or a response that doesn't decode (`SchemaError`) is a defect rather than a typed error. That is a choice Effect's `AtomHttpApi` makes for its queries and mutations; `AtomRpc` keeps `RpcClientError` typed. When you call the client yourself, those two stay typed. See [Typed errors](/http#typed-errors).
 
 Both also fail with the errors of any middleware the procedure or endpoint uses, such as an `Unauthorized` from an auth middleware.
 
