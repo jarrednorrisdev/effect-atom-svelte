@@ -204,8 +204,8 @@
     <div class="min-w-0">
       {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
       <p class="mt-4 text-muted-foreground">
-        When the last component reading an atom goes away, its effect is interrupted and its
-        finalizers run: a request is canceled, a stream stops, a socket closes. With one component,
+        When the last component reading an atom goes away, its finalizers run, and its effect is
+        interrupted if it is still running: a request is canceled, a stream stops, a socket closes. With one component,
         an <code class="font-mono text-[0.9em]">$effect</code>'s teardown does this. When several
         share the work, the registry counts the readers for you.
       </p>

@@ -130,7 +130,7 @@ export const userAtom = Atom.make(currentUser);
 </script>
 ```
 
-The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both, and when neither is on the page, it's interrupted. The next piece of shared state is one more atom, and the layout doesn't change.
+The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both. When neither is on the page, the registry disposes of the atom, and interrupts the effect if it is still running. The next piece of shared state is one more atom, and the layout doesn't change.
 
 The server awaits the atom too, so the page renders with the user and sends the result along for hydration. Values live in a **registry**, not in the atom. The provider gives each request on the server its own registry, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
@@ -151,7 +151,7 @@ export const todosAtom = TodosRpc.query("listTodos", undefined, {
 });
 ```
 
-Components share `todosAtom` like any atom. The server awaits it, and when nothing reads it, the registry interrupts it along with its request. `AtomHttpApi` does the same for an `HttpApi`.
+Components share `todosAtom` like any atom. The server awaits it. When nothing reads it, the registry disposes of it, and cancels its request if it is still in flight. `AtomHttpApi` does the same for an `HttpApi`.
 
 **What it costs:** you define the client once, with the protocol it uses to reach your server. See [RPC](/rpc) and [HTTP API](/http).
 
