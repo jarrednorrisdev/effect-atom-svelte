@@ -112,11 +112,47 @@ Next to a `getUser` remote query, the difference is the Effect code: `currentUse
 
 The same `RegistryProvider` isolates client state too, such as a filter or a draft, with no setup per atom. In the browser one registry lasts for the session, so that state is shared just as the module version was. One difference: the registry disposes of an atom nothing [holds](/reading-and-writing#reading), so its value starts again from the beginning next time, unless you [keep it alive](/lifetimes#keeping-atoms-alive).
 
+## Talking to an Effect backend
+
+If your server is Effect RPC or an `HttpApi`, atoms give components a typed client for it. `AtomRpc` turns the RPC group into queries and mutations, using the same schemas as the server:
+
+**Example** (A todo list over Effect RPC)
+
+```ts
+// todos.ts
+import { TodosRpc } from "./todos-rpc.ts";
+
+export const todosAtom = TodosRpc.query("listTodos", undefined, {
+  reactivityKeys: ["todos"],
+});
+export const createAtom = TodosRpc.mutation("createTodo");
+```
+
+```svelte
+<!-- todo-list.svelte -->
+<script lang="ts">
+  import { useAtomResult, useAtomSet } from "effect-atom-svelte";
+  import { createAtom, todosAtom } from "$lib/todos";
+
+  const todos = await useAtomResult(todosAtom);
+  const create = useAtomSet(createAtom, { mode: "promiseExit" });
+
+  const add = (title: string) =>
+    create({ payload: { title }, reactivityKeys: ["todos"] });
+</script>
+```
+
+The payload and result are checked against the RPC's schemas, and a failure arrives typed: a title that's too long comes back as the procedure's `TitleTooLong`, not a thrown error. When `createTodo` succeeds, every atom tagged `"todos"` runs again, along with anything derived from it, so there are no refresh calls to write by hand. `AtomHttpApi` does the same for an `HttpApi`.
+
+SvelteKit's remote functions can refresh queries after a mutation too, in the same request. But each form or command has to name the queries it affects, with `refresh()` on the server or `updates()` in the browser. A reactivity key decouples the two: the mutation says what it changed, and any query tagged with that key, written before or after it, refetches.
+
+[RPC](/rpc) and [HTTP API](/http) cover the clients, with live examples, and [Refreshing what changed](/mutations#refreshing-what-changed) covers reactivity keys.
+
 ## What else atoms handle
 
 Per-request isolation is the problem a module can't solve. Beyond it, atoms bring your Effect code into components and handle the work around shared state. Some of it overlaps with remote functions for server data; the difference is that atoms do it for Effect code, and for client state too.
 
-- **Effect in components.** An atom takes an `Effect` or a `Stream` as it is, and can use services from a `Layer`. `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into typed queries and mutations. See [Services and runtimes](/services), [RPC](/rpc) and [HTTP API](/http).
+- **Effect in components.** An atom takes an `Effect` or a `Stream` as it is, and can use services from a `Layer`. See [Services and runtimes](/services). For RPC and `HttpApi` clients, see [Talking to an Effect backend](#talking-to-an-effect-backend).
 - **Async state with typed errors.** An atom built from an `Effect` holds an `AsyncResult`: `Initial` before the first value, `Success` or `Failure` after, with the error typed by the effect. The hooks hand that to `<svelte:boundary>`, or let you match on it. See [Async atoms](/async-atoms).
 - **Derived values.** `Atom.make((get) => ...)` reads other atoms, from any module, whether they hold server data or client state, and the registry computes it again only when one of them changes. See [Derived atoms](/derived-atoms).
 - **Cleanup.** When nothing holds an atom, the registry disposes of it: its effect is interrupted, a stream stops, and finalizers run. If a component unmounts mid-request and nothing else holds the atom, its effect is interrupted. The request itself is aborted if the effect passes on its `AbortSignal`: see [Wrapping a promise](/effect-basics#wrapping-a-promise). State in context, by contrast, lasts as long as the layout that created it. In exchange, an atom nothing holds loses its value unless you keep it alive. See [Lifetimes](/lifetimes).
