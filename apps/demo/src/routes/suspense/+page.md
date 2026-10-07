@@ -130,7 +130,7 @@ When the atom's effect fails, the promise rejects with `Cause.squash` of its cau
 
 Read the atom with `suspendOnWaiting: true`, so the content waits for the refresh's result rather than the old failure.
 
-Like the weather example's, this example's atom loads in the browser only. Rendered on the server, a failure would fail the build: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). Turn on **Fail the next load** to try the `failed` snippet:
+Like the weather example's, this example's atom loads in the browser only. A failure rendered on the server makes SvelteKit respond with a 500: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). Turn on **Fail the next load** to try the `failed` snippet:
 
 <Example files={[{ html: retrySource, name: "retry.svelte" }]} hint="Turn on Fail the next load and click Reload: the failed snippet takes over. Click Try again: reset starts the boundary afresh, so the pending snippet shows until the new forecast arrives."> <Retry /> </Example>
 

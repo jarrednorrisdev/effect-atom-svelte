@@ -98,7 +98,7 @@ export const handleError: HandleClientError = (input) => {
 
 ### A failure on the server sets the status
 
-When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. A prerendered page can't fail that way: the build stops at the 500. The example fails only in the browser for that reason: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
+When a `failed` snippet renders on the server, SvelteKit responds with the error's status, 500 for an atom's failure, even though the rest of the page renders. On a prerendered page, the 500 stops the build. The example fails only in the browser: its boundary has a `pending` snippet, so the server renders that and never waits for the atom.
 
 To render a failure on the server without the 500, read the atom with `includeFailure`, so the failure is a value the component shows rather than an error.
 
@@ -248,8 +248,6 @@ A page rendered with a visitor's credentials is for that visitor only. See [Prer
 ## Prerender or render per request
 
 A page with `export const prerender = true` is rendered once, at build time. Every visitor gets the same HTML, with the results its serializable atoms had then, until something in the browser refreshes them.
-
-This site's pages are prerendered, so the first example on [Hydration](/hydration) shows a result computed when the site was built.
 
 Prerender only pages whose atoms can run at build time. They can't depend on the request, such as its cookies, and any API they call has to be reachable from the build. If a prerendered result shouldn't be as old as the build, run it again in the browser with [`revalidateOnHydrate`](/hydration#running-again-after-hydration).
 

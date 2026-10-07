@@ -19,7 +19,7 @@ description: Turn an Effect HttpApi into atoms for its endpoints.
 
 If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your components its endpoints as atoms. It works like [`AtomRpc`](/rpc): queries are async atoms you read, mutations are atoms you write, and the endpoint's schemas type the path params, query string, payload and errors.
 
-The examples on this page call the [demo API](/introduction#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses. On this site, the page is prerendered, so the lists it opens with came from the copy of the demo API that ran during the build.
+The examples on this page call the [demo API](/introduction#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Click Open, then Done: each filter is its own query atom with its own request, and the requests count goes up. Go back to All: that atom already has its list."> <Todos /> </Example>
 

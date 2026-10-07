@@ -130,7 +130,7 @@ A server render waits for every atom it awaits, however long it takes. A slow AP
 
 </Aside>
 
-The example reads four atoms in those four ways. Each atom records where it ran, and **In the HTML** shows what the page's HTML has in that place, fetched again from the server. This site prerenders its pages, so here the server is the build.
+The example reads four atoms in those four ways. Each atom records where it ran, and **In the HTML** shows what the page's HTML has in that place, fetched again from the server. On this site the server ran when the site was built: see [How these docs work](/introduction#how-these-docs-work).
 
 <Example files={[{ html: waitsSource, name: "waits.svelte" }, { html: laterSource, name: "later.svelte" }]} hint="The first two rows were in the HTML, computed on the server. Click Reload the page and watch the last two: the HTML had a pending snippet and Initial, and the browser fills them in."> <Waits /> </Example>
 
