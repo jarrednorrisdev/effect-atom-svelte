@@ -29,7 +29,7 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
 - `Initial` until the first item arrives.
 - `Success` with the latest item, and `waiting` set while the stream is still running.
-- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom still has an item from an earlier run, as after a refresh: then it keeps that item.
+- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom already has a value, such as an item from an earlier run: then it keeps it.
 
 A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
 
