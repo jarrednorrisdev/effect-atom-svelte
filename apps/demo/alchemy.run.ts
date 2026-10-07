@@ -2,8 +2,8 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
-// Jarred's work deploys also use Alchemy on this machine, through the default profile. This stack
-// only ever runs with the `personal` profile locally, and in CI with the repo's Cloudflare secrets
+// Locally this stack only ever deploys through the `jnd` Alchemy profile (Jarred's personal
+// Cloudflare account), and in CI with the repo's Cloudflare secrets
 // (where Alchemy never reads profiles). Cloudflare variables in the environment would override the
 // profile, so they are refused locally too.
 const profileFlag = process.argv.indexOf("--profile");
@@ -14,14 +14,14 @@ const profile =
 // `alchemy profile ...` loads this file too, to find the providers to log in to; it deploys nothing.
 const managingProfiles = process.argv.includes("profile");
 if (process.env.CI !== "true" && !managingProfiles) {
-  if (profile !== "personal") {
+  if (profile !== "jnd") {
     throw new Error(
-      `Deploy the docs site with the personal Alchemy profile (bun run deploy), not "${profile ?? "default"}".`
+      `Deploy the docs site with the jnd Alchemy profile (bun run deploy), not "${profile ?? "default"}".`
     );
   }
   if (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_ACCOUNT_ID) {
     throw new Error(
-      "Unset CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID: they would override the personal profile."
+      "Unset CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID: they would override the jnd profile."
     );
   }
 }
