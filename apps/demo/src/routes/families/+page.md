@@ -91,11 +91,11 @@ const draftAtom = Atom.family(
 draftAtom({ doc: 1, lang: "en" }) === draftAtom({ doc: 1, lang: "en" }); // true
 ```
 
-This matters because object keys are usually built fresh: in the example below, every change of document or language makes a new `{ doc, lang }` object. A cache you write yourself with `new Map()` compares object keys by reference, so a new object never finds the old entry.
+This matters because object keys are usually built fresh: in the example below, every change of document or language makes a new `{ doc, lang }` object. A cache you write yourself with `new Map()` compares object keys by reference, so a new object never finds the old entry. It makes a fresh atom instead, and the old one stays in the map with nothing able to reach it.
 
 Try it below. Both editors keep one draft per document and language, one in a family and one in a `Map`:
 
-<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Switch to lang: fr, then back to en. The family finds your draft again, because the new key equals the old one. The Map compared the new object by reference, missed, and made a fresh empty atom: now it has more atoms than keys, and your old draft is still in it with nothing able to reach it."> <SameKey /> </Example>
+<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Click lang: fr, then lang: en: the family gives your draft back, while the Map shows an empty one and counts more atoms than keys."> <SameKey /> </Example>
 
 ## Keeping a family's atoms
 

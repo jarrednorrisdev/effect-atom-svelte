@@ -181,7 +181,7 @@ Svelte restores the component's context after each top-level `await`, so you can
 
 Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
 
-<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three. One by one, the user's load starts only when the todos have loaded, so it is ready after three seconds. Promise.all and Effect.all start both loads at once, and are ready after one and a half. Then turn on Todos fails and mount again: only Effect.all stops at the failure and interrupts the user's load."> <Awaits /> </Example>
+<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three: one by one is ready after three seconds, the other two after one and a half. Then turn on Todos fails and mount again: only Effect.all interrupts the user's load."> <Awaits /> </Example>
 
 <Aside type="caution" title="Only top-level awaits">
 
