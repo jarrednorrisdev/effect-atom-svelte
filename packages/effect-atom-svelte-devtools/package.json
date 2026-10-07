@@ -1,0 +1,54 @@
+{
+  "name": "effect-atom-svelte-devtools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Developer tools for effect-atom-svelte: atom names from your source, and a live view of the registry",
+  "license": "MIT",
+  "author": "Jarred Norris",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jarrednorrisdev/effect-atom-svelte.git",
+    "directory": "packages/effect-atom-svelte-devtools"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "svelte-package -i src -o dist",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sveltejs/acorn-typescript": "^1.0.13",
+    "acorn": "^8.18.0",
+    "magic-string": "^0.30.21"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@types/node": "^24",
+    "effect": "4.0.1",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.6.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  }
+}
