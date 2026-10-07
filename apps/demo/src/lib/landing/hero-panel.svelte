@@ -1,14 +1,15 @@
 <!--
   @component
   The landing page's hero panel, in two tabs: the code (an atom in a module, and a component that
-  reads it), and a table of where Svelte is enough and where atoms take over. Code is the default.
+  reads it), and a guide to which tool to reach for, Svelte's or atoms, with the chain a mutation
+  sets off underneath. Code is the default.
 
   ```svelte
   <HeroPanel />
   ```
 -->
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
+  import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
   import Example from "#lib/docs/example.svelte";
 
@@ -16,75 +17,67 @@
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import userSource from "./hero/user.ts?highlight";
 
-  /** Each need, its answer on either side, and which side is the better answer (`fits`). */
-  const comparison: readonly {
-    readonly atoms: string;
-    readonly fits: "atoms" | "svelte";
+  /** Each need, the tool to reach for, and why. `atoms` marks the rows where that tool is atoms. */
+  const guide: readonly {
+    readonly atoms: boolean;
     readonly need: string;
-    readonly svelte: string;
+    readonly tool: string;
+    readonly why: string;
   }[] = [
     {
-      atoms: "Not needed",
-      fits: "svelte",
+      atoms: false,
       need: "State one component owns",
-      svelte: "$state",
+      tool: "$state",
+      why: "in that component",
     },
     {
-      atoms: "Atoms, when it's derived with Effect state",
-      fits: "svelte",
+      atoms: false,
       need: "Client state components share",
-      svelte: "A class with $state fields, in a root context",
+      tool: "A class with $state fields",
+      why: "in a root context",
     },
     {
-      atoms: "Atoms, when it comes from Effect code",
-      fits: "svelte",
+      atoms: false,
       need: "Server data components read",
-      svelte: "A remote query",
+      tool: "A remote query",
+      why: "shared between components, and refreshed when you ask",
     },
     {
-      atoms: "One atom, one run, shared",
-      fits: "atoms",
+      atoms: true,
       need: "Browser-side Effect code several components read",
-      svelte: "A run in each, or a cache in context you write",
+      tool: "An atom",
+      why: "one run, shared, and interrupted when nothing reads it",
     },
     {
-      atoms: "Typed per procedure, as a value you match on",
-      fits: "atoms",
-      need: "A failure",
-      svelte: "Thrown, with your app's App.Error shape",
+      atoms: true,
+      need: "Errors you want to match on",
+      tool: "An atom",
+      why: "failures typed per procedure, as values",
     },
     {
-      atoms: "Interrupted, and finalizers run, for any Effect or Stream",
-      fits: "atoms",
-      need: "Shared work nothing reads any more",
-      svelte: "Remote queries are released; other work is yours to stop",
-    },
-    {
-      atoms: "Refetched by key: mutations don't need to list the queries they affect",
-      fits: "atoms",
-      need: "After a mutation",
-      svelte: "Each mutation lists the queries it affects, and can refresh them in the same request",
+      atoms: true,
+      need: "State that stays in step after a mutation",
+      tool: "Atoms with reactivity keys",
+      why: "keyed queries refetch, and every atom derived from them follows; remote functions refresh only the queries each mutation lists",
     },
   ];
+
+  /** What one mutation sets off, each step declared once, where its atom is defined. */
+  const chain = [
+    { name: "createTodo", note: "a mutation" },
+    { name: '"todos"', note: "its key" },
+    { name: "todosAtom", note: "refetches" },
+    { name: "openCountAtom", note: "follows" },
+    { name: "Components", note: "re-render" },
+  ] as const;
 
   let view = $state("code");
 </script>
 
-{#snippet answer(text: string, fits: boolean)}
-  {#if fits}
-    <span class="inline-flex items-start gap-1.5">
-      <CheckIcon aria-label="Better fit" class="mt-0.5 size-4 shrink-0 text-brand-text" />
-      {text}
-    </span>
-  {:else}
-    <span class="text-muted-foreground">{text}</span>
-  {/if}
-{/snippet}
-
 <Tabs.Root bind:value={view} class="min-w-0 gap-2">
   <Tabs.List aria-label="Hero view">
     <Tabs.Trigger class="px-3" value="code">Code</Tabs.Trigger>
-    <Tabs.Trigger class="px-3" value="table">Svelte or atoms?</Tabs.Trigger>
+    <Tabs.Trigger class="px-3" value="table">Which to use?</Tabs.Trigger>
   </Tabs.List>
 
   <div class="hero-views">
@@ -98,40 +91,46 @@
 
   <Tabs.Content data-hero-view value="table">
     <div class="overflow-hidden rounded-xl border bg-background shadow-sm" data-testid="comparison">
-      <!-- A table where there's room for three columns. -->
-      <table class="hidden w-full text-left text-sm sm:table">
+      <table class="w-full text-left text-sm">
         <thead class="text-xs text-muted-foreground">
           <tr>
-            <th class="w-[30%] px-5 py-2.5 font-medium" scope="col">You need</th>
-            <th class="px-3 py-2.5 font-medium" scope="col">Svelte and SvelteKit</th>
-            <th class="px-5 py-2.5 font-medium text-brand-text" scope="col">Atoms</th>
+            <th class="w-[38%] px-4 py-2.5 font-medium sm:px-5" scope="col">You need</th>
+            <th class="px-4 py-2.5 font-medium sm:px-5" scope="col">Reach for</th>
           </tr>
         </thead>
         <tbody>
-          {#each comparison as row (row.need)}
+          {#each guide as row (row.need)}
             <tr class="border-t align-top">
-              <th class="px-5 py-2.5 font-medium" scope="row">{row.need}</th>
-              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits === "svelte")}</td>
-              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits === "atoms")}</td>
+              <th class="px-4 py-2.5 font-medium sm:px-5" scope="row">{row.need}</th>
+              <td class="px-4 py-2.5 sm:px-5">
+                <span class={["font-medium", row.atoms && "text-brand-text"]}>{row.tool}</span>:
+                <span class="text-muted-foreground">{row.why}</span>
+              </td>
             </tr>
           {/each}
         </tbody>
       </table>
-      <!-- On a phone, each need as a card with both answers under it. -->
-      <dl class="m-0 sm:hidden">
-        {#each comparison as row (row.need)}
-          <div class="border-t px-4 py-3 text-sm first:border-t-0">
-            <dt class="font-medium">{row.need}</dt>
-            <dd class="mt-2 ml-0 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5">
-              <span class="text-xs text-muted-foreground">Svelte</span>
-              {@render answer(row.svelte, row.fits === "svelte")}
-              <span class="text-xs text-brand-text">Atoms</span>
-              {@render answer(row.atoms, row.fits === "atoms")}
-            </dd>
-          </div>
-        {/each}
-      </dl>
     </div>
+    <!-- The chain the last row describes. Each step lights up in turn when the tab opens. -->
+    <figure class="mt-3 mb-0 rounded-xl border bg-background p-4 shadow-sm" data-testid="chain">
+      <ol class="m-0 flex list-none flex-wrap items-start gap-x-1.5 gap-y-3 p-0">
+        {#each chain as step, index (step.name)}
+          <li class="flex items-start gap-1.5">
+            {#if index > 0}
+              <ArrowRightIcon aria-hidden="true" class="mt-1.5 size-3.5 shrink-0 text-subtle-foreground" />
+            {/if}
+            <span class="grid gap-1">
+              <code class="chain-step font-mono text-xs" style:--step={index}>{step.name}</code>
+              <span class="text-xs text-muted-foreground">{step.note}</span>
+            </span>
+          </li>
+        {/each}
+      </ol>
+      <figcaption class="mt-3 text-xs text-muted-foreground">
+        One mutation, and everything downstream follows. Each link is declared once, where its atom
+        is defined; the mutation names only its key.
+      </figcaption>
+    </figure>
   </Tabs.Content>
   </div>
 </Tabs.Root>
@@ -151,6 +150,24 @@
   @media (width >= 64rem) {
     .hero-views {
       min-height: 38rem;
+    }
+  }
+  .chain-step {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.2rem 0.45rem;
+  }
+  /* When the tab opens, the change runs down the chain once: each step lights up in turn. */
+  @media (prefers-reduced-motion: no-preference) {
+    .chain-step {
+      animation: chain-step 0.5s ease-out both;
+      animation-delay: calc(0.25s + var(--step) * 0.22s);
+    }
+  }
+  @keyframes chain-step {
+    40% {
+      background: color-mix(in oklab, var(--tone-running) 22%, transparent);
+      border-color: var(--tone-running);
     }
   }
   /* Switching tabs fades the new view in. */

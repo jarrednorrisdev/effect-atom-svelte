@@ -226,9 +226,9 @@ test.describe("docs shell", () => {
     // The hero opens on the code, and its other tab compares Svelte with atoms.
     await expect(page.getByTestId("hero-code")).toBeVisible();
     await page.waitForLoadState("networkidle");
-    await page.getByRole("tab", { name: "Svelte or atoms?" }).click();
+    await page.getByRole("tab", { name: "Which to use?" }).click();
     await expect(page.getByTestId("comparison")).toContainText(
-      "One atom, one run, shared"
+      "Atoms with reactivity keys"
     );
     await expect(page.getByTestId("hero-code")).toBeHidden();
     // See it run scrolls down to the reasons, rather than leaving the page.

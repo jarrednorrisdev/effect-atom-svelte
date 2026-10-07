@@ -243,11 +243,15 @@
       </p>
       <p class="mt-4 text-muted-foreground">
         Tag a query with a key such as <code class="font-mono text-[0.9em]">"todos"</code>. When a
-        mutation with the same key succeeds, the query fetches again, and atoms derived from it
-        follow. SvelteKit can refresh queries after a mutation too: call
-        <code class="font-mono text-[0.9em]">query.refresh()</code> where the mutation runs, or
-        refresh in the same request to save a round trip. With keys, a mutation doesn't list the
-        queries, so one you add later refreshes without touching it.
+        mutation with the same key succeeds, the query fetches again, and every atom derived from it
+        follows, here <code class="font-mono text-[0.9em]">openCountAtom</code>. The registry tracks
+        those links for you: the mutation names only its key, not the queries or what derives from
+        them.
+      </p>
+      <p class="mt-4 text-muted-foreground">
+        SvelteKit can refresh queries after a mutation too, even in the same request, which saves a
+        round trip. But each mutation lists the queries to refresh, so a query you add later means
+        editing every mutation that affects it.
       </p>
       {@render links([
         { href: "/rpc", title: "RPC" },
@@ -259,7 +263,7 @@
       <Example
         cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
-        hint={"Add a todo, or click a todo's checkbox: each mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom follows."}
+        hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows. The mutation names neither."}
       >
         <TodoList />
       </Example>
