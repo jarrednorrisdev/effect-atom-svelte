@@ -244,7 +244,7 @@ When the boundary puts its values into the registry:
 - **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
 
-`HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Different from @effect/atom-react](#running-again-after-hydration).
+`HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Running again after hydration](#running-again-after-hydration).
 
 Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's options.
 
