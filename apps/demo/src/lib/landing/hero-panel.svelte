@@ -63,7 +63,7 @@
       atoms: "Refetched by key: mutations don't need to list the queries they affect",
       fits: "atoms",
       need: "After a mutation",
-      svelte: "query.refresh() where you mutate, or in the same request",
+      svelte: "Each mutation lists the queries it affects, and can refresh them in the same request",
     },
   ];
 
