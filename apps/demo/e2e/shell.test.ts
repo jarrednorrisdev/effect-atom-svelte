@@ -305,7 +305,10 @@ test.describe("docs shell", () => {
     const list = page.getByTestId("home-todos");
     await expect(list).toContainText("Feed the cat");
     await expect(open).toHaveText("2");
-    await list.getByRole("checkbox", { name: "Feed the cat" }).check();
+    // The box ticks once the refetched list says so, not on the click itself.
+    const feed = list.getByRole("checkbox", { name: "Feed the cat" });
+    await feed.click();
+    await expect(feed).toBeChecked();
     await expect(open).toHaveText("1");
   });
 

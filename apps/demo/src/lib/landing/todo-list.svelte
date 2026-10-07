@@ -89,11 +89,16 @@
         {#each todos.current.value.slice(-5) as todo (todo.id)}
           <li class="truncate">
             <label>
-              <!-- One toggle at a time: a second would cancel waiting for the first. -->
+              <!-- The box ticks when the refetched list says so, not on click, so a failed toggle
+                   leaves it as it was. One toggle at a time: a second would cancel waiting for the
+                   first. -->
               <input
                 checked={todo.done}
                 disabled={toggling.current.waiting}
-                onchange={() => toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+                onclick={(event) => {
+                  event.preventDefault();
+                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] });
+                }}
                 type="checkbox"
               />
               {todo.title}
