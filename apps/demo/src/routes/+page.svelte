@@ -43,12 +43,9 @@
   let scrollY = $state(0);
 
   const notNeeded = [
-    "State one component owns, such as a form field or an open menu: that is $state.",
-    "Apps without Effect: context and remote functions cover shared state well.",
-    "An effect that one component runs: Effect.runPromise with getAbortSignal is enough.",
-    "Client state with no Effect behind it: a class with $state fields in a root context.",
+    "Apps without Effect: context and remote functions cover them well.",
+    "An effect that only one component runs: Effect.runPromise with getAbortSignal is enough.",
     "Route data that doesn't change on the page: a load function is enough.",
-    "Server data that components only read and refresh: a remote query.",
   ];
 </script>
 
@@ -130,9 +127,9 @@
   <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
     <h2 class="text-3xl font-semibold tracking-tight" id="where-atoms-fit">Where atoms fit</h2>
     <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
-      Svelte already handles local state, context and server data. Atoms are for what's left when
-      your logic is written in Effect. Each example below runs on this page, and the code under it
-      is the file that runs.
+      Runes handle what belongs to one component. When your logic is written in Effect, atoms hold
+      the rest: shared state, backend data, and everything derived from them. Each example below
+      runs on this page, and the code under it is the file that runs.
     </p>
   </section>
 
@@ -174,8 +171,7 @@
     <div class="min-w-0">
       {@render heading("02", "Errors you can match on", "typed-errors")}
       <p class="mt-4 text-muted-foreground">
-        <code class="font-mono text-[0.9em]">Effect.runPromise</code> and remote functions throw, so
-        a component gets an <code class="font-mono text-[0.9em]">unknown</code>. An atom holds an
+        <code class="font-mono text-[0.9em]">Effect.runPromise</code> throws, so a component gets an <code class="font-mono text-[0.9em]">unknown</code>. An atom holds an
         <code class="font-mono text-[0.9em]">AsyncResult</code> instead, with the error typed by the
         effect.
       </p>

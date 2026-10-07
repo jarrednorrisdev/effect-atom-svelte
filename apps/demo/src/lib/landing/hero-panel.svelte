@@ -41,7 +41,7 @@
       atoms: true,
       need: "State shared across components or parts of your app (the signed-in user, a cart, a filter)",
       tool: "An atom in a plain module",
-      why: "any component imports it, with no context to set up, and one provider keeps each request separate",
+      why: "any component imports it, with no context to set up, and one provider gives each request its own values, so the server renders each visitor's page with their own data",
     },
     {
       atoms: true,
