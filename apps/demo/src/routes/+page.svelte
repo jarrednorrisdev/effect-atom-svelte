@@ -191,7 +191,7 @@
     </div>
     <div class="min-w-0">
       <Example
-        cap={40}
+        cap={15}
         files={[
           { html: todoLookupSource, name: "todo-lookup.svelte" },
           { html: rpcSource, name: "rpc.ts" },
@@ -222,7 +222,7 @@
     </div>
     <div class="min-w-0">
       <Example
-        cap={22}
+        cap={21}
         files={[{ html: reportSource, name: "report.svelte" }]}
         hint="Show the report, then hide it before three seconds pass: nothing reads reportAtom, so its effect is interrupted."
       >
@@ -254,7 +254,7 @@
     </div>
     <div class="min-w-0">
       <Example
-        cap={42}
+        cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
         hint={"Add a todo, or click a todo's checkbox: each mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom follows."}
       >
