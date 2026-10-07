@@ -249,6 +249,7 @@
         { href: "/rpc", title: "RPC" },
         { href: "/http", title: "HTTP API" },
         { href: "/mutations", title: "Mutations" },
+        { href: "/mutations#optimistic-updates", title: "Optimistic updates" },
       ])}
     </div>
     <div class="min-w-0">
