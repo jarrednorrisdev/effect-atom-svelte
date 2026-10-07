@@ -11,7 +11,7 @@ description: Set up a SvelteKit app for atoms, keep typed errors through handleE
   import boundaryErrorsSource from "./boundary-errors.svelte?highlight";
 </script>
 
-effect-atom-svelte works in any app on Svelte 5.57.2 or later, and doesn't depend on SvelteKit. This site and its tests run on SvelteKit 3. The one part made for SvelteKit, the error hooks in `effect-atom-svelte/sveltekit`, reads the `kind` field that SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error as one your code threw, SvelteKit's own included: they log it and keep its tag, and the client hook its message. For an app without SvelteKit, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
+This page covers what a SvelteKit app needs beyond [Installation](/installation): error hooks that keep typed errors through `handleError`, starting atoms from request data, sending the visitor's credentials from the server, and choosing between prerendering and rendering per request. effect-atom-svelte itself doesn't depend on SvelteKit: for an app without it, see [Plain Svelte](/installation#plain-svelte-no-sveltekit).
 
 ## Setting up an app
 
@@ -72,6 +72,8 @@ The two hooks differ in one way:
 - **The server hook** keeps SvelteKit's `"Internal Error"` as the message, because a message from the server can reveal details of it. This applies to `failed` snippets rendered on the server.
 
 Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
+
+They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error, SvelteKit's own included, as one your code threw: both keep its tag, and the client hook keeps its message too.
 
 This site uses both hooks. In the example, the `failed` snippet tells the errors apart by their tag, and the panel below it shows the error it received.
 

@@ -115,7 +115,7 @@ The example reads three atoms that record where they ran. All three were in the 
 
 ## Call hooks before the first await
 
-Svelte reads the results in the page only while it is hydrating, and in a component whose script has a top-level `await`, hydrating stops at that `await`. This is a Svelte bug, with a fix proposed in [sveltejs/svelte#18927](https://github.com/sveltejs/svelte/pull/18927). A hook called after it gets nothing from the server: its atom runs again in the browser, and the page keeps the server's HTML until the browser's result arrives.
+Svelte reads the results in the page only while it is hydrating, and in a component whose script has a top-level `await`, hydrating stops at that `await`. As of October 2026, this is an open Svelte bug, with a fix proposed in [sveltejs/svelte#18927](https://github.com/sveltejs/svelte/pull/18927). A hook called after it gets nothing from the server: its atom runs again in the browser, and the page keeps the server's HTML until the browser's result arrives.
 
 Call every `useAtomResult` and `useAtomSuspense` before the script's first `await`. To wait for several results, await them together:
 
