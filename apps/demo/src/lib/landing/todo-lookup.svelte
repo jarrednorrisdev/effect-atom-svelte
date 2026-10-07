@@ -33,7 +33,7 @@
       There is no todo {id}
     </ResultChip>
   {:else if todo.current._tag === "Failure"}
-    <ResultChip kind="message" tone="failure">Couldn't reach the server</ResultChip>
+    <ResultChip kind="message" tone="failure">Couldn't load the todo</ResultChip>
   {:else}
     <ResultChip kind="message" tone="running">Loading…</ResultChip>
   {/if}

@@ -67,8 +67,8 @@
   {/key}
   <figcaption class="mt-3 flex items-start gap-3 text-xs text-muted-foreground">
     <span class="flex-1">
-      One mutation, and every atom downstream follows, along with the components that read them. Each
-      link is declared once, where its atom is defined; the mutation names only its key.
+      What one successful createTodo sets off: the key it names, the query tagged with that key, and
+      the atom derived from the query.
     </span>
     <button
       aria-label="Replay"
