@@ -40,7 +40,7 @@
     <button data-cue="none" onclick={() => location.reload()}>Reload the page</button>
   </p>
   <p class="mb-0 flex flex-wrap items-center gap-2">
-    The <strong data-testid="theme-name">{theme.current}</strong> theme, read from the
+    The <strong class="text-inherit" data-testid="theme-name">{theme.current}</strong> theme, read from the
     pref-theme cookie.
     <ServerHtml of="theme-name" />
   </p>
