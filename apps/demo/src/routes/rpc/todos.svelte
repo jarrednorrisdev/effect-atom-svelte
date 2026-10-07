@@ -53,10 +53,14 @@
         {#each todos.current.value as todo (todo.id)}
           <li>
             <label>
+              <!-- The box ticks when the refetched list says so, not on click, so a failed toggle
+                   leaves it as it was. -->
               <input
                 checked={todo.done}
-                onchange={() =>
-                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] })}
+                onclick={(event) => {
+                  event.preventDefault();
+                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] });
+                }}
                 type="checkbox"
               />
               {todo.title}

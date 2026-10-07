@@ -621,6 +621,14 @@ html {
   & label {
     margin-right: 0.75rem;
   }
+  /* Until the page hydrates, a click on a checkbox would tick it with no handler to send the
+     change, leaving the box out of step with the data. The layout marks <html data-hydrated> once
+     every handler is attached. Text inputs stay usable: text typed before then is kept. */
+  html:not([data-hydrated])
+    &
+    :is(input[type="checkbox"], label:has(input[type="checkbox"])) {
+    pointer-events: none;
+  }
   /* A value being computed again: it pulses until the new one arrives. */
   & [aria-busy="true"] {
     animation: demo-waiting 0.9s ease-in-out infinite alternate;
