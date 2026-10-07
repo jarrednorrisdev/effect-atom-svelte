@@ -36,7 +36,7 @@ Effect<Success, Error, Requirements>;
 - `Error` is how it is expected to fail. `never` means it doesn't.
 - `Requirements` are the services it needs before it can run. `never` means none.
 
-Unlike a promise, an effect is lazy. Creating one runs nothing: it runs when something runs it, and it can be run again. In these docs, that something is an atom. An async atom runs its effect when a component first reads it, runs it again when an atom it read changes, and interrupts it when nothing reads it any more.
+Unlike a promise, an effect is lazy. Creating one runs nothing: it runs when something runs it, and it can be run again. In these docs, that something is an atom: [Async atoms](/async-atoms) says when it runs.
 
 **Example** (Effects that succeed and fail)
 
