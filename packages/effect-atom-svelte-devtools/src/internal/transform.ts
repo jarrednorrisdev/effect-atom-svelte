@@ -2,7 +2,8 @@
 // as `const todosAtom = Atom.make(...)`, in `label(...)` with the variable's name and where it is
 // declared. `label` (./label.ts) decides at run time whether the value is an atom, so the transform
 // needn't know what a call returns: `runtime.atom(...)`, `TodosRpc.query(...)` and a helper of the
-// app's own are labelled just like `Atom.make(...)`.
+// app's own are labelled just like `Atom.make(...)`. Inside functions, where wrapping every call
+// would be noise, only `Atom.*` calls are.
 //
 // The parser is the one Svelte uses for scripts (acorn with TypeScript), so this works with any
 // Vite version and needs no native binary.
@@ -91,24 +92,83 @@ const isFamily = (node: Node): boolean => {
   return property.type === "Identifier" && property.name === "family";
 };
 
-/** The calls to wrap among a program's top-level statements, offset by `base`. */
+/** A property's name, when it is written out: `todosAtom` in `{ todosAtom: ... }`. */
+const propertyName = (property: Node): string | undefined => {
+  const key = property.key as Node;
+  if (property.computed) {
+    return undefined;
+  }
+  if (key.type === "Identifier") {
+    return String(key.name);
+  }
+  return key.type === "Literal" && typeof key.value === "string"
+    ? key.value
+    : undefined;
+};
+
+/** Every node below `node`, depth first. */
+function* descendants(node: Node): Generator<Node> {
+  for (const value of Object.values(node)) {
+    const children = Array.isArray(value) ? value : [value];
+    for (const child of children) {
+      if (typeof child === "object" && child !== null && "type" in child) {
+        yield child as Node;
+        yield* descendants(child as Node);
+      }
+    }
+  }
+}
+
+/**
+ * The calls to wrap in a program, offset by `base`: those its top-level declarations make, also
+ * inside object literals (`oneByOne.todosAtom` in `const oneByOne = { todosAtom: Atom.make(...) }`),
+ * and `Atom.*` calls declared anywhere else, such as in a function that makes atoms. Elsewhere only
+ * `Atom.*` calls, so a function's every call isn't wrapped.
+ */
 const sites = (program: Node, base: number, defaultName: string): Site[] => {
   const found: Site[] = [];
+  const handled = new Set<Node>();
+  const add = (node: Node, name: string, at: number) => {
+    found.push({
+      at: base + at,
+      end: base + node.end,
+      family: isFamily(node),
+      name,
+      start: base + node.start,
+    });
+  };
+  const members = (object: Node, prefix: string) => {
+    for (const property of object.properties as Node[]) {
+      const key =
+        property.type === "Property" ? propertyName(property) : undefined;
+      if (key === undefined) {
+        continue;
+      }
+      const value = unwrap(property.value as Node);
+      const node = call(value);
+      if (node) {
+        add(node, `${prefix}.${key}`, (property.key as Node).start);
+      } else if (value.type === "ObjectExpression") {
+        members(value, `${prefix}.${key}`);
+      }
+    }
+  };
   const declare = (declaration: Node) => {
     if (declaration.type !== "VariableDeclaration") {
       return;
     }
     for (const declarator of declaration.declarations as Node[]) {
+      handled.add(declarator);
       const id = declarator.id as Node;
-      const node = call(declarator.init);
-      if (id.type === "Identifier" && node) {
-        found.push({
-          at: base + id.start,
-          end: base + node.end,
-          family: isFamily(node),
-          name: String(id.name),
-          start: base + node.start,
-        });
+      if (id.type !== "Identifier" || !declarator.init) {
+        continue;
+      }
+      const init = unwrap(declarator.init as Node);
+      const node = call(init);
+      if (node) {
+        add(node, String(id.name), id.start);
+      } else if (init.type === "ObjectExpression") {
+        members(init, String(id.name));
       }
     }
   };
@@ -121,16 +181,26 @@ const sites = (program: Node, base: number, defaultName: string): Site[] => {
     } else if (statement.type === "ExportDefaultDeclaration") {
       const node = call(statement.declaration);
       if (node) {
-        found.push({
-          at: base + node.start,
-          end: base + node.end,
-          family: isFamily(node),
-          name: defaultName,
-          start: base + node.start,
-        });
+        add(node, defaultName, node.start);
       }
     } else {
       declare(statement);
+    }
+  }
+  for (const node of descendants(program)) {
+    if (node.type !== "VariableDeclarator" || handled.has(node)) {
+      continue;
+    }
+    const id = node.id as Node;
+    const init = node.init ? call(node.init) : undefined;
+    const start = init ? chainStart(init.callee as Node) : undefined;
+    if (
+      id.type === "Identifier" &&
+      init &&
+      start?.type === "Identifier" &&
+      start.name === "Atom"
+    ) {
+      add(init, String(id.name), id.start);
     }
   }
   return found;

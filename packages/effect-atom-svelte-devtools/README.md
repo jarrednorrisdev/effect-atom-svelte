@@ -28,4 +28,6 @@ export default defineConfig({
 - A label your code sets with `Atom.withLabel` wins. The one an `Atom.serializable` atom takes from its key (an RPC query's `AtomRpc:listTodos:home-todos`) gives way to the variable's name.
 - Members of an `Atom.family` are labelled with their argument, as `todoAtom(3)`.
 - It wraps any top-level `const x = f(...)` and checks at run time whether the value is an atom, so `runtime.atom(...)`, `TodosRpc.query(...)` and your own helpers are labelled too. Runes and `use*` hooks are left alone.
-- Atoms declared inside functions, and in mdsvex (`.md`) pages, aren't labelled.
+- An atom in a top-level object literal is named by its path: `const pair = { todosAtom: Atom.make(...) }` labels `pair.todosAtom`.
+- Inside functions, only `Atom.*` calls are labelled, so a function that makes atoms names them without every other call in it being wrapped.
+- Atoms in mdsvex (`.md`) pages aren't labelled.

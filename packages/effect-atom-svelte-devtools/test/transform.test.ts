@@ -48,7 +48,7 @@ describe("labelAtoms", () => {
     );
   });
 
-  test("leaves runes, hooks, values that aren't calls, nested scopes and destructuring alone", () => {
+  test("leaves runes, hooks, values that aren't calls and destructuring alone", () => {
     expect(
       transform(
         [
@@ -57,10 +57,53 @@ describe("labelAtoms", () => {
           "const todos = useAtomValue(todosAtom);",
           "const atom = otherAtom;",
           "const { a } = make();",
-          "function f() { const inner = Atom.make(0); }",
+          "const { b: c } = { b: Atom.make(0) };",
         ].join("\n")
       )
     ).toBeUndefined();
+  });
+
+  test("names atoms in a top-level object literal after their path", () => {
+    const code = [
+      "export const pair = {",
+      "  log: [],",
+      "  todosAtom: Atom.make(0),",
+      '  nested: { "userAtom": runtime.atom(effect) },',
+      "  [computed]: Atom.make(1),",
+      "};",
+    ].join("\n");
+    const output = transform(code);
+    expect(output).toContain(
+      '__effectAtomSvelteLabel(Atom.make(0), "pair.todosAtom", "/src/lib/atoms.ts:3:3")'
+    );
+    expect(output).toContain(
+      '__effectAtomSvelteLabel(runtime.atom(effect), "pair.nested.userAtom", "/src/lib/atoms.ts:4:13")'
+    );
+    expect(output).toContain("[computed]: Atom.make(1),");
+  });
+
+  test("labels Atom.* calls declared in functions, and only those", () => {
+    const code = [
+      "export function makeForm(initial: string) {",
+      "  const valueAtom = Atom.make(initial);",
+      "  const other = helper();",
+      "  return { valueAtom, other };",
+      "}",
+    ].join("\n");
+    const output = transform(code);
+    expect(output).toContain(
+      '__effectAtomSvelteLabel(Atom.make(initial), "valueAtom", "/src/lib/atoms.ts:2:9")'
+    );
+    expect(output).toContain("const other = helper();");
+  });
+
+  test("labels an atom declared inside another atom's call", () => {
+    const output = transform(
+      "const a = Atom.make((get) => { const b = Atom.make(1); return get(b); });"
+    );
+    expect(output).toBe(
+      `${header}const a = __effectAtomSvelteLabel(Atom.make((get) => { const b = __effectAtomSvelteLabel(Atom.make(1), "b", "/src/lib/atoms.ts:1:38"); return get(b); }), "a", "/src/lib/atoms.ts:1:7");`
+    );
   });
 
   test("leaves code that doesn't parse alone", () => {
