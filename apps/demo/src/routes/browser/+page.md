@@ -80,7 +80,7 @@ export const load = ({ cookies }) => ({
 
 Like any atom given a value through `initialValues`, `preferenceCookiesAtom` needs `Atom.keepAlive`, or the registry could dispose of it, and its cookies, before a component reads a preference. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data).
 
-A page that reads cookies depends on the request, so it can't be prerendered. This site's own theme switch uses `localStorage` and a small inline script instead, because its pages are prerendered.
+A page that reads cookies depends on the request, so it can't be prerendered. This site's pages are prerendered, so its own theme menu keeps the choice in `localStorage` with `Atom.kvs` instead, and a small inline script applies it before first paint.
 
 A page rendered from cookies differs from one visitor to the next, so keep it out of shared caches: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
 

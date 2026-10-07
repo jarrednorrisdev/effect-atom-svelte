@@ -21,7 +21,7 @@ description: Turn an Effect RPC group into atoms for queries, mutations and stre
 
 If your server speaks [Effect RPC](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/rpc), `AtomRpc` gives your components its procedures as atoms. A query is an async atom you read, a mutation is an atom you write, and both keep the RPC's typed payloads and errors.
 
-The examples on this page call the [demo API](/#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses. On this site, the page is prerendered, so the list it opens with came from the copy of the demo API that ran during the build. The todos you add go to the copy in your tab.
+The examples on this page call the [demo API](/introduction#how-these-docs-work). The `rpc.ts` tab shows its `RpcGroup`, and `todo.ts` the schemas it uses. On this site, the page is prerendered, so the list it opens with came from the copy of the demo API that ran during the build. The todos you add go to the copy in your tab.
 
 <Example files={[{ html: todosSource, name: "todos.svelte" }, { html: rpcSource, name: "rpc.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Add a todo and watch listTodos: the mutation invalidates the todos key, so the query fetches again and its requests count goes up. Then click Paste a long title and Add: the procedure fails with its typed TitleTooLong."> <Todos /> </Example>
 

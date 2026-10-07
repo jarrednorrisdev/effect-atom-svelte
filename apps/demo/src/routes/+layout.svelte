@@ -33,7 +33,11 @@
   );
   const title = $derived(page.error ? errorTitle : navTitle);
   const fullTitle = $derived(title ? `${title} · ${siteName}` : siteName);
-  const canonical = $derived(navTitle ? `${siteUrl}${page.url.pathname}` : undefined);
+  // The landing page has the whole width: no sidebar, table of contents or pager.
+  const landing = $derived(!page.error && page.url.pathname === "/");
+  const canonical = $derived(
+    navTitle || landing ? `${siteUrl}${page.url.pathname}` : undefined
+  );
   let content = $state<HTMLElement>();
   const toc = new TableOfContents(() => content);
 
@@ -79,38 +83,46 @@
       href="#content">Skip to content</a
     >
     <SiteHeader />
-    <div class="flex flex-1">
-      <DocsSidebar />
-      <!-- min-w-0: without it, wide code in an example stretches the page past the window. -->
-      <Sidebar.Inset class="min-w-0">
-        <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
-          <div class="min-w-0 flex-1">
-            <TocMenu {toc} />
-            <!-- Only this part is indexed for search; the navigation around it is not. -->
-            <article bind:this={content} data-pagefind-body id="content">
-              {@render children()}
-            </article>
-            <Pager />
-            <footer class="mt-16 border-t pt-6 text-sm text-muted-foreground">
-              effect-atom-svelte is a community project by
-              <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
-                >Jarred Norris</a
-              >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
-              team.
-            </footer>
-          </div>
-          <aside class="hidden w-56 shrink-0 xl:block">
-            <div class="sticky top-24">
-              {#if toc.entries.length > 0}
-                <nav aria-label="On this page" class="text-sm">
-                  <h2 class="mb-3 font-semibold text-navigation-heading">On this page</h2>
-                  <Toc {toc} />
-                </nav>
-              {/if}
+    {#if landing}
+      <!-- The sidebar is only the small screens' sheet here, opened from the header. -->
+      <DocsSidebar sheetOnly />
+      <main class="min-w-0 flex-1" id="content">
+        {@render children()}
+      </main>
+    {:else}
+      <div class="flex flex-1">
+        <DocsSidebar />
+        <!-- min-w-0: without it, wide code in an example stretches the page past the window. -->
+        <Sidebar.Inset class="min-w-0">
+          <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
+            <div class="min-w-0 flex-1">
+              <TocMenu {toc} />
+              <!-- Only this part is indexed for search; the navigation around it is not. -->
+              <article bind:this={content} data-pagefind-body id="content">
+                {@render children()}
+              </article>
+              <Pager />
+              <footer class="mt-16 border-t pt-6 text-sm text-muted-foreground">
+                effect-atom-svelte is a community project by
+                <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
+                  >Jarred Norris</a
+                >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
+                team.
+              </footer>
             </div>
-          </aside>
-        </div>
-      </Sidebar.Inset>
-    </div>
+            <aside class="hidden w-56 shrink-0 xl:block">
+              <div class="sticky top-24">
+                {#if toc.entries.length > 0}
+                  <nav aria-label="On this page" class="text-sm">
+                    <h2 class="mb-3 font-semibold text-navigation-heading">On this page</h2>
+                    <Toc {toc} />
+                  </nav>
+                {/if}
+              </div>
+            </aside>
+          </div>
+        </Sidebar.Inset>
+      </div>
+    {/if}
   </Sidebar.Provider>
 </RegistryProvider>

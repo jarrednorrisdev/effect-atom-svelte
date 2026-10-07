@@ -29,12 +29,20 @@
    * result plays the `tap` sound; give a control `data-cue="<cue>"` for another cue, or
    * `data-cue="none"` for silence. Kit components inside see whether the reader has touched the
    * example yet (`tone.ts`), so a page's own first load plays no outcome sounds.
+   *
+   * `cap` is how many lines of a long source show before "Show all" (14 by default).
    */
   const {
+    cap = 14,
     children,
     files,
     hint,
-  }: { children?: Snippet; files: readonly ExampleFile[]; hint?: string } = $props();
+  }: {
+    cap?: number;
+    children?: Snippet;
+    files: readonly ExampleFile[];
+    hint?: string;
+  } = $props();
 
   const cues = new Set<string>([
     "blocked",
@@ -112,7 +120,6 @@
    * A long source shows its first lines, which usually define the atoms, and a button for the
    * rest. Code with no live result above it is the whole point, so it starts open.
    */
-  const cap = 14;
   // svelte-ignore state_referenced_locally
   let expanded = $state(!children);
   const lineCount = (html: string) => html.split('class="line"').length - 1;
