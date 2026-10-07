@@ -161,9 +161,9 @@ Per-request isolation is the problem a module can't solve. Beyond it, atoms brin
 ## When you don't need atoms
 
 - **State one component owns.** A form field or an open menu is `$state` in that component.
-- **Apps without Effect.** Atoms are part of Effect. Without it, context and remote functions cover shared state well, and learning Effect only for this costs more than it saves.
+- **Apps without Effect.** Atoms are part of Effect. Without it, context and remote functions cover shared state well, and learning Effect only for this costs more than it saves. If you do use Effect, the backend can be anything: wrap a plain `fetch` with `Effect.tryPromise` and you still get typed errors, retries and interruption.
 - **Route data that doesn't change on the page.** A `load` function is enough.
-- **Server data that components only read and refresh.** A remote `query` already handles requests, loading, errors and caching. Atoms earn their place when that data comes from Effect code, when you want its errors typed, or when client state is derived from it.
+- **Server data that components only read and refresh.** A remote `query` already handles requests, loading, errors and caching. Atoms earn their place when that data comes from Effect code, when you want its errors typed, when client state is derived from it, or when mutations should refresh it by key.
 
 <Aside type="note" title="Mixing them">
 
