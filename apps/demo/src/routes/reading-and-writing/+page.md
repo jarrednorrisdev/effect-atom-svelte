@@ -95,7 +95,7 @@ For atoms that run an effect, such as `Atom.fn`, `useAtomSet` can also return a 
 
 </Aside>
 
-<Aside type="note" title="When updates arrive">
+<Aside type="note" title="Writes apply immediately">
 
 A write from an event handler updates every reader at once: the handler's next line already reads the new value, from the atom and from atoms derived from it.
 
