@@ -1,10 +1,7 @@
 import { Effect } from "effect";
 import { Atom } from "effect/reactivity";
 
-import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
-
-// For the log under the example: each run of the effect.
-export const runs = new EventLogState({ limit: 6 });
+import { runs } from "./rate-log.ts";
 
 // Your Effect code: a slow lookup, here of a made-up exchange rate.
 const fetchRate = Effect.gen(function* fetchRate() {

@@ -183,12 +183,12 @@
       {@render links([
         { href: "/errors", title: "Errors" },
         { href: "/async-atoms", title: "Async atoms" },
-        { href: "/suspense", title: "Suspense" },
+        { href: "/rpc", title: "RPC" },
       ])}
     </div>
     <div class="min-w-0">
       <Example
-        cap={15}
+        cap={16}
         files={[
           { html: todoLookupSource, name: "todo-lookup.svelte" },
           { html: rpcSource, name: "rpc.ts" },

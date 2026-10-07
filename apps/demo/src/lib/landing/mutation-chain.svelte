@@ -1,7 +1,7 @@
 <!--
   @component
   The chain one mutation sets off in example 04: createTodo, its "todos" key, todosAtom refetching,
-  openCountAtom following, components re-rendering. The first time it scrolls into view, each step
+  openCountAtom following. The first time it scrolls into view, each step
   lights up in turn, once; under reduced motion it stays still.
 
   ```svelte
@@ -18,7 +18,6 @@
     { name: '"todos"', note: "its key" },
     { name: "todosAtom", note: "refetches" },
     { name: "openCountAtom", note: "follows" },
-    { name: "Components", note: "re-render" },
   ] as const;
 
   let played = $state(false);
@@ -54,8 +53,8 @@
     {/each}
   </ol>
   <figcaption class="mt-3 text-xs text-muted-foreground">
-    One mutation, and everything downstream follows. Each link is declared once, where its atom is
-    defined; the mutation names only its key.
+    One mutation, and every atom downstream follows, along with the components that read them. Each
+    link is declared once, where its atom is defined; the mutation names only its key.
   </figcaption>
 </figure>
 

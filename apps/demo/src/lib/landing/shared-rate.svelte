@@ -3,7 +3,7 @@
   import Part from "#lib/docs/kit/part.svelte";
   import Parts from "#lib/docs/kit/parts.svelte";
 
-  import { runs } from "./exchange-rate.ts";
+  import { runs } from "./rate-log.ts";
   import Rate from "./rate.svelte";
 
   // Two places on a page that show the rate, each turned on and off here.

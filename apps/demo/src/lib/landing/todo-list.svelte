@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-  import { Option } from "effect";
+  import { Exit, Option } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import LoadingBar from "#lib/docs/kit/loading-bar.svelte";
@@ -32,7 +32,7 @@
   const todos = await useAtomResult(todosAtom);
   const openCount = useAtomValue(openCountAtom);
   const creating = useAtomValue(createAtom);
-  const create = useAtomSet(createAtom);
+  const create = useAtomSet(createAtom, { mode: "promiseExit" });
   const toggling = useAtomValue(toggleAtom);
   const toggle = useAtomSet(toggleAtom);
   // The typed error, if createTodo failed with one.
@@ -51,9 +51,12 @@
   const requests = new RequestCount(() => todosAtom);
 
   // No refresh to call: invalidating "todos" makes todosAtom fetch again.
-  const submit = (event: SubmitEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault();
-    create({ payload: { title }, reactivityKeys: ["todos"] });
+    const exit = await create({ payload: { title }, reactivityKeys: ["todos"] });
+    if (Exit.isSuccess(exit)) {
+      title = "";
+    }
   };
 </script>
 
@@ -63,9 +66,7 @@
     {creating.current.waiting ? "Adding…" : "Add"}
   </button>
 </form>
-<div class="mt-3">
-  <LoadingBar label={step} />
-</div>
+<LoadingBar label={step} />
 {#if creating.current._tag === "Failure"}
   <div class="mb-3">
     <ResultChip kind="message" tone="failure">
