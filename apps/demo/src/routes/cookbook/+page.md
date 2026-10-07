@@ -171,7 +171,7 @@ Create it at the top level of the script, not in an event handler or after an `a
 
 <Example files={[{ html: historySource, name: "history.ts" }, { html: draftHistorySource, name: "draft-history.svelte" }]} hint="Type a draft and save it: save, a plain function, writes both atoms through the registry, and the hooks show the change."> <DraftHistory /> </Example>
 
-It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing mounts is disposed shortly afterwards. See [Lifetimes](/lifetimes).
+It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others. A value written to an atom that nothing holds is disposed once the current task ends, so `mount` the atom, or keep it alive, if code reads it later. See [Lifetimes](/lifetimes#held-atoms).
 
 ### Read an atom in a load function
 

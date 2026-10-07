@@ -34,7 +34,7 @@ An atom is [held](/reading-and-writing#reading) while something tells the regist
 - `useAtomSet`, `useAtomMount`, `useAtomRefresh`, `useAtomSubscribe`, `useAtomInitialValues` and `useAtomResult`, for as long as their component lives.
 - Another atom that reads it with `get`, while that atom is itself held or kept alive.
 
-When the last of them stops holding it, the registry disposes of the atom shortly afterwards. The next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
+When the last of them stops holding it, the registry disposes of the atom once the current task ends, so code in the same event handler still sees its value. After that, the next read starts from scratch: a writable atom goes back to its initial value, and a derived atom computes again. A mutation's [promise](/mutations#waiting-for-the-result) also holds its atom until it settles.
 
 <Aside type="note" title="On the server">
 
