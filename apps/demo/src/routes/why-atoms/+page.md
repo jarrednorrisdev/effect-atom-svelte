@@ -8,17 +8,17 @@ description: What atoms add to Svelte, set against the code you'd write without 
   import AtomsGuide from "#lib/docs/atoms-guide.svelte";
 </script>
 
-Runes still handle what belongs to one component, and atoms hold the rest. This is what to reach for when your backend is written in Effect, as Effect RPC or an `HttpApi`:
+Runes still handle what belongs to one component, and atoms handle the rest. When your backend is written in Effect, such as Effect RPC (remote procedure calls) or an `HttpApi`, this is what to reach for:
 
 <AtomsGuide />
 
-The sections below take the atom rows one at a time: the code you'd write without atoms, the atom, and what it costs. Without Effect, you don't need atoms: see [When you don't need atoms](#when-you-dont-need-atoms).
+Each atom row has a section below. Most show the code you'd write without atoms, then the atom, and say what it costs. Two more sections cover services and TanStack Query. Without Effect, you don't need atoms: see [When you don't need atoms](#when-you-dont-need-atoms).
 
 ## State shared between components
 
 Take the signed-in user, which a badge in the header and the account menu both show. `currentUser` is your Effect code that finds them, an `Effect<User, SignedOut>`.
 
-In one component, Svelte runs it well on its own. With async rendering you can await it in the script, and `getAbortSignal` interrupts it if the component goes away first:
+In one component, Svelte needs nothing more. With [async rendering](/installation#turn-on-async-mode) you can await it in the script, and `getAbortSignal` interrupts it if the component goes away first:
 
 **Example** (Running an effect in one component)
 
@@ -35,7 +35,12 @@ In one component, Svelte runs it well on its own. With async rendering you can a
 </script>
 ```
 
-With a second component, each would run the effect. To share one run, you keep the result in a context that the layout sets, start the effect when the first reader mounts, interrupt it when the last one unmounts, and let either refresh it:
+With a second component, each would run the effect. To share one run, you'd write the sharing yourself:
+
+- Keep the result in a context that the root layout sets.
+- Start the effect when the first reader mounts.
+- Interrupt it when the last reader unmounts.
+- Let any reader refresh it.
 
 **Example** (Sharing the user by hand)
 
@@ -51,7 +56,7 @@ export class UserState {
   #controller: AbortController | undefined;
   #readers = 0;
 
-  /** Each reader calls this in an `$effect`, which runs what it returns on unmount. */
+  /** Call in each reader's `$effect`. It returns the cleanup. */
   read() {
     this.#readers += 1;
     if (this.#readers === 1) void this.refresh();
@@ -72,9 +77,10 @@ export class UserState {
   }
 }
 
-// The root layout calls setUser(new UserState()).
 export const [getUser, setUser] = createContext<UserState>();
 ```
+
+The root layout calls `setUser(new UserState())`, and each reader calls `read`:
 
 ```svelte
 <!-- user-badge.svelte, and the same in account-menu.svelte -->
@@ -86,7 +92,7 @@ export const [getUser, setUser] = createContext<UserState>();
 </script>
 ```
 
-Even then, an `$effect` doesn't run on the server, so the page renders without the user and fills in after hydration. And the next piece of shared state needs another class and another context in the layout.
+Even then, an `$effect` doesn't run on the server, so the page renders without the user and fills in after [hydration](/hydration). And the next piece of shared state needs another class and another context in the layout.
 
 With atoms, the effect goes in a module, one provider goes in the root layout, and any component reads the atom:
 
@@ -124,15 +130,15 @@ export const userAtom = Atom.make(currentUser);
 </script>
 ```
 
-The badge and the menu share one run of the effect, `useAtomRefresh` runs it again for both, and when neither is on the page it's interrupted. The server awaits it too, so the page renders with the user and sends the result along for hydration. The next piece of shared state is one more atom, and the layout doesn't change.
+The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both, and when neither is on the page, it's interrupted. The next piece of shared state is one more atom, and the layout doesn't change.
 
-The atom holds no value itself: values live in a **registry**, and the provider gives each request on the server its own, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
+The server awaits the atom too, so the page renders with the user and sends the result along for hydration. Values live in a **registry**, not in the atom. The provider gives each request on the server its own registry, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
-**What it costs:** atoms go in a module or a component's `<script module>`, since one made in a component's script is a new atom for each instance. And awaiting them needs Svelte's experimental async mode: see [Turn on async mode](/installation#turn-on-async-mode).
+**What it costs:** atoms go in a module or a component's `<script module>`. One made in a component's script is a new atom for each instance. Awaiting them also needs Svelte's experimental async mode: see [Turn on async mode](/installation#turn-on-async-mode).
 
 ## Data from your Effect backend
 
-Without atoms, each query from your backend is the `UserState` class again, once per query, with the RPC client's layer provided to each effect. With atoms, `AtomRpc` turns the RPC group into queries and mutations, checked against the same schemas as the server:
+A query atom reads your backend through a client typed by the server's schemas. Without atoms, each query is the `UserState` class again, with the RPC client's layer provided to each effect. `AtomRpc` instead turns your RPC group into queries and mutations that use the server's own schemas:
 
 **Example** (The todo list over Effect RPC)
 
@@ -145,13 +151,13 @@ export const todosAtom = TodosRpc.query("listTodos", undefined, {
 });
 ```
 
-`todosAtom` is shared like any atom, awaited on the server, and interrupted when nothing reads it, along with its request. `AtomHttpApi` does the same for an `HttpApi`.
+Components share `todosAtom` like any atom. The server awaits it, and when nothing reads it, the registry interrupts it along with its request. `AtomHttpApi` does the same for an `HttpApi`.
 
-**What it costs:** the client is defined once, with the protocol it speaks to your server. See [RPC](/rpc) and [HTTP API](/http).
+**What it costs:** you define the client once, with the protocol it uses to reach your server. See [RPC](/rpc) and [HTTP API](/http).
 
 ## Writing to your backend
 
-Without atoms, the code that runs a mutation refreshes every query it affects, so it has to reach each one:
+Without reactivity keys, every mutation lists the queries it affects, and the code that runs it has to reach each one:
 
 **Example** (Refreshing by hand after a mutation)
 
@@ -175,9 +181,9 @@ Without atoms, the code that runs a mutation refreshes every query it affects, s
 </script>
 ```
 
-Every component that creates, edits or deletes a todo carries that list. A query added later, such as one todo by its id, has to be added to each of them.
+Every component that creates, edits or deletes a todo repeats that list. When you add a query later, such as one todo by its id, you add it to each of them.
 
-With atoms, a query tags itself with a key, and a mutation names the key:
+**Reactivity keys** turn that around. You tag each query with a key, and the mutation names the key it changed:
 
 **Example** (A mutation that refreshes by key)
 
@@ -199,15 +205,15 @@ export const createAtom = TodosRpc.mutation("createTodo");
 </script>
 ```
 
-When `createTodo` succeeds, every atom tagged `"todos"` refetches, whether that's the list, the stats or a todo by its id, and every atom derived from them follows. The mutation says what changed, not who reads it, so a query added later only needs its tag.
+When `createTodo` succeeds, every atom tagged `"todos"` refetches: the list, the stats, a todo by its id. Atoms derived from them update too. The mutation names what changed, not who reads it, so a query added later only needs its tag.
 
 **What it costs:** the refetch is a second round trip, after the mutation returns. To show the change before then, apply it optimistically: see [Optimistic updates](/mutations#optimistic-updates) and [Refreshing what changed](/mutations#refreshing-what-changed).
 
 ## Values derived from other atoms
 
-Without atoms, a getter on a class can combine two pieces of shared state, and Svelte keeps it up to date. What's left to you is passing along the list's loading and failure states, and another context for the class.
+A derived atom combines other atoms, whether they hold backend data or client state. Without atoms, a getter on a class can combine two pieces of shared state, and Svelte keeps it up to date. But each getter passes along the list's loading and failure states itself.
 
-With atoms, a filter is an atom of a plain value, and a derived atom reads it next to the list:
+As atoms, a filter is a plain value, and a derived atom reads it next to the list:
 
 **Example** (A filter, and the todos it lets through)
 
@@ -227,13 +233,13 @@ export const visibleTodosAtom = Atom.make((get) => {
 });
 ```
 
-It runs again when either one changes, including when a mutation refetches the list. It's an `AsyncResult` like the list, so loading and the typed error pass through, and a component awaits it like a query. See [Derived atoms](/derived-atoms).
+`visibleTodosAtom` runs again when either one changes, including when a mutation refetches the list. It's an [`AsyncResult`](/async-atoms) like the list, so loading and the typed error pass through. A component awaits it like a query. See [Derived atoms](/derived-atoms).
 
 ## Live data
 
-Without atoms, a stream that several components share, such as notifications over a socket, needs the reader counting from `UserState`: open the socket for the first reader, close it after the last.
+A stream atom starts when the first component reads it, and stops after the last one goes. Without atoms, a shared stream, such as notifications over a socket, needs the reader counting from `UserState`.
 
-With atoms, the registry counts readers for you:
+As an atom, the stream needs no counting code:
 
 **Example** (A stream that two components share)
 
@@ -243,7 +249,7 @@ import { Atom } from "effect/reactivity";
 
 import { notifications } from "./socket.ts";
 
-// notifications is your Stream, which opens a socket and closes it when interrupted.
+// Your Stream: it opens a socket, and closes it when interrupted.
 export const notificationsAtom = Atom.make(notifications);
 ```
 
@@ -253,9 +259,9 @@ A bell icon and a toast can both read `notificationsAtom`, and they share one st
 
 ## Errors as values
 
-`Effect.runPromise` throws when the effect fails, so the component gets an `unknown`. You can keep the error typed by hand with `runPromiseExit`, as `UserState` does, at the cost of an `Exit` and a loading state in every class.
+An atom's failure arrives as a typed value, not a thrown error. `Effect.runPromise` throws, so the component gets an `unknown`. You can keep the error typed by hand with `runPromiseExit`, as `UserState` does, but then every class needs an `Exit` and a loading state.
 
-An atom holds an `AsyncResult` instead. Over RPC, its error is typed by the procedure's error schema, so a component can tell an expected failure from a dropped connection:
+Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes from the procedure's error schema, so a component can tell an expected failure from a dropped connection. Here `getTodo` fails with `TodoNotFound`, or with an `RpcClientError` when the call itself fails:
 
 **Example** (Matching on a procedure's error)
 
@@ -269,7 +275,6 @@ An atom holds an `AsyncResult` instead. Over RPC, its error is typed by the proc
 
   const { id }: { id: number } = $props();
 
-  // getTodo fails with TodoNotFound, or with an RpcClientError if the call itself fails.
   const todo = await useAtomResult(() => TodosRpc.query("getTodo", { id }));
   const error = $derived(AsyncResult.error(todo.current));
 </script>
@@ -287,7 +292,9 @@ You can match on the result like this, or let a `<svelte:boundary>` show failure
 
 ## Services, and swapping them in tests
 
-Effects that need services get them from a `Layer`. `Atom.runtime` takes the layer, and its atoms run with its services:
+Services decide what a test has to fake. Effects that need services get them from a [`Layer`](/effect-basics#services-and-layers). Without atoms, you'd provide the layer in every `runPromise` call, and a test would mock the module that builds it.
+
+`Atom.runtime` takes the layer once, and atoms made from it run with its services. Here `Todos` is a service and `TodosLayer` builds it:
 
 **Example** (An atom backed by a service)
 
@@ -299,27 +306,29 @@ const runtime = Atom.runtime(TodosLayer);
 export const countAtom = runtime.atom(Todos.use((todos) => todos.count));
 ```
 
-A test gives the runtime a different layer through the provider's `initialValues`, such as a fake API or data held in memory, without mocking any module. See [Services and runtimes](/services) and [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
+A test gives the runtime a different layer, such as a fake API or data held in memory. The layer goes in the provider's `initialValues`, and no module needs mocking. See [Services and runtimes](/services) and [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
 
 ## Why not TanStack Query?
 
-TanStack Query is the closest alternative, and it's mature and widely used. Its invalidation is close to reactivity keys: a mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`, and every query whose key starts with `"todos"` refetches. For an Effect backend, atoms differ in four ways:
+TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`, and every query whose key starts with `"todos"` refetches. For an Effect backend, atoms differ in four ways:
 
-- **Queries are effects.** A query function returns a promise, so each one ends in `Effect.runPromise`, and interruption, services and retries stop at that boundary. An atom runs the effect itself.
+- **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue in every query. An atom runs the effect itself.
 - **Errors are typed per query.** TanStack Query gives every query the same error type, `Error` unless you register another. An atom's error is the effect's, or the procedure's.
-- **Client state lives alongside.** A derived atom reads a query and a filter alike. TanStack Query's `select` derives only from its own query, and client state lives somewhere else.
-- **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. An atom is disposed of when its last reader goes, unless you give it an idle time or keep it alive.
+- **Client state lives alongside.** A derived atom reads a query and a filter alike. TanStack Query can combine queries, but client state lives outside it, in a store or a context.
+- **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. The registry disposes of an atom when its last reader goes, unless you give it an idle time or keep it alive.
 
 TanStack Query is ahead on devtools, infinite queries, persisting the cache, and the size of its community. Without Effect, it's the better choice.
 
 ## When you don't need atoms
 
-- **Apps without Effect.** Atoms are part of Effect. Without it, context, remote functions or TanStack Query cover shared state well, and learning Effect only for this costs more than it saves.
+Three cases don't need atoms:
+
+- **Apps without Effect.** Atoms are part of Effect. Without it, context, remote functions or TanStack Query share state between components, and learning Effect only for this costs more than it saves.
 - **An effect only one component runs.** `Effect.runPromise` with `getAbortSignal` is enough, as in the first example.
 - **Route data that doesn't change on the page.** A `load` function is enough.
 
 <Aside type="note" title="Mixing them">
 
-You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. To start atoms from `load` data, pass it to `RegistryProvider` as `initialValues`: see [Registry options](/installation#registry-options).
+You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. Atoms can also start from `load` data: see [Registry options](/installation#registry-options).
 
 </Aside>
