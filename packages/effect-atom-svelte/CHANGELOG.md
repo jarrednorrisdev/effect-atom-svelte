@@ -1,5 +1,11 @@
 # effect-atom-svelte
 
+## 0.1.2
+
+### Patch Changes
+
+- 54de52a: Fix `useAtomSet`'s `promise` and `promiseExit` modes settling a call whose signal was already aborted with the result of an earlier call. When the `Atom.fn` already held a settled result, the call resolved with that result instead of settling as interrupted. It now settles as interrupted whatever the atom holds, as the docs say.
+
 ## 0.1.1
 
 ### Patch Changes

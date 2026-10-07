@@ -78,7 +78,7 @@
     },
     "packages/effect-atom-svelte": {
       "name": "effect-atom-svelte",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "esm-env": "^1.2.2",
       },
