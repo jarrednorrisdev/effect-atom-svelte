@@ -332,6 +332,6 @@ Three cases don't need atoms:
 
 <Aside type="note" title="Mixing them">
 
-You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. Atoms can also start from `load` data: see [Registry options](/installation#registry-options).
+You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. Atoms can also start from `load` data: see [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data).
 
 </Aside>
