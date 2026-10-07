@@ -98,7 +98,8 @@
               <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
                 >Jarred Norris</a
               >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
-              team.
+              team. The docs are also Markdown, for AI assistants:
+              <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.
             </footer>
           </div>
           <aside class="hidden w-56 shrink-0 xl:block">

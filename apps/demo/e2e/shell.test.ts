@@ -32,6 +32,18 @@ test.describe("docs shell", () => {
     );
   });
 
+  test("the footer links the docs' Markdown for AI assistants", async ({
+    page,
+  }) => {
+    await page.goto("/derived-atoms");
+    await page
+      .locator("footer")
+      .getByRole("link", { name: "llms.txt" })
+      .click();
+    await expect(page).toHaveURL(/\/llms\.txt$/u);
+    await expect(page.locator("body")).toContainText("# effect-atom-svelte");
+  });
+
   test("the GitHub button links to the repository", async ({ page }) => {
     await page.goto("/first-atom");
     const link = page.getByRole("link", { name: "GitHub repository" });
