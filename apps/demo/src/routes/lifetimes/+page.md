@@ -50,7 +50,7 @@ Choose how long an atom outlives its readers:
 | --- | --- |
 | For as long as the registry lives | `atom.pipe(Atom.keepAlive)` |
 | For a while after the last reader goes | `atom.pipe(Atom.setIdleTTL("5 minutes"))` |
-| For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider` |
+| For a while, for every atom in the registry | `defaultIdleTTL` on `RegistryProvider`, in milliseconds |
 | For as long as a component is mounted, even if nothing reads it | `useAtomMount(atom)` in that component: see [Holding an atom from a component](#holding-an-atom-from-a-component) |
 
 **Example** (State that survives navigation)
