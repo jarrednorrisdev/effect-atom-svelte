@@ -12,6 +12,7 @@
   import TodoList from "#lib/landing/todo-list.svelte";
   import TodoLookup from "#lib/landing/todo-lookup.svelte";
   import Visitors from "#lib/landing/visitors.svelte";
+  // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import cartSource from "#lib/landing/cart.ts?highlight";
   import reportSource from "#lib/landing/report.svelte?highlight";
   import todoListSource from "#lib/landing/todo-list.svelte?highlight";
