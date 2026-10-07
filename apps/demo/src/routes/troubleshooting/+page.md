@@ -21,8 +21,6 @@ In the browser, a component with no provider above it uses a shared default regi
 
 ### "can only be used during component initialisation"
 
-The heading quotes Svelte's message, which uses British spelling.
-
 The hooks find the registry through Svelte's context, which is only available while a component initializes. Svelte throws `lifecycle_outside_component` when a hook is called later, such as from an event handler, a `setTimeout`, or after an `await` inside a function of your own. Call hooks at the top level of the script. To use the registry later, keep what the hook returns, or call [`getRegistry()`](/cookbook#write-atoms-from-a-plain-function) at the top level and keep the registry.
 
 ### Async mode is not turned on
