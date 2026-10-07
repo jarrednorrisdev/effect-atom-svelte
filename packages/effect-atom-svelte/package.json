@@ -33,6 +33,10 @@
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./inspector": {
+      "types": "./dist/Inspector.d.ts",
+      "default": "./dist/Inspector.js"
+    },
     "./sveltekit": {
       "types": "./dist/SvelteKit.d.ts",
       "default": "./dist/SvelteKit.js"
