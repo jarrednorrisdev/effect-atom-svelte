@@ -64,6 +64,6 @@ Because values live in the registry rather than in the atom, the same `countAtom
 
 Most pages have a live example. The code under each example is the file that runs on the page, so what you read is what you see working. Some examples talk to a small demo API that keeps a todo list and serves it over Effect `HttpApi` and Effect RPC. On this site, the demo API runs in your browser tab, so the todos you add last until you reload the page.
 
-Most pages are prerendered: the server rendered them once, when the site was built. So where an example says a value was computed on the server, it was computed during the build, against a copy of the demo API that ran there. [SvelteKit](/sveltekit#prerender-or-render-per-request) covers prerendering your own pages.
+Nearly every page is prerendered: the server rendered it once, when the site was built. So where an example says a value was computed on the server, it was computed during the build, against a copy of the demo API that ran there. [SvelteKit](/sveltekit#prerender-or-render-per-request) covers prerendering your own pages.
 
 The docs are also written as Markdown for AI assistants and other tools that read them. [llms.txt](/llms.txt) lists every page, [llms-full.txt](/llms-full.txt) has them all in one file, and any page's address with `.md` added gives that page, such as [/streams.md](/streams.md).
