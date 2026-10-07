@@ -52,7 +52,7 @@ Because values live in the registry rather than in the atom, the same `countAtom
 - **Hooks with a reactive `current`**, Svelte's convention for reactive values. Read it in markup, assign to it, or `bind:` to it.
 - **Async atoms you can `await`**: `useAtomSuspense` and `useAtomResult` build on Svelte's experimental async support, so pending and failed states go through `<svelte:boundary>`.
 - **Server rendering and hydration**: each request gets its own registry, and the results of serializable async atoms awaited on the server travel to the browser, which uses them instead of running the effects again.
-- **Effect services in components**: `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
+- **Effect services and remote APIs in components**: atoms run effects with services from a `Layer`, and `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
 
 ## Requirements
 
