@@ -13,7 +13,7 @@ In short, atoms give you what runes alone don't:
 
 - A typed client for your Effect RPC or `HttpApi` backend.
 - Mutations that refetch the queries they affect, via reactivity keys.
-- Per-request isolation, from one `RegistryProvider`.
+- Shared state defined in plain modules, kept separate per request by one `RegistryProvider`, with no context to set up for each piece.
 - Any `Effect` or `Stream` in a component, with typed errors and interruption.
 
 If you need none of these, see [When you don't need atoms](#when-you-dont-need-atoms).
