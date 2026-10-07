@@ -243,8 +243,8 @@
       <p class="mt-4 text-muted-foreground">
         Tag a query with a key such as <code class="font-mono text-[0.9em]">"todos"</code>. When a
         mutation with the same key succeeds, the query fetches again, and atoms derived from it
-        follow. Remote functions can refresh after a mutation too, but each one names the queries it
-        affects.
+        follow. Remote functions refresh after a mutation too: a form refreshes every query on the page,
+        unless it names the ones it affects.
       </p>
       {@render links([
         { href: "/rpc", title: "RPC" },

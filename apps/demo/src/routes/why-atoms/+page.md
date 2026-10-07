@@ -188,7 +188,7 @@ export const createAtom = TodosRpc.mutation("createTodo");
 
 The payload and result are checked against the RPC's schemas, and a failure arrives typed: a title that's too long comes back as the procedure's `TitleTooLong`, not a thrown error. When `createTodo` succeeds, every atom tagged `"todos"` runs again, along with anything derived from it, so there are no refresh calls to write by hand. `AtomHttpApi` does the same for an `HttpApi`.
 
-If your Effect code runs inside SvelteKit, remote functions that call it are a real alternative. They can refresh queries after a mutation too, in the same request, but each form or command has to name the queries it affects, with `refresh()` on the server or `updates()` in the browser, and failures arrive thrown. A reactivity key decouples the two: the mutation says what it changed, and any query tagged with that key refetches. With a separate Effect server, remote functions would only pass calls through to it.
+If your Effect code runs inside SvelteKit, remote functions that call it are a real alternative. They refresh queries after a mutation too, in the same request. A form that names none refreshes every query on the page; to refresh fewer, or after a command, you name the queries it affects, with `refresh()` on the server or `updates()` in the browser. Failures arrive thrown. A reactivity key decouples the two: the mutation says what it changed, and only the queries tagged with that key refetch, wherever they're defined. With a separate Effect server, remote functions would only pass calls through to it.
 
 [RPC](/rpc) and [HTTP API](/http) cover the clients, with live examples, and [Refreshing what changed](/mutations#refreshing-what-changed) covers reactivity keys.
 

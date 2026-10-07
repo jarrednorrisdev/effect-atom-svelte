@@ -60,10 +60,10 @@
       svelte: "Count the readers yourself",
     },
     {
-      atoms: "Keys refetch what changed",
+      atoms: "Keys refetch only what changed",
       fits: "atoms",
       need: "After a mutation",
-      svelte: "Name each query to refresh",
+      svelte: "A form refreshes every query; a command, the ones it names",
     },
   ];
 
