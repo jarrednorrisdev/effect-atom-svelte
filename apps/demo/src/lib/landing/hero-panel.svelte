@@ -16,10 +16,10 @@
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import userSource from "./hero/user.ts?highlight";
 
-  /** Each need, its answer on either side, and which side is the better answer (`fits`). */
+  /** Each need, its answer on either side, and which side is a good answer (`fits`): one, or both. */
   const comparison: readonly {
     readonly atoms: string;
-    readonly fits: "atoms" | "svelte";
+    readonly fits: "atoms" | "both" | "svelte";
     readonly need: string;
     readonly svelte: string;
   }[] = [
@@ -44,26 +44,26 @@
     {
       atoms: "One atom, one run, shared",
       fits: "atoms",
-      need: "An Effect result several components read",
+      need: "Browser-side Effect code several components read",
       svelte: "A run in each, or a cache in context you write",
     },
     {
-      atoms: "Typed, as a value you match on",
+      atoms: "Typed per procedure, as a value you match on",
       fits: "atoms",
       need: "A failure",
-      svelte: "Thrown, as unknown",
+      svelte: "Thrown, with your app's App.Error shape",
     },
     {
-      atoms: "Interrupted, and finalizers run",
+      atoms: "Interrupted, and finalizers run, for any Effect or Stream",
       fits: "atoms",
       need: "Shared work nothing reads any more",
-      svelte: "Count the readers yourself",
+      svelte: "Remote queries are released; other work is yours to stop",
     },
     {
-      atoms: "Keys refetch only what changed",
-      fits: "atoms",
+      atoms: "Refetched by key, so mutations don't list the queries",
+      fits: "both",
       need: "After a mutation",
-      svelte: "A form refreshes every query; a command, the ones it names",
+      svelte: "query.refresh() where you mutate, or in the same request",
     },
   ];
 
@@ -111,8 +111,8 @@
           {#each comparison as row (row.need)}
             <tr class="border-t align-top">
               <th class="px-5 py-2.5 font-medium" scope="row">{row.need}</th>
-              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits === "svelte")}</td>
-              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits === "atoms")}</td>
+              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits !== "atoms")}</td>
+              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits !== "svelte")}</td>
             </tr>
           {/each}
         </tbody>
@@ -124,9 +124,9 @@
             <dt class="font-medium">{row.need}</dt>
             <dd class="mt-2 ml-0 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5">
               <span class="text-xs text-muted-foreground">Svelte</span>
-              {@render answer(row.svelte, row.fits === "svelte")}
+              {@render answer(row.svelte, row.fits !== "atoms")}
               <span class="text-xs text-brand-text">Atoms</span>
-              {@render answer(row.atoms, row.fits === "atoms")}
+              {@render answer(row.atoms, row.fits !== "svelte")}
             </dd>
           </div>
         {/each}
