@@ -113,7 +113,7 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 </script>
 ```
 
-<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then click savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
 When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The example keeps both with `Atom.keepAlive`. See [Lifetimes](/lifetimes).
 

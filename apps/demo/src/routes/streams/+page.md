@@ -33,7 +33,7 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
 A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
 
-<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails: the stream fails after 1, and the atom still gives 1. Pick Emits nothing, and there is no item to keep."> <Countdown /> </Example>
+<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then click Fails: the stream fails after 1, and the atom still gives 1. Click Emits nothing, and there is no item to keep."> <Countdown /> </Example>
 
 <Aside type="tip" title="Keep browser-only streams off the server">
 

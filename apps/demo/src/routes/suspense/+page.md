@@ -80,11 +80,11 @@ Like the other hooks that take an atom, `useAtomSuspense` accepts a getter, and 
 
 In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city. Each is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead, and the browser loads it: see [Server values](/server-rendering#server-values).
 
-<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Pick two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
+<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Click another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Click two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
 
 <Aside type="note" title="Abandoned waits">
 
-When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect: pick two cities quickly in the example, and the log shows the first one's load interrupted. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
+When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect: click two cities quickly in the example, and the log shows the first one's load interrupted. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
 
 </Aside>
 

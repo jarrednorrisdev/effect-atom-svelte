@@ -96,7 +96,7 @@ The collection's `value` is one array that `push`, `insertAt` and `remove` chang
 
 Below, each `<TodoItem>` gets its item's ref, and the numbers count notifications: the list's in the corner, each item's beside it.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Tick a todo: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Click a todo's checkbox: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
 
 ## Equal values change nothing
 

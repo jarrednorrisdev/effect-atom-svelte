@@ -44,7 +44,7 @@ The server can't know what a visitor saved in their browser. Reload the page abo
 
 A cookie goes to the server with every request, so the server can render the stored value. Back `Atom.kvs` with a store that reads and writes `document.cookie` in the browser, and reads the request's cookies on the server:
 
-<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Pick dark, then reload the page. The box is dark from the first paint, and In the HTML says dark: the server read the cookie."> <Theme /> </Example>
+<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Click dark, then reload the page. The box is dark from the first paint, and In the HTML says dark: the server read the cookie."> <Theme /> </Example>
 
 The server's store needs the request's cookies. Pass them from the root layout's `load` function to the registry, through `initialValues`:
 

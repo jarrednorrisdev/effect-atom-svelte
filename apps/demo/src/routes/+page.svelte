@@ -193,7 +193,7 @@
           { html: todoLookupSource, name: "todo-lookup.svelte" },
           { html: rpcSource, name: "rpc.ts" },
         ]}
-        hint="Pick Todo 99: the server fails with its typed TodoNotFound, and the component matches on it."
+        hint="Click Todo 99: the server fails with its typed TodoNotFound, and the component matches on it."
       >
         <TodoLookup />
       </Example>

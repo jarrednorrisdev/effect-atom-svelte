@@ -20,9 +20,9 @@ description: The parts of Effect these docs use, for Svelte developers who haven
 
 From here on, atoms run Effects: to fetch data, to save it, to follow a stream. You don't need to know all of Effect to use them. This page covers the parts these docs use, each with a link to [Effect's own documentation](https://effect.website/docs/v4) for the rest. If you've used Effect before, skip to [Async atoms](/async-atoms).
 
-The examples on this page run their effects through atoms, with a badge for each atom's state. [Async atoms](/async-atoms), the next page, explains how that works; here, watch the effects. The first wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect. Pick `MD5`, which Web Crypto doesn't support, to see a typed error.
+The examples on this page run their effects through atoms, with a badge for each atom's state. [Async atoms](/async-atoms), the next page, explains how that works; here, watch the effects. The first wraps a promise API, the browser's `crypto.subtle.digest`, in an Effect. Click `MD5`, which Web Crypto doesn't support, to see a typed error.
 
-<Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it, with the success side of the type lit up. Then pick MD5: the promise rejects, the atom fails with the typed error, and the error side lights up instead."> <Hash /> </Example>
+<Example files={[{ html: hashSource, name: "hash.svelte" }]} hint="Type some text and watch the hash follow it, with the success side of the type lit up. Then click MD5: the promise rejects, the atom fails with the typed error, and the error side lights up instead."> <Hash /> </Example>
 
 ## The Effect type
 
@@ -118,7 +118,7 @@ const describe = (error: NotFound | Forbidden) => {
 
 Inside `Effect.gen`, `yield*` a tagged error to fail with it: `return yield* new NotFound({ id })`. `Effect.catchTag("NotFound", ...)` recovers from one kind and leaves the others in the type.
 
-<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Pick Todo 2 and Todo 3: each fails with a different member of the error union, lit up in the type. Then turn on catchTag: NotFound turns into a value and leaves the type, so only Forbidden is left."> <CatchTag /> </Example>
+<Example files={[{ html: catchTagSource, name: "catch-tag.svelte" }]} hint="Click Todo 2, then Todo 3: each fails with a different member of the error union, lit up in the type. Then turn on catchTag: NotFound turns into a value and leaves the type, so only Forbidden is left."> <CatchTag /> </Example>
 
 Read more in [Expected Errors](https://effect.website/docs/v4/error-management/expected-errors) and [Yieldable Errors](https://effect.website/docs/v4/error-management/yieldable-errors).
 
