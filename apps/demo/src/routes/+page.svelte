@@ -1,8 +1,11 @@
 <script lang="ts">
+  import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import { Button } from "#lib/components/ui/button/index.ts";
   import Example from "#lib/docs/example.svelte";
   import InstallCommand from "#lib/docs/install-command.svelte";
+  import { reducedMotion } from "#lib/docs/kit/motion.ts";
   import { nav } from "#lib/docs/nav.ts";
   import PageDescription from "#lib/docs/page-description.svelte";
   import HeroPanel from "#lib/landing/hero-panel.svelte";
@@ -20,11 +23,23 @@
   import todoListSource from "#lib/landing/todo-list.svelte?highlight";
   import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
   /* oxlint-enable import/no-duplicates */
+  import { reveal } from "#lib/landing/reveal.ts";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import rpcSource from "../../../../packages/demo-domain/src/rpc.ts?highlight";
 
   const repositoryUrl = "https://github.com/jarrednorrisdev/effect-atom-svelte";
   const changelogUrl = `${repositoryUrl}/blob/main/packages/effect-atom-svelte/CHANGELOG.md`;
+
+  /** Scrolls to the first reason, smoothly unless the reader asked for less motion. */
+  const seeItRun = (event: MouseEvent) => {
+    event.preventDefault();
+    document
+      .querySelector("#where-atoms-fit")
+      ?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+
+  // The scroll cue fades once the reader has started scrolling.
+  let scrollY = $state(0);
 
   const notNeeded = [
     "State one component owns, such as a form field or an open menu: that is $state.",
@@ -58,44 +73,60 @@
   <h3 class="mt-2 text-2xl font-semibold tracking-tight text-balance" {id}>{title}</h3>
 {/snippet}
 
+<svelte:window bind:scrollY />
+
 <section class="hero relative overflow-hidden border-b">
   <div
-    class="mx-auto grid w-full max-w-7xl items-start gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-24"
+    class="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 py-16 lg:min-h-[calc(100svh-3.5rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-10"
   >
     <div class="min-w-0">
       <p
-        class="mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
+        style:--rise="0"
+        class="rise mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
       >
         <span class="size-1.5 rounded-full bg-brand"></span>
         Effect Atom for Svelte 5 · community project at 0.x
       </p>
-      <h1 class="text-[2.25rem] leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
+      <h1 style:--rise="1" class="rise text-[2.25rem] leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
         <span class="text-balance">Write it in Effect.</span><br />
         <span class="text-balance text-brand-text">Read it in any component.</span>
       </h1>
-      <p class="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+      <p style:--rise="2" class="rise mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
         Share the results of your Effect code across components: typed, cleaned up and refreshed,
         with no context or cache to write. Plus a typed client for your Effect backend.
       </p>
-      <div class="mt-8 flex flex-wrap gap-3">
+      <div style:--rise="3" class="rise mt-8 flex flex-wrap gap-3">
         <Button class="px-4" href="/introduction" size="lg">
           Get started <ArrowRightIcon />
         </Button>
-        <Button class="px-4" href="/why-atoms" size="lg" variant="outline">Why atoms</Button>
+        <Button class="px-4" href="#where-atoms-fit" onclick={seeItRun} size="lg" variant="outline">
+          See it run <ArrowDownIcon />
+        </Button>
       </div>
-      <div class="mt-8 max-w-xl">
+      <div style:--rise="4" class="rise mt-8 max-w-xl">
         <InstallCommand />
       </div>
     </div>
 
-    <div class="min-w-0">
+    <div style:--rise="3" class="rise min-w-0">
       <HeroPanel />
     </div>
   </div>
+  <!-- On wide screens the hero fills the first screen; this says there is more below. -->
+  <a
+    aria-hidden="true"
+    class="scroll-cue absolute inset-x-0 bottom-3 mx-auto hidden w-max items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:flex"
+    class:scrolled={scrollY > 40}
+    href="#where-atoms-fit"
+    onclick={seeItRun}
+    tabindex="-1"
+  >
+    Four reasons, each running on this page <ChevronDownIcon class="scroll-cue-icon size-4" />
+  </a>
 </section>
 
 <div class="mx-auto w-full max-w-7xl px-6 lg:px-10">
-  <section aria-labelledby="where-atoms-fit" class="pt-20">
+  <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
     <h2 class="text-3xl font-semibold tracking-tight" id="where-atoms-fit">Where atoms fit</h2>
     <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
       Svelte already handles local state, context and server data. Atoms are for what's left when
@@ -104,7 +135,7 @@
     </p>
   </section>
 
-  <section aria-labelledby="shared-effect" class="reason">
+  <section aria-labelledby="shared-effect" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("01", "One Effect, shared by every component that reads it", "shared-effect")}
       <p class="mt-4 text-muted-foreground">
@@ -138,7 +169,7 @@
     </div>
   </section>
 
-  <section aria-labelledby="typed-errors" class="reason">
+  <section aria-labelledby="typed-errors" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("02", "Errors you can match on", "typed-errors")}
       <p class="mt-4 text-muted-foreground">
@@ -172,7 +203,7 @@
     </div>
   </section>
 
-  <section aria-labelledby="cleanup" class="reason">
+  <section aria-labelledby="cleanup" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
       <p class="mt-4 text-muted-foreground">
@@ -200,7 +231,7 @@
     </div>
   </section>
 
-  <section aria-labelledby="typed-backend" class="reason">
+  <section aria-labelledby="typed-backend" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("04", "Your Effect backend, refreshed by key", "typed-backend")}
       <p class="mt-4 text-muted-foreground">
@@ -233,6 +264,7 @@
   </section>
 
   <section
+    {@attach reveal}
     aria-labelledby="get-started"
     class="mt-20 grid gap-10 rounded-2xl border bg-card p-8 md:grid-cols-2 md:p-10"
   >
@@ -326,6 +358,39 @@
   }
   .hero > * {
     position: relative;
+  }
+  /* The hero's parts rise into place on load, one after another, once. */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise {
+      animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      animation-delay: calc(var(--rise) * 70ms);
+    }
+    /* A few slow nudges after the hero has settled, then it rests. */
+    .scroll-cue :global(.scroll-cue-icon) {
+      animation: nudge 1.6s ease-in-out 1.2s 3;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+  @keyframes nudge {
+    50% {
+      transform: translateY(3px);
+    }
+  }
+  /* Absolute, over .hero > *'s relative: it sits on the hero's bottom edge. */
+  .scroll-cue {
+    position: absolute;
+    transition:
+      opacity 0.3s,
+      color 0.15s;
+  }
+  .scroll-cue.scrolled {
+    opacity: 0;
+    pointer-events: none;
   }
   /* A reason: its explanation beside its live example on wide screens, above it on narrow ones. */
   .reason {

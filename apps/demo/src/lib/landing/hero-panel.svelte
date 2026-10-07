@@ -81,21 +81,22 @@
   {/if}
 {/snippet}
 
-<Tabs.Root bind:value={view} class="min-w-0 gap-3">
+<Tabs.Root bind:value={view} class="min-w-0 gap-2">
   <Tabs.List aria-label="Hero view">
     <Tabs.Trigger class="px-3" value="code">Code</Tabs.Trigger>
     <Tabs.Trigger class="px-3" value="table">Svelte or atoms?</Tabs.Trigger>
   </Tabs.List>
 
-  <Tabs.Content value="code">
+  <div class="hero-views">
+  <Tabs.Content data-hero-view value="code">
     <!-- Both files at once: the atom in a module, and a component that reads it. -->
-    <div class="hero-code grid grid-cols-1 gap-3" data-testid="hero-code">
+    <div class="hero-code grid grid-cols-1 gap-2" data-testid="hero-code">
       <Example files={[{ html: userSource, name: "user.ts" }]} />
       <Example cap={30} files={[{ html: userBadgeSource, name: "user-badge.svelte" }]} />
     </div>
   </Tabs.Content>
 
-  <Tabs.Content value="table">
+  <Tabs.Content data-hero-view value="table">
     <div class="overflow-hidden rounded-xl border bg-background shadow-sm" data-testid="comparison">
       <!-- A table where there's room for three columns. -->
       <table class="hidden w-full text-left text-sm sm:table">
@@ -109,9 +110,9 @@
         <tbody>
           {#each comparison as row (row.need)}
             <tr class="border-t align-top">
-              <th class="px-5 py-3 font-medium" scope="row">{row.need}</th>
-              <td class="px-3 py-3">{@render answer(row.svelte, row.fits === "svelte")}</td>
-              <td class="px-5 py-3">{@render answer(row.atoms, row.fits === "atoms")}</td>
+              <th class="px-5 py-2.5 font-medium" scope="row">{row.need}</th>
+              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits === "svelte")}</td>
+              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits === "atoms")}</td>
             </tr>
           {/each}
         </tbody>
@@ -132,10 +133,35 @@
       </dl>
     </div>
   </Tabs.Content>
+  </div>
 </Tabs.Root>
 
 <style>
   .hero-code :global(.example) {
     margin: 0;
+  }
+  /* Smaller than a docs page's code, so both files fit beside the hero's text. */
+  .hero-code :global(.shiki) {
+    font-size: 0.78rem;
+    line-height: 1.55;
+    padding-block: 0.75rem;
+  }
+  /* On wide screens the panel keeps the code view's height (the taller one), so switching to the
+     table doesn't move the hero's text. */
+  @media (width >= 64rem) {
+    .hero-views {
+      min-height: 38rem;
+    }
+  }
+  /* Switching tabs fades the new view in. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global([data-hero-view]) {
+      animation: hero-view-in 0.2s ease-out;
+    }
+  }
+  @keyframes hero-view-in {
+    from {
+      opacity: 0;
+    }
   }
 </style>

@@ -7,7 +7,6 @@
 
   // In any component: every reader shares one run.
   const user = await useAtomResult(userAtom);
-  // The typed error, if currentUser failed with SignedOut.
   const signedOut = $derived(AsyncResult.error(user.current));
 </script>
 

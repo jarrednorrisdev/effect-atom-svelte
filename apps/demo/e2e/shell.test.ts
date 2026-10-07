@@ -231,6 +231,12 @@ test.describe("docs shell", () => {
       "One atom, one run, shared"
     );
     await expect(page.getByTestId("hero-code")).toBeHidden();
+    // See it run scrolls down to the reasons, rather than leaving the page.
+    await page.getByRole("link", { name: "See it run" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Where atoms fit" })
+    ).toBeInViewport();
+    await expect(page).toHaveURL(/\/$/u);
     // No sidebar on wide screens: the page map at the foot lists the pages instead.
     await expect(page.locator("[data-slot=sidebar]")).toHaveCount(0);
     const map = page.getByRole("navigation", { name: "All pages" });
