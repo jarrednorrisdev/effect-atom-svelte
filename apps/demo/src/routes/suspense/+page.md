@@ -62,6 +62,8 @@ In the example, a component awaits a slow atom inside a boundary. Under it, the 
 
 The promise stays the same object while the atom's result is unchanged, so Svelte only renders again when there is something new. When the result changes, `current` is a new promise.
 
+Await `current` in markup, `$derived` or `$effect`, and the hook holds the atom only while that read lasts. A promise you await anywhere else, such as at the top level of the script or in an event handler, holds the atom until the component is destroyed.
+
 ## After the first load
 
 Svelte shows a boundary's `pending` snippet only while the boundary first loads. After that, it keeps the current content on screen while new values load, and `$effect.pending()` inside the boundary counts the awaits it is still waiting for. Use it to show that something is loading, as the weather example's Updating… does:
@@ -83,8 +85,6 @@ In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom pe
 <Aside type="note" title="Abandoned waits">
 
 When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect: pick two cities quickly in the example, and the log shows the first one's load interrupted. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
-
-A promise from `useAtomSuspense` that you await outside markup, `$derived` or `$effect`, such as at the top level of the script or in an event handler, is held until the component is destroyed.
 
 </Aside>
 
@@ -175,9 +175,9 @@ On the server, the render waits for the first result too. If the atom has a seri
 
 ### Awaiting more than one atom
 
-Svelte restores the component's context after each top-level `await`, so you can call hooks after one. But Svelte stops hydrating at the first `await`, so a serializable atom read after it runs again in the browser instead of starting from the server's result. See [Call hooks before the first await](/hydration#call-hooks-before-the-first-await).
+Awaiting atoms one after another runs their effects one after another. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
 
-Awaiting atoms one after another runs their effects one after another, though. When they don't depend on each other, start them together: with `Promise.all` over the hooks' promises, or by combining their effects in one atom with `Effect.all`. `Effect.all` also runs effects one after another unless you pass it a `concurrency`.
+Svelte restores the component's context after each top-level `await`, so you can call hooks after one. But Svelte stops hydrating at the first `await`, so a serializable atom read after it runs again in the browser instead of starting from the server's result: one more reason to start them together. See [Call hooks before the first await](/hydration#call-hooks-before-the-first-await).
 
 Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
 
