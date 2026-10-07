@@ -9,6 +9,15 @@ description: What atoms solve that module state, stores and load functions don't
 
 Svelte 5 already has reactive state that works anywhere: `$state` in a `.svelte.ts` module. This page starts from that, shows where it breaks, and what atoms do about it. It ends with the cases where you don't need atoms at all.
 
+In short, atoms give you what runes alone don't:
+
+- A typed client for your Effect RPC or `HttpApi` backend.
+- Mutations that refetch the queries they affect, via reactivity keys.
+- Per-request isolation, from one `RegistryProvider`.
+- Any `Effect` or `Stream` in a component, with typed errors and interruption.
+
+If you need none of these, see [When you don't need atoms](#when-you-dont-need-atoms).
+
 ## State shared between components
 
 Say several components need the signed-in user. The shortest way is a module:
