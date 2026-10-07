@@ -44,7 +44,7 @@
   <p class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
     {#each items as item (item.href)}
       <a
-        class="inline-flex items-center gap-1 font-medium text-brand-text hover:underline hover:underline-offset-4"
+        class="inline-flex items-center gap-1 py-0.5 font-medium text-brand-text hover:underline hover:underline-offset-4"
         href={item.href}
       >
         {item.title} <ArrowRightIcon class="size-3.5" />
@@ -69,14 +69,13 @@
         <span class="size-1.5 rounded-full bg-brand"></span>
         Effect Atom for Svelte 5 · community project at 0.x
       </p>
-      <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-[2.75rem] xl:text-5xl">
+      <h1 class="text-[2.25rem] leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
         <span class="text-balance">Write it in Effect.</span><br />
         <span class="text-balance text-brand-text">Read it in any component.</span>
       </h1>
       <p class="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
-        effect-atom-svelte brings Effect Atom to Svelte 5. Share the results of your Effect code
-        across components, typed, cleaned up and refreshed, with no context or cache to write for
-        each piece. And talk to your Effect backend through typed queries and mutations.
+        Share the results of your Effect code across components: typed, cleaned up and refreshed,
+        with no context or cache to write. Plus a typed client for your Effect backend.
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <Button class="px-4" href="/introduction" size="lg">
@@ -344,6 +343,11 @@
     .reason {
       gap: 4rem;
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    }
+    /* The explanation stays beside its example, which is usually much taller, as you scroll. */
+    .reason > :first-child {
+      position: sticky;
+      top: 6rem;
     }
   }
 </style>
