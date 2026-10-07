@@ -30,7 +30,9 @@ The recipes build on [Services and runtimes](/services) for the storage layers, 
 
 `KeyValueStore.layerStorage(() => localStorage)` throws on the server, where `localStorage` doesn't exist. So the example gives the server an in-memory store instead, and the server renders the default value, an empty draft. Once the page has hydrated, the browser reads the saved draft and shows it.
 
-The in-memory store belongs to the registry that builds it, so on the server each request starts with an empty one. When the store has no value for the key, `Atom.kvs` writes the default to it, so the first read in the browser saves the default.
+The in-memory store belongs to the registry that builds it, so on the server each request starts with an empty one.
+
+In the browser, the first read finds no value in `localStorage` for a new visitor, so `Atom.kvs` writes the default there.
 
 <Aside type="caution" title="The first paint shows the default">
 

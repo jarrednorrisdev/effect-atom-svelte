@@ -90,7 +90,7 @@ A search box shouldn't send a request for every key press. `Atom.debounce` follo
 
 <Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
 
-When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`: see [The URL's query string](/browser#the-urls-query-string).
+When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`. In a SvelteKit app, do that only when nothing else reads the parameter, as SvelteKit's router doesn't see its changes: see [The URL's query string](/browser#the-urls-query-string).
 
 ### Infinite scroll
 
