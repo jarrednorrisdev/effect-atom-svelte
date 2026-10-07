@@ -62,7 +62,7 @@ In the example, a component awaits a slow atom inside a boundary. Under it, the 
 
 The promise stays the same object while the atom's result is unchanged, so Svelte only renders again when there is something new. When the result changes, `current` is a new promise.
 
-Await `current` in markup, `$derived` or `$effect`, and the hook holds the atom only while that read lasts. A promise you await anywhere else, such as at the top level of the script or in an event handler, holds the atom until the component is destroyed.
+Await `current` in markup, `$derived` or `$effect`, and the hook holds the atom only while that read lasts. A promise you await anywhere else, such as at the top level of the script or in an event handler, holds the atom until it settles or the component is destroyed, whichever comes first.
 
 ## After the first load
 
