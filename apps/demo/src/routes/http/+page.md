@@ -116,6 +116,13 @@ Use `transformClient` to change every request, for example to add a header. It t
 
 The example calls the client directly, with `runtime.fn`. Every query and mutation goes through the same transformed client.
 
-### On the server
+## On the server
 
-Requests made on the server don't carry the visitor's cookies, so a query that needs a session fails there. With a `serializationKey`, what happens next depends on the error. A status the endpoint doesn't declare is an `HttpClientError`, which the query turns into a defect. Defects aren't sent with the page, so the browser runs the query again, with its cookies. An error the API declares, such as an `Unauthorized` from an auth middleware, is a typed error. It is sent, and the browser starts from it. `transformClient` is the same function for every request, so it can't send each visitor's own credentials. Like RPC's `protocol`, `httpClient` can instead be a function that reads an atom set for each request: [Sending the visitor's credentials](/sveltekit#sending-the-visitors-credentials) has the recipe.
+Requests made on the server don't carry the visitor's cookies, so a query that needs a session fails there. They also need an absolute URL: see [Relative URLs on the server](/troubleshooting#relative-urls-on-the-server).
+
+With a `serializationKey`, what the visitor sees next depends on the error:
+
+- **A status the endpoint doesn't declare** is an `HttpClientError`, which the query turns into a defect. Defects aren't sent with the page, so the browser runs the query again, with its cookies.
+- **An error the API declares**, such as an `Unauthorized` from an auth middleware, is a typed error. It is sent, and the browser starts from it, so the visitor sees it until something refreshes the query.
+
+`transformClient` can't send each visitor's own credentials, because it is the same function for every request. Like RPC's `protocol`, `httpClient` can instead be a function that reads an atom set for each request: [Sending the visitor's credentials](/sveltekit#sending-the-visitors-credentials) has the recipe.
