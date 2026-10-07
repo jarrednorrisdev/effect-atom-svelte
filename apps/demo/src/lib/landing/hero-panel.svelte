@@ -1,7 +1,7 @@
 <!--
   @component
-  The landing page's hero panel, in two tabs: the code (an atom in a module, and a component that
-  reads it), and a guide to what to reach for in an app with an Effect backend. Code is the default.
+  The landing page's hero panel, in two tabs: a guide to when to reach for atoms in an app with an
+  Effect backend (the default), and the code (an atom in a module, and a component that reads it).
 
   ```svelte
   <HeroPanel />
@@ -76,13 +76,13 @@
   ];
 
 
-  let view = $state("code");
+  let view = $state("table");
 </script>
 
 <Tabs.Root bind:value={view} class="min-w-0 gap-2">
   <Tabs.List aria-label="Hero view">
+    <Tabs.Trigger class="px-3" value="table">When to reach for atoms</Tabs.Trigger>
     <Tabs.Trigger class="px-3" value="code">Code</Tabs.Trigger>
-    <Tabs.Trigger class="px-3" value="table">Which to use?</Tabs.Trigger>
   </Tabs.List>
 
   <div class="hero-views">

@@ -223,14 +223,14 @@ test.describe("docs shell", () => {
       "href",
       "https://atom.jarrednorris.dev/"
     );
-    // The hero opens on the code, and its other tab compares Svelte with atoms.
-    await expect(page.getByTestId("hero-code")).toBeVisible();
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("tab", { name: "Which to use?" }).click();
+    // The hero opens on when to reach for atoms, and its other tab shows the code.
     await expect(page.getByTestId("comparison")).toContainText(
       "A mutation atom with reactivity keys"
     );
-    await expect(page.getByTestId("hero-code")).toBeHidden();
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("tab", { name: "Code" }).click();
+    await expect(page.getByTestId("hero-code")).toBeVisible();
+    await expect(page.getByTestId("comparison")).toBeHidden();
     // See it run scrolls down to the reasons, rather than leaving the page.
     await page.getByRole("link", { name: "See it run" }).click();
     await expect(
