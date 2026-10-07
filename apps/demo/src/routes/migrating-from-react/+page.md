@@ -116,7 +116,7 @@ With React, you dehydrate a registry on the server and pass the state to a `Hydr
 
 <Aside type="caution" title="Nothing runs again after hydration by default">
 
-In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, the hooks run nothing again unless you set `revalidateOnHydrate`, on `RegistryProvider` or on the hook. `HydrationBoundary` goes through `Hydration.hydrate`, so it behaves like React's. See [Running again after hydration](/hydration#running-again-after-hydration).
+`@effect/atom-react` fetches some queries again straight after hydration, such as those with `reactivityKeys`. Here, the hooks run nothing again unless you set `revalidateOnHydrate`. `HydrationBoundary` behaves like React's. See [Running again after hydration](/hydration#running-again-after-hydration).
 
 </Aside>
 
