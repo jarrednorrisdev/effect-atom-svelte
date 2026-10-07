@@ -174,7 +174,7 @@
       {/if}
       {#if hero === "code"}
         <!-- Both files at once: the atom in a module, and a component that reads it. -->
-        <div class="hero-code grid gap-3" data-testid="hero-code">
+        <div class="hero-code grid grid-cols-1 gap-3" data-testid="hero-code">
           <Example files={[{ html: userSource, name: "user.ts" }]} />
           <Example cap={30} files={[{ html: userBadgeSource, name: "user-badge.svelte" }]} />
         </div>
