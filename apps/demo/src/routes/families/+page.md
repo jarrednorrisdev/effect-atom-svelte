@@ -40,7 +40,7 @@ The value you pass in (here, the id) is called the **key**. It can be any value 
 
 Try it below. The list and the details panel are separate components that pass no state between them: each row calls `todoAtom` with its todo's id, and the panel calls it with the id of the todo you opened. When both use the same id, they read the same atom.
 
-<Example files={[{ html: todosSource, name: "todos.ts" }, { html: rowSource, name: "todo-row.svelte" }, { html: detailsSource, name: "todo-details.svelte" }, { html: listSource, name: "todo-list.svelte" }, { html: appSource, name: "todo-app.svelte" }]} hint="Click Buy milk in the list: the details panel shows it done too, because both read todoAtom(1). Open another todo and mark it done from the panel. Then add a todo: its new id gets a new atom, starting open."> <TodoApp /> </Example>
+<Example files={[{ html: todosSource, name: "todos.ts" }, { html: rowSource, name: "todo-row.svelte" }, { html: detailsSource, name: "todo-details.svelte" }, { html: listSource, name: "todo-list.svelte" }, { html: appSource, name: "todo-app.svelte" }]} hint="Click Buy milk's checkbox in the list: the details panel shows it done too, because both read todoAtom(1). Open another todo and mark it done from the panel. Then add a todo: its new id gets a new atom, starting open."> <TodoApp /> </Example>
 
 ## New keys make new atoms
 
