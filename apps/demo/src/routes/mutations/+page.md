@@ -91,11 +91,11 @@ Pass `{ concurrent: true }` as `Atom.fn`'s second argument, and a new call doesn
 
 <Aside type="caution" title="Concurrent calls share one result">
 
-A concurrent mutation still has one result. Each new call waits for every call already running, and the mutation settles with the result of the oldest. So every caller's promise gets the oldest call's result, not its own.
+A concurrent mutation still has one result. Each call starts straight away, but the result after it waits until every call still running has finished, and is the result of the oldest of them. So when two calls overlap, both promises settle with the first call's result, and the second call's own result is never seen. A call made once the others have finished gets its own.
 
 </Aside>
 
-To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting settles the promise as interrupted. A signal that is already aborted settles it the same way without starting the call, as `fetch` does. The call keeps running only while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call.
+To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting stops the wait, not the call: the promise settles as interrupted, but the call keeps running while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call. A signal that is already aborted settles the promise the same way without starting the call, as `fetch` does. To stop the call itself, write `Atom.Interrupt`, below.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 
@@ -118,7 +118,7 @@ setSave(Atom.Reset);
 
 After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
 
-Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: their types leave it out, and the promise rejects.
+Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: TypeScript rejects it, and if a call gets past the types, its promise rejects.
 
 ## Refreshing what changed
 
@@ -144,4 +144,4 @@ The example fails on purpose without sending anything: its mutation checks a fla
 
 ## Mutations from RPC and HTTP APIs
 
-`AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are the same thing, made for you: an RPC client's `mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. Their queries take `reactivityKeys` as an option, and their mutations take them with each call. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
+`AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are ordinary mutations: an RPC client's `mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. Their queries take `reactivityKeys` as an option, and their mutations take them with each call. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
