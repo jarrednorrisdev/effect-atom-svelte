@@ -269,9 +269,3 @@ export const load = ({ setHeaders }) => {
 `Vary: Cookie` asks a shared cache to keep one copy per `Cookie` header. Some CDNs ignore `Vary` apart from `Accept-Encoding`, so they would serve one visitor's page to the next. Those that honor it key on the whole header, so any other cookie, such as an analytics ID, makes a copy per visitor. Consider it only for a page that varies by a preference cookie with a few values, such as a theme, and check how your CDN treats it. For a page with a visitor's own data, send `Cache-Control: private`.
 
 </Aside>
-
-<Aside type="note" title="This site">
-
-This site prerenders every page that doesn't depend on the request, so in its examples, "Computed on the server" means computed when the site was built. That includes [RPC](/rpc) and [HTTP API](/http), whose lists come from a copy of the demo API that runs during the build. [Browser atoms](/browser) reads cookies, so it is rendered for each request.
-
-</Aside>
