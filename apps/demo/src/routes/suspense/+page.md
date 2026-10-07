@@ -114,9 +114,14 @@ When the atom's effect fails, the promise rejects with `Cause.squash` of its cau
 **Example** (Trying again)
 
 ```svelte
+<script lang="ts">
+  const todo = useAtomSuspense(todoAtom, { suspendOnWaiting: true });
+  const refresh = useAtomRefresh(todoAtom);
+</script>
+
+<!-- In the boundary around (await todo.current): -->
 {#snippet failed(error, reset)}
   <p>{(error as App.Error).message}</p>
-  <!-- refresh is useAtomRefresh(todoAtom). -->
   <button
     onclick={() => {
       refresh();
@@ -128,7 +133,7 @@ When the atom's effect fails, the promise rejects with `Cause.squash` of its cau
 {/snippet}
 ```
 
-Read the atom with `suspendOnWaiting: true`, so the content waits for the refresh's result rather than the old failure.
+`suspendOnWaiting: true` matters here. Without it, a failed atom that is refreshing still counts as settled, so the content rejects again at once with the old failure, and the `failed` snippet comes straight back.
 
 Like the weather example's, this example's atom loads in the browser only. A failure rendered on the server makes SvelteKit respond with a 500: see [A failure on the server sets the status](/sveltekit#a-failure-on-the-server-sets-the-status). Turn on **Fail the next load** to try the `failed` snippet:
 

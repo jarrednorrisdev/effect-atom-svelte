@@ -19,7 +19,7 @@ description: Run an Effect in an atom and read its progress as an AsyncResult.
   import sensorSource from "./sensor.svelte?highlight";
 </script>
 
-Most state worth keeping comes from somewhere slow: a server, a database, a file. An async atom runs an `Effect` to get its value. Its value also says whether the effect is still running, succeeded or failed, so a component can show a loading state, the value, or what went wrong.
+An async atom runs an `Effect` to get its value, such as a request to a server or a database query. Its value also says whether the effect is still running, succeeded or failed, so a component can show a loading state, the value, or what went wrong.
 
 If you haven't used Effect before, [Effect basics](/effect-basics) covers what this page and the ones after it need.
 
@@ -102,7 +102,7 @@ With Svelte's experimental async turned on, you can `await` an async atom in mar
 const roll = useAtomRefresh(dieAtom);
 ```
 
-While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also [holds](/reading-and-writing#reading) the atom for as long as the component lives, so a refresh is never lost because nothing was reading.
+While it runs, the atom keeps its previous result with `waiting` set to `true`, so a refresh doesn't take the value away. The hook also [holds](/reading-and-writing#reading) the atom for as long as the component lives, so the refreshed result is kept even while nothing on screen reads it.
 
 ## Working with AsyncResult
 
