@@ -16,10 +16,10 @@
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import userSource from "./hero/user.ts?highlight";
 
-  /** Each need, its answer on either side, and which side is a good answer (`fits`): one, or both. */
+  /** Each need, its answer on either side, and which side is the better answer (`fits`). */
   const comparison: readonly {
     readonly atoms: string;
-    readonly fits: "atoms" | "both" | "svelte";
+    readonly fits: "atoms" | "svelte";
     readonly need: string;
     readonly svelte: string;
   }[] = [
@@ -60,8 +60,8 @@
       svelte: "Remote queries are released; other work is yours to stop",
     },
     {
-      atoms: "Refetched by key, so mutations don't list the queries",
-      fits: "both",
+      atoms: "Refetched by key: mutations don't need to list the queries they affect",
+      fits: "atoms",
       need: "After a mutation",
       svelte: "query.refresh() where you mutate, or in the same request",
     },
@@ -111,8 +111,8 @@
           {#each comparison as row (row.need)}
             <tr class="border-t align-top">
               <th class="px-5 py-2.5 font-medium" scope="row">{row.need}</th>
-              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits !== "atoms")}</td>
-              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits !== "svelte")}</td>
+              <td class="px-3 py-2.5">{@render answer(row.svelte, row.fits === "svelte")}</td>
+              <td class="px-5 py-2.5">{@render answer(row.atoms, row.fits === "atoms")}</td>
             </tr>
           {/each}
         </tbody>
@@ -124,9 +124,9 @@
             <dt class="font-medium">{row.need}</dt>
             <dd class="mt-2 ml-0 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5">
               <span class="text-xs text-muted-foreground">Svelte</span>
-              {@render answer(row.svelte, row.fits !== "atoms")}
+              {@render answer(row.svelte, row.fits === "svelte")}
               <span class="text-xs text-brand-text">Atoms</span>
-              {@render answer(row.atoms, row.fits !== "svelte")}
+              {@render answer(row.atoms, row.fits === "atoms")}
             </dd>
           </div>
         {/each}
