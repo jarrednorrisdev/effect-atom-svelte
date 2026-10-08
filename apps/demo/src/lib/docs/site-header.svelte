@@ -49,7 +49,7 @@
     <!-- A docs page's brand cell is only the sidebar's width, so the badge has a cell of its own. -->
     {#if !landing}
       <div
-        class="cell note hidden font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase lg:flex"
+        class="cell note font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase"
       >
         Community project
       </div>
@@ -145,10 +145,17 @@
       padding-inline: 1.25rem;
     }
   }
+  /* Only where there's room beside the controls. */
   .note {
+    display: none;
     flex: 1 1 0;
     overflow: hidden;
     padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    .note {
+      display: flex;
+    }
   }
   .tools {
     display: flex;
