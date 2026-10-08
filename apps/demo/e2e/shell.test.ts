@@ -196,7 +196,7 @@ test.describe("docs shell", () => {
     );
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       "content",
-      "https://atom.jarrednorris.dev/og-image.png"
+      /^https:\/\/atom\.jarrednorris\.dev\/og-image\.png\?v=[\da-f]{8}$/u
     );
 
     // Client-side navigation swaps the description rather than adding one.
