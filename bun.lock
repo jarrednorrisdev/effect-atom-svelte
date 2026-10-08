@@ -109,7 +109,7 @@
     },
     "packages/effect-atom-svelte-devtools": {
       "name": "effect-atom-svelte-devtools",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.13",
         "acorn": "^8.18.0",

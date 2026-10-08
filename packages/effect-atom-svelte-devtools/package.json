@@ -1,6 +1,6 @@
 {
   "name": "effect-atom-svelte-devtools",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Developer tools for effect-atom-svelte: atom names from your source, and a live view of the registry",
   "keywords": [
     "devtools",
