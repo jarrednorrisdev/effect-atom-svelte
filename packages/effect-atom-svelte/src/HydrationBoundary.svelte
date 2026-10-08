@@ -32,6 +32,7 @@
   import { onDestroy } from "svelte";
   import type { Snippet } from "svelte";
 
+  import { onRenderEnd } from "./internal/renderEnd.ts";
   import { getRegistry } from "./RegistryContext.ts";
 
   interface Props {
@@ -111,8 +112,9 @@
 
   // A queued value stays in the registry until its key is looked up. With a registry that outlives
   // the boundary, such as one the caller passes to the server's provider, it would reach a later
-  // request. Drop the ones still waiting, unless something queued another value since.
-  onDestroy(() => {
+  // request. Drop the ones still waiting, unless something queued another value since. On the
+  // server they're dropped when the render ends, even if a failed boundary discarded this one.
+  (BROWSER ? onDestroy : onRenderEnd)(() => {
     if (!preloaded) {
       return;
     }

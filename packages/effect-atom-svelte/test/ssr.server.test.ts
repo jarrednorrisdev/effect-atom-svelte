@@ -18,6 +18,7 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import BoundaryInitial from "./fixtures/boundary-initial.svelte";
 import HydrateAbove from "./fixtures/hydrate-above.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
@@ -519,6 +520,29 @@ describe("server rendering", () => {
     const third = await renderSetup(page(3), registry);
     expect(third.body).toContain("<output>3</output>");
     await expect.poll(() => registry.getNodes().size).toBe(0);
+    registry.dispose();
+  });
+
+  test("a boundary that fails during setup still releases its atoms from a caller-owned registry", async () => {
+    // Svelte's server renderer drops the content of a boundary whose children throw synchronously,
+    // and with it their onDestroy callbacks, so releases also run when the render ends.
+    const atom = Atom.make("default");
+    const registry = AtomRegistry.make();
+    const first = await render(BoundaryInitial, {
+      props: { atom, fail: true, registry, value: "first visitor" },
+      // As SvelteKit does with handleError: the boundary renders its failed snippet.
+      transformError: (error: unknown) => ({ message: String(error) }),
+    });
+    expect(first.body).toContain("failed");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const second = await render(BoundaryInitial, {
+      props: { atom, fail: false, registry, value: "second visitor" },
+    });
+    expect(second.body).toContain("<output>second visitor</output>");
+    const third = await render(BoundaryInitial, {
+      props: { atom, fail: false, registry, value: "third visitor" },
+    });
+    expect(third.body).toContain("<output>third visitor</output>");
     registry.dispose();
   });
 
