@@ -98,10 +98,10 @@ interface Kit3Input {
 }
 type Kit2Hook = (
   input: Kit2Input
-) => void | { readonly message: string; readonly tag?: string };
+) => undefined | { readonly message: string; readonly tag?: string };
 type Kit3Hook = (
   input: Kit3Input
-) => void | { readonly message?: string; readonly tag?: string };
+) => undefined | { readonly message?: string; readonly tag?: string };
 
 export const sveltekitHooks = () => {
   expectTypeOf(handleClientError).toExtend<Kit2Hook>();
