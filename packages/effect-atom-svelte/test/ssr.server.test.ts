@@ -25,9 +25,11 @@ import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
 import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrChangingSeed from "./fixtures/ssr-changing-seed.svelte";
 import SsrHarness from "./fixtures/ssr-harness.svelte";
+import SsrHydrateAsync from "./fixtures/ssr-hydrate-async.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrSequential from "./fixtures/ssr-sequential.svelte";
+import SsrTwoAsyncReaders from "./fixtures/ssr-two-async-readers.svelte";
 import {
   defectAtom,
   serverSecret,
@@ -86,6 +88,36 @@ const allWarnings = () => {
   onTestFinished(() => warn.mockRestore());
   return () => warn.mock.calls.map((call) => String(call[0]));
 };
+
+/** A serializable stream atom that emits 1, 2 and 3, one every 5ms. */
+const slowStreamAtom = (key: string) =>
+  (
+    Atom.make(
+      Stream.make(1, 2, 3).pipe(Stream.tap(() => Effect.sleep("5 millis")))
+    ) as Atom.Atom<AsyncResult.AsyncResult<number>>
+  ).pipe(
+    Atom.serializable({
+      key,
+      schema: AsyncResult.Schema({ success: Schema.Number }),
+    })
+  );
+
+/** Reads a number atom with useAtomResult, rendering its value and whether it is waiting. */
+const readValue =
+  (
+    atom: Atom.Atom<AsyncResult.AsyncResult<number>>,
+    suspendOnWaiting: boolean
+  ) =>
+  () => {
+    const result = useAtomResult(atom, { suspendOnWaiting });
+    return (async () => {
+      const live = await result;
+      return () =>
+        live.current._tag === "Success"
+          ? `value ${live.current.value} waiting ${live.current.waiting}`
+          : live.current._tag;
+    })();
+  };
 
 /** A serializable number atom for HydrationBoundary to hydrate. */
 const numberAtom = (key: string) =>
@@ -269,28 +301,21 @@ describe("server rendering", () => {
     });
 
     test("with suspendOnWaiting, the settled result the server rendered is sent", async () => {
-      const atom = (
-        Atom.make(
-          Stream.make(1, 2, 3).pipe(Stream.tap(() => Effect.sleep("5 millis")))
-        ) as Atom.Atom<AsyncResult.AsyncResult<number>>
-      ).pipe(
-        Atom.serializable({
-          key: "waiting-seed",
-          schema: AsyncResult.Schema({ success: Schema.Number }),
-        })
+      const output = await renderSetup(
+        readValue(slowStreamAtom("waiting-seed"), true)
       );
-      const output = await renderSetup(() => {
-        const result = useAtomResult(atom, { suspendOnWaiting: true });
-        return (async () => {
-          const live = await result;
-          return () =>
-            live.current._tag === "Success"
-              ? `value ${live.current.value} waiting ${live.current.waiting}`
-              : live.current._tag;
-        })();
-      });
       expect(output.body).toContain("value 3 waiting false");
       // A waiting seed would have the browser run the atom again for a value it already has.
+      expect(output.head).not.toContain("waiting:true");
+    });
+
+    test("with suspendOnWaiting, the settled result is sent even when a reader without it came first", async () => {
+      const atom = slowStreamAtom("shared-waiting-seed");
+      const output = await render(SsrTwoAsyncReaders, {
+        props: { first: readValue(atom, false), second: readValue(atom, true) },
+      });
+      expect(output.body).toContain("value 3 waiting false");
+      // The first reader claims the key, but the seed must be what the second one rendered.
       expect(output.head).not.toContain("waiting:true");
     });
   });
@@ -353,6 +378,41 @@ describe("server rendering", () => {
         props: { ...props, readInside: true, state: undefined },
       });
       expect(second.body).toContain("<output>0</output>");
+      registry.dispose();
+    });
+
+    test("renders a promise-encoded value that lands during the render", async () => {
+      const atom = Atom.make(
+        Effect.succeed("from load").pipe(Effect.delay("30 millis"))
+      ).pipe(
+        Atom.serializable({
+          key: "boundary-promise",
+          schema: AsyncResult.Schema({ success: Schema.String }),
+        })
+      );
+      // As a load function would: dehydrated while the atom is still loading.
+      const source = AtomRegistry.make();
+      source.mount(atom);
+      const state = Hydration.dehydrate(source, { encodeInitialAs: "promise" });
+      const registry = AtomRegistry.make();
+      const output = await render(SsrHydrateAsync, {
+        props: {
+          registry,
+          setup: () => {
+            const result = useAtomResult(atom);
+            return (async () => {
+              const live = await result;
+              return () =>
+                AsyncResult.isSuccess(live.current)
+                  ? live.current.value
+                  : live.current._tag;
+            })();
+          },
+          state,
+        },
+      });
+      expect(output.body).toContain("<output>from load</output>");
+      source.dispose();
       registry.dispose();
     });
   });

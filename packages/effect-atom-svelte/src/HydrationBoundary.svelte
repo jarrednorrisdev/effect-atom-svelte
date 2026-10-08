@@ -56,6 +56,8 @@
   };
   // The values this boundary queued, by key, so it can drop the ones nobody took.
   const queued = new Map<string, unknown>();
+  // On the server, whether the render has ended, after which a late promise-encoded value is dropped.
+  let ended = false;
 
   const counts =
     queuedBy.get(registry) ?? new Map<string, Map<unknown, number>>();
@@ -76,14 +78,30 @@
     return next;
   };
 
+  // SAFETY: Hydration.hydrate ignores a promise-encoded value that resolves to this marker, which
+  // Hydration.ts registers with Symbol.for (Effect 4.0.1) but doesn't export.
+  const skipped = Symbol.for("effect/reactivity/Hydration/Skipped");
+  /** A promise-encoded value as the server render waits for it; one landing after the render is skipped. */
+  const lateDropped = async (late: Promise<unknown>): Promise<unknown> => {
+    const value = await late;
+    return ended ? skipped : value;
+  };
+
   const queue = (atoms: readonly Hydration.DehydratedAtomValue[]): void => {
-    // On the server the render can't wait for a promise-encoded value, and one landing after the
-    // render would stay queued in a registry that outlives it.
+    // On the server a promise-encoded value is waited for by the render, but one landing after the
+    // render would stay queued in a registry that outlives it: it is ignored once the boundary ends.
     Hydration.hydrate(
       registry,
       BROWSER
         ? atoms
-        : atoms.map(({ resultPromise: _late, ...atom }) => atom as Hydration.DehydratedAtomValue)
+        : atoms.map((atom) =>
+            atom.resultPromise === undefined
+              ? atom
+              : {
+                  ...atom,
+                  resultPromise: lateDropped(atom.resultPromise),
+                }
+          )
     );
     for (const { key, value } of atoms) {
       if (queued.has(key)) {
@@ -154,6 +172,7 @@
   // request. Drop the ones still waiting, unless something queued another value since or another
   // live boundary queued the same one.
   onDestroy(() => {
+    ended = true;
     if (!preloaded) {
       return;
     }

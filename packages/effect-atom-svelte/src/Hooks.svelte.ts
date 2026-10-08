@@ -977,6 +977,9 @@ const seeds = new WeakMap<AtomRegistry.AtomRegistry, Seeds>();
 
 // hydratable returns one promise per key per render, so it identifies the atom that claimed a key.
 const serverSeeds = new WeakMap<Promise<unknown>, Atom.Atom<unknown>>();
+// The keys, by their render's promise, that some reader reads with suspendOnWaiting: the seed is
+// then the settled result that reader renders, whichever reader claimed the key first.
+const settledSeeds = new WeakSet<Promise<unknown>>();
 
 /**
  * On the server each request seeds for itself: `hydratable` already shares one result per key
@@ -1009,13 +1012,22 @@ const seedOnServer = (
       // waits, so with suspendOnWaiting the seed is the settled result the render shows, not one the
       // browser would run again because it was still waiting.
       if (!initialOnServer(registry, atom) && !notStarted(registry.get(atom))) {
-        await awaitResult(registry, atom, { suspendOnWaiting });
+        let settled = suspendOnWaiting === true;
+        await awaitResult(registry, atom, { suspendOnWaiting: settled });
+        // A later reader of the key may want the settled result once this one's wait has begun.
+        if (!settled && claim.first && settledSeeds.has(claim.first)) {
+          settled = true;
+          await awaitResult(registry, atom, { suspendOnWaiting: settled });
+        }
       }
       return encodeSeed(key, encode, serverGet(registry, atom));
     })();
     return claim.own;
   });
   claim.first = encoded;
+  if (suspendOnWaiting === true) {
+    settledSeeds.add(encoded);
+  }
   const claimed = serverSeeds.get(encoded);
   if (claimed && claimed !== atom) {
     throw new Error(`Two different atoms share the serialization key "${key}"`);
