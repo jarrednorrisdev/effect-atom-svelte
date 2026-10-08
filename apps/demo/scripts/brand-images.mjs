@@ -180,7 +180,7 @@ const site = at("../src/lib/docs/site.ts");
 const hash = createHash("md5").update(preview).digest("hex").slice(0, 8);
 writeFileSync(
   site,
-  readFileSync(site, "utf8").replace(
+  readFileSync(site, "utf-8").replace(
     /const previewVersion = "\w*";/u,
     `const previewVersion = "${hash}";`
   )
