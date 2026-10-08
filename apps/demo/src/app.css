@@ -6,9 +6,8 @@
 
 /*
  * Libron (github.com/nicoverbruggen/libron, SIL Open Font License; see src/lib/fonts/libron) is
- * the site's serif, `--font-serif` (Tailwind's `font-serif`), for the text picked out for it:
- * headings, ledes and the graphs' italic notes. Inter is the text font, JetBrains Mono the labels'
- * and code's. Libron has only regular and bold, so semibold text uses bold.
+ * the site's serif, `--font-serif`, for the graphs' and the devtools' italic notes only. Inter is
+ * the text font; JetBrains Mono is for headings, labels and code.
  */
 @font-face {
   font-display: swap;
@@ -247,14 +246,10 @@
     font-weight: 600;
     letter-spacing: -0.025em;
   }
-  /* Headings and the lead in the serif, Libron, in its bold; the text stays in Inter. */
+  /* Headings in the mono, like the site's labels; the text stays in Inter. */
   & :where(h1, h2, h3):not(:where([class~="not-prose"] *)) {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  & :where(.lead):not(:where([class~="not-prose"] *)) {
-    font-family: var(--font-serif);
+    font-family: var(--font-mono);
+    letter-spacing: -0.03em;
   }
   & :where(a):not(:where([class~="not-prose"] *)) {
     font-weight: 500;
