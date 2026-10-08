@@ -1,6 +1,32 @@
 # effect-atom-svelte-devtools
 
-Developer tools for [effect-atom-svelte](https://atom.jarrednorris.dev). Work in progress: so far, a Vite plugin that names your atoms.
+Developer tools for [effect-atom-svelte](https://atom.jarrednorris.dev): a panel that shows your atom registry live, and a Vite plugin that names your atoms after their variables and keeps their state across hot reloads. Not published yet.
+
+## The panel
+
+`<AtomDevtools />` opens a floating panel over your app that shows its atom registry live. Put it inside your `RegistryProvider`, behind Vite's `import.meta.env.DEV`, so production builds leave it out entirely:
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<RegistryProvider>
+  {@render children()}
+  {#if import.meta.env.DEV}
+    {#await import("effect-atom-svelte-devtools") then { AtomDevtools }}
+      <AtomDevtools />
+    {/await}
+  {/if}
+</RegistryProvider>
+```
+
+Use `import.meta.env.DEV` rather than SvelteKit's `dev`: Vite replaces it with `false` in a build, so the import is dropped, where `dev` leaves the panel's code in the build unused.
+
+It has three views:
+
+- **Graph**: the atoms and what reads what, sources on the left. A value that changes pulses, a tick is a reader, a cross marks an interrupted effect or a removed atom. "plumbing" shows the atoms runtimes, mutations and stores make, which are hidden by default; an atom that reads one is linked to whatever is upstream of it.
+- **Sheets**: a cover sheet with the registry's totals, then one sheet per atom: its value or `AsyncResult` state, what it reads and what reads it, what happened to it lately, and a title block with where it was declared (click to open it in your editor), keep-alive, idle TTL and readers.
+- **Timeline**: every computation, update, interruption and finalizer, newest first. A computation says why it ran: its first read, a refresh, or which atoms it reads changed. Click an atom to see only its rows.
+
+It follows the registry of the nearest `RegistryProvider`, or a `registry` you pass it. With more than one provider mounted, a picker switches between them. It reads what the registry does through `effect-atom-svelte/inspector`, which starts watching when the panel mounts and costs nothing before.
 
 ## Atom names
 

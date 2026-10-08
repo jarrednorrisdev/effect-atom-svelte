@@ -75,6 +75,7 @@ export const nav: readonly NavSection[] = [
     pages: [
       { href: "/reference", title: "API overview" },
       { href: "/reference/Hooks", title: "Hooks" },
+      { href: "/reference/Inspector", title: "Inspector" },
       { href: "/reference/RegistryContext", title: "RegistryContext" },
       { href: "/reference/ScopedAtom", title: "ScopedAtom" },
       { href: "/reference/SvelteKit", title: "SvelteKit" },

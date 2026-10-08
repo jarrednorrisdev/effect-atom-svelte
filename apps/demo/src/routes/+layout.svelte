@@ -131,4 +131,10 @@
       </div>
     {/if}
   </Sidebar.Provider>
+  <!-- The atom devtools, in development only: the import is left out of builds. -->
+  {#if import.meta.env.DEV}
+    {#await import("effect-atom-svelte-devtools") then { AtomDevtools }}
+      <AtomDevtools />
+    {/await}
+  {/if}
 </RegistryProvider>

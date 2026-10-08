@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    // The panel runs in browsers new enough for a dev server, so it may use ES2023's arrays.
+    "lib": ["es2023", "dom", "dom.iterable"],
     "types": ["node"]
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": ["src", "test", "vitest.config.ts", "svelte.config.js"]
 }

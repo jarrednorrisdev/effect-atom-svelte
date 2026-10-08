@@ -16,7 +16,14 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "svelte": "./dist/index.js",
   "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "default": "./dist/vite.js"
@@ -31,6 +38,7 @@
   "dependencies": {
     "@sveltejs/acorn-typescript": "^1.0.13",
     "acorn": "^8.18.0",
+    "esm-env": "^1.2.2",
     "magic-string": "^0.30.21"
   },
   "devDependencies": {
@@ -47,6 +55,7 @@
   "peerDependencies": {
     "effect": "~4.0.0",
     "effect-atom-svelte": "^0.2.0",
+    "svelte": "^5.57.2",
     "vite": ">=5.0.0"
   },
   "peerDependenciesMeta": {
