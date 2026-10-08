@@ -21,6 +21,9 @@ export interface Identity {
 const framePattern = /(?<file>[^\s()]+):(?<line>\d+):(?<column>\d+)\)?\s*$/u;
 // A place as the plugin writes it, `/src/lib/todos.ts:4:14`, whatever the file's name holds.
 const ownPattern = /^(?<file>.+):(?<line>\d+):(?<column>\d+)$/u;
+// A browser frame's URL, which may hold parentheses, as a SvelteKit route group's folder does.
+const urlPattern =
+  /(?<file>[a-z][\w+.-]*:\/\/\S+?):(?<line>\d+):(?<column>\d+)\)?\s*$/iu;
 
 /**
  * The place a stack frame points at. The plugin's frames hold the file as the dev server addresses
@@ -41,7 +44,7 @@ export const parseFrame = (frame: string, name?: string): Place | undefined => {
       line: Number(own.line),
     };
   }
-  const groups = framePattern.exec(frame)?.groups;
+  const groups = (urlPattern.exec(frame) ?? framePattern.exec(frame))?.groups;
   if (groups?.file === undefined) {
     return undefined;
   }
