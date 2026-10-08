@@ -1,5 +1,6 @@
 <script lang="ts">
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import MenuIcon from "@lucide/svelte/icons/menu";
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
@@ -12,6 +13,8 @@
 
   // The pages whose examples call the demo API (#lib/clients.ts). Only they show its reset button.
   const demoApiPages = new Set(["/cookbook", "/http", "/rpc"]);
+
+  const sidebar = Sidebar.useSidebar();
 
   // The landing page has no sidebar: its header lines up with the hero's frame instead.
   const landing = $derived(!page.error && page.url.pathname === "/");
@@ -36,9 +39,17 @@
   <div class="cells">
     <!-- The name, then a cell of its own saying it's a community project. On the landing page the
          two share the frame's left half. -->
+    <!-- On a phone, the docs' pages are in a drawer (docs-sidebar.svelte) this cell opens. -->
+    <div class="cell control menu">
+      <button
+        aria-expanded={sidebar.openMobile}
+        aria-label="Docs menu"
+        onclick={() => sidebar.toggle()}
+        type="button"><MenuIcon aria-hidden="true" class="size-4" /></button
+      >
+    </div>
     <div class="start">
       <div class="cell brand">
-        <Sidebar.Trigger class="md:hidden" />
         <SiteLogo />
       </div>
       <div
@@ -252,6 +263,35 @@
     .landing .docs-link + .search {
       border-left: 1px solid var(--line);
     }
+  }
+  /* The menu's cell starts the header, so its line is on its right; only phones and tablets have
+     it, as wider screens show the sidebar. */
+  .control.menu {
+    border-left: 0;
+    border-right: 1px solid var(--line);
+  }
+  @media (width >= 48rem) {
+    .control.menu {
+      display: none;
+    }
+  }
+  /* Like the other cells' ghost buttons. */
+  .menu button {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: var(--foreground);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    transition: background-color 0.15s;
+  }
+  .menu button:hover {
+    background: var(--accent);
+  }
+  .menu button:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
   .control {
     border-left: 1px solid var(--line);
