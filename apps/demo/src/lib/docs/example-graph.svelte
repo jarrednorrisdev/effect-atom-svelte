@@ -396,7 +396,7 @@
       })
     );
     const broken: GraphEdge[] = edges.flatMap((edge) => {
-      const pieces: [number, number][][] = [[edge.points[0]!]];
+      const pieces: (readonly [number, number])[][] = [[edge.points[0]!]];
       edge.points.slice(1).forEach(([x2, y2], index) => {
         const [x1, y1] = edge.points[index]!;
         const piece = pieces.at(-1)!;
