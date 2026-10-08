@@ -9,8 +9,9 @@
 
 <!--
   The previous and next pages, in a row ruled right across the docs page from line to line. The
-  links sit side by side in the middle of the row, as two cells of one width, with a line on each
-  side and a cross where each meets the row's lines; the row is empty out to its ends. The footer's
+  links sit side by side under the column's text, as two cells of one width that together span it,
+  with a line on each side and a cross where each meets the row's lines; the row is empty out to its
+  ends. The footer's
   top line, right below, is the row's bottom one. On a phone the cells stack, full width.
 -->
 {#if links.previous || links.next}
@@ -82,20 +83,22 @@
   .edge {
     display: none;
   }
-  /* Side by side in the middle: one width for both (the wider's), so the line between them is the
-     row's middle; a lone link sits in the middle on its own. Each has a line on both sides; the
-     second's left line is the first's right one. */
+  /* Side by side, together as wide as the column's text (the row reaches --reach past it on
+     each side), each half of it; a lone link is half as wide, in the middle. Each has a line on
+     both sides; the second's left line is the first's right one. */
   @media (width >= 40rem) {
     .links {
       display: grid;
-      grid-auto-columns: 1fr;
-      grid-auto-flow: column;
-      margin-inline: auto;
-      width: fit-content;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-inline: var(--reach);
+    }
+    .cell:only-child {
+      grid-column: 1 / -1;
+      justify-self: center;
+      width: 50%;
     }
     .cell {
       border-right: 1px solid var(--border);
-      min-width: 15rem;
     }
     .cell:first-child {
       border-left: 1px solid var(--border);
