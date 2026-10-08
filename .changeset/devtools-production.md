@@ -5,3 +5,5 @@
 Add a `production` prop to `<AtomDevtools />`, for a site that shows the panel to its visitors, as the effect-atom-svelte docs now do. Without it the panel still renders nothing outside development. In production it shows the nearest provider's registry (or `registry`) with no picker, and declarations aren't links to the editor.
 
 The panel opens and closes with a keyboard shortcut, Alt+Shift+A by default (the `shortcut` prop sets another). A new Settings view changes the shortcut, and the button's corner, opacity and size; the button can also be dragged to another corner.
+
+A failed atom says what it failed with: the graph shows its error's name (`Failure · CityNotFound`), and the timeline and sheets the error with its fields (`CityNotFound { city: "Atlantis" }`) rather than the first line of `Cause.pretty`. A defect shows as `defect: TypeError`, an interruption as `interrupted`.

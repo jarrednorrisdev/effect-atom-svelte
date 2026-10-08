@@ -151,7 +151,60 @@ const json = (data: unknown, indent?: number): string =>
 /** The value written out in full, for its sheet. */
 export const detail = (value: unknown): string => json(plain(value), 2);
 
-/** An `AsyncResult` on one line: its value, through `inner`, or its first line of failure. */
+/** An error's name: a tagged error's `_tag`, an `Error`'s `name`, or the value as a string. */
+const errorName = (error: unknown): string => {
+  if (typeof error === "object" && error !== null) {
+    if ("_tag" in error && typeof error._tag === "string") {
+      return error._tag;
+    }
+    if (error instanceof Error) {
+      return error.name;
+    }
+  }
+  return String(error);
+};
+
+/** An error with its fields, as `CityNotFound { city: "Atlantis" }`, or its message if it has one. */
+const errorText = (error: unknown): string => {
+  const name = errorName(error);
+  if (typeof error !== "object" || error === null) {
+    return name;
+  }
+  if (
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message !== ""
+  ) {
+    return `${name}: ${error.message}`;
+  }
+  const fields = Object.entries(error).filter(([key]) => key !== "_tag");
+  const body = fields.map(([key, field]) => `${key}: ${json(plain(field))}`);
+  return body.length > 0 ? `${name} { ${body.join(", ")} }` : name;
+};
+
+/**
+ * What a failure failed with, from its first reason: a typed error by its name (`CityNotFound`),
+ * or with its fields when `full`; a defect as `defect: TypeError`; an interruption as
+ * `interrupted`.
+ */
+export const failureText = (
+  cause: Cause.Cause<unknown>,
+  full = false
+): string => {
+  const [reason] = cause.reasons;
+  if (reason === undefined) {
+    return "empty cause";
+  }
+  if (Cause.isFailReason(reason)) {
+    return full ? errorText(reason.error) : errorName(reason.error);
+  }
+  if (Cause.isDieReason(reason)) {
+    return `defect: ${full ? errorText(reason.defect) : errorName(reason.defect)}`;
+  }
+  return "interrupted";
+};
+
+/** An `AsyncResult` on one line: its value, through `inner`, or what it failed with. */
 const resultText = (
   result: AsyncResult.AsyncResult<unknown, unknown>,
   inner: (value: unknown) => string
@@ -160,7 +213,7 @@ const resultText = (
   if (result._tag === "Success") {
     text = inner(result.value);
   } else if (result._tag === "Failure") {
-    text = Cause.pretty(result.cause).split("\n")[0] ?? "Failure";
+    text = failureText(result.cause, true);
   }
   return result.waiting ? `${text}, waiting` : text;
 };

@@ -6,7 +6,9 @@
 <script lang="ts">
   import { AtomGraph, toneOf } from "../graph/index.ts";
   import type { GraphAtom, GraphInput } from "../graph/index.ts";
-  import { preview, stateText } from "./format.ts";
+  import { AsyncResult } from "effect/reactivity";
+
+  import { failureText, preview, stateText } from "./format.ts";
   import type { AtomView } from "./model.svelte.ts";
   import { lingerFor } from "./model.svelte.ts";
 
@@ -48,8 +50,13 @@
       return "removed · finalizers ran";
     }
     const state = stateText(view.state);
-    const value = view.hasValue ? preview(view.value, 26) : "";
-    const parts = [state, state === "" || view.state._tag === "Success" ? value : ""];
+    let value = view.hasValue ? preview(view.value, 26) : "";
+    // A failure shows what it failed with, by name: its fields are on its sheet.
+    if (AsyncResult.isAsyncResult(view.value) && AsyncResult.isFailure(view.value)) {
+      value = failureText(view.value.cause);
+    }
+    const withValue = state === "" || view.state._tag === "Success" || view.state._tag === "Failure";
+    const parts = [state, withValue ? value : ""];
     if (view.readers === 0 && view.children.length === 0) {
       parts.push(heldBecause(view));
     }
