@@ -36,7 +36,8 @@
       </Button>
     {/snippet}
   </DropdownMenu.Trigger>
-  <DropdownMenu.Content align="end" class="w-36">
+  <!-- Kept clear of the window's edge, which its cell in the header touches. -->
+  <DropdownMenu.Content align="end" class="w-36" collisionPadding={8}>
     <DropdownMenu.RadioGroup
       bind:value={
         () => choice.current,
