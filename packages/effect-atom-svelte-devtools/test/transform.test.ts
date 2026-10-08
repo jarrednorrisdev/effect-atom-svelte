@@ -238,4 +238,43 @@ describe("labelAtoms", () => {
       transform("const a = Atom.make(0);", "/elsewhere/atoms.ts")
     ).toContain('"/@fs/elsewhere/atoms.ts:1:7"');
   });
+
+  test("finds the instance script's code after a generics attribute holding >", () => {
+    const component = `<script lang="ts" generics="T extends Record<string, number>">
+  const countAtom = Atom.make(0);
+</script>
+<p>hi</p>`;
+    const output = transform(component, "/app/src/lib/counter.svelte") ?? "";
+    expect(output).toContain('generics="T extends Record<string, number>">');
+    expect(output).toContain(
+      "const countAtom = __effectAtomSvelteLabel(Atom.make(0), "
+    );
+  });
+
+  test("leaves a script in <svelte:head> alone: it's page HTML, not the component's code", () => {
+    const component = [
+      "<svelte:head>",
+      "  <script>window.dataLayer = window.dataLayer || [];</script>",
+      "</svelte:head>",
+      "<p>hi</p>",
+    ].join("\n");
+    // An import put in the head script would be a SyntaxError when the page loads.
+    expect(
+      transform(component, "/app/src/lib/counter.svelte") ?? component
+    ).not.toContain("import {");
+  });
+
+  test("labels the instance script of a component with a JSON-LD script in <svelte:head>", () => {
+    const component = [
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<svelte:head>",
+      '  <script type="application/ld+json">{ "@context": "https://schema.org" }</script>',
+      "</svelte:head>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
 });

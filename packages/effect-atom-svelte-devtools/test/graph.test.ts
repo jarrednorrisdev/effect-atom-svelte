@@ -145,4 +145,26 @@ describe("layoutGraph", () => {
     };
     expect(nodeOf(input, "plainAtom")?.kind).toBe("gone");
   });
+
+  test("puts both sides of a diamond right of its source, whichever atom is listed first", () => {
+    // As a scope numbers them: the atom read first, then those upstream of it.
+    const input: GraphInput = {
+      atoms: [
+        { id: 0, label: "totalAtom" },
+        { id: 1, label: "leftAtom" },
+        { id: 2, label: "sourceAtom" },
+        { id: 3, label: "rightAtom" },
+      ],
+      links: [
+        { from: 1, to: 0 },
+        { from: 3, to: 0 },
+        { from: 2, to: 1 },
+        { from: 2, to: 3 },
+      ],
+    };
+    const x = (label: string) => must(nodeOf(input, label)).x;
+    expect(x("leftAtom")).toBeGreaterThan(x("sourceAtom"));
+    expect(x("rightAtom")).toBeGreaterThan(x("sourceAtom"));
+    expect(x("totalAtom")).toBeGreaterThan(x("rightAtom"));
+  });
 });

@@ -310,16 +310,21 @@ const scriptPattern =
 /** The scripts of a component: where each one's code starts, the code, and if it is the module script. */
 const scripts = (source: string) => {
   const found: { start: number; code: string; module: boolean }[] = [];
+  const heads = [
+    ...source.matchAll(/<svelte:head\b[^]*?<\/svelte:head>/gu),
+  ].map((m) => [m.index, m.index + m[0].length] as const);
   for (const match of source.matchAll(scriptPattern)) {
-    const [whole] = match;
     const { attributes, code } = match.groups ?? {};
     if (attributes === undefined || code === undefined) {
+      continue;
+    }
+    if (heads.some(([from, to]) => match.index > from && match.index < to)) {
       continue;
     }
     found.push({
       code,
       module: /\bmodule\b/u.test(attributes),
-      start: match.index + whole.indexOf(">") + 1,
+      start: match.index + "<script".length + attributes.length + 1,
     });
   }
   return found;
