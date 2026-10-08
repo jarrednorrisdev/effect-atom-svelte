@@ -15,8 +15,9 @@ import {
   revalidateComputed,
   revalidateSeen,
 } from "./fixtures/revalidate.ts";
-import { computed } from "./fixtures/seeded-list.ts";
+import { computed, listFor } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import { skewComputed } from "./fixtures/skew-seed.ts";
 import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
 import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
@@ -27,11 +28,15 @@ import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelt
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
+import SsrScriptRead from "./fixtures/ssr-script-read.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
+import SsrSkewSeed from "./fixtures/ssr-skew-seed.svelte";
 import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
+import SsrUnsentAfterAwait from "./fixtures/ssr-unsent-after-await.svelte";
 import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
+import TwoBoundaries from "./fixtures/two-boundaries.svelte";
 import {
   resetUnsent,
   streamSeen,
@@ -154,6 +159,43 @@ describe("HydrationBoundary", () => {
     // Kept, the value would wait in the registry for whoever reads the atom next, however late.
     expect(registry.get(countAtom)).toBe(0);
     registry.dispose();
+  });
+
+  test("keeps a value another boundary queued with the same state when it is destroyed", async () => {
+    const registry = AtomRegistry.make();
+    const state = serverState([countAtom], (server) =>
+      server.set(countAtom, 42)
+    );
+    const screen = await render(TwoBoundaries, {
+      atom: countAtom,
+      readSecond: false,
+      registry,
+      showFirst: true,
+      state,
+    });
+    // As a layout and its page given the same state: the first goes before the second's child reads.
+    await screen.rerender({ showFirst: false });
+    await screen.rerender({ readSecond: true });
+    await expect
+      .poll(() => screen.container.querySelector("output")?.textContent)
+      .toBe("42");
+    registry.dispose();
+  });
+
+  test("leaves a value another boundary queued since when it drops its own", async () => {
+    const registry = AtomRegistry.make();
+    const first = await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state: serverState([countAtom], (server) => server.set(countAtom, 1)),
+    });
+    await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state: serverState([countAtom], (server) => server.set(countAtom, 2)),
+    });
+    await first.unmount();
+    expect(registry.get(countAtom)).toBe(2);
   });
 
   test("an Initial result dehydrated as a promise finishes on the client", async () => {
@@ -359,6 +401,26 @@ describe("hydrating server output", () => {
     expect(computed).toEqual(["b"]);
   });
 
+  test("useAtomResult destroyed before its seed lands computes nothing", async () => {
+    computed.length = 0;
+    const seed = Deferred.makeUnsafe<unknown>();
+    let value: unknown;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-hydrate-result.svelte",
+      SsrHydrateResult,
+      () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      }
+    );
+    click(target, "hide");
+    await expect.poll(outputs(target)).toEqual([]);
+    Deferred.doneUnsafe(seed, Effect.succeed(value));
+    await sleep(afterSweep);
+    expect(computed).toEqual([]);
+  });
+
   test("atoms with a server value hydrate without a seed, then compute in the browser (JND-58)", async () => {
     serverValueComputed.length = 0;
     const target = await hydrateFromServer(
@@ -387,6 +449,41 @@ describe("hydrating server output", () => {
     expect(new Set(unsentComputed)).toEqual(new Set(["defect", "unencodable"]));
   });
 
+  test("a hook after a top-level await doesn't warn about a seed the server didn't send", async () => {
+    resetUnsent();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-unsent-after-await.svelte",
+      SsrUnsentAfterAwait
+    );
+    await expect
+      .poll(outputs(target))
+      .toEqual(["server", "defect from the browser"]);
+    await sleep("20 millis");
+    const missed = warn.mock.calls.filter(([message]) =>
+      String(message).includes("got no value from the server")
+    );
+    expect(missed).toEqual([]);
+  });
+
+  test("a seed the browser can't decode is dropped, so the browser computes the atom", async () => {
+    skewComputed.length = 0;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-skew-seed.svelte",
+      SsrSkewSeed
+    );
+    // As for a result the server can't encode: the browser computes it, with nothing unhandled.
+    await expect.poll(outputs(target)).toEqual(["skew from the browser"]);
+    expect(skewComputed).toEqual(["skew"]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("doesn't decode with its schema"),
+      expect.anything()
+    );
+  });
+
   test("a stream sent between its values hydrates with the server's value, then runs again", async () => {
     resetUnsent();
     const target = await hydrateFromServer(
@@ -398,6 +495,30 @@ describe("hydrating server output", () => {
     await expect.poll(outputs(target)).toEqual(["20"]);
     expect(streamSeen[0]).toBe("3 (waiting)");
     expect(streamSeen).not.toContain("Initial");
+  });
+
+  test("a seeded useAtomSuspense read in the script lets go of its atom once the getter moves on", async () => {
+    computed.length = 0;
+    const registry = AtomRegistry.make();
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-script-read.svelte",
+      SsrScriptRead,
+      undefined,
+      { registry }
+    );
+    const output = () => target.querySelector("output")?.textContent;
+    await expect.poll(output).toBe("a from the server");
+    // The server's markup shows "a" before hydration attaches the button's handler.
+    await sleep("200 millis");
+    click(target, "b");
+    await expect
+      .poll(() => target.querySelector("span")?.textContent)
+      .toBe("b");
+    await expect.poll(output).toBe("b from the browser");
+    // "a" came from the seed.
+    expect(computed).toEqual(["b"]);
+    await sleep(afterSweep);
+    expect(registry.getNodes().has("seeded-list-a")).toBe(false);
   });
 
   test("refreshing a hydrated atom computes it in the browser", async () => {
@@ -467,6 +588,76 @@ describe("hydrating server output", () => {
       // Kept, it would be applied whenever the atom is next used, however old by then.
       click(target, "show first");
       await expect.poll(outputs(target)).toEqual(["a from the browser"]);
+      expect(computed).toEqual(["a"]);
+    });
+
+    test("a seed that lands after every reader is destroyed computes nothing for them (JND-37)", async () => {
+      computed.length = 0;
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(path, SsrSharedSeed, () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      });
+      // The first read the atom before its seed landed, then went away.
+      click(target, "hide first");
+      click(target, "remove second");
+      await expect.poll(outputs(target)).toEqual([]);
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      expect(computed).toEqual([]);
+    });
+
+    test("a seed that lands after every user is destroyed leaves an atom others hold alone (JND-37)", async () => {
+      computed.length = 0;
+      const registry = AtomRegistry.make();
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(
+        path,
+        SsrSharedSeed,
+        () => {
+          const store = hydratables();
+          value = store.get("seeded-list-a");
+          store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+        },
+        { registry }
+      );
+      click(target, "hide first");
+      click(target, "remove second");
+      await expect.poll(outputs(target)).toEqual([]);
+      // Something outside the components holds the atom, and has computed it here.
+      const release = registry.mount(listFor("a"));
+      onTestFinished(release);
+      await expect
+        .poll(() => registry.get(listFor("a")))
+        .toMatchObject({ _tag: "Success", value: "a from the browser" });
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      expect(registry.get(listFor("a"))).toMatchObject({
+        _tag: "Success",
+        value: "a from the browser",
+      });
+    });
+
+    test("a key spent in a registry gets no seed from a later hydration (JND-37)", async () => {
+      computed.length = 0;
+      const registry = AtomRegistry.make();
+      const first = await hydrateFromServer(path, SsrSharedSeed, undefined, {
+        registry,
+      });
+      await expect.poll(outputs(first)).toEqual(["a from the server"]);
+      click(first, "hide first");
+      click(first, "remove second");
+      await expect.poll(outputs(first)).toEqual([]);
+      await sleep(afterSweep);
+      expect(registry.getNodes().has("seeded-list-a")).toBe(false);
+      // The page still holds the server's value, however old by now.
+      const second = await hydrateFromServer(path, SsrSharedSeed, undefined, {
+        registry,
+      });
+      await expect.poll(outputs(second)).toEqual(["a from the browser"]);
       expect(computed).toEqual(["a"]);
     });
   });
@@ -657,5 +848,17 @@ describe("seeding after client-side navigation", () => {
     options.read = true;
     await screen.rerender({ show: true });
     await expect.poll(text(screen)).toBe("1");
+  });
+
+  test("a useAtomSuspense read in the script lets go of its atom once the getter moves on", async () => {
+    computed.length = 0;
+    const registry = AtomRegistry.make();
+    const screen = await render(SsrScriptRead, { registry });
+    const output = () => screen.container.querySelector("output")?.textContent;
+    await expect.poll(output).toBe("a from the browser");
+    click(screen.container as HTMLElement, "b");
+    await expect.poll(output).toBe("b from the browser");
+    await sleep(afterSweep);
+    expect(registry.getNodes().has("seeded-list-a")).toBe(false);
   });
 });

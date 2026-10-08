@@ -232,6 +232,63 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     }
   });
 
+  test("useAtomSuspense read outside a reaction after the markup's wait settled adds no abort listener", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make<AsyncResult.AsyncResult<number>>(
+      AsyncResult.success(0)
+    );
+    const add = AbortSignal.prototype.addEventListener;
+    const remove = AbortSignal.prototype.removeEventListener;
+    // Abort listeners still attached, per signal.
+    const attached = new Map<AbortSignal, number>();
+    const count = (signal: AbortSignal, delta: number) =>
+      attached.set(signal, (attached.get(signal) ?? 0) + delta);
+    AbortSignal.prototype.addEventListener = function addEventListener(
+      this: AbortSignal,
+      ...args: Parameters<AbortSignal["addEventListener"]>
+    ) {
+      if (args[0] === "abort") {
+        count(this, 1);
+      }
+      add.apply(this, args);
+    };
+    AbortSignal.prototype.removeEventListener = function removeEventListener(
+      this: AbortSignal,
+      ...args: Parameters<AbortSignal["removeEventListener"]>
+    ) {
+      if (args[0] === "abort") {
+        count(this, -1);
+      }
+      remove.apply(this, args);
+    };
+    try {
+      let read: (() => Promise<unknown>) | undefined;
+      const screen = await render(Toggle, {
+        async: true,
+        registry,
+        setup: () => {
+          const value = useAtomSuspense(atom);
+          read = () => value.current;
+          return () => value.current;
+        },
+        show: true,
+      });
+      let index = 0;
+      await repeat(50, async () => {
+        index += 1;
+        registry.set(atom, AsyncResult.success(index));
+        // The markup's wait for this result has settled before the event handler's read.
+        await expect.poll(text(screen)).toBe(String(index));
+        await read?.();
+      });
+      expect(Math.max(...attached.values())).toBeLessThan(5);
+      await screen.unmount();
+    } finally {
+      AbortSignal.prototype.addEventListener = add;
+      AbortSignal.prototype.removeEventListener = remove;
+    }
+  });
+
   test("useAtomResult", async () => {
     const registry = AtomRegistry.make();
     const log: string[] = [];

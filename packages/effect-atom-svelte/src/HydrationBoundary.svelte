@@ -26,6 +26,13 @@
   </HydrationBoundary>
   ```
 -->
+<script module lang="ts">
+  // Per registry, key and queued value, how many live boundaries queued it. Boundaries given the
+  // same state, as a layout and its page might be, queue the same values, and one destroyed first
+  // must leave them for the other's children.
+  const queuedBy = new WeakMap<object, Map<string, Map<unknown, number>>>();
+</script>
+
 <script lang="ts">
   import { Hydration } from "effect/reactivity";
   import { BROWSER } from "esm-env";
@@ -50,11 +57,62 @@
   };
   // The values this boundary queued, by key, so it can drop the ones nobody took.
   const queued = new Map<string, unknown>();
+  // On the server, whether the render has ended, after which a late promise-encoded value is dropped.
+  let ended = false;
+
+  const counts =
+    queuedBy.get(registry) ?? new Map<string, Map<unknown, number>>();
+  queuedBy.set(registry, counts);
+  /** Adds one to or takes one from the boundaries queueing a value, and returns the new count. */
+  const count = (key: string, value: unknown, delta: 1 | -1): number => {
+    const byValue = counts.get(key) ?? new Map<unknown, number>();
+    counts.set(key, byValue);
+    const next = (byValue.get(value) ?? 0) + delta;
+    if (next > 0) {
+      byValue.set(value, next);
+    } else {
+      byValue.delete(value);
+      if (byValue.size === 0) {
+        counts.delete(key);
+      }
+    }
+    return next;
+  };
+
+  // SAFETY: Hydration.hydrate ignores a promise-encoded value that resolves to this marker, which
+  // Hydration.ts registers with Symbol.for (Effect 4.0.1) but doesn't export.
+  const skipped = Symbol.for("effect/reactivity/Hydration/Skipped");
+  /** A promise-encoded value as the server render waits for it; one landing after the render is skipped. */
+  const lateDropped = async (late: Promise<unknown>): Promise<unknown> => {
+    const value = await late;
+    return ended ? skipped : value;
+  };
 
   const queue = (atoms: readonly Hydration.DehydratedAtomValue[]): void => {
-    Hydration.hydrate(registry, atoms);
+    // On the server a promise-encoded value is waited for by the render, but one landing after the
+    // render would stay queued in a registry that outlives it: it is ignored once the boundary ends.
+    Hydration.hydrate(
+      registry,
+      BROWSER
+        ? atoms
+        : atoms.map((atom) =>
+            atom.resultPromise === undefined
+              ? atom
+              : {
+                  ...atom,
+                  resultPromise: lateDropped(atom.resultPromise),
+                }
+          )
+    );
     for (const { key, value } of atoms) {
+      if (queued.has(key)) {
+        if (queued.get(key) === value) {
+          continue;
+        }
+        count(key, queued.get(key), -1);
+      }
       queued.set(key, value);
+      count(key, value, 1);
     }
   };
 
@@ -112,14 +170,16 @@
 
   // A queued value stays in the registry until its key is looked up. With a registry that outlives
   // the boundary, such as one the caller passes to the server's provider, it would reach a later
-  // request. Drop the ones still waiting, unless something queued another value since. On the
-  // server they're dropped when the render ends, even if a failed boundary discarded this one.
+  // request. Drop the ones still waiting, unless something queued another value since or another
+  // live boundary queued the same one. On the server they're dropped when the render ends, even if
+  // a failed boundary discarded this one.
   (BROWSER ? onDestroy : onRenderEnd)(() => {
+    ended = true;
     if (!preloaded) {
       return;
     }
     for (const [key, value] of queued) {
-      if (preloaded.get(key) === value) {
+      if (count(key, value, -1) <= 0 && preloaded.get(key) === value) {
         preloaded.delete(key);
       }
     }

@@ -27,7 +27,7 @@ In one component, Svelte needs nothing more. With [async rendering](/installatio
 <script lang="ts">
   import { Effect } from "effect";
   import { getAbortSignal } from "svelte";
-  import { currentUser } from "$lib/session";
+  import { currentUser } from "#lib/session";
 
   const user = $derived(
     await Effect.runPromise(currentUser, { signal: getAbortSignal() })
@@ -85,7 +85,7 @@ The root layout calls `setUser(new UserState())`, and each reader calls `read`:
 ```svelte
 <!-- user-badge.svelte, and the same in account-menu.svelte -->
 <script lang="ts">
-  import { getUser } from "$lib/user.svelte";
+  import { getUser } from "#lib/user.svelte";
 
   const user = getUser();
   $effect(() => user.read());
@@ -124,7 +124,7 @@ export const userAtom = Atom.make(currentUser);
 <!-- user-badge.svelte, and the same in account-menu.svelte -->
 <script lang="ts">
   import { useAtomResult } from "effect-atom-svelte";
-  import { userAtom } from "$lib/user";
+  import { userAtom } from "#lib/user";
 
   const user = await useAtomResult(userAtom);
 </script>
@@ -165,8 +165,8 @@ Without reactivity keys, every mutation lists the queries it affects, and the co
 <!-- add-todo.svelte -->
 <script lang="ts">
   import { Effect, Exit } from "effect";
-  import { createTodo } from "$lib/api";
-  import { getStats, getTodos } from "$lib/todos.svelte";
+  import { createTodo } from "#lib/api";
+  import { getStats, getTodos } from "#lib/todos.svelte";
 
   const todos = getTodos();
   const stats = getStats();
@@ -196,7 +196,7 @@ export const createAtom = TodosRpc.mutation("createTodo");
 <!-- add-todo.svelte -->
 <script lang="ts">
   import { useAtomSet } from "effect-atom-svelte";
-  import { createAtom } from "$lib/todos";
+  import { createAtom } from "#lib/todos";
 
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
 
@@ -271,7 +271,7 @@ Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes 
   import { Option } from "effect";
   import { AsyncResult } from "effect/reactivity";
   import { useAtomResult } from "effect-atom-svelte";
-  import { TodosRpc } from "$lib/todos-rpc";
+  import { TodosRpc } from "#lib/todos-rpc";
 
   const { id }: { id: number } = $props();
 

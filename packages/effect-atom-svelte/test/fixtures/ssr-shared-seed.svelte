@@ -2,15 +2,23 @@
      asked, so nothing but the seed's mount holds the atom once the first is destroyed (JND-36).
      Both can be removed and the first shown again, to check a seed nobody took is dropped (JND-37). -->
 <script lang="ts">
+  import type { AtomRegistry } from "effect/reactivity";
+
   import { RegistryProvider } from "../../src/index.ts";
   import SeededReader from "./seeded-reader.svelte";
 
+  interface Props {
+    /** Browser only, so it does not change what the server renders. */
+    readonly registry?: AtomRegistry.AtomRegistry | undefined;
+  }
+
+  const { registry }: Props = $props();
   let showFirst = $state(true);
   let showSecond = $state(false);
   let keepSecond = $state(true);
 </script>
 
-<RegistryProvider>
+<RegistryProvider {registry}>
   <button onclick={() => (showFirst = false)}>hide first</button>
   <button onclick={() => (showFirst = true)}>show first</button>
   <button onclick={() => (showSecond = true)}>show second</button>

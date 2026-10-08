@@ -405,6 +405,64 @@ describe("useAtomSuspense", () => {
     expect(promises.at(-1)).toBe(shown);
   });
 
+  test("a reader that re-runs while the result is pending keeps its promise", async () => {
+    const registry = AtomRegistry.make();
+    const atom = delayed("a", 200);
+    const other = Atom.make(0);
+    // The promises read while the result was still pending.
+    const pending: Promise<string>[] = [];
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const count = useAtomValue(other);
+        const value = useAtomSuspense(atom);
+        return () => {
+          const n = count.current;
+          const promise = value.current;
+          if (registry.get(atom)._tag === "Initial") {
+            pending.push(promise);
+          }
+          return promise.then((v) => `${v} ${n}`);
+        };
+      },
+    });
+    await expect.poll(() => pending.length).toBe(1);
+    // The reaction aborts its signal and re-runs; the re-run must hold the same wait.
+    registry.set(other, 1);
+    await expect.poll(text(screen)).toBe("a 1");
+    expect(pending).toHaveLength(2);
+    expect(pending[1]).toBe(pending[0]);
+  });
+
+  test("a pending result read again after its readers went away gets a new wait", async () => {
+    const registry = AtomRegistry.make();
+    const atom = delayed("a", 200);
+    // Kept mounted, so the pending result stays the same object while nothing shows it.
+    registry.mount(atom);
+    const show = Atom.make(true);
+    let read!: () => Promise<string>;
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const shown = useAtomValue(show);
+        const value = useAtomSuspense(atom);
+        read = () => value.current;
+        return () => (shown.current ? value.current : "hidden");
+      },
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    registry.set(show, false);
+    await expect.poll(text(screen)).toBe("hidden");
+    await sleep("20 millis");
+    // The first wait was interrupted when its reader went away; these reads must not reuse it.
+    const handlerRead = read();
+    registry.set(show, true);
+    await expect(handlerRead).resolves.toBe("a");
+    await expect.poll(text(screen)).toBe("a");
+  });
+
   test("suspendOnWaiting makes a refresh's promise wait for the new value (JND-57)", async () => {
     const registry = AtomRegistry.make();
     const atom = counter();

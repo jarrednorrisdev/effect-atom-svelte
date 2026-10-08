@@ -24,6 +24,14 @@ const modifierCodes = new Set([
   "ShiftRight",
 ]);
 
+// The first words of codes with two words, so a code saved in lower case reads back as the key's
+// code does: "arrowup" is `ArrowUp`, "pagedown" is `PageDown`, "bracketleft" is `BracketLeft`.
+const twoWordCode =
+  /^(?<first>arrow|bracket|caps|context|numpad|num|page|print|scroll)(?<second>[a-z]+)$/iu;
+
+const capitalise = (word: string): string =>
+  word.charAt(0).toUpperCase() + word.slice(1);
+
 /** The code a key's name stands for: `a` is `KeyA`, `1` is `Digit1`, and anything else as it is. */
 const codeOf = (key: string): string => {
   if (/^[a-z]$/iu.test(key)) {
@@ -32,7 +40,11 @@ const codeOf = (key: string): string => {
   if (/^\d$/u.test(key)) {
     return `Digit${key}`;
   }
-  return key.length > 1 ? key.charAt(0).toUpperCase() + key.slice(1) : key;
+  const { first, second } = twoWordCode.exec(key)?.groups ?? {};
+  if (first !== undefined && second !== undefined) {
+    return capitalise(first.toLowerCase()) + capitalise(second.toLowerCase());
+  }
+  return key.length > 1 ? capitalise(key) : key;
 };
 
 /** Reads "alt+shift+a" (or "Ctrl+Shift+F2", "meta+k"); `undefined` when there is no key. */
@@ -83,12 +95,15 @@ export const formatShortcut = (shortcut: Shortcut, mac: boolean): string =>
     .filter(Boolean)
     .join(" ");
 
-/** Whether a key press is the shortcut, with exactly its modifiers. */
+/**
+ * Whether a key press is the shortcut, with exactly its modifiers. The code is compared without
+ * case: the settings save it in lower case, and a code such as `ArrowUp` doesn't read back as it was.
+ */
 export const matchesShortcut = (
   event: KeyboardEvent,
   shortcut: Shortcut
 ): boolean =>
-  event.code === shortcut.code &&
+  event.code.toLowerCase() === shortcut.code.toLowerCase() &&
   event.altKey === shortcut.alt &&
   event.ctrlKey === shortcut.ctrl &&
   event.metaKey === shortcut.meta &&
