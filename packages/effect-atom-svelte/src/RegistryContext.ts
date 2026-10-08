@@ -9,7 +9,7 @@ import { createContext } from "svelte";
 
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 import { track } from "./internal/registries.ts";
-import { onTeardown } from "./internal/teardown.svelte.ts";
+import { onTeardownAfterChildren } from "./internal/teardown.svelte.ts";
 
 /**
  * Options for a registry created by `provideRegistry` or `RegistryProvider`: the options of
@@ -187,11 +187,11 @@ export const provideRegistry = (
   }
   // Not onDestroy: in the browser it never runs for a component destroyed while its script awaits.
   if (!provided) {
-    onTeardown(() => registry.dispose());
+    onTeardownAfterChildren(() => registry.dispose());
   }
   if (DEV && BROWSER) {
     // For developer tools to find (effect-atom-svelte/inspector).
-    onTeardown(track(registry));
+    onTeardownAfterChildren(track(registry));
   }
   return registry;
 };

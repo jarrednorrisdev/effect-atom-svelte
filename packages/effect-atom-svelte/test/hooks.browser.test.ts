@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Stream } from "effect";
 import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import { onDestroy } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
@@ -902,6 +903,24 @@ describe("RegistryProvider", () => {
     expect(log).toEqual(["disposed"]);
     await screen.unmount();
     expect(log).toEqual(["disposed", "disposed"]);
+  });
+
+  test("disposes its registry only after its children are destroyed", async () => {
+    const atom = Atom.make(0).pipe(Atom.keepAlive);
+    const written: number[] = [];
+    const screen = await render(Provider, {
+      setup: () => {
+        const set = useAtomSet(atom);
+        // A child's own teardown may still write to the provider's registry.
+        onDestroy(() => {
+          set(5);
+          written.push(5);
+        });
+        return () => "child";
+      },
+    });
+    await expect(screen.unmount()).resolves.toBeUndefined();
+    expect(written).toEqual([5]);
   });
 
   test("reads its props once, and warns in development when one changes", async () => {
