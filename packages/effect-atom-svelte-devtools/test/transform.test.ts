@@ -108,7 +108,7 @@ describe("labelAtoms", () => {
     ].join("\n");
     const output = transform(code);
     expect(output).toContain(
-      '__effectAtomSvelteLabel(Atom.make(initial), "valueAtom", "/src/lib/atoms.ts:2:9")'
+      '__effectAtomSvelteLabel(Atom.make(initial), "valueAtom", "/src/lib/atoms.ts:2:9", {"local":true})'
     );
     expect(output).toContain("const other = helper();");
   });
@@ -118,7 +118,7 @@ describe("labelAtoms", () => {
       "const a = Atom.make((get) => { const b = Atom.make(1); return get(b); });"
     );
     expect(output).toBe(
-      `${header}const a = __effectAtomSvelteLabel(Atom.make((get) => { const b = __effectAtomSvelteLabel(Atom.make(1), "b", "/src/lib/atoms.ts:1:38"); return get(b); }), "a", "/src/lib/atoms.ts:1:7");`
+      `${header}const a = __effectAtomSvelteLabel(Atom.make((get) => { const b = __effectAtomSvelteLabel(Atom.make(1), "b", "/src/lib/atoms.ts:1:38", {"local":true}); return get(b); }), "a", "/src/lib/atoms.ts:1:7");`
     );
   });
 
@@ -210,6 +210,27 @@ describe("labelAtoms", () => {
     expect(componentName("/a/create-and-read.svelte")).toBe("CreateAndRead");
     expect(componentName("/a/+page.svelte")).toBe("Page");
     expect(componentName("/a/HeroGraph.svelte")).toBe("HeroGraph");
+  });
+
+  test("wraps each call to a function named like an atom factory, wherever it is", () => {
+    const code = [
+      "const pick = (key) => mapDraftAtom(key);",
+      "use(todoAtom(1), makeSessionAtom(user));",
+      "useAtom(x); isAtom(x); Atom(x); store.todoAtom(1); atomic(1);",
+    ].join("\n");
+    expect(transform(code)).toBe(
+      [
+        'import { call as __effectAtomSvelteCall } from "virtual:effect-atom-svelte-devtools/label";const pick = (key) => __effectAtomSvelteCall(mapDraftAtom, "mapDraftAtom", "/src/lib/atoms.ts:1:23")(key);',
+        'use(__effectAtomSvelteCall(todoAtom, "todoAtom", "/src/lib/atoms.ts:2:5")(1), __effectAtomSvelteCall(makeSessionAtom, "makeSessionAtom", "/src/lib/atoms.ts:2:18")(user));',
+        "useAtom(x); isAtom(x); Atom(x); store.todoAtom(1); atomic(1);",
+      ].join("\n")
+    );
+  });
+
+  test("wraps a factory's call inside a declaration that labels it", () => {
+    expect(transform("const draft = mapDraftAtom(key);")).toBe(
+      'import { label as __effectAtomSvelteLabel, call as __effectAtomSvelteCall } from "virtual:effect-atom-svelte-devtools/label";const draft = __effectAtomSvelteLabel(__effectAtomSvelteCall(mapDraftAtom, "mapDraftAtom", "/src/lib/atoms.ts:1:15")(key), "draft", "/src/lib/atoms.ts:1:7");'
+    );
   });
 
   test("addresses a file outside the root by its full path", () => {

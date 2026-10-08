@@ -18,6 +18,7 @@ export const labelModule = "virtual:effect-atom-svelte-devtools/label";
 
 const labelBinding = "__effectAtomSvelteLabel";
 const componentBinding = "__effectAtomSvelteComponent";
+const callBinding = "__effectAtomSvelteCall";
 
 /** A component's name from its file, as Svelte names it: `counter-list.svelte` is `CounterList`. */
 export const componentName = (file: string): string =>
@@ -48,6 +49,15 @@ interface Site {
   readonly family: boolean;
   /** Whether a hot reload carries its value over to the atom that replaces it. */
   readonly keep: boolean;
+  /** Declared inside a function: a factory's call, named after its arguments, wins over it. */
+  readonly local: boolean;
+}
+
+/** A call to an atom factory, such as `todoAtom(id)`: its callee is wrapped to name the result. */
+interface FactoryCall {
+  readonly calleeStart: number;
+  readonly calleeEnd: number;
+  readonly name: string;
 }
 
 // Type annotations around the call, as in `Atom.make(0) as Atom.Writable<number>`, are looked
@@ -188,6 +198,7 @@ const sites = (
       end: base + node.end,
       family: isFamily(node),
       keep: once && topLevel && isState(node),
+      local: !topLevel,
       name,
       start: base + node.start,
     });
@@ -261,6 +272,31 @@ const sites = (
   return found;
 };
 
+// A factory is named for what it makes: `todoAtom`, `makeSessionAtom`. `Atom` itself, hooks
+// (`useAtom`) and checks (`isAtom`) never return a new atom.
+const factoryName = /^(?!use[A-Z]|is[A-Z])[\w$]+Atom$/u;
+
+/**
+ * The calls to atom factories in a program, offset by `base`: calls to a function whose name ends
+ * in `Atom`. At run time each result that is an atom is named after the call and its arguments,
+ * as `mapDraftAtom({"doc":1})`, so a cache that makes a new atom for a key it has seen shows it.
+ */
+const factoryCalls = (program: Node, base: number): FactoryCall[] =>
+  descendants(program).flatMap((node) => {
+    const callee =
+      node.type === "CallExpression" ? (node.callee as Node) : undefined;
+    return callee?.type === "Identifier" &&
+      factoryName.test(String(callee.name))
+      ? [
+          {
+            calleeEnd: base + callee.end,
+            calleeStart: base + callee.start,
+            name: String(callee.name),
+          },
+        ]
+      : [];
+  });
+
 const parse = (code: string): Node =>
   parser.parse(code, {
     ecmaVersion: "latest",
@@ -327,6 +363,39 @@ const address = (file: string, root: string): string => {
   return (inside ? `/${relative}` : file).replaceAll("\\", "/");
 };
 
+/** Wraps each labelled declaration's call in `label(...)`, and each factory's callee in `call(...)`. */
+const wrap = (
+  output: MagicString,
+  code: string,
+  found: readonly Site[],
+  calls: readonly FactoryCall[],
+  where: (offset: number) => string
+): void => {
+  for (const site of found) {
+    const options = {
+      ...(site.family ? { family: true } : {}),
+      // The declaration's source, hashed: an edit to it means the old value no longer applies.
+      ...(site.keep ? { keep: hash(code.slice(site.start, site.end)) } : {}),
+      ...(site.local ? { local: true } : {}),
+    };
+    const args = [
+      JSON.stringify(site.name),
+      JSON.stringify(where(site.at)),
+      ...(Object.keys(options).length > 0 ? [JSON.stringify(options)] : []),
+    ];
+    output.appendLeft(site.start, `${labelBinding}(`);
+    output.appendRight(site.end, `, ${args.join(", ")})`);
+  }
+  // After the sites: a declaration made by a factory's call wraps the call, callee and all.
+  for (const factory of calls) {
+    output.appendLeft(factory.calleeStart, `${callBinding}(`);
+    output.appendRight(
+      factory.calleeEnd,
+      `, ${JSON.stringify(factory.name)}, ${JSON.stringify(where(factory.calleeStart))})`
+    );
+  }
+};
+
 /**
  * Labels the atoms declared in a module or a component's scripts, and names the component at the
  * top of its instance script, for the inspector scopes its hooks report to. Returns the new code and
@@ -343,42 +412,56 @@ export const labelAtoms = (
   const svelte = file.endsWith(".svelte");
   const defaultName = path.basename(file).replace(/\..*$/u, "");
   let found: Site[] = [];
+  let calls: FactoryCall[] = [];
   // Where the import of `label` goes.
   let importAt = 0;
   // Where a component's instance script starts, to name the component there.
   let instanceAt: number | undefined;
   try {
     if (svelte) {
-      const blocks = scripts(code).map((block) => ({
-        ...block,
-        sites: sites(parse(block.code), block.start, defaultName, block.module),
-      }));
+      const blocks = scripts(code).map((block) => {
+        const program = parse(block.code);
+        return {
+          ...block,
+          calls: factoryCalls(program, block.start),
+          sites: sites(program, block.start, defaultName, block.module),
+        };
+      });
       found = blocks.flatMap((block) => block.sites);
-      // The module script if it declares atoms, as the instance script can see its imports but
-      // not the other way round.
+      calls = blocks.flatMap((block) => block.calls);
+      // The module script if it uses the label module, as the instance script can see its imports
+      // but not the other way round.
+      const uses = (block: (typeof blocks)[number]) =>
+        block.sites.length > 0 || block.calls.length > 0;
       const host =
-        blocks.find((block) => block.module && block.sites.length > 0) ??
-        blocks.find((block) => block.sites.length > 0);
+        blocks.find((block) => block.module && uses(block)) ??
+        blocks.find(uses);
       importAt = host?.start ?? 0;
       instanceAt = blocks.find((block) => !block.module)?.start;
     } else {
-      found = sites(parse(code), 0, defaultName, true);
+      const program = parse(code);
+      found = sites(program, 0, defaultName, true);
+      calls = factoryCalls(program, 0);
       importAt = code.startsWith("#!") ? code.indexOf("\n") + 1 : 0;
     }
   } catch {
     return undefined;
   }
-  if (found.length === 0 && instanceAt === undefined) {
+  if (found.length === 0 && calls.length === 0 && instanceAt === undefined) {
     return undefined;
   }
 
   const at = locate(code);
   const place = address(file, root);
   const output = new MagicString(code);
-  if (found.length > 0) {
+  const specifiers = [
+    ...(found.length > 0 ? [`label as ${labelBinding}`] : []),
+    ...(calls.length > 0 ? [`call as ${callBinding}`] : []),
+  ];
+  if (specifiers.length > 0) {
     output.appendLeft(
       importAt,
-      `import { label as ${labelBinding} } from ${JSON.stringify(labelModule)};`
+      `import { ${specifiers.join(", ")} } from ${JSON.stringify(labelModule)};`
     );
   }
   if (instanceAt !== undefined) {
@@ -388,20 +471,7 @@ export const labelAtoms = (
       `import { component as ${componentBinding} } from ${JSON.stringify(labelModule)};${componentBinding}(${JSON.stringify(componentName(file))}, ${JSON.stringify(place)});`
     );
   }
-  for (const site of found) {
-    const options = {
-      ...(site.family ? { family: true } : {}),
-      // The declaration's source, hashed: an edit to it means the old value no longer applies.
-      ...(site.keep ? { keep: hash(code.slice(site.start, site.end)) } : {}),
-    };
-    const args = [
-      JSON.stringify(site.name),
-      JSON.stringify(`${place}:${at(site.at)}`),
-      ...(site.family || site.keep ? [JSON.stringify(options)] : []),
-    ];
-    output.appendLeft(site.start, `${labelBinding}(`);
-    output.appendRight(site.end, `, ${args.join(", ")})`);
-  }
+  wrap(output, code, found, calls, (offset) => `${place}:${at(offset)}`);
   return {
     code: output.toString(),
     map: output.generateMap({

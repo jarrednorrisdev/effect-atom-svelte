@@ -22,23 +22,50 @@ interface Labelled {
 }
 
 /**
+ * Where a label of the plugin's came from: a top-level `declaration`, a `local` one inside a
+ * function, a `family`'s member, or a `call` to an atom factory.
+ */
+type Kind = "declaration" | "local" | "family" | "call";
+
+// The kind of each label this module set, to tell which a later one may replace.
+const kinds = new WeakMap<object, Kind>();
+
+// The labels of its own each kind may replace: the more specific name wins. A factory's call,
+// which carries the key, wins over a name made inside the factory; a family's member over both.
+const replaces: Readonly<Record<Kind, readonly Kind[]>> = {
+  call: ["local"],
+  declaration: ["local"],
+  family: ["local", "call"],
+  local: [],
+};
+
+/**
  * Names an atom in place, keeping its identity: `Atom.withLabel` returns a copy, which would leave
  * any atom that captured the original pointing at an unlabelled one.
  *
  * A label the code gave itself wins. The one `Atom.serializable` falls back to, its key (such as
- * `AtomRpc:listTodos:home-todos` for an RPC query), gives way to the variable's name.
+ * `AtomRpc:listTodos:home-todos` for an RPC query), gives way to the variable's name. Of this
+ * module's own labels, a more specific kind replaces a less specific one (`replaces`).
  */
-const setLabel = (atom: Atom.Atom<unknown>, text: string, at: string): void => {
+const setLabel = (
+  atom: Atom.Atom<unknown>,
+  text: string,
+  at: string,
+  kind: Kind
+): void => {
   const current = atom.label;
   const key = Atom.isSerializable(atom)
     ? atom[Atom.SerializableTypeId].key
     : undefined;
-  if (current !== undefined && current[0] !== key) {
+  const previous = kinds.get(atom);
+  const free = current === undefined || current[0] === key;
+  if (!free && !(previous !== undefined && replaces[kind].includes(previous))) {
     return;
   }
   try {
     // The second element is a stack frame, as Effect's own labels hold.
     (atom as Labelled).label = [text, `at ${text} (${at})`];
+    kinds.set(atom, kind);
   } catch {
     // A frozen atom keeps the label it has.
   }
@@ -109,6 +136,8 @@ interface LabelOptions {
   readonly family?: boolean;
   /** A state atom a module declares, and a hash of its declaration: keep its value across reloads. */
   readonly keep?: string;
+  /** Declared inside a function, so a factory's call names it better. */
+  readonly local?: boolean;
 }
 
 /**
@@ -123,7 +152,7 @@ export const label = <T>(
   options: LabelOptions = {}
 ): T => {
   if (Atom.isAtom(value)) {
-    setLabel(value, text, at);
+    setLabel(value, text, at, options.local ? "local" : "declaration");
     if (options.keep !== undefined) {
       keepAcrossReloads(
         value,
@@ -136,10 +165,35 @@ export const label = <T>(
     return ((arg: unknown) => {
       const member = members(arg);
       if (Atom.isAtom(member)) {
-        setLabel(member, `${text}(${formatArg(arg)})`, at);
+        setLabel(member, `${text}(${formatArg(arg)})`, at, "family");
       }
       return member;
     }) as T;
   }
   return value;
+};
+
+/**
+ * Wraps a call to an atom factory, `f` (`mapDraftAtom`), so its result, if it is an atom, is named
+ * after the call and its arguments: `mapDraftAtom({"doc":1})`. Every call's result is named, so
+ * two atoms made for equal keys get the same name; an atom returned again keeps the name it has.
+ */
+export const call = <F>(f: F, name: string, at: string): F => {
+  if (typeof f !== "function") {
+    // Calling it fails as the code would have without the plugin.
+    return f;
+  }
+  const factory = f as (...args: unknown[]) => unknown;
+  return ((...args: unknown[]) => {
+    const result = factory(...args);
+    if (Atom.isAtom(result)) {
+      setLabel(
+        result,
+        `${name}(${args.map(formatArg).join(", ")})`,
+        at,
+        "call"
+      );
+    }
+    return result;
+  }) as F;
 };
