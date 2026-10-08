@@ -3,7 +3,7 @@
 // Each reason's top line, drawn as the graph of its example: the Effect, the atom, and what reads
 // it. x is a fraction of the line (0.4 is where the reason's two columns meet), y is pixels below
 // it; labels sit above the line, in the space between sections.
-import type { GraphEdge, GraphNode } from "#lib/docs/kit/frame-graph.svelte";
+import type { GraphEdge, GraphNode } from "effect-atom-svelte-devtools/graph";
 
 interface SectionGraph {
   readonly nodes: readonly GraphNode[];

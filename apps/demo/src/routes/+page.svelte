@@ -31,7 +31,7 @@
   import HeroDrawing from "#lib/landing/prototype/hero-drawing.svelte";
   import HeroFrame from "#lib/landing/prototype/hero-frame.svelte";
   import HeroGraph from "#lib/landing/prototype/hero-graph.svelte";
-  import FrameGraph from "#lib/docs/kit/frame-graph.svelte";
+  import { FrameGraph } from "effect-atom-svelte-devtools/graph";
   import PrototypeSwitcher from "#lib/landing/prototype/prototype-switcher.svelte";
   import { sectionGraphs } from "#lib/landing/prototype/section-graphs.ts";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import

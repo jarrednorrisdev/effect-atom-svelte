@@ -24,6 +24,11 @@
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./graph": {
+      "types": "./dist/graph/index.d.ts",
+      "svelte": "./dist/graph/index.js",
+      "default": "./dist/graph/index.js"
+    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "default": "./dist/vite.js"

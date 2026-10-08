@@ -12,8 +12,8 @@
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import type { Snippet } from "svelte";
 
-  import FrameGraph from "#lib/docs/kit/frame-graph.svelte";
-  import type { GraphEdge, GraphNode } from "#lib/docs/kit/frame-graph.svelte";
+  import { FrameGraph } from "effect-atom-svelte-devtools/graph";
+  import type { GraphEdge, GraphNode } from "effect-atom-svelte-devtools/graph";
 
   const {
     copy,

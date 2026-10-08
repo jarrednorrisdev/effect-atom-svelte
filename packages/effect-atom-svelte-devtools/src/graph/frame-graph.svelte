@@ -1,7 +1,10 @@
 <!--
   @component
-  A dependency graph drawn on a hairline frame's own lines: the landing page's hero and reasons, and
-  the live graph at the top of each docs example (example-graph.svelte). Place it at the top-left of the frame
+  A dependency graph drawn on a hairline frame's own lines: the docs site's landing page and example
+  graphs, and the devtools panel's graph (both through atom-graph.svelte when live).
+
+  It reads the page's design tokens where it has them (--foreground, --background, --brand and
+  the rest, as in the docs site's app.css), and falls back to a neutral light palette where not. Place it at the top-left of the frame
   (or of one ruled line); x is a fraction of its width, y is pixels down from its top. Lit edges are
   drawn in the accent, in order, the first time the graph scrolls into view.
 
@@ -17,25 +20,25 @@
     readonly x: number;
     readonly y: number;
     readonly kind: Kind;
-    readonly label?: string;
-    readonly note?: string;
+    readonly label?: string | undefined;
+    readonly note?: string | undefined;
     /** Which side of the node its label sits: north-east (the default), south-east, and so on. */
-    readonly side?: "ne" | "se" | "nw" | "sw";
+    readonly side?: "ne" | "se" | "nw" | "sw" | undefined;
     /** The step at which it appears, with the edge that reaches it. */
-    readonly step?: number;
+    readonly step?: number | undefined;
     /** Names the node, for a live graph to find it again (`data-node`) and pulse it. */
-    readonly id?: string;
+    readonly id?: string | undefined;
   }
 
   export interface GraphEdge {
     readonly points: readonly (readonly [x: number, y: number])[];
-    readonly lit?: boolean;
-    readonly dashed?: boolean;
-    readonly step?: number;
+    readonly lit?: boolean | undefined;
+    readonly dashed?: boolean | undefined;
+    readonly step?: number | undefined;
     /** The node it leads to (`data-to`), so a live graph can light the edges into a node. */
-    readonly to?: string;
+    readonly to?: string | undefined;
     /** Keeps an edge's element across redraws of a live graph. */
-    readonly id?: string;
+    readonly id?: string | undefined;
   }
 </script>
 
@@ -46,10 +49,13 @@
    */
   const {
     edges,
+    interactive = false,
     nodes,
     origin = { left: 0, right: -1, top: 0 },
   }: {
     edges: readonly GraphEdge[];
+    /** Whether atoms take clicks (atom-graph.svelte selects them); the rest stays inert. */
+    interactive?: boolean;
     nodes: readonly GraphNode[];
     origin?: { readonly left: number; readonly right: number; readonly top: number };
   } = $props();
@@ -107,6 +113,7 @@
   bind:contentRect={rect}
   class="graph"
   class:drawn
+  class:interactive
 >
   {#if width}
     {#each edges as edge, index (edge.id ?? index)}
@@ -161,7 +168,7 @@
   /* A run of an edge: a 1px border, like the frame's own lines. */
   /* Solid, mixed with what's behind the graph: a translucent line brightens where two runs overlap. */
   .edge {
-    --edge: color-mix(in oklab, var(--foreground) 30%, var(--graph-background, var(--background)));
+    --edge: color-mix(in oklab, var(--foreground, #18181b) 30%, var(--graph-background, var(--background, #fff)));
     position: absolute;
   }
   .edge.horizontal {
@@ -184,9 +191,17 @@
     border-style: dashed;
   }
   .edge.lit {
-    --edge: var(--brand);
+    --edge: var(--brand, #d97706);
   }
   /* A node's anchor is the 1px square of line it sits on; its mark is centred on that square. */
+  .interactive .node.atom,
+  .interactive .node.gone {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .node:global(.selected) i {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #d97706) 40%, transparent);
+  }
   /* Above every edge, so labels and marks are never crossed. */
   .node {
     height: 1px;
@@ -200,8 +215,8 @@
      pixels, and a mark that didn't share the line's fraction would blur unevenly and look off). */
   .node i {
     --size: 9px;
-    background: var(--background);
-    border: 1px solid var(--subtle-foreground);
+    background: var(--background, #fff);
+    border: 1px solid var(--subtle-foreground, #a1a1aa);
     height: var(--size);
     left: calc((1px - var(--size)) / 2);
     position: absolute;
@@ -211,37 +226,37 @@
   /* A square turned on its corner: 7px across its sides is about 10px across its corners. */
   .node.effect i {
     --size: 7px;
-    background: var(--foreground);
-    border-color: var(--foreground);
+    background: var(--foreground, #18181b);
+    border-color: var(--foreground, #18181b);
     rotate: 45deg;
   }
   .node.atom i {
-    border-color: var(--brand);
+    border-color: var(--brand, #d97706);
     border-radius: 50%;
     border-width: 2px;
-    box-shadow: 0 0 0 3px var(--background);
+    box-shadow: 0 0 0 3px var(--background, #fff);
   }
   .node.component i {
-    border-color: var(--foreground);
+    border-color: var(--foreground, #18181b);
     border-radius: 1.5px;
   }
   .node.junction i {
     --size: 5px;
-    background: var(--brand);
+    background: var(--brand, #d97706);
     border: 0;
     border-radius: 50%;
   }
   .node.gone i {
     background:
-      linear-gradient(45deg, transparent 45%, var(--brand-text) 45% 55%, transparent 55%),
-      linear-gradient(-45deg, transparent 45%, var(--brand-text) 45% 55%, transparent 55%);
+      linear-gradient(45deg, transparent 45%, var(--brand-text, #b45309) 45% 55%, transparent 55%),
+      linear-gradient(-45deg, transparent 45%, var(--brand-text, #b45309) 45% 55%, transparent 55%);
     border: 0;
   }
   /* Backed with what's behind the graph (--graph-background), so a label hides the lines under it. */
   .label {
-    background: var(--graph-background, var(--background));
-    color: var(--foreground);
-    font-family: var(--font-mono);
+    background: var(--graph-background, var(--background, #fff));
+    color: var(--foreground, #18181b);
+    font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
     font-size: 0.7rem;
     line-height: 1.3;
     padding: 0 0.3rem;
@@ -249,7 +264,7 @@
     white-space: nowrap;
   }
   .label em {
-    color: var(--muted-foreground);
+    color: var(--muted-foreground, #52525b);
     display: block;
     font-family: "Libron", ui-serif, Georgia, serif;
     font-size: 0.72rem;
@@ -305,15 +320,15 @@
   /* A live graph sets data-tone on a node and its edges as an update arrives (example-graph). */
   .node,
   .edge {
-    --pulse: var(--brand);
+    --pulse: var(--brand, #d97706);
   }
   .node:global([data-tone="success"]),
   .edge:global([data-tone="success"]) {
-    --pulse: var(--tone-success);
+    --pulse: var(--tone-success, #16a34a);
   }
   .node:global([data-tone="failure"]),
   .edge:global([data-tone="failure"]) {
-    --pulse: var(--tone-failure);
+    --pulse: var(--tone-failure, #dc2626);
   }
   .node:global(.pulse) i {
     animation: mark 0.9s ease-out;
@@ -363,9 +378,9 @@
     0%,
     60% {
       background:
-        linear-gradient(45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%),
-        linear-gradient(-45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%);
-      border-color: var(--brand-text);
+        linear-gradient(45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%),
+        linear-gradient(-45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%);
+      border-color: var(--brand-text, #b45309);
       scale: 1.4;
     }
   }
