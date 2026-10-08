@@ -6,9 +6,9 @@
 
 /*
  * Libron (github.com/nicoverbruggen/libron, SIL Open Font License; see src/lib/fonts/libron) is
- * the optional text font: the header's font switch sets `<html data-font="libron">` to use it
- * instead of Inter; see src/lib/docs/font-preference.ts. Libron has only regular and bold, so
- * medium and semibold text uses the nearer of the two.
+ * the site's serif, `--font-serif` (Tailwind's `font-serif`), for the text picked out for it:
+ * headings, ledes and the graphs' italic notes. Inter is the text font, JetBrains Mono the labels'
+ * and code's. Libron has only regular and bold, so semibold text uses bold.
  */
 @font-face {
   font-display: swap;
@@ -162,8 +162,8 @@
 }
 
 @theme inline {
-  /* The text font, Libron or Inter; html sets --font-text below. */
-  --font-sans: var(--font-text);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Libron", ui-serif, Georgia, serif;
   --font-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -219,11 +219,7 @@
     @apply bg-background text-foreground antialiased;
   }
   html {
-    --font-text: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
     @apply font-sans;
-  }
-  html[data-font="libron"] {
-    --font-text: "Libron", ui-serif, Georgia, serif;
   }
 }
 
@@ -250,6 +246,15 @@
   & :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
     font-weight: 600;
     letter-spacing: -0.025em;
+  }
+  /* Headings and the lead in the serif, Libron, in its bold; the text stays in Inter. */
+  & :where(h1, h2, h3):not(:where([class~="not-prose"] *)) {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  & :where(.lead):not(:where([class~="not-prose"] *)) {
+    font-family: var(--font-serif);
   }
   & :where(a):not(:where([class~="not-prose"] *)) {
     font-weight: 500;
@@ -465,8 +470,6 @@ html {
  */
 :root {
   --cross: color-mix(in oklab, var(--foreground) 55%, transparent);
-  /* The italic notes of the graphs and the devtools panel, which read --font-serif. */
-  --font-serif: "Libron", ui-serif, Georgia, serif;
   /* A docs page's columns, beside the sidebar: the site header draws their crosses too, and its
      search sits above the table of contents, as wide as it. */
   --docs-column-width: 54rem;

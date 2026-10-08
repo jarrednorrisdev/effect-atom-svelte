@@ -80,7 +80,7 @@
 
 {#snippet heading(number: string, title: string, id: string)}
   <p class="font-mono text-sm text-brand-text">{number}</p>
-  <h3 class="mt-2 text-2xl font-semibold tracking-tight text-balance" {id}>{title}</h3>
+  <h3 class="mt-2 font-serif text-2xl font-bold text-balance" {id}>{title}</h3>
 {/snippet}
 
 {#snippet heroCopy()}
@@ -91,11 +91,11 @@
         <span class="size-1.5 rounded-full bg-brand"></span>
         Effect Atom for Svelte 5 · community project at 0.x
       </p>
-      <h1 style:--rise="1" class="rise text-[2.25rem] leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
+      <h1 style:--rise="1" class="rise font-serif text-[2.5rem] leading-tight font-bold sm:text-[3rem]">
         <span class="text-balance">Write it in Effect.</span><br />
         <span class="text-balance text-brand-text">Read it in any component.</span>
       </h1>
-      <p style:--rise="2" class="rise mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+      <p style:--rise="2" class="rise mt-6 max-w-xl font-serif text-xl text-pretty text-muted-foreground">
         Share the results of your Effect code across components: typed, cleaned up and refreshed,
         with no context or cache to write. Plus a typed client for your Effect backend.
       </p>
@@ -120,8 +120,8 @@
 
 <div class="rails mx-auto w-full max-w-7xl px-6 lg:px-10">
   <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
-    <h2 class="text-3xl font-semibold tracking-tight" id="where-atoms-fit">Where atoms fit</h2>
-    <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
+    <h2 class="font-serif text-3xl font-bold" id="where-atoms-fit">Where atoms fit</h2>
+    <p class="mt-4 max-w-2xl font-serif text-xl text-muted-foreground">
       Runes handle what belongs to one component. When your logic is written in Effect, atoms hold
       the rest: shared state, backend data, and everything derived from them. Each example below
       runs on this page, and the code under it is the file that runs.
@@ -272,7 +272,7 @@
     class="ruled-cells mt-20 grid md:grid-cols-2"
   >
     <div class="min-w-0">
-      <h2 class="text-2xl font-semibold tracking-tight" id="get-started">Get started</h2>
+      <h2 class="font-serif text-2xl font-bold" id="get-started">Get started</h2>
       <p class="mt-3 text-muted-foreground">
         Install the package, turn on Svelte's async mode and put one provider in your root layout.
         If you have used <code class="font-mono text-[0.9em]">@effect/atom-react</code>, you already
@@ -287,7 +287,7 @@
       </div>
     </div>
     <div class="min-w-0">
-      <h2 class="text-2xl font-semibold tracking-tight" id="not-needed">
+      <h2 class="font-serif text-2xl font-bold" id="not-needed">
         When you don't need atoms
       </h2>
       <ul class="mt-3 grid gap-2 text-muted-foreground">

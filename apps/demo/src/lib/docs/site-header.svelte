@@ -3,7 +3,6 @@
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
-  import FontToggle from "./font-toggle.svelte";
   import GitHubButton from "./github-button.svelte";
   import ResetDemoApi from "./reset-demo-api.svelte";
   import SearchButton from "./search-button.svelte";
@@ -60,7 +59,6 @@
       {#if demoApiPages.has(page.url.pathname)}
         <div class="cell control"><ResetDemoApi /></div>
       {/if}
-      <div class="cell control"><FontToggle /></div>
       <div class="cell control"><SoundToggle /></div>
       <div class="cell control"><ThemeToggle /></div>
     </div>
