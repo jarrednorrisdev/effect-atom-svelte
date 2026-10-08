@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
@@ -6,6 +7,7 @@
   import GitHubButton from "./github-button.svelte";
   import ResetDemoApi from "./reset-demo-api.svelte";
   import SearchButton from "./search-button.svelte";
+  import SiteLogo from "./site-logo.svelte";
   import SoundToggle from "./sound-toggle.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
 
@@ -33,28 +35,24 @@
 -->
 <header class="sticky top-0 z-20 h-14 shrink-0 border-b bg-background" class:landing>
   <div class="cells">
-    <div class="cell brand">
-      <Sidebar.Trigger class="md:hidden" />
-      <a class="min-w-0 truncate font-semibold tracking-tight whitespace-nowrap text-foreground" href="/"
-        >effect-atom-svelte</a
-      >
-      {#if landing}
-        <span
-          class="hidden shrink-0 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap text-muted-foreground xl:inline"
-        >
-          Community project
-        </span>
-      {/if}
-    </div>
-    <!-- A docs page's brand cell is only the sidebar's width, so the badge has a cell of its own. -->
-    {#if !landing}
+    <!-- The name, then a cell of its own saying it's a community project. On the landing page the
+         two share the frame's left half. -->
+    <div class="start">
+      <div class="cell brand">
+        <Sidebar.Trigger class="md:hidden" />
+        <SiteLogo />
+      </div>
       <div
         class="cell note font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase"
       >
         Community project
       </div>
-    {/if}
+    </div>
     <div class="tools">
+      <!-- The landing page's way into the docs, beside the search. -->
+      {#if landing}
+        <a class="cell docs-link" href="/introduction">Docs <ArrowRightIcon aria-hidden="true" class="size-3.5" /></a>
+      {/if}
       <div class="cell search">
         <SearchButton />
       </div>
@@ -115,6 +113,23 @@
     .landing .tools {
       border-left: 1px solid var(--line);
     }
+  }
+  /* On a docs page the name's cell and the note's are cells of the header like the rest. */
+  .start {
+    display: contents;
+  }
+  /* On the landing page they share the frame's left half: the name takes its width, the note the
+     rest. */
+  .landing .start {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .landing .brand {
+    flex: 0 1 auto;
+  }
+  .landing .note {
+    border-left: 1px solid var(--line);
   }
   .cell {
     align-items: center;
@@ -209,6 +224,37 @@
       width: 3.5rem;
     }
   }
+  /* A cell like the controls, labelled like the header's other mono labels, in the brand's color. */
+  .docs-link {
+    border-left: 1px solid var(--line);
+    color: var(--brand-text);
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    gap: 0.4rem;
+    letter-spacing: 0.08em;
+    padding-inline: 1.25rem;
+    text-transform: uppercase;
+    transition: background-color 0.15s;
+  }
+  .docs-link:hover {
+    background: color-mix(in oklab, var(--brand) 10%, transparent);
+  }
+  .docs-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+  /* In the landing page's right half, it starts at the frame's middle line, which draws its left
+     edge. */
+  @media (width >= 64rem) {
+    .landing .docs-link {
+      border-left: 0;
+    }
+    .landing .docs-link + .search {
+      border-left: 1px solid var(--line);
+    }
+  }
   .control {
     border-left: 1px solid var(--line);
     flex: none;
@@ -242,6 +288,9 @@
     /* An icon button, but a full-size target. */
     .search {
       padding-inline: 0.25rem;
+    }
+    .docs-link {
+      padding-inline: 0.75rem;
     }
   }
   /* A cross on the 1px square where the sidebar's edge meets the header's bottom line, its arms
