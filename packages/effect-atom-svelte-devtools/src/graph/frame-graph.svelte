@@ -271,7 +271,7 @@
   .label em {
     color: var(--muted-foreground, #52525b);
     display: block;
-    font-family: "Libron", ui-serif, Georgia, serif;
+    font-family: var(--font-serif, ui-serif, Georgia, serif);
     font-size: 0.72rem;
     font-style: italic;
   }

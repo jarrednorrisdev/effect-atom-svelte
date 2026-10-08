@@ -465,6 +465,8 @@ html {
  */
 :root {
   --cross: color-mix(in oklab, var(--foreground) 55%, transparent);
+  /* The italic notes of the graphs and the devtools panel, which read --font-serif. */
+  --font-serif: "Libron", ui-serif, Georgia, serif;
   /* A docs page's columns, beside the sidebar: the site header draws their crosses too, and its
      search sits above the table of contents, as wide as it. */
   --docs-column-width: 54rem;

@@ -123,6 +123,19 @@ Every computation, update, interruption and finalizer, newest first. A computati
 
 The panel keeps its settings in `localStorage`, with its height and the view you left it on.
 
+### Colours and fonts
+
+The panel takes its colours and fonts from your page's CSS variables, the ones a Tailwind or shadcn app already has: `--background`, `--foreground`, `--muted-foreground`, `--border` and `--brand` for its colours, `--font-mono` for its labels and `--font-serif` for its italic notes. Without them it's zinc and amber, in a monospace and the system serif. To give the panel its own, set them on `[data-atom-devtools]`:
+
+```css
+[data-atom-devtools] {
+  --brand: oklch(0.6 0.2 300);
+  --font-serif: "Iowan Old Style", Georgia, serif;
+}
+```
+
+The [README](https://github.com/jarrednorrisdev/effect-atom-svelte/tree/main/packages/effect-atom-svelte-devtools#theming) lists every variable it reads.
+
 ## In production
 
 The panel renders nothing in a production build. To show it there on purpose, say for a demo whose visitors should see its atoms, render it without the `DEV` check and set `production`:

@@ -359,7 +359,8 @@
 <svelte:window bind:innerHeight bind:innerWidth onkeydown={onShortcut} />
 
 {#if enabled && mounted && model}
-  <div class="devtools" class:dark>
+  <!-- data-atom-devtools: where an app sets the panel's own colours and fonts (README, Theming). -->
+  <div class="devtools" class:dark data-atom-devtools>
     {#if open}
       <!-- A region of the page, not a modal: the page stays usable with it open. Escape from anything
            in it closes it. -->
@@ -501,8 +502,7 @@
     --success: var(--tone-success, #16a34a);
     --alert: var(--tone-failure, #dc2626);
     --mono: var(--font-mono, ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace);
-    --serif: "Libron", ui-serif, Georgia, "Times New Roman", serif;
-    --sans: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+    --serif: var(--font-serif, ui-serif, Georgia, "Times New Roman", serif);
     --radius: 6px;
     color: var(--ink);
     font-family: var(--mono);
@@ -598,6 +598,7 @@
     --tone-success: var(--success);
     --tone-failure: var(--alert);
     --font-mono: var(--mono);
+    --font-serif: var(--serif);
     background: var(--paper);
     border-top: 1px solid var(--line);
     bottom: 0;

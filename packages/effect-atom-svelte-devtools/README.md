@@ -34,7 +34,7 @@ The panel renders nothing in a production build, so leaving out the `DEV` check 
 
 In production it shows the registry of the nearest `RegistryProvider`, or the one you pass, with no picker: only development keeps the list of every provider's registry. Declarations aren't links to your editor, which only the dev server can open, and atoms have names only if `atomLabels({ builds: true })` labels the build.
 
-Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset; with the keyboard, focus it and use the arrow keys), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it while focus is inside it. It's drawn in hairlines with mono labels, in the page's own colours where your app has shadcn-style tokens (`--background`, `--foreground`, `--border`, `--brand`), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
+Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset; with the keyboard, focus it and use the arrow keys), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it while focus is inside it. It's drawn in hairlines with mono labels, in your page's colours and fonts where it has them (see [Theming](#theming)), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
 
 Alt+Shift+A opens and closes it from anywhere on the page. Set the app's own with the `shortcut` prop (`<AtomDevtools shortcut="ctrl+shift+f2" />`); whoever uses the panel can change it in its settings.
 
@@ -47,6 +47,31 @@ It has three views, and settings:
 
 It follows the registry of the nearest `RegistryProvider`, or a `registry` you pass it. With more than one provider mounted, a picker switches between them. It reads what the registry does through `effect-atom-svelte/inspector`, which starts watching when the panel mounts and costs nothing before.
 
+### Theming
+
+The panel takes its colours and fonts from CSS variables. It reads the ones a Tailwind or shadcn app already has, so it often matches your app with no setup:
+
+| Variable | What it colours or sets |
+| --- | --- |
+| `--background`, `--foreground` | The panel, and its text |
+| `--muted-foreground`, `--subtle-foreground` | Quieter text: labels, notes, timestamps |
+| `--border` | Its hairlines |
+| `--brand`, `--brand-text` | The accent: atoms' rings, the current tab, numbers |
+| `--tone-success`, `--tone-failure` | A success's green ring, a failure's red one |
+| `--font-mono` | Labels, names and values |
+| `--font-serif` | The italic notes |
+
+Any it doesn't find fall back to zinc and amber, a monospace and the system serif. To give the panel colours or fonts of its own, different from the page's, set the variables on `[data-atom-devtools]`:
+
+```css
+[data-atom-devtools] {
+  --brand: oklch(0.6 0.2 300);
+  --font-serif: "Iowan Old Style", Georgia, serif;
+}
+```
+
+`theme` picks light or dark (`auto`, the default, follows a `dark` class on `<html>`, or the system's setting). The graph module reads the same variables.
+
 ## The graph
 
 The graph the panel draws is also yours to use, from `effect-atom-svelte-devtools/graph`. It has no dependencies beyond Svelte, so unlike the panel it can go in production pages: the effect-atom-svelte docs draw each example's atoms with it, from an inspector scope.
@@ -55,7 +80,7 @@ The graph the panel draws is also yours to use, from `effect-atom-svelte-devtool
 - `<AtomGraph graph={…} />` draws a layout live. Call its `pulse(id, tone)` when an atom's value changes and `interrupt(id)` when its effect is interrupted; give it `onselect` to make atoms clickable.
 - `<FrameGraph nodes={…} edges={…} />` draws nodes and edges you place yourself, on a frame's 1px lines.
 
-It reads your page's design tokens where it has them and falls back to a neutral palette.
+It reads the same variables as the panel ([Theming](#theming)) and falls back to a neutral palette.
 
 ## Atom names
 
