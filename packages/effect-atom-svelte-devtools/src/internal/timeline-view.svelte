@@ -153,19 +153,32 @@
   .toolbar input[type="search"] {
     background: var(--paper);
     border: 1px solid var(--line);
+    border-radius: 4px;
     color: var(--ink);
     font: inherit;
-    padding: 0.2rem 0.4rem;
-    width: 9rem;
+    padding: 0.25rem 0.5rem;
+    width: 10rem;
+  }
+  .toolbar input[type="search"]:focus {
+    border-color: var(--accent);
+    outline: none;
   }
   .kind {
     align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
     color: var(--muted);
+    cursor: pointer;
     display: inline-flex;
-    gap: 0.25rem;
+    gap: 0.35rem;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.55rem 0.1rem 0.4rem;
+  }
+  .kind:has(input:checked) {
+    color: var(--ink);
   }
   .kind input {
-    accent-color: var(--ink);
+    accent-color: var(--accent);
     margin: 0;
   }
   .spacer {
@@ -174,13 +187,19 @@
   .tool {
     background: none;
     border: 1px solid var(--line);
+    border-radius: 4px;
     color: var(--ink);
     cursor: pointer;
     font: inherit;
-    padding: 0.15rem 0.5rem;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.6rem;
+  }
+  .tool:hover {
+    border-color: var(--accent);
   }
   .tool[aria-pressed="true"] {
-    background: var(--faint);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    border-color: var(--accent);
   }
   .empty {
     color: var(--muted);
@@ -210,7 +229,7 @@
     background: var(--faint);
   }
   .row.computed {
-    border-left-color: var(--ink);
+    border-left-color: var(--subtle);
   }
   .row.updated {
     border-left-color: var(--pulse);
@@ -261,6 +280,7 @@
   }
   .source {
     border: 1px solid var(--line);
+    border-radius: 4px;
     color: var(--muted);
     font-family: var(--mono);
     font-size: 0.6rem;

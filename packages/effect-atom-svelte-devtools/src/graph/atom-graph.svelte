@@ -14,8 +14,9 @@
   </script>
 
   <AtomGraph bind:this={graph} graph={{ atoms, links, readers }} />
-  <!-- later: graph.pulse(id, "success") -->
   ```
+
+  Then, as values change: `graph.pulse(id, "success")`.
 -->
 <script lang="ts">
   import FrameGraph from "./frame-graph.svelte";

@@ -1,8 +1,13 @@
 <!--
   @component
-  A floating panel that shows the atom registry live: its dependency graph, a sheet per atom and a
-  timeline of everything it does. Development only: in a production build, or on the server, it
-  renders nothing.
+  A panel docked along the bottom of the window that shows the atom registry live: its dependency
+  graph, a sheet per atom and a timeline of everything it does. Development only: in a production
+  build, or on the server, it renders nothing.
+
+  It's drawn like the effect-atom-svelte docs: ruled in hairlines, with mono labels, numbered views
+  and an amber accent, in the page's own colours where it has them (--background, --foreground,
+  --border, --brand and the rest) and the docs' zinc and amber where it doesn't. Drag its top line
+  to make it taller or shorter; the page gets room below it for as long as it's open.
 
   It follows the registry of the nearest `RegistryProvider`, or the one given as `registry`. When
   the app has several, a picker in the panel switches between them.
@@ -39,6 +44,7 @@
     readonly tab: Tab;
     readonly plumbing: boolean;
     readonly expanded: boolean;
+    readonly height: number;
   }
   const storageKey = "effect-atom-svelte-devtools";
   const load = (): Partial<Saved> => {
@@ -59,6 +65,9 @@
   let tab = $state<Tab>("graph");
   let showPlumbing = $state(false);
   let expanded = $state(false);
+  // The dock's height, in pixels, when not enlarged; dragging its top line changes it.
+  let height = $state(320);
+  let innerHeight = $state(800);
   let selected = $state<number>();
   let dark = $state(false);
   let registries = $state.raw<readonly AtomRegistry.AtomRegistry[]>([]);
@@ -71,6 +80,7 @@
     tab = saved.tab ?? "graph";
     showPlumbing = saved.plumbing ?? false;
     expanded = saved.expanded ?? false;
+    height = saved.height ?? 320;
     mounted = true;
 
     const stopWatching = watchRegistries((list) => {
@@ -117,7 +127,7 @@
     if (!mounted) {
       return;
     }
-    const saved: Saved = { expanded, open, plumbing: showPlumbing, tab };
+    const saved: Saved = { expanded, height, open, plumbing: showPlumbing, tab };
     try {
       localStorage.setItem(storageKey, JSON.stringify(saved));
     } catch {
@@ -125,25 +135,69 @@
     }
   });
 
+  // How tall the dock is drawn: enlarged, it takes most of the window; otherwise what was dragged,
+  // kept between a usable minimum and most of the window.
+  const shown = $derived(
+    expanded ? Math.round(innerHeight * 0.85) : Math.min(Math.max(height, 160), innerHeight * 0.85)
+  );
+
+  // While open, the page gets room below its end, so the dock never hides the last of it.
+  $effect(() => {
+    if (!open || !mounted) {
+      return;
+    }
+    const body = document.body;
+    const before = body.style.paddingBottom;
+    body.style.paddingBottom = `${shown}px`;
+    return () => {
+      body.style.paddingBottom = before;
+    };
+  });
+
+  /** Drags the dock's top line: the dock follows the pointer until it's let go. */
+  const resize = (event: PointerEvent) => {
+    event.preventDefault();
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+    const start = event.clientY;
+    const from = shown;
+    expanded = false;
+    const move = (next: PointerEvent) => {
+      height = Math.round(from + start - next.clientY);
+    };
+    const stop = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", stop);
+      handle.removeEventListener("pointercancel", stop);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+  };
+
+  const pad = (count: number) => String(count).padStart(2, "0");
+
   const select = (id: number | undefined) => {
     selected = id;
     tab = "sheets";
   };
   const registryName = (index: number) => (index === 0 ? "registry 1" : `registry ${index + 1}`);
-  const tabs: readonly { readonly id: Tab; readonly label: string; readonly figure: string }[] = [
-    { figure: "FIG. 1", id: "graph", label: "GRAPH" },
-    { figure: "SET", id: "sheets", label: "SHEETS" },
-    { figure: "LOG", id: "timeline", label: "TIMELINE" },
+  const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
+    { id: "graph", label: "Graph" },
+    { id: "sheets", label: "Sheets" },
+    { id: "timeline", label: "Timeline" },
   ];
 </script>
+
+<svelte:window bind:innerHeight />
 
 {#if enabled && mounted && model}
   <div class="devtools" class:dark>
     {#if open}
       <div
+        style:height="{shown}px"
         aria-label="Atom devtools"
-        class="panel"
-        class:expanded
+        class="dock"
         onkeydown={(event) => {
           if (event.key === "Escape") {
             open = false;
@@ -151,36 +205,54 @@
         }}
         role="dialog"
         tabindex="-1">
-        <header class="strip">
-          <span class="title">EFFECT-ATOM-SVELTE · DEVTOOLS</span>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="resize" ondblclick={() => (height = 320)} onpointerdown={resize} title="Drag to resize; double-click to reset"></div>
+        <header class="bar">
+          <span class="cell title"><b aria-hidden="true">◎</b> Atoms</span>
           <nav aria-label="Views" class="tabs">
-            {#each tabs as item (item.id)}
-              <button aria-pressed={tab === item.id} class="tab" onclick={() => (tab = item.id)} type="button">
-                <span class="figure">{item.figure}</span>
+            {#each tabs as item, index (item.id)}
+              <button aria-pressed={tab === item.id} class="cell tab" onclick={() => (tab = item.id)} type="button">
+                <b>{pad(index + 1)}</b>
                 {item.label}
               </button>
             {/each}
           </nav>
           <span class="spacer"></span>
+          <span class="cell count">Atoms <b>{pad(model.totals.atoms)}</b></span>
+          <span class="cell count">Readers <b>{pad(model.totals.readers)}</b></span>
+          <span class="cell count">Updates <b>{pad(model.totals.updates)}</b></span>
+          <span class="cell count" class:alert={model.totals.interruptions > 0}>Interrupted <b>{pad(model.totals.interruptions)}</b></span>
           {#if registries.length > 1}
-            <select
-              aria-label="Registry"
-              class="picker"
-              onchange={(event) => (chosen = registries[Number(event.currentTarget.value)])}
-              value={String(registries.indexOf(chosen as AtomRegistry.AtomRegistry))}>
-              {#each registries as item, index (item)}
-                <option value={String(index)}>{registryName(index)}{item === nearest ? " (this one)" : ""}</option>
-              {/each}
-            </select>
+            <label class="cell">
+              <span class="sr">Registry</span>
+              <select
+                class="picker"
+                onchange={(event) => (chosen = registries[Number(event.currentTarget.value)])}
+                value={String(registries.indexOf(chosen as AtomRegistry.AtomRegistry))}>
+                {#each registries as item, index (item)}
+                  <option value={String(index)}>{registryName(index)}{item === nearest ? " (this one)" : ""}</option>
+                {/each}
+              </select>
+            </label>
           {/if}
-          <label class="toggle">
+          <label class="cell toggle">
             <input bind:checked={showPlumbing} type="checkbox" />
-            plumbing
+            Plumbing
           </label>
-          <button aria-label={expanded ? "Shrink the panel" : "Enlarge the panel"} class="icon" onclick={() => (expanded = !expanded)} title={expanded ? "Shrink" : "Enlarge"} type="button">
-            {expanded ? "▣" : "□"}
+          <button aria-label={expanded ? "Shrink the panel" : "Enlarge the panel"} class="cell icon" onclick={() => (expanded = !expanded)} title={expanded ? "Shrink" : "Enlarge"} type="button">
+            <svg aria-hidden="true" height="12" viewBox="0 0 12 12" width="12">
+              {#if expanded}
+                <path d="M2 5h8M2 7h8" fill="none" stroke="currentColor" stroke-width="1.25" />
+              {:else}
+                <path d="M2 4l4-3 4 3M2 8l4 3 4-3" fill="none" stroke="currentColor" stroke-width="1.25" />
+              {/if}
+            </svg>
           </button>
-          <button aria-label="Close the panel" class="icon" onclick={() => (open = false)} title="Close (Esc)" type="button">✕</button>
+          <button aria-label="Close the panel" class="cell icon" onclick={() => (open = false)} title="Close (Esc)" type="button">
+            <svg aria-hidden="true" height="12" viewBox="0 0 12 12" width="12">
+              <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.25" />
+            </svg>
+          </button>
         </header>
 
         {#if model.partial}
@@ -204,173 +276,218 @@
             <TimelineView {model} onselect={select} {showPlumbing} />
           {/if}
         </div>
-
-        <footer class="corners">
-          <span>ATOMS <b>{String(model.totals.atoms).padStart(2, "0")}</b></span>
-          <span>READERS <b>{String(model.totals.readers).padStart(2, "0")}</b></span>
-          <span>UPDATES <b>{String(model.totals.updates).padStart(2, "0")}</b></span>
-          <span>INTERRUPTED <b>{String(model.totals.interruptions).padStart(2, "0")}</b></span>
-        </footer>
       </div>
     {:else}
       <button aria-label="Open the atom devtools" class="launcher" onclick={() => (open = true)} type="button">
-        <svg aria-hidden="true" height="14" viewBox="-8 -8 16 16" width="14">
-          <circle cx="0" cy="0" fill="none" r="4" stroke="currentColor" stroke-width="1.5" />
-          <path d="M0 -7 V-5 M0 5 V7 M-7 0 H-5 M5 0 H7" stroke="currentColor" stroke-width="1.5" />
-        </svg>
-        ATOMS <b>{String(model.totals.atoms).padStart(2, "0")}</b>
+        <b aria-hidden="true">◎</b> Atoms <span class="n">{pad(model.totals.atoms)}</span>
       </button>
     {/if}
   </div>
 {/if}
 
 <style>
+  /*
+   * The docs' design language: zinc and amber, hairlines, mono labels. Each token reads the page's
+   * own where it has one (an app built on the docs' or shadcn's tokens), and falls back to the docs'
+   * values. The views use the short names; the graph module reads the page's names, so the dock
+   * hands those on too (on .dock, a level down, so neither refers to itself).
+   */
   .devtools {
-    --paper: #f8f6f0;
-    --ink: #1d2433;
-    --muted: #5f6878;
-    --line: rgb(29 36 51 / 0.28);
-    --faint: rgb(29 36 51 / 0.07);
-    --pulse: #1f5fd6;
-    --alert: #c2410c;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --paper: var(--background, #fff);
+    --ink: var(--foreground, #18181b);
+    --muted: var(--muted-foreground, #52525b);
+    --subtle: var(--subtle-foreground, #a1a1aa);
+    --line: var(--border, #e4e4e7);
+    --faint: color-mix(in oklab, var(--ink) 5%, transparent);
+    --accent: var(--brand, #d97706);
+    --accent-text: var(--brand-text, #b45309);
+    --pulse: var(--accent);
+    --success: var(--tone-success, #16a34a);
+    --alert: var(--tone-failure, #dc2626);
+    --mono: var(--font-mono, ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace);
+    --serif: "Libron", ui-serif, Georgia, "Times New Roman", serif;
+    --sans: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+    --radius: 6px;
     color: var(--ink);
     font-family: var(--mono);
     font-size: 13px;
     line-height: 1.4;
   }
-  /* A blueprint. */
   .devtools.dark {
-    --paper: #0f2140;
-    --ink: #e5edf8;
-    --muted: #9db0cb;
-    --line: rgb(229 237 248 / 0.3);
-    --faint: rgb(229 237 248 / 0.08);
-    --pulse: #7cc8ff;
-    --alert: #ff9b73;
+    --paper: var(--background, #09090b);
+    --ink: var(--foreground, #fafafa);
+    --muted: var(--muted-foreground, #a1a1aa);
+    --subtle: var(--subtle-foreground, #71717a);
+    --line: var(--border, #27272a);
+    --accent: var(--brand, #f59e0b);
+    --accent-text: var(--brand-text, #f59e0b);
+    --success: var(--tone-success, #22c55e);
+    --alert: var(--tone-failure, #ef4444);
   }
   .devtools :global(*) {
     box-sizing: border-box;
   }
+  /* The launcher: one ruled cell in the corner, like a cell of the dock's bar. */
   .launcher {
     align-items: center;
     background: var(--paper);
     border: 1px solid var(--line);
+    border-radius: var(--radius);
     bottom: 16px;
-    box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.5);
-    color: var(--ink);
+    color: var(--muted);
     cursor: pointer;
     display: inline-flex;
     font-family: var(--mono);
-    font-size: 11px;
-    gap: 0.45rem;
+    font-size: 10.5px;
+    gap: 0.5rem;
+    height: 32px;
     letter-spacing: 0.08em;
-    padding: 0.4rem 0.7rem;
+    padding: 0 0.75rem;
     position: fixed;
     right: 16px;
+    text-transform: uppercase;
     z-index: 2147483000;
+  }
+  .launcher:hover {
+    border-color: var(--accent);
+    color: var(--ink);
   }
   .launcher b {
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .launcher .n {
+    color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
-  .panel {
-    /* The paper, with a ruler along its top and left edges. */
-    background-color: var(--paper);
-    background-image:
-      repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px 24px),
-      repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px 24px);
-    background-repeat: repeat-x, repeat-y;
-    background-size:
-      100% 5px,
-      5px 100%;
-    border: 1px solid var(--line);
-    bottom: 16px;
-    box-shadow: 0 18px 48px -18px rgb(0 0 0 / 0.55);
+  /* The dock: across the bottom of the window, ruled off from the page by its top line. */
+  .dock {
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --muted-foreground: var(--muted);
+    --subtle-foreground: var(--subtle);
+    --border: var(--line);
+    --brand: var(--accent);
+    --brand-text: var(--accent-text);
+    --tone-success: var(--success);
+    --tone-failure: var(--alert);
+    --font-mono: var(--mono);
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    bottom: 0;
     display: flex;
     flex-direction: column;
-    height: min(70vh, 640px);
+    left: 0;
     position: fixed;
-    right: 16px;
-    width: min(1040px, calc(100vw - 32px));
+    right: 0;
     z-index: 2147483000;
-    animation: rise 0.25s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: rise 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
-  .panel.expanded {
-    height: calc(100vh - 32px);
-    width: calc(100vw - 32px);
+  .resize {
+    cursor: ns-resize;
+    height: 7px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: -4px;
+    z-index: 1;
   }
-  .strip {
-    align-items: center;
+  .resize:hover {
+    box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--accent) 60%, transparent);
+  }
+  /* The bar: a row of ruled cells, as the docs' site header is. */
+  .bar {
+    align-items: stretch;
     border-bottom: 1px solid var(--line);
     display: flex;
+    flex: none;
+    height: 36px;
+    overflow-x: auto;
+  }
+  .cell {
+    align-items: center;
+    background: none;
+    border: 0;
+    border-left: 1px solid var(--line);
+    color: var(--muted);
+    display: inline-flex;
+    flex: none;
+    font: inherit;
     font-size: 10.5px;
-    gap: 0.75rem;
-    letter-spacing: 0.1em;
-    padding: 0.35rem 0.4rem 0.35rem 0.9rem;
+    gap: 0.45rem;
+    letter-spacing: 0.08em;
+    padding: 0 0.9rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .cell b {
+    color: var(--accent-text);
+    font-weight: 400;
   }
   .title {
-    color: var(--muted);
-    white-space: nowrap;
+    border-left: 0;
+    color: var(--ink);
   }
   .tabs {
     display: flex;
-    gap: 0.25rem;
   }
   .tab {
-    background: none;
-    border: 1px solid transparent;
-    color: var(--muted);
     cursor: pointer;
-    font: inherit;
-    letter-spacing: inherit;
-    padding: 0.2rem 0.55rem;
   }
-  .tab[aria-pressed="true"] {
-    border-color: var(--line);
+  .tab:hover,
+  .icon:hover {
+    background: var(--faint);
     color: var(--ink);
   }
-  .figure {
-    color: var(--muted);
-    margin-right: 0.3rem;
+  .tab[aria-pressed="true"] {
+    box-shadow: inset 0 -2px 0 var(--accent);
+    color: var(--ink);
   }
   .spacer {
+    border-left: 1px solid var(--line);
     flex: 1;
+  }
+  .count b {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .count.alert b {
+    color: var(--alert);
   }
   .picker {
     background: var(--paper);
     border: 1px solid var(--line);
+    border-radius: 4px;
     color: var(--ink);
     font: inherit;
+    letter-spacing: normal;
     padding: 0.1rem 0.25rem;
+    text-transform: none;
   }
   .toggle {
-    align-items: center;
-    color: var(--muted);
-    display: inline-flex;
-    gap: 0.3rem;
-    white-space: nowrap;
+    cursor: pointer;
   }
   .toggle input {
-    accent-color: var(--ink);
+    accent-color: var(--accent);
     margin: 0;
   }
   .icon {
-    background: none;
-    border: 0;
-    color: var(--ink);
     cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    padding: 0.25rem 0.4rem;
+    justify-content: center;
+    padding: 0;
+    width: 36px;
   }
-  .icon:hover,
-  .tab:hover {
-    background: var(--faint);
+  .sr {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    width: 1px;
   }
   .notice {
     border-bottom: 1px solid var(--line);
     color: var(--muted);
+    flex: none;
     font-family: var(--serif);
     font-style: italic;
     margin: 0;
@@ -387,31 +504,15 @@
   .scroll {
     height: 100%;
     overflow: auto;
-    padding: 0.5rem 1rem 1rem 1.25rem;
-  }
-  .corners {
-    border-top: 1px solid var(--line);
-    color: var(--muted);
-    display: flex;
-    font-size: 10px;
-    gap: 1.5rem;
-    justify-content: space-between;
-    letter-spacing: 0.08em;
-    padding: 0.35rem 0.9rem;
-  }
-  .corners b {
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
   }
   @keyframes rise {
     from {
+      transform: translateY(12px);
       opacity: 0;
-      transform: translateY(10px);
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .panel {
+    .dock {
       animation: none;
     }
   }

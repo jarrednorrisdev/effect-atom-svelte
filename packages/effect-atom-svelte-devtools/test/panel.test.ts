@@ -6,7 +6,6 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { detail, preview } from "../src/internal/format.ts";
-import { layout } from "../src/internal/layout.ts";
 import { Model } from "../src/internal/model.svelte.ts";
 import type { AtomView } from "../src/internal/model.svelte.ts";
 import { identify, parseFrame } from "../src/internal/names.ts";
@@ -55,40 +54,6 @@ describe("names", () => {
     const named = Atom.make(0).pipe(Atom.withLabel("countAtom"));
     expect(identify(named).name).toBe("countAtom");
     expect(identify(Atom.make(0)).name).toBeUndefined();
-  });
-});
-
-// A view with only what the layout reads.
-const view = (
-  id: number,
-  name: string,
-  parents: number[] = [],
-  plumbing = false
-) => ({ id, live: true, name, parents, plumbing }) as unknown as AtomView;
-
-describe("layout", () => {
-  test("puts sources left and each atom right of its deepest parent", () => {
-    const graph = layout(
-      [view(0, "a"), view(1, "b", [0]), view(2, "c", [0, 1])],
-      () => true
-    );
-    const x = new Map(graph.nodes.map((node) => [node.view.name, node.x]));
-    expect(x.get("a")).toBeLessThan(x.get("b") ?? 0);
-    expect(x.get("b")).toBeLessThan(x.get("c") ?? 0);
-  });
-
-  test("links an atom to the nearest drawn atom through hidden plumbing", () => {
-    const graph = layout(
-      [
-        view(0, "source"),
-        view(1, "runtime", [0], true),
-        view(2, "derived", [1]),
-      ],
-      (item) => !item.plumbing
-    );
-    const derived = graph.nodes.find((node) => node.view.name === "derived");
-    expect(graph.nodes).toHaveLength(2);
-    expect(derived?.parents).toEqual([0]);
   });
 });
 

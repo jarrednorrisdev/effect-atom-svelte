@@ -93,7 +93,7 @@
   <article class="sheet">
     {#if current === undefined}
       <header class="strip">
-        <span>SHEET 00 OF {pad(sheets.length)}</span>
+        <span><b>SHEET 00</b> OF {pad(sheets.length)}</span>
         <span>COVER · THE REGISTRY</span>
       </header>
       <div class="totals">
@@ -120,13 +120,17 @@
       </section>
     {:else}
       <header class="strip">
-        <span>SHEET {pad(number)} OF {pad(sheets.length)}</span>
+        <span><b>SHEET {pad(number)}</b> OF {pad(sheets.length)}</span>
         <span>{current.live ? (current.plumbing ? "PLUMBING" : "ATOM") : "REMOVED"}</span>
       </header>
 
       <section class="block value">
         <h3 class="key">
-          VALUE{#if current.state._tag !== "Value"}<span class="badge" class:failure={current.state._tag === "Failure"}>{stateText(current.state)}</span>{/if}
+          VALUE{#if current.state._tag !== "Value"}<span
+            class="badge"
+            class:failure={current.state._tag === "Failure" && !current.state.waiting}
+            class:success={current.state._tag === "Success" && !current.state.waiting}
+            class:waiting={current.state.waiting}>{stateText(current.state)}</span>{/if}
         </h3>
         {#if current.hasValue}
           <pre>{detail(current.value)}</pre>
@@ -210,33 +214,39 @@
     flex-direction: column;
     min-height: 0;
     overflow: auto;
-    padding: 0.5rem 0;
+    padding: 0.75rem 0.75rem 0.75rem 1rem;
   }
   .entry {
     background: none;
     border: 0;
-    color: var(--ink);
+    border-left: 1px solid var(--line);
+    color: var(--muted);
     cursor: pointer;
     font: inherit;
     font-family: var(--mono);
     font-size: 0.75rem;
     overflow: hidden;
-    padding: 0.25rem 0.75rem;
+    padding: 0.2rem 0.6rem;
+    position: relative;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .entry:hover,
+  .entry:hover {
+    color: var(--ink);
+  }
   .entry.current {
-    background: var(--faint);
+    border-left-color: var(--accent);
+    color: var(--ink);
   }
   .entry.plumbing,
   .entry.gone {
-    color: var(--muted);
+    color: var(--subtle);
   }
   .no {
-    color: var(--muted);
-    margin-right: 0.4rem;
+    color: var(--accent-text);
+    font-variant-numeric: tabular-nums;
+    margin-right: 0.5rem;
   }
   .sheet {
     display: flex;
@@ -252,7 +262,11 @@
     font-size: 0.65rem;
     justify-content: space-between;
     letter-spacing: 0.1em;
-    padding: 0.5rem 1rem;
+    padding: 0.55rem 1rem;
+  }
+  .strip b {
+    color: var(--accent-text);
+    font-weight: 400;
   }
   .block {
     border-bottom: 1px solid var(--line);
@@ -268,15 +282,28 @@
   }
   .badge {
     border: 1px solid var(--line);
+    border-radius: 999px;
     color: var(--ink);
     margin-left: 0.6rem;
-    padding: 0 0.35rem;
+    padding: 0 0.45rem;
+  }
+  .badge.success {
+    border-color: var(--success);
+    color: var(--success);
   }
   .badge.failure {
     border-color: var(--alert);
     color: var(--alert);
   }
+  .badge.waiting {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
   pre {
+    background: color-mix(in oklab, var(--ink) 4%, transparent);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.65rem;
     font-family: var(--mono);
     font-size: 0.75rem;
     margin: 0;
@@ -309,6 +336,10 @@
     padding: 0;
     text-decoration: underline dotted var(--muted);
     text-underline-offset: 3px;
+  }
+  .link:hover {
+    color: var(--accent-text);
+    text-decoration-color: var(--accent);
   }
   .link.plumbing {
     color: var(--muted);
@@ -395,7 +426,7 @@
   }
   .total b {
     font-family: var(--mono);
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
   }
