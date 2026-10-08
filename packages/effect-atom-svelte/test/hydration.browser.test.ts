@@ -15,7 +15,7 @@ import {
   revalidateComputed,
   revalidateSeen,
 } from "./fixtures/revalidate.ts";
-import { computed } from "./fixtures/seeded-list.ts";
+import { computed, listFor } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
 import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
 import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
@@ -154,6 +154,22 @@ describe("HydrationBoundary", () => {
     // Kept, the value would wait in the registry for whoever reads the atom next, however late.
     expect(registry.get(countAtom)).toBe(0);
     registry.dispose();
+  });
+
+  test("leaves a value another boundary queued since when it drops its own", async () => {
+    const registry = AtomRegistry.make();
+    const first = await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state: serverState([countAtom], (server) => server.set(countAtom, 1)),
+    });
+    await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state: serverState([countAtom], (server) => server.set(countAtom, 2)),
+    });
+    await first.unmount();
+    expect(registry.get(countAtom)).toBe(2);
   });
 
   test("an Initial result dehydrated as a promise finishes on the client", async () => {
@@ -359,6 +375,26 @@ describe("hydrating server output", () => {
     expect(computed).toEqual(["b"]);
   });
 
+  test("useAtomResult destroyed before its seed lands computes nothing", async () => {
+    computed.length = 0;
+    const seed = Deferred.makeUnsafe<unknown>();
+    let value: unknown;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-hydrate-result.svelte",
+      SsrHydrateResult,
+      () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      }
+    );
+    click(target, "hide");
+    await expect.poll(outputs(target)).toEqual([]);
+    Deferred.doneUnsafe(seed, Effect.succeed(value));
+    await sleep(afterSweep);
+    expect(computed).toEqual([]);
+  });
+
   test("atoms with a server value hydrate without a seed, then compute in the browser (JND-58)", async () => {
     serverValueComputed.length = 0;
     const target = await hydrateFromServer(
@@ -467,6 +503,76 @@ describe("hydrating server output", () => {
       // Kept, it would be applied whenever the atom is next used, however old by then.
       click(target, "show first");
       await expect.poll(outputs(target)).toEqual(["a from the browser"]);
+      expect(computed).toEqual(["a"]);
+    });
+
+    test("a seed that lands after every reader is destroyed computes nothing for them (JND-37)", async () => {
+      computed.length = 0;
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(path, SsrSharedSeed, () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      });
+      // The first read the atom before its seed landed, then went away.
+      click(target, "hide first");
+      click(target, "remove second");
+      await expect.poll(outputs(target)).toEqual([]);
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      expect(computed).toEqual([]);
+    });
+
+    test("a seed that lands after every user is destroyed leaves an atom others hold alone (JND-37)", async () => {
+      computed.length = 0;
+      const registry = AtomRegistry.make();
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(
+        path,
+        SsrSharedSeed,
+        () => {
+          const store = hydratables();
+          value = store.get("seeded-list-a");
+          store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+        },
+        { registry }
+      );
+      click(target, "hide first");
+      click(target, "remove second");
+      await expect.poll(outputs(target)).toEqual([]);
+      // Something outside the components holds the atom, and has computed it here.
+      const release = registry.mount(listFor("a"));
+      onTestFinished(release);
+      await expect
+        .poll(() => registry.get(listFor("a")))
+        .toMatchObject({ _tag: "Success", value: "a from the browser" });
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await sleep(afterSweep);
+      expect(registry.get(listFor("a"))).toMatchObject({
+        _tag: "Success",
+        value: "a from the browser",
+      });
+    });
+
+    test("a key spent in a registry gets no seed from a later hydration (JND-37)", async () => {
+      computed.length = 0;
+      const registry = AtomRegistry.make();
+      const first = await hydrateFromServer(path, SsrSharedSeed, undefined, {
+        registry,
+      });
+      await expect.poll(outputs(first)).toEqual(["a from the server"]);
+      click(first, "hide first");
+      click(first, "remove second");
+      await expect.poll(outputs(first)).toEqual([]);
+      await sleep(afterSweep);
+      expect(registry.getNodes().has("seeded-list-a")).toBe(false);
+      // The page still holds the server's value, however old by now.
+      const second = await hydrateFromServer(path, SsrSharedSeed, undefined, {
+        registry,
+      });
+      await expect.poll(outputs(second)).toEqual(["a from the browser"]);
       expect(computed).toEqual(["a"]);
     });
   });

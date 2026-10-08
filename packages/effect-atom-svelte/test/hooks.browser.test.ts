@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Stream } from "effect";
 import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import { onMount } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
@@ -99,6 +100,33 @@ describe("useAtomValue", () => {
     expect(value.current).toBe(10);
     registry.set(atom, 2);
     expect(value.current).toBe(20);
+  });
+
+  test("a transformed read outside the markup sees a change still waiting to reach the markup", async () => {
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    // Its first build writes the watched atom, during the read, so the markup hears it later.
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    let readThenTransform: (() => number) | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const tens = useAtomValue(watched, (n) => n * 10);
+        const value = useAtomValue(read);
+        // As an event handler might.
+        readThenTransform = () => {
+          void value.current;
+          return tens.current;
+        };
+        return () => tens.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("0");
+    expect(readThenTransform?.()).toBe(10);
+    await expect.element(output(screen)).toHaveTextContent("10");
   });
 
   test("updates when the atom changes outside the component", async () => {
@@ -780,6 +808,25 @@ describe("AtomRef", () => {
     await expect.element(output(screen)).toHaveTextContent("3");
   });
 
+  test("useAtomRef hears a ref written while a $derived reads an atom", async () => {
+    const registry = AtomRegistry.make();
+    const ref = AtomRef.make(0);
+    // Reading this atom writes the ref, while the transform's $derived is evaluating.
+    const read = Atom.make(() => {
+      ref.set(1);
+      return "read";
+    });
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomRef(ref);
+        const shown = useAtomValue(read, (text) => text);
+        return () => `${value.current} ${shown.current}`;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1 read");
+  });
+
   test("useAtomRefPropValue reads one property", async () => {
     const ref = AtomRef.make({ count: 0, name: "a" });
     const screen = await render(Harness, {
@@ -817,6 +864,46 @@ describe("getter switches (JND-60)", () => {
     await expect.element(output(screen)).toHaveTextContent("11");
     expect(registry.get(first)).toBe(1);
   });
+
+  test.each([false, true])(
+    "a getter switched in onMount computes each atom once, and holds nothing once unmounted (JND-98), async: %s",
+    async (async) => {
+      const registry = AtomRegistry.make();
+      const log: string[] = [];
+      const named = Atom.family((name: string) =>
+        Atom.make((get) => {
+          log.push(`start ${name}`);
+          get.addFinalizer(() => log.push(`stop ${name}`));
+          return name;
+        })
+      );
+      const screen = await render(Toggle, {
+        async,
+        registry,
+        setup: () => {
+          const pick = new SvelteMap([["name", "a"]]);
+          onMount(() => {
+            pick.set("name", "b");
+          });
+          const value = useAtomValue(() => named(pick.get("name") ?? "a"));
+          return () => value.current;
+        },
+        show: true,
+      });
+      await expect.element(output(screen)).toHaveTextContent("b");
+      await sleep("50 millis");
+      // Renders with the switch rolled back read "a" again, which must not compute it again.
+      expect(log.filter((entry) => entry.startsWith("start"))).toEqual([
+        "start a",
+        "start b",
+      ]);
+      await screen.rerender({ show: false });
+      await expect.poll(() => registry.getNodes().size).toBe(0);
+      expect(new Set(log)).toEqual(
+        new Set(["start a", "start b", "stop a", "stop b"])
+      );
+    }
+  );
 
   test("useAtomRefPropValue follows a getter to a different ref", async () => {
     const first = AtomRef.make({ name: "first" });
@@ -923,6 +1010,26 @@ describe("RegistryProvider", () => {
       .poll(() => warn.mock.calls.map((call) => String(call[0])))
       .toEqual([expect.stringContaining("reads its props once")]);
     expect(screen.container.textContent).toContain("1");
+  });
+
+  test("warns once in development, for a changed revalidateOnHydrate too", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    const registry = AtomRegistry.make();
+    const props = {
+      registry,
+      revalidateOnHydrate: false,
+      setup: () => () => "shown",
+    };
+    const screen = await render(Provider, props);
+    await expect.element(output(screen)).toHaveTextContent("shown");
+    await screen.rerender({ ...props, revalidateOnHydrate: true });
+    await expect
+      .poll(() => warn.mock.calls.map((call) => String(call[0])))
+      .toEqual([expect.stringContaining("reads its props once")]);
+    await screen.rerender({ ...props, registry: AtomRegistry.make() });
+    await sleep("20 millis");
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });
 

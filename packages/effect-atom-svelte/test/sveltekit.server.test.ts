@@ -66,6 +66,31 @@ describe("handleClientError", () => {
   });
 });
 
+describe("with a kind, as in SvelteKit 3", () => {
+  test("the hooks keep only a _tag that is a string", () => {
+    logged();
+    const error = { _tag: 42 };
+    expect(handleClientError({ error, kind: "unknown" })).toBeUndefined();
+    expect(handleServerError({ error, kind: "unknown" })).toBeUndefined();
+  });
+
+  test("the hooks never read SvelteKit's message, which warns in development", () => {
+    logged();
+    let reads = 0;
+    const input = {
+      error: { _tag: "Plain" },
+      kind: "unknown",
+      get message() {
+        reads += 1;
+        return "Internal Error";
+      },
+    };
+    expect(handleClientError(input)).toStrictEqual({ tag: "Plain" });
+    expect(handleServerError(input)).toStrictEqual({ tag: "Plain" });
+    expect(reads).toBe(0);
+  });
+});
+
 describe("handleServerError", () => {
   test("keeps the _tag but not the message of an Effect error", () => {
     const log = logged();
