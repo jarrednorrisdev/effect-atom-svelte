@@ -130,8 +130,12 @@ const stateKeeping = new Set([
   "keepAlive",
   "autoDispose",
   "setIdleTTL",
+  "setLazy",
+  "withEquality",
   "withLabel",
   "serializable",
+  "withServerValue",
+  "withServerValueInitial",
 ]);
 
 /** Whether `Atom.keepAlive`, `Atom.setIdleTTL(...)` or the like: one of `stateKeeping`. */
@@ -339,9 +343,12 @@ const scriptPattern =
 /** The scripts of a component: where each one's code starts, the code, and if it is the module script. */
 const scripts = (source: string) => {
   const found: { start: number; code: string; module: boolean }[] = [];
+  // Comments are matched too, so one that mentions <svelte:head> doesn't start a head.
   const heads = [
-    ...source.matchAll(/<svelte:head\b[^]*?<\/svelte:head>/gu),
-  ].map((m) => [m.index, m.index + m[0].length] as const);
+    ...source.matchAll(/<!--[^]*?-->|<svelte:head\b[^]*?<\/svelte:head>/gu),
+  ]
+    .filter((m) => m[0].startsWith("<svelte:head"))
+    .map((m) => [m.index, m.index + m[0].length] as const);
   for (const match of source.matchAll(scriptPattern)) {
     const { attributes, code } = match.groups ?? {};
     if (attributes === undefined || code === undefined) {
