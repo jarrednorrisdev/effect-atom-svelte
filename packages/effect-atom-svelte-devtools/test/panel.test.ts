@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { detail, preview } from "../src/internal/format.ts";
 import { Model } from "../src/internal/model.svelte.ts";
-import type { AtomView } from "../src/internal/model.svelte.ts";
 import { identify, parseFrame } from "../src/internal/names.ts";
 
 describe("format", () => {

@@ -146,7 +146,7 @@
     if (!open || !mounted) {
       return;
     }
-    const body = document.body;
+    const { body } = document;
     const before = body.style.paddingBottom;
     body.style.paddingBottom = `${shown}px`;
     return () => {

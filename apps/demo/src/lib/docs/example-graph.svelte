@@ -18,7 +18,7 @@
     ScopeNode,
     ScopeSnapshot,
   } from "effect-atom-svelte/inspector";
-  import { AtomGraph } from "effect-atom-svelte-devtools/graph";
+  import { AtomGraph, toneOf } from "effect-atom-svelte-devtools/graph";
   import type { GraphInput } from "effect-atom-svelte-devtools/graph";
   import { onMount, tick } from "svelte";
 
@@ -103,14 +103,24 @@
       const nodes = new Map(snapshot?.nodes.map((node) => [node.id, node]));
       for (const id of pulses) {
         const node = nodes.get(id);
-        const state = node?.waiting ? undefined : node?.state;
-        graph?.pulse(id, state === "Success" ? "success" : state === "Failure" ? "failure" : "");
+        graph?.pulse(id, toneOf(node?.state, node?.waiting));
       }
       for (const id of interrupts) {
         graph?.interrupt(id);
       }
       pulses.clear();
       interrupts.clear();
+    };
+
+    const run = async () => {
+      try {
+        await flush();
+      } catch (error) {
+        reportError(error);
+      }
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(run);
     };
 
     const unsubscribe = scope.subscribe((event) => {
@@ -123,7 +133,7 @@
       } else if (event._tag === "Interrupted") {
         interrupts.add(event.id);
       }
-      frame ||= requestAnimationFrame(() => void flush());
+      schedule();
     });
     refresh();
     mounted = true;
@@ -132,7 +142,7 @@
     const timer = setInterval(() => {
       if (held.size > 0 || removed.size > 0) {
         stale = true;
-        frame ||= requestAnimationFrame(() => void flush());
+        schedule();
       }
     }, 500);
     return () => {
@@ -143,7 +153,7 @@
   });
 
   /** A file's name without its folders: what the example's code tabs call it. */
-  const basename = (file: string) => file.split(/[\\/]/).at(-1) ?? file;
+  const basename = (file: string) => file.split(/[\\/]/u).at(-1) ?? file;
 
   /** What an atom's note says: its result, if it holds one, and whether it's waiting. */
   const noteOf = (node: ScopeNode) =>

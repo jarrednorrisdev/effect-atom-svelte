@@ -158,7 +158,8 @@ const readPage = async (
   const body = afterFrontmatter
     .replace(/<script>[\s\S]*?<\/script>\n*/u, "")
     .replaceAll(
-      /<Example files=\{\[(?<files>.*?)\]\}(?: hint="(?<hint>[^"]*)")?\s*(?<end>\/>|>.*?<\/Example>)/gsu,
+      // A `graph={…}` attribute (example.svelte) only changes how the page draws the example.
+      /<Example(?: graph=\{\w+\})? files=\{\[(?<files>.*?)\]\}(?: hint="(?<hint>[^"]*)")?(?: graph=\{\w+\})?\s*(?<end>\/>|>.*?<\/Example>)/gsu,
       (
         _match,
         files: string,

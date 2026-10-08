@@ -75,6 +75,7 @@ jobs:
       # and so does the site's Vitest run below. The e2e jobs build the site themselves.
       - run: bun run check
       - run: bun run --cwd packages/effect-atom-svelte test
+      - run: bun run --cwd packages/effect-atom-svelte-devtools test
       - run: bunx vitest run
         working-directory: apps/demo
       - uses: actions/upload-artifact@v7

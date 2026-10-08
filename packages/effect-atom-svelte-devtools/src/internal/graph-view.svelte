@@ -4,7 +4,7 @@
   effect is interrupted or an atom removed. Clicking an atom opens its sheet.
 -->
 <script lang="ts">
-  import { AtomGraph } from "../graph/index.ts";
+  import { AtomGraph, toneOf } from "../graph/index.ts";
   import type { GraphAtom, GraphInput } from "../graph/index.ts";
   import { preview, stateText } from "./format.ts";
   import type { AtomView } from "./model.svelte.ts";
@@ -26,6 +26,22 @@
     (view.live ||
       (view.removedAt !== undefined && performance.now() - view.removedAt < lingerFor));
 
+  /** Why the registry holds an atom nothing reads. */
+  const heldBecause = (view: AtomView) => {
+    if (view.keepAlive) {
+      return "kept alive";
+    }
+    return view.idleTTL ? "idle" : "no readers";
+  };
+
+  /** Live and read, live but held with nothing reading it, or removed a moment ago. */
+  const statusOf = (view: AtomView): GraphAtom["status"] => {
+    if (!view.live) {
+      return "removed";
+    }
+    return view.readers > 0 || view.children.length > 0 ? "live" : "held";
+  };
+
   /** Its state and a short preview of its value; why it's still held; or that it's gone. */
   const note = (view: AtomView) => {
     if (!view.live) {
@@ -35,7 +51,7 @@
     const value = view.hasValue ? preview(view.value, 26) : "";
     const parts = [state, state === "" || view.state._tag === "Success" ? value : ""];
     if (view.readers === 0 && view.children.length === 0) {
-      parts.push(view.keepAlive ? "kept alive" : view.idleTTL ? "idle" : "no readers");
+      parts.push(heldBecause(view));
     }
     return parts.filter((part) => part !== "").join(" · ");
   };
@@ -66,7 +82,7 @@
           label: view.name,
           note: note(view),
           read: view.readers > 0,
-          status: view.live ? (view.readers > 0 || view.children.length > 0 ? "live" : "held") : "removed",
+          status: statusOf(view),
         })
       ),
       links: visible.flatMap((view) => [...parentsOf(view)].map((from) => ({ from, to: view.id }))),
@@ -81,8 +97,8 @@
     for (const view of atoms) {
       const before = updates.get(view.id);
       if (before !== undefined && view.updates > before) {
-        const state = view.state._tag === "Value" || view.state.waiting ? undefined : view.state._tag;
-        graph?.pulse(view.id, state === "Success" ? "success" : state === "Failure" ? "failure" : "");
+        const waiting = view.state._tag !== "Value" && view.state.waiting;
+        graph?.pulse(view.id, toneOf(view.state._tag, waiting));
       }
       updates.set(view.id, view.updates);
       const interrupted = interruptions.get(view.id);

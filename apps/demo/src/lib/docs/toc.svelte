@@ -10,7 +10,7 @@
     return new Map(
       toc.entries.map((entry) => [
         entry.id,
-        entry.depth === 2 ? String(++count).padStart(2, "0") : undefined,
+        entry.depth === 2 ? String((count += 1)).padStart(2, "0") : undefined,
       ])
     );
   });

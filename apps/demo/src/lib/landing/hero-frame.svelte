@@ -1,12 +1,14 @@
 <!--
-  PROTOTYPE (landing hero variants, ?variant=c): throwaway, not for main.
+  @component
+  The landing page's hero: a grid of cells ruled in hairlines that run off the page's edges, with a
+  cross wherever two lines meet, and a dependency graph drawn on its own lines. An Effect sits on
+  one cross, the atom on the centre cross, and the three components that read it on the others.
+  The page's rails carry its sides on down the page (routes/+page.svelte, .rails), and the site
+  header draws the crosses on its top line (lib/docs/site-header.svelte).
 
-  Variant C: no background at all. The hero is a grid of cells ruled in hairlines that run off the
-  page's edges, with a cross wherever two lines meet. The page's side rails continue down past
-  the hero (see .rails in +page.svelte), so the whole page sits on the same ruled sheet.
-
-  Variant D (`graph`): the same frame, with a dependency graph drawn on its lines. An Effect sits
-  on one cross, the atom on the centre cross, and the three components that read it on the others.
+  ```svelte
+  <HeroFrame copy={heroCopy} panel={heroPanel} {seeItRun} />
+  ```
 -->
 <script lang="ts">
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
@@ -17,12 +19,10 @@
 
   const {
     copy,
-    graph = false,
     panel,
     seeItRun,
   }: {
     copy: Snippet;
-    graph?: boolean;
     panel: Snippet;
     seeItRun: (event: MouseEvent) => void;
   } = $props();
@@ -56,11 +56,7 @@
   <!-- Row 1: labels. -->
   <div bind:contentRect={labelsRect} class="row labels">
     <div class="cell">
-      {#if graph}
-        <span>A</span><span>One Effect → one atom → every component that reads it</span>
-      {:else}
-        <span>A</span><span>effect-atom-svelte · 0.x</span>
-      {/if}
+      <span>A</span><span>One Effect → one atom → every component that reads it</span>
     </div>
     <div class="cell hidden lg:flex">
       <span>B</span><span>When to reach for atoms</span>
@@ -89,12 +85,10 @@
     <i class="cross mid hidden lg:block"></i>
     <i class="cross" style:left="100%"></i>
   </div>
-  {#if graph}
-    <div class="hidden lg:contents">
-      <!-- The graph's box starts inside the frame's 1px side borders. -->
-      <FrameGraph {edges} {nodes} origin={{ left: -1, right: 0, top: 0 }} />
-    </div>
-  {/if}
+  <div class="hidden lg:contents">
+    <!-- The graph's box starts inside the frame's 1px side borders. -->
+    <FrameGraph {edges} {nodes} origin={{ left: -1, right: 0, top: 0 }} />
+  </div>
   <i class="cross end" style:left="-1px"></i>
   <i class="cross end mid hidden lg:block"></i>
   <i class="cross end" style:left="100%"></i>
@@ -107,8 +101,8 @@
   }
   .frame {
     border-inline: 1px solid var(--line);
-    --line: color-mix(in oklab, var(--foreground) 16%, transparent);
-    --cross: color-mix(in oklab, var(--foreground) 55%, transparent);
+    /* The site's hairline colour, and its crosses' (app.css). */
+    --line: var(--border);
     margin: 0 auto;
     max-width: 75rem;
     position: relative;

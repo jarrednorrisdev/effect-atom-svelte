@@ -79,7 +79,12 @@
     return () => observer.disconnect();
   };
 
-  const px = (x: number) => (x === 0 ? origin.left : x === 1 ? width + origin.right : x * width);
+  const px = (x: number) => {
+    if (x === 0) {
+      return origin.left;
+    }
+    return x === 1 ? width + origin.right : x * width;
+  };
   const py = (y: number) => y + origin.top;
 
   interface Segment {
@@ -94,7 +99,7 @@
   /** An edge's runs, each covering both of its end pixels so runs meet without a gap. */
   const segments = (edge: GraphEdge): Segment[] =>
     edge.points.slice(1).map(([x, y], index) => {
-      const [fromX, fromY] = edge.points[index]!;
+      const [fromX, fromY] = edge.points[index] ?? [x, y];
       const [x1, y1, x2, y2] = [px(fromX), py(fromY), px(x), py(y)];
       const vertical = x1 === x2;
       return {

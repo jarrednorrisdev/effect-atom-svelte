@@ -4,6 +4,14 @@ import { layoutGraph } from "../src/graph/layout.ts";
 import type { GraphInput } from "../src/graph/layout.ts";
 
 const width = 800;
+
+/** The value, or a failed test if there isn't one. */
+const must = <T>(value: T | undefined): T => {
+  if (value === undefined) {
+    throw new Error("expected a value");
+  }
+  return value;
+};
 const nodeOf = (input: GraphInput, label: string) =>
   layoutGraph(input, width)?.nodes.find((node) => node.label === label);
 
@@ -20,10 +28,10 @@ describe("layoutGraph", () => {
       ],
       links: [{ from: 0, to: 1 }],
     };
-    const count = nodeOf(input, "countAtom");
-    const doubled = nodeOf(input, "doubledAtom");
-    expect(count!.x).toBeLessThan(doubled!.x);
-    expect(count!.y).toBe(doubled!.y);
+    const count = must(nodeOf(input, "countAtom"));
+    const doubled = must(nodeOf(input, "doubledAtom"));
+    expect(count.x).toBeLessThan(doubled.x);
+    expect(count.y).toBe(doubled.y);
   });
 
   test("puts components in a column of their own, after the atoms", () => {
@@ -34,7 +42,7 @@ describe("layoutGraph", () => {
     };
     const component = layoutGraph(input, width)?.nodes.find((node) => node.kind === "component");
     expect(component?.label).toBe("counter.svelte");
-    expect(component!.x).toBeGreaterThan(nodeOf(input, "countAtom")!.x);
+    expect(must(component).x).toBeGreaterThan(must(nodeOf(input, "countAtom")).x);
   });
 
   test("shows instances that use the same atoms as one component with a count", () => {
@@ -59,7 +67,7 @@ describe("layoutGraph", () => {
         { atom: 1, kind: "read", name: "taste.svelte" },
       ],
     };
-    expect(nodeOf(input, "doubledAtom")!.y).toBeGreaterThan(nodeOf(input, "countAtom")!.y);
+    expect(must(nodeOf(input, "doubledAtom")).y).toBeGreaterThan(must(nodeOf(input, "countAtom")).y);
   });
 
   test("puts a family's atoms on one row of dots, flagging a key seen twice", () => {
@@ -71,7 +79,7 @@ describe("layoutGraph", () => {
       ],
       links: [],
     };
-    const layout = layoutGraph(input, width)!;
+    const layout = must(layoutGraph(input, width));
     expect(layout.nodes.map((node) => node.label)).toEqual(["draftAtom(…)"]);
     expect(layout.nodes[0]?.note).toBe("3 atoms for 2 keys · 1 repeat a key");
     expect(layout.dots[0]?.dots.map((dot) => [dot.key, dot.repeat])).toEqual([
@@ -105,7 +113,7 @@ describe("layoutGraph", () => {
         { atom: 1, kind: "read", name: "b.svelte" },
       ],
     };
-    const edges = layoutGraph(input, width)!.edges;
+    const { edges } = must(layoutGraph(input, width));
     const pieces = (from: string) => edges.filter((edge) => edge.id?.startsWith(`${from}>`));
     // bAtom's line is crossed, so it's in two pieces; aAtom's and cAtom's join on the collector and
     // are whole.
