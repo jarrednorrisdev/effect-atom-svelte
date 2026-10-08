@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@demo/domain": "workspace:*",
+    "@fontsource-variable/geist": "^5.3.0",
     "effect": "4.0.1",
     "effect-atom-svelte": "workspace:*",
     "motion": "^14.0.0",
@@ -28,7 +29,6 @@
     "@alchemy.run/frontend-frameworks": "2.0.0-beta.80",
     "@demo/api": "workspace:*",
     "@effect/platform-bun": "4.0.1",
-    "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@internationalized/date": "^3.12.0",
     "@lucide/svelte": "^1.52.0",
