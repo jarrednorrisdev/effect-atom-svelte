@@ -278,3 +278,18 @@ describe("labelAtoms", () => {
     );
   });
 });
+
+describe("keeping state across hot reloads, through a pipe", () => {
+  // A mapped atom writes through to its source, so carrying its value over would write the mapped
+  // value into the source: `Atom.make(1).pipe(Atom.map((n) => n * 2))` set to 5 reads 10, and read
+  // 20 after a reload.
+  test("keeps only a pipe of Atom.make that leaves it a state atom", () => {
+    expect(keep("const a = Atom.make(0).pipe(Atom.keepAlive);")).toBeDefined();
+    expect(
+      keep("const a = Atom.make(1).pipe(Atom.map((n) => n * 2));")
+    ).toBeUndefined();
+    expect(
+      keep("const a = Atom.make([]).pipe(Atom.optimistic);")
+    ).toBeUndefined();
+  });
+});

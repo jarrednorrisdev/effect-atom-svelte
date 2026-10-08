@@ -65,7 +65,8 @@
     readonly plumbing: boolean;
     readonly expanded: boolean;
     readonly height: number;
-    readonly shortcut: string;
+    /** Only one changed in the settings: otherwise the app's, which may change. */
+    readonly shortcut: string | undefined;
     readonly corner: Corner;
     readonly opacity: number;
     readonly scale: number;
@@ -120,7 +121,12 @@
     showPlumbing = saved.plumbing ?? false;
     expanded = saved.expanded ?? false;
     height = saved.height ?? 320;
-    shortcut = saved.shortcut ?? appShortcut;
+    // Settings saved by 0.2.1 hold the default even when nobody chose it, which would hide a shortcut
+    // the app sets: the default counts as unset.
+    shortcut =
+      saved.shortcut === undefined || saved.shortcut === defaultShortcut
+        ? appShortcut
+        : saved.shortcut;
     corner = saved.corner ?? "bottom-right";
     opacity = saved.opacity ?? 1;
     scale = saved.scale ?? 1;
@@ -179,7 +185,7 @@
       open,
       plumbing: showPlumbing,
       scale,
-      shortcut,
+      shortcut: shortcut === appShortcut ? undefined : shortcut,
       tab,
     };
     try {

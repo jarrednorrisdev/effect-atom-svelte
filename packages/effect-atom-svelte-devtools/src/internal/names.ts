@@ -19,12 +19,28 @@ export interface Identity {
 
 // The last `file:line:column` in a stack frame, with or without parentheses around it.
 const framePattern = /(?<file>[^\s()]+):(?<line>\d+):(?<column>\d+)\)?\s*$/u;
+// A place as the plugin writes it, `/src/lib/todos.ts:4:14`, whatever the file's name holds.
+const ownPattern = /^(?<file>.+):(?<line>\d+):(?<column>\d+)$/u;
 
 /**
  * The place a stack frame points at. The plugin's frames hold the file as the dev server addresses
  * it; `Atom.withLabel`'s are the browser's, a URL with the dev server's origin and a query.
  */
-export const parseFrame = (frame: string): Place | undefined => {
+export const parseFrame = (frame: string, name?: string): Place | undefined => {
+  // The plugin's own frame, `at ${name} (${place})`: its place is all inside the parentheses, which
+  // a SvelteKit route group, as in `/src/routes/(app)/+page.svelte`, has some of.
+  const prefix = name === undefined ? undefined : `at ${name} (`;
+  const own =
+    prefix !== undefined && frame.startsWith(prefix) && frame.endsWith(")")
+      ? ownPattern.exec(frame.slice(prefix.length, -1))?.groups
+      : undefined;
+  if (own?.file !== undefined) {
+    return {
+      column: Number(own.column),
+      file: own.file,
+      line: Number(own.line),
+    };
+  }
   const groups = framePattern.exec(frame)?.groups;
   if (groups?.file === undefined) {
     return undefined;
@@ -46,7 +62,7 @@ export const identify = (atom: Atom.Atom<unknown>): Identity => {
   return {
     key,
     name,
-    place: frame === undefined ? undefined : parseFrame(frame),
+    place: frame === undefined ? undefined : parseFrame(frame, name),
   };
 };
 

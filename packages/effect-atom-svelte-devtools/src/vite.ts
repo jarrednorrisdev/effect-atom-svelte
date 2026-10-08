@@ -97,9 +97,12 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
       } catch {
         // The app can't resolve the library, so there is none of its code to skip.
       }
+      // The plugin that compiles components, among the plugins as Vite runs them: "vite-plugin-svelte"
+      // up to version 6, "vite-plugin-svelte:compile" from 7, which runs after every "pre" plugin.
       const names = config.plugins.map((plugin) => plugin.name);
-      const svelte = names.findIndex((name) =>
-        name.startsWith("vite-plugin-svelte")
+      const svelte = names.findIndex(
+        (name) =>
+          name === "vite-plugin-svelte" || name === "vite-plugin-svelte:compile"
       );
       if (
         svelte !== -1 &&
