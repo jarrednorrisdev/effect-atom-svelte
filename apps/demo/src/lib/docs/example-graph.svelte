@@ -197,7 +197,7 @@
   const top = 40;
   const row = 38;
   // The extra a row of dots needs below it for their keys.
-  const keyRoom = 18;
+  const keyRoom = 26;
 
   /**
    * Lays the snapshot out on the line: atoms in columns by how far they are from a source, then the
