@@ -24,6 +24,9 @@
 
   import GraphView from "./internal/graph-view.svelte";
   import { Model } from "./internal/model.svelte.ts";
+  import SettingsView from "./internal/settings-view.svelte";
+  import type { Corner } from "./internal/settings-view.svelte";
+  import { defaultShortcut, formatShortcut, matchesShortcut, parseShortcut } from "./internal/shortcut.ts";
   import SheetsView from "./internal/sheets-view.svelte";
   import TimelineView from "./internal/timeline-view.svelte";
 
@@ -40,17 +43,32 @@
      * nearest provider's registry, or `registry`, with no picker: only development lists the rest.
      */
     readonly production?: boolean | undefined;
+    /**
+     * The keyboard shortcut that opens and closes the panel, as "alt+shift+a" (the default) or
+     * "ctrl+shift+f2". Whoever uses the panel can change it in its settings.
+     */
+    readonly shortcut?: string | undefined;
   }
 
-  const { registry, open: startOpen, production = false, theme = "auto" }: Props = $props();
+  const {
+    registry,
+    open: startOpen,
+    production = false,
+    shortcut: appShortcut = defaultShortcut,
+    theme = "auto",
+  }: Props = $props();
 
-  type Tab = "graph" | "sheets" | "timeline";
+  type Tab = "graph" | "sheets" | "timeline" | "settings";
   interface Saved {
     readonly open: boolean;
     readonly tab: Tab;
     readonly plumbing: boolean;
     readonly expanded: boolean;
     readonly height: number;
+    readonly shortcut: string;
+    readonly corner: Corner;
+    readonly opacity: number;
+    readonly scale: number;
   }
   const storageKey = "effect-atom-svelte-devtools";
   const load = (): Partial<Saved> => {
@@ -74,7 +92,14 @@
   let expanded = $state(false);
   // The dock's height, in pixels, when not enlarged; dragging its top line changes it.
   let height = $state(320);
+  // svelte-ignore state_referenced_locally
+  let shortcut = $state(appShortcut);
+  let corner = $state<Corner>("bottom-right");
+  // The launcher's opacity while nothing points at it, and its size.
+  let opacity = $state(1);
+  let scale = $state(1);
   let innerHeight = $state(800);
+  let innerWidth = $state(1200);
   let selected = $state<number>();
   let dark = $state(false);
   let registries = $state.raw<readonly AtomRegistry.AtomRegistry[]>([]);
@@ -95,6 +120,10 @@
     showPlumbing = saved.plumbing ?? false;
     expanded = saved.expanded ?? false;
     height = saved.height ?? 320;
+    shortcut = saved.shortcut ?? appShortcut;
+    corner = saved.corner ?? "bottom-right";
+    opacity = saved.opacity ?? 1;
+    scale = saved.scale ?? 1;
     mounted = true;
 
     const stopWatching = watchRegistries((list) => {
@@ -142,7 +171,17 @@
     if (!enabled || !mounted) {
       return;
     }
-    const saved: Saved = { expanded, height, open, plumbing: showPlumbing, tab };
+    const saved: Saved = {
+      corner,
+      expanded,
+      height,
+      opacity,
+      open,
+      plumbing: showPlumbing,
+      scale,
+      shortcut,
+      tab,
+    };
     try {
       localStorage.setItem(storageKey, JSON.stringify(saved));
     } catch {
@@ -226,6 +265,82 @@
     }
   };
 
+  const mac = BROWSER && /Mac|iPhone|iPad/u.test(navigator.platform);
+  const shortcutLabel = $derived.by(() => {
+    const parsed = parseShortcut(shortcut);
+    return parsed === undefined ? "no shortcut" : formatShortcut(parsed, mac);
+  });
+  // As aria-keyshortcuts writes it: "Alt+Shift+A".
+  const keyShortcuts = $derived.by(() => {
+    const parsed = parseShortcut(shortcut);
+    return parsed === undefined ? undefined : formatShortcut(parsed, false).replaceAll(" ", "+").replace("Ctrl", "Control");
+  });
+
+  /** The shortcut, from anywhere on the page: opens the panel, or closes it. */
+  const onShortcut = (event: KeyboardEvent) => {
+    const parsed = parseShortcut(shortcut);
+    if (!enabled || !mounted || parsed === undefined || !matchesShortcut(event, parsed)) {
+      return;
+    }
+    event.preventDefault();
+    if (open) {
+      void closePanel();
+    } else {
+      openPanel();
+    }
+  };
+
+  // Dragging the launcher: it follows the pointer, then settles in the corner nearest where it was
+  // let go. A press that barely moves is a click.
+  let dragAt = $state<{ readonly x: number; readonly y: number }>();
+  let dragged = false;
+  const drag = (event: PointerEvent) => {
+    if (event.button !== 0) {
+      return;
+    }
+    const button = event.currentTarget as HTMLElement;
+    const box = button.getBoundingClientRect();
+    const offsetX = event.clientX - box.left;
+    const offsetY = event.clientY - box.top;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    dragged = false;
+    // No text selection: a selection would make the next press start the browser's own drag of
+    // it, which cancels the pointer.
+    event.preventDefault();
+    // From the press on, so a quick drag that leaves the button still moves it.
+    button.setPointerCapture(event.pointerId);
+    const move = (next: PointerEvent) => {
+      if (!dragged && Math.hypot(next.clientX - startX, next.clientY - startY) < 5) {
+        return;
+      }
+      dragged = true;
+      dragAt = { x: next.clientX - offsetX, y: next.clientY - offsetY };
+    };
+    const stop = (last: PointerEvent) => {
+      button.removeEventListener("pointermove", move);
+      button.removeEventListener("pointerup", stop);
+      button.removeEventListener("pointercancel", stop);
+      if (dragged) {
+        const top = last.clientY < innerHeight / 2;
+        const left = last.clientX < innerWidth / 2;
+        corner = `${top ? "top" : "bottom"}-${left ? "left" : "right"}`;
+      }
+      dragAt = undefined;
+    };
+    button.addEventListener("pointermove", move);
+    button.addEventListener("pointerup", stop);
+    button.addEventListener("pointercancel", stop);
+  };
+  const launch = () => {
+    // The click that ends a drag doesn't open the panel.
+    if (dragged) {
+      dragged = false;
+      return;
+    }
+    openPanel();
+  };
+
   const pad = (count: number) => String(count).padStart(2, "0");
 
   const select = (id: number | undefined) => {
@@ -237,10 +352,11 @@
     { id: "graph", label: "Graph" },
     { id: "sheets", label: "Sheets" },
     { id: "timeline", label: "Timeline" },
+    { id: "settings", label: "Settings" },
   ];
 </script>
 
-<svelte:window bind:innerHeight />
+<svelte:window bind:innerHeight bind:innerWidth onkeydown={onShortcut} />
 
 {#if enabled && mounted && model}
   <div class="devtools" class:dark>
@@ -338,13 +454,27 @@
             </div>
           {:else if tab === "sheets"}
             <SheetsView {model} onselect={select} {selected} {showPlumbing} />
-          {:else}
+          {:else if tab === "timeline"}
             <TimelineView {model} onselect={select} {showPlumbing} />
+          {:else}
+            <SettingsView bind:corner bind:opacity bind:scale bind:shortcut defaultShortcut={appShortcut} />
           {/if}
         </div>
       </section>
     {:else}
-      <button bind:this={launcher} aria-label="Open the atom devtools" class="launcher" onclick={openPanel} type="button">
+      <button
+        bind:this={launcher}
+        style:--launcher-opacity={opacity}
+        style:--launcher-scale={scale}
+        style:left={dragAt ? `${dragAt.x}px` : undefined}
+        style:top={dragAt ? `${dragAt.y}px` : undefined}
+        aria-keyshortcuts={keyShortcuts}
+        aria-label="Open the atom devtools"
+        class={["launcher", corner, dragAt && "dragging"]}
+        onclick={launch}
+        onpointerdown={drag}
+        title="Atom devtools ({shortcutLabel}). Drag to move."
+        type="button">
         <b aria-hidden="true">◎</b> Atoms <span class="n">{pad(model.totals.atoms)}</span>
       </button>
     {/if}
@@ -399,20 +529,50 @@
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    bottom: 16px;
     color: var(--muted);
     cursor: pointer;
     display: inline-flex;
     font-family: var(--mono);
-    font-size: 10.5px;
-    gap: 0.5rem;
-    height: 32px;
+    font-size: calc(10.5px * var(--launcher-scale, 1));
+    gap: calc(0.5rem * var(--launcher-scale, 1));
+    height: calc(32px * var(--launcher-scale, 1));
     letter-spacing: 0.08em;
-    padding: 0 0.75rem;
+    opacity: var(--launcher-opacity, 1);
+    padding: 0 calc(0.75rem * var(--launcher-scale, 1));
     position: fixed;
-    right: 16px;
     text-transform: uppercase;
+    touch-action: none;
+    transition: opacity 0.15s;
+    user-select: none;
     z-index: 2147483000;
+  }
+  .launcher.bottom-right {
+    bottom: 16px;
+    right: 16px;
+  }
+  .launcher.bottom-left {
+    bottom: 16px;
+    left: 16px;
+  }
+  .launcher.top-right {
+    right: 16px;
+    top: 16px;
+  }
+  .launcher.top-left {
+    left: 16px;
+    top: 16px;
+  }
+  /* While dragged, it's placed by its left and top alone. */
+  .launcher.dragging {
+    bottom: auto;
+    cursor: grabbing;
+    right: auto;
+  }
+  /* Faded or not, it's opaque while pointed at, focused or dragged. */
+  .launcher:hover,
+  .launcher:focus-visible,
+  .launcher.dragging {
+    opacity: 1;
   }
   .launcher:hover {
     border-color: var(--accent);

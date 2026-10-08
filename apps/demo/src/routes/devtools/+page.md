@@ -19,7 +19,7 @@ description: Name your atoms after their variables, and watch your registry live
 
 <Aside type="note" title="This site runs the panel">
 
-On a wide screen, the **Atoms** button at the bottom right of the window opens the panel on this site's own registry. Open it while you use the examples on any page.
+On a wide screen, the **Atoms** button at the bottom right of the window, or **Alt+Shift+A**, opens the panel on this site's own registry. Open it while you use the examples on any page.
 
 </Aside>
 
@@ -88,6 +88,12 @@ Vite replaces `import.meta.env.DEV` with `false` in a build, so the import is le
 
 Closed, the panel is an **Atoms** button in the corner with the registry's count of atoms. Open, it docks along the bottom of the window, and the page gets room below it. Drag its top line to resize it, or enlarge it to most of the window. Its bar counts the registry's atoms, readers, updates and interruptions.
 
+**Alt+Shift+A** opens and closes it from anywhere on the page. Pass `shortcut` to give your app another default:
+
+```svelte
+<AtomDevtools shortcut="ctrl+shift+f2" />
+```
+
 It follows the registry of the nearest `RegistryProvider`, or one you pass as `registry`. With more than one provider mounted, a picker switches between them. It starts watching when it mounts: until then the inspector costs your registry nothing.
 
 ### Graph
@@ -108,6 +114,14 @@ A cover sheet with the registry's totals, then one sheet per atom. A sheet shows
 ### Timeline
 
 Every computation, update, interruption and finalizer, newest first. A computation says why it ran: its first read, a refresh, or a change to an atom it reads. Click an atom's name to see only its rows.
+
+### Settings
+
+- **Shortcut**: click **Change** and press a new one. It needs Ctrl, Alt or ⌘ (or a function key), so it can't catch typing.
+- **Button**: the corner the button sits in. You can also drag the button: it settles in the nearest corner.
+- **Opacity** and **Size**: how faint and how big the button is. A faded button is opaque again while you point at it or focus it.
+
+The panel keeps its settings in `localStorage`, with its height and the view you left it on.
 
 ## In production
 

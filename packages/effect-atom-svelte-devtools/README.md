@@ -36,11 +36,14 @@ In production it shows the registry of the nearest `RegistryProvider`, or the on
 
 Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset; with the keyboard, focus it and use the arrow keys), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it while focus is inside it. It's drawn in hairlines with mono labels, in the page's own colours where your app has shadcn-style tokens (`--background`, `--foreground`, `--border`, `--brand`), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
 
-It has three views:
+Alt+Shift+A opens and closes it from anywhere on the page. Set the app's own with the `shortcut` prop (`<AtomDevtools shortcut="ctrl+shift+f2" />`); whoever uses the panel can change it in its settings.
+
+It has three views, and settings:
 
 - **Graph**: the atoms and what reads what, laid out on tracks with sources on the left, as the effect-atom-svelte docs draw their examples. A value that changes rings, in green when it's a `Success` and red when it's a `Failure`; a cross marks an interrupted effect or a removed atom; a family's atoms share a row of dots. Click an atom to open its sheet. "Plumbing" shows the atoms runtimes, mutations and stores make, which are hidden by default; an atom that reads one is linked to whatever is upstream of it.
 - **Sheets**: a cover sheet with the registry's totals, then one sheet per atom: its value or `AsyncResult` state, what it reads and what reads it, what happened to it lately, and a title block with where it was declared (click to open it in your editor), keep-alive, idle TTL and readers.
 - **Timeline**: every computation, update, interruption and finalizer, newest first. A computation says why it ran: its first read, a refresh, or which atoms it reads changed. Click an atom to see only its rows.
+- **Settings**: the shortcut (click Change and press a new one: it needs Ctrl, Alt or Meta, or a function key, so it can't catch typing), and the button's corner, opacity and size. Drag the button to move it, too: it settles in the nearest corner. A faded button is opaque again while you point at it or focus it. The panel saves its settings in `localStorage`.
 
 It follows the registry of the nearest `RegistryProvider`, or a `registry` you pass it. With more than one provider mounted, a picker switches between them. It reads what the registry does through `effect-atom-svelte/inspector`, which starts watching when the panel mounts and costs nothing before.
 
