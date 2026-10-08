@@ -27,10 +27,13 @@ for (const file of readdirSync(src).filter((name) => name.endsWith(".ts"))) {
       }
       continue;
     }
-    const name =
-      /^export (?:declare )?(?:const|function|interface|type|class|\*|\{)\s*(?<name>\w*)/u.exec(
+    // `export *` and `export { … }` lines have no name, so two in a row are each checked rather
+    // than taken for overloads of one export.
+    const match =
+      /^export (?:declare )?(?:(?:const|function|interface|type|class)\s+(?<name>\w+)|\*|\{)/u.exec(
         line
-      )?.groups?.name;
+      );
+    const name = match ? (match.groups?.name ?? "") : undefined;
     if (name === undefined) {
       if (line.trim() !== "") {
         doc = "";
@@ -44,7 +47,7 @@ for (const file of readdirSync(src).filter((name) => name.endsWith(".ts"))) {
     previousExport = name;
     if (!(doc.includes("@since") && doc.includes("@category"))) {
       problems.push(
-        `${file}:${index + 1}: export ${name || line.trim()} needs @since and @category`
+        `${file}:${index + 1}: ${name ? `export ${name}` : line.trim()} needs @since and @category`
       );
     }
     doc = "";

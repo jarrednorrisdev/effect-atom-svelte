@@ -10,7 +10,7 @@ This is a community project by Jarred Norris. It is not part of Effect, and the 
 
 - `effect` 4.0.x. The peer range is `~4.0.0`, not `^4.0.0`: the bindings use parts of the atom registry that aren't public API, which a minor release of `effect` can change.
 - Svelte 5.57.2 or later. `experimental.async` is needed for `useAtomSuspense`, `useAtomResult` and server rendering.
-- SvelteKit is optional. The docs site and its tests run on SvelteKit 3. On SvelteKit 2, the error hooks in `effect-atom-svelte/sveltekit` work with less detail.
+- SvelteKit is optional. The docs site and its tests run on SvelteKit 3. On SvelteKit 2, the error hooks in `effect-atom-svelte/sveltekit` work with less detail, and reach `<svelte:boundary>` only with `kit.experimental.handleRenderingErrors` turned on.
 
 ## Installation
 
