@@ -40,16 +40,25 @@ describe("layoutGraph", () => {
       links: [],
       readers: [{ atom: 0, kind: "read", name: "counter.svelte" }],
     };
-    const component = layoutGraph(input, width)?.nodes.find((node) => node.kind === "component");
+    const component = layoutGraph(input, width)?.nodes.find(
+      (node) => node.kind === "component"
+    );
     expect(component?.label).toBe("counter.svelte");
-    expect(must(component).x).toBeGreaterThan(must(nodeOf(input, "countAtom")).x);
+    expect(must(component).x).toBeGreaterThan(
+      must(nodeOf(input, "countAtom")).x
+    );
   });
 
   test("shows instances that use the same atoms as one component with a count", () => {
     const input: GraphInput = {
       atoms: [{ id: 0, label: "logAtom" }],
       links: [],
-      readers: [0, 1, 2].map((instance) => ({ atom: 0, instance, kind: "read", name: "card.svelte" })),
+      readers: [0, 1, 2].map((instance) => ({
+        atom: 0,
+        instance,
+        kind: "read",
+        name: "card.svelte",
+      })),
     };
     expect(nodeOf(input, "card.svelte ×3")).toBeDefined();
   });
@@ -67,7 +76,9 @@ describe("layoutGraph", () => {
         { atom: 1, kind: "read", name: "taste.svelte" },
       ],
     };
-    expect(must(nodeOf(input, "doubledAtom")).y).toBeGreaterThan(must(nodeOf(input, "countAtom")).y);
+    expect(must(nodeOf(input, "doubledAtom")).y).toBeGreaterThan(
+      must(nodeOf(input, "countAtom")).y
+    );
   });
 
   test("puts a family's atoms on one row of dots, flagging a key seen twice", () => {
@@ -91,7 +102,11 @@ describe("layoutGraph", () => {
 
   test("leaves a family's atoms as their own rows when several are read at once", () => {
     const input: GraphInput = {
-      atoms: [1, 2, 3].map((id) => ({ id, label: `todoAtom(${id})`, read: true })),
+      atoms: [1, 2, 3].map((id) => ({
+        id,
+        label: `todoAtom(${id})`,
+        read: true,
+      })),
       links: [],
     };
     expect(layoutGraph(input, width)?.dots).toEqual([]);
@@ -114,7 +129,8 @@ describe("layoutGraph", () => {
       ],
     };
     const { edges } = must(layoutGraph(input, width));
-    const pieces = (from: string) => edges.filter((edge) => edge.id?.startsWith(`${from}>`));
+    const pieces = (from: string) =>
+      edges.filter((edge) => edge.id?.startsWith(`${from}>`));
     // bAtom's line is crossed, so it's in two pieces; aAtom's and cAtom's join on the collector and
     // are whole.
     expect(pieces("a1")).toHaveLength(2);

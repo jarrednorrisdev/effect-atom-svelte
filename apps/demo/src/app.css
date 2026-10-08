@@ -527,7 +527,9 @@ html {
 .docs-column {
   /* The column's own padding (px-6 lg:px-10 in the layout). */
   --pad: 1.5rem;
-  --reach: calc(var(--pad) + (100cqw - min(var(--docs-column-width), 100cqw)) / 2);
+  --reach: calc(
+    var(--pad) + (100cqw - min(var(--docs-column-width), 100cqw)) / 2
+  );
 }
 @media (width >= 64rem) {
   .docs-column {

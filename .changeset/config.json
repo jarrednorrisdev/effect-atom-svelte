@@ -4,6 +4,7 @@
   "baseBranch": "main",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
+  "linked": [["effect-atom-svelte", "effect-atom-svelte-devtools"]],
   "privatePackages": { "tag": false, "version": false },
   "updateInternalDependencies": "patch"
 }

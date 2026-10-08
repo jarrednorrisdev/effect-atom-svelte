@@ -13,12 +13,38 @@ const fork = 16;
 export const sectionGraphs: Record<string, SectionGraph> = {
   cleanup: {
     edges: [
-      { lit: true, points: [[0, 0], [0.4, 0]], step: 0 },
-      { dashed: true, points: [[0.4, 0], [1, 0]] },
+      {
+        lit: true,
+        points: [
+          [0, 0],
+          [0.4, 0],
+        ],
+        step: 0,
+      },
+      {
+        dashed: true,
+        points: [
+          [0.4, 0],
+          [1, 0],
+        ],
+      },
     ],
     nodes: [
-      { kind: "effect", label: "buildReport", note: "an Effect<string>", x: 0, y: 0 },
-      { kind: "atom", label: "reportAtom", note: "nothing reads it now", step: 1, x: 0.4, y: 0 },
+      {
+        kind: "effect",
+        label: "buildReport",
+        note: "an Effect<string>",
+        x: 0,
+        y: 0,
+      },
+      {
+        kind: "atom",
+        label: "reportAtom",
+        note: "nothing reads it now",
+        step: 1,
+        x: 0.4,
+        y: 0,
+      },
       {
         kind: "gone",
         label: "interrupted",
@@ -40,13 +66,49 @@ export const sectionGraphs: Record<string, SectionGraph> = {
   },
   "shared-effect": {
     edges: [
-      { lit: true, points: [[0, 0], [0.4, 0]], step: 0 },
-      { lit: true, points: [[0.4, 0], [0.7, 0]], step: 1 },
-      { lit: true, points: [[0.4, 0], [0.4, fork], [1, fork], [1, 0]], step: 1 },
+      {
+        lit: true,
+        points: [
+          [0, 0],
+          [0.4, 0],
+        ],
+        step: 0,
+      },
+      {
+        lit: true,
+        points: [
+          [0.4, 0],
+          [0.7, 0],
+        ],
+        step: 1,
+      },
+      {
+        lit: true,
+        points: [
+          [0.4, 0],
+          [0.4, fork],
+          [1, fork],
+          [1, 0],
+        ],
+        step: 1,
+      },
     ],
     nodes: [
-      { kind: "effect", label: "fetchRate", note: "an Effect<string>", x: 0, y: 0 },
-      { kind: "atom", label: "rateAtom", note: "runs fetchRate once", step: 1, x: 0.4, y: 0 },
+      {
+        kind: "effect",
+        label: "fetchRate",
+        note: "an Effect<string>",
+        x: 0,
+        y: 0,
+      },
+      {
+        kind: "atom",
+        label: "rateAtom",
+        note: "runs fetchRate once",
+        step: 1,
+        x: 0.4,
+        y: 0,
+      },
       {
         kind: "component",
         label: "rate.svelte",
@@ -68,14 +130,56 @@ export const sectionGraphs: Record<string, SectionGraph> = {
   },
   "typed-backend": {
     edges: [
-      { lit: true, points: [[0, 0], [0.28, 0]], step: 0 },
-      { lit: true, points: [[0.28, 0], [0.55, 0]], step: 1 },
-      { lit: true, points: [[0.55, 0], [1, 0]], step: 2 },
-      { lit: true, points: [[0.8, fork], [0.28, fork], [0.28, 0]], step: 3 },
+      {
+        lit: true,
+        points: [
+          [0, 0],
+          [0.28, 0],
+        ],
+        step: 0,
+      },
+      {
+        lit: true,
+        points: [
+          [0.28, 0],
+          [0.55, 0],
+        ],
+        step: 1,
+      },
+      {
+        lit: true,
+        points: [
+          [0.55, 0],
+          [1, 0],
+        ],
+        step: 2,
+      },
+      {
+        lit: true,
+        points: [
+          [0.8, fork],
+          [0.28, fork],
+          [0.28, 0],
+        ],
+        step: 3,
+      },
     ],
     nodes: [
-      { kind: "effect", label: "TodosRpc.listTodos", note: "the query", x: 0, y: 0 },
-      { kind: "atom", label: "todosAtom", note: 'tagged "todos"', step: 1, x: 0.28, y: 0 },
+      {
+        kind: "effect",
+        label: "TodosRpc.listTodos",
+        note: "the query",
+        x: 0,
+        y: 0,
+      },
+      {
+        kind: "atom",
+        label: "todosAtom",
+        note: 'tagged "todos"',
+        step: 1,
+        x: 0.28,
+        y: 0,
+      },
       {
         kind: "atom",
         label: "openCountAtom",
@@ -84,7 +188,14 @@ export const sectionGraphs: Record<string, SectionGraph> = {
         x: 0.55,
         y: 0,
       },
-      { kind: "component", label: "todo-list.svelte", side: "nw", step: 3, x: 1, y: 0 },
+      {
+        kind: "component",
+        label: "todo-list.svelte",
+        side: "nw",
+        step: 3,
+        x: 1,
+        y: 0,
+      },
       {
         kind: "effect",
         label: "createTodo",
@@ -98,8 +209,22 @@ export const sectionGraphs: Record<string, SectionGraph> = {
   },
   "typed-errors": {
     edges: [
-      { lit: true, points: [[0, 0], [0.4, 0]], step: 0 },
-      { lit: true, points: [[0.4, 0], [1, 0]], step: 1 },
+      {
+        lit: true,
+        points: [
+          [0, 0],
+          [0.4, 0],
+        ],
+        step: 0,
+      },
+      {
+        lit: true,
+        points: [
+          [0.4, 0],
+          [1, 0],
+        ],
+        step: 1,
+      },
     ],
     nodes: [
       {

@@ -1,8 +1,17 @@
 {
   "name": "effect-atom-svelte-devtools",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.2.0",
   "description": "Developer tools for effect-atom-svelte: atom names from your source, and a live view of the registry",
+  "keywords": [
+    "devtools",
+    "effect",
+    "effect-atom",
+    "effect-atom-svelte",
+    "svelte",
+    "vite-plugin"
+  ],
+  "homepage": "https://atom.jarrednorris.dev",
+  "bugs": "https://github.com/jarrednorrisdev/effect-atom-svelte/issues",
   "license": "MIT",
   "author": "Jarred Norris",
   "repository": {

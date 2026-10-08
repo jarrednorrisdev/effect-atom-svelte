@@ -63,7 +63,10 @@ export interface GraphDot {
 export interface GraphLayout {
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly GraphEdge[];
-  readonly dots: readonly { readonly dots: readonly GraphDot[]; readonly keys: boolean }[];
+  readonly dots: readonly {
+    readonly dots: readonly GraphDot[];
+    readonly keys: boolean;
+  }[];
   readonly height: number;
 }
 
@@ -71,7 +74,10 @@ export interface GraphLayout {
  * The tone a value's pulse takes: green for a Success, red for a Failure, and the accent for a
  * plain value or a result still waiting for the next.
  */
-export const toneOf = (state: string | undefined, waiting = false): "success" | "failure" | "" => {
+export const toneOf = (
+  state: string | undefined,
+  waiting = false
+): "success" | "failure" | "" => {
   if (waiting) {
     return "";
   }
@@ -94,7 +100,12 @@ type Point = readonly [x: number, y: number];
 interface Group {
   readonly name: string;
   readonly keys: number;
-  readonly dots: readonly { id: number; key: string; label: string; repeat: boolean }[];
+  readonly dots: readonly {
+    id: number;
+    key: string;
+    label: string;
+    repeat: boolean;
+  }[];
 }
 
 interface Component {
@@ -125,19 +136,29 @@ const append = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
  * A family's or factory's atoms on one row: the group's first member stands for it in the layout,
  * and `canon` maps each member to it. Only for three or more members, read one at a time.
  */
-const groupFamilies = (atoms: Map<number, GraphAtom>, readNow: ReadonlySet<number>) => {
+const groupFamilies = (
+  atoms: Map<number, GraphAtom>,
+  readNow: ReadonlySet<number>
+) => {
   const canon = new Map<number, number>();
   const groups = new Map<number, Group>();
   const byName = new Map<string, { id: number; args: string }[]>();
   for (const atom of atoms.values()) {
     const match = /^(?<name>[^(]+)\((?<args>.*)\)$/su.exec(atom.label ?? "");
     if (match?.groups?.name !== undefined && match.groups.args !== undefined) {
-      append(byName, match.groups.name, { args: match.groups.args, id: atom.id });
+      append(byName, match.groups.name, {
+        args: match.groups.args,
+        id: atom.id,
+      });
     }
   }
   for (const [name, members] of byName) {
     const [first] = members;
-    if (!first || members.length < 3 || members.filter(({ id }) => readNow.has(id)).length > 1) {
+    if (
+      !first ||
+      members.length < 3 ||
+      members.filter(({ id }) => readNow.has(id)).length > 1
+    ) {
       continue;
     }
     const seenKeys = new Set<string>();
@@ -167,7 +188,12 @@ const parentsOf = (
   for (const link of links) {
     const from = canonical(link.from);
     const to = canonical(link.to);
-    if (from !== to && atoms.has(from) && atoms.has(to) && !parents.get(to)?.includes(from)) {
+    if (
+      from !== to &&
+      atoms.has(from) &&
+      atoms.has(to) &&
+      !parents.get(to)?.includes(from)
+    ) {
       append(parents, to, from);
     }
   }
@@ -175,7 +201,10 @@ const parentsOf = (
 };
 
 /** How far each atom is from a source: the longest chain of parents above it. */
-const depthsOf = (atoms: ReadonlyMap<number, GraphAtom>, parents: ReadonlyMap<number, number[]>) => {
+const depthsOf = (
+  atoms: ReadonlyMap<number, GraphAtom>,
+  parents: ReadonlyMap<number, number[]>
+) => {
   const depths = new Map<number, number>();
   const depth = (id: number, seen: Set<number>): number => {
     const known = depths.get(id);
@@ -184,7 +213,8 @@ const depthsOf = (atoms: ReadonlyMap<number, GraphAtom>, parents: ReadonlyMap<nu
     }
     seen.add(id);
     const from = (parents.get(id) ?? []).filter((parent) => !seen.has(parent));
-    const value = from.length === 0 ? 0 : 1 + Math.max(...from.map((p) => depth(p, seen)));
+    const value =
+      from.length === 0 ? 0 : 1 + Math.max(...from.map((p) => depth(p, seen)));
     depths.set(id, value);
     return value;
   };
@@ -210,9 +240,17 @@ const componentsOf = (
       continue;
     }
     const key = `${reader.name}#${reader.instance ?? 0}`;
-    const instance = instances.get(key) ?? { count: 1, key, label: reader.name, uses: new Map() };
+    const instance = instances.get(key) ?? {
+      count: 1,
+      key,
+      label: reader.name,
+      uses: new Map(),
+    };
     instances.set(key, instance);
-    instance.uses.set(atom, (instance.uses.get(atom) ?? new Set()).add(reader.kind));
+    instance.uses.set(
+      atom,
+      (instance.uses.get(atom) ?? new Set()).add(reader.kind)
+    );
   }
   const components = new Map<string, Component>();
   for (const instance of instances.values()) {
@@ -239,7 +277,9 @@ class Tracks {
 
   place(column: number, key: string, wanted: number | undefined): number {
     const taken = new Set(
-      [...this.columns].filter(([, at]) => at === column).map(([other]) => this.rows.get(other))
+      [...this.columns]
+        .filter(([, at]) => at === column)
+        .map(([other]) => this.rows.get(other))
     );
     let track = wanted ?? this.count;
     while (taken.has(track)) {
@@ -275,7 +315,9 @@ interface Shape {
  */
 const placeAtoms = (shape: Shape, tracks: Tracks) => {
   const readDirectly = new Set(
-    [...shape.components.values()].flatMap((component) => [...component.uses.keys()])
+    [...shape.components.values()].flatMap((component) => [
+      ...component.uses.keys(),
+    ])
   );
   const children = new Map<number, number[]>();
   for (const [child, from] of shape.parents) {
@@ -295,7 +337,10 @@ const placeAtoms = (shape: Shape, tracks: Tracks) => {
       return;
     }
     const track = tracks.place(shape.depths.get(id) ?? 0, `a${id}`, wanted);
-    tracks.count = Math.max(tracks.count, track + (exclusive.get(id)?.length ?? 1));
+    tracks.count = Math.max(
+      tracks.count,
+      track + (exclusive.get(id)?.length ?? 1)
+    );
     for (const [index, child] of (children.get(id) ?? []).entries()) {
       visit(child, index === 0 && !readDirectly.has(id) ? track : undefined);
     }
@@ -316,7 +361,11 @@ const placeAtoms = (shape: Shape, tracks: Tracks) => {
  * Places components: each block from its atom's track down, then the others on the track of an atom
  * they use where it's free, then the rest below, grouped by the track they'd have liked.
  */
-const placeComponents = (shape: Shape, tracks: Tracks, exclusive: Map<number, Component[]>) => {
+const placeComponents = (
+  shape: Shape,
+  tracks: Tracks,
+  exclusive: Map<number, Component[]>
+) => {
   for (const [atom, block] of exclusive) {
     const start = tracks.rows.get(`a${atom}`) ?? 0;
     for (const [index, component] of block.entries()) {
@@ -332,7 +381,8 @@ const placeComponents = (shape: Shape, tracks: Tracks, exclusive: Map<number, Co
     }
     const wanted = wantedTrack(component);
     const taken = [...tracks.columns].some(
-      ([key, column]) => column === shape.atomColumns && tracks.rows.get(key) === wanted
+      ([key, column]) =>
+        column === shape.atomColumns && tracks.rows.get(key) === wanted
     );
     if (wanted === undefined || taken) {
       leftover.push(component);
@@ -340,21 +390,28 @@ const placeComponents = (shape: Shape, tracks: Tracks, exclusive: Map<number, Co
       tracks.place(shape.atomColumns, component.key, wanted);
     }
   }
-  const order = (component: Component) => wantedTrack(component) ?? Number.POSITIVE_INFINITY;
+  const order = (component: Component) =>
+    wantedTrack(component) ?? Number.POSITIVE_INFINITY;
   for (const component of leftover.toSorted((a, b) => order(a) - order(b))) {
     tracks.place(shape.atomColumns, component.key, tracks.count);
   }
 };
 
 /** Where on the page a key is drawn: x as a fraction of the width, y in pixels. */
-const positions = (shape: Shape, tracks: Tracks, dotted: ReadonlySet<number>) => {
+const positions = (
+  shape: Shape,
+  tracks: Tracks,
+  dotted: ReadonlySet<number>
+) => {
   const hasComponents = shape.components.size > 0;
   const x = (column: number) => {
     if (hasComponents && column === shape.atomColumns) {
       return componentColumn;
     }
     const span = hasComponents ? 0.52 : 0.84;
-    return shape.atomColumns === 1 ? 0.04 : 0.04 + (column * (span - 0.04)) / (shape.atomColumns - 1);
+    return shape.atomColumns === 1
+      ? 0.04
+      : 0.04 + (column * (span - 0.04)) / (shape.atomColumns - 1);
   };
   // A row of dots has its keys under it: every track after one moves down to make room.
   const trackY = (track: number) =>
@@ -368,7 +425,12 @@ const positions = (shape: Shape, tracks: Tracks, dotted: ReadonlySet<number>) =>
 
 type At = ReturnType<typeof positions>["at"];
 
-const groupNode = (id: number, group: Group, x: number, y: number): GraphNode => {
+const groupNode = (
+  id: number,
+  group: Group,
+  x: number,
+  y: number
+): GraphNode => {
   const repeats = group.dots.filter((dot) => dot.repeat).length;
   const keys = `${group.keys} ${group.keys === 1 ? "key" : "keys"}`;
   return {
@@ -383,7 +445,9 @@ const groupNode = (id: number, group: Group, x: number, y: number): GraphNode =>
 };
 
 const componentNote = (component: Component) => {
-  const kinds = new Set([...component.uses.values()].flatMap((uses) => [...uses]));
+  const kinds = new Set(
+    [...component.uses.values()].flatMap((uses) => [...uses])
+  );
   if (!kinds.has("write")) {
     return undefined;
   }
@@ -410,7 +474,8 @@ const nodesOf = (shape: Shape, groups: ReadonlyMap<number, Group>, at: At) => {
     const name = atom.label ?? "atom";
     const index = (named.get(name) ?? 0) + 1;
     named.set(name, index);
-    const last = shape.components.size === 0 && column === columns - 1 && columns > 1;
+    const last =
+      shape.components.size === 0 && column === columns - 1 && columns > 1;
     nodes.push({
       id: `a${atom.id}`,
       kind: atom.status === "removed" ? "gone" : "atom",
@@ -426,7 +491,10 @@ const nodesOf = (shape: Shape, groups: ReadonlyMap<number, Group>, at: At) => {
     nodes.push({
       id: component.key,
       kind: "component",
-      label: component.count > 1 ? `${component.label} ×${component.count}` : component.label,
+      label:
+        component.count > 1
+          ? `${component.label} ×${component.count}`
+          : component.label,
       note: componentNote(component),
       side: "ne",
       x,
@@ -455,16 +523,27 @@ const routeEdges = ({ at, lastRow, nodes, shape, trackY }: Router) => {
   const collectors = new Map<string, number>();
   const sourceCount = new Set([
     ...[...shape.parents.values()].flat(),
-    ...[...shape.components.values()].flatMap((component) => [...component.uses.keys()]),
+    ...[...shape.components.values()].flatMap((component) => [
+      ...component.uses.keys(),
+    ]),
   ]).size;
   const blocked = (y: number, x1: number, x2: number) =>
     nodes.some(
-      (node) => node.y === y && node.x > Math.min(x1, x2) + 1e-6 && node.x < Math.max(x1, x2) - 1e-6
+      (node) =>
+        node.y === y &&
+        node.x > Math.min(x1, x2) + 1e-6 &&
+        node.x < Math.max(x1, x2) - 1e-6
     );
   let lanes = 0;
   const edges: GraphEdge[] = [];
 
-  const turnAt = (from: string, to: string, a: { x: number }, b: { x: number }, collector: boolean) => {
+  const turnAt = (
+    from: string,
+    to: string,
+    a: { x: number },
+    b: { x: number },
+    collector: boolean
+  ) => {
     const source = sources.get(from) ?? sources.size;
     sources.set(from, source);
     if (!collector) {
@@ -477,7 +556,12 @@ const routeEdges = ({ at, lastRow, nodes, shape, trackY }: Router) => {
     return b.x - 0.025 - index * 0.016;
   };
 
-  const route = (from: string, to: string, dashed: boolean, collector = false) => {
+  const route = (
+    from: string,
+    to: string,
+    dashed: boolean,
+    collector = false
+  ) => {
     const a = at(from);
     const b = at(to);
     const middle = turnAt(from, to, a, b, collector && a.y !== b.y);
@@ -526,7 +610,12 @@ const routeEdges = ({ at, lastRow, nodes, shape, trackY }: Router) => {
   for (const component of shape.components.values()) {
     for (const [atom, kinds] of component.uses) {
       // An atom the component only writes to: dashed, since nothing flows back to it.
-      route(`a${atom}`, component.key, kinds.size === 1 && kinds.has("write"), true);
+      route(
+        `a${atom}`,
+        component.key,
+        kinds.size === 1 && kinds.has("write"),
+        true
+      );
     }
   }
   return { edges, lanes };
@@ -545,14 +634,19 @@ const runsOf = (points: readonly Point[]): [Point, Point][] =>
  * as passing over, not as a junction. Where lines join, one ends on the other, so they never meet
  * this test.
  */
-const breakCrossings = (edges: readonly GraphEdge[], width: number): GraphEdge[] => {
+const breakCrossings = (
+  edges: readonly GraphEdge[],
+  width: number
+): GraphEdge[] => {
   const half = width > 0 ? 4 / width : 0;
   if (half === 0) {
     return [...edges];
   }
   const verticals = edges.flatMap((edge) =>
     runsOf(edge.points).flatMap(([[x1, y1], [x2, y2]]) =>
-      x1 === x2 && y1 !== y2 ? [{ to: edge.to, x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2) }] : []
+      x1 === x2 && y1 !== y2
+        ? [{ to: edge.to, x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2) }]
+        : []
     )
   );
   return edges.flatMap((edge) => {
@@ -567,7 +661,9 @@ const breakCrossings = (edges: readonly GraphEdge[], width: number): GraphEdge[]
         const crossings = verticals
           .filter((v) => v.to !== edge.to && y1 > v.y1 && y1 < v.y2)
           .map((v) => v.x)
-          .filter((vx) => vx > Math.min(x1, x2) + half && vx < Math.max(x1, x2) - half)
+          .filter(
+            (vx) => vx > Math.min(x1, x2) + half && vx < Math.max(x1, x2) - half
+          )
           .toSorted((a, b) => (forward ? a - b : b - a));
         const toward = forward ? -1 : 1;
         for (const vx of crossings) {
@@ -577,7 +673,11 @@ const breakCrossings = (edges: readonly GraphEdge[], width: number): GraphEdge[]
       }
       pieces.at(-1)?.push([x2, y2]);
     }
-    return pieces.map((points, part) => ({ ...edge, id: `${edge.id}~${part}`, points }));
+    return pieces.map((points, part) => ({
+      ...edge,
+      id: `${edge.id}~${part}`,
+      points,
+    }));
   });
 };
 
@@ -593,7 +693,10 @@ const dotRows = (
   [...groups].map(([first, group]) => {
     const { x: start, y } = at(`a${first}`);
     const end = hasComponents ? componentColumn - 0.06 : 0.94;
-    const step = Math.min(72 / Math.max(width, 1), (end - start - 0.04) / group.dots.length);
+    const step = Math.min(
+      72 / Math.max(width, 1),
+      (end - start - 0.04) / group.dots.length
+    );
     return {
       dots: group.dots.map((dot, index) => ({
         ...dot,
@@ -611,13 +714,18 @@ const dotRows = (
  * Lays a graph out for a box `width` pixels wide (only the gaps at crossings and the dots' spacing
  * depend on it: x is a fraction of the width, y is in pixels). Undefined when there's nothing to draw.
  */
-export const layoutGraph = (input: GraphInput, width: number): GraphLayout | undefined => {
+export const layoutGraph = (
+  input: GraphInput,
+  width: number
+): GraphLayout | undefined => {
   if (input.atoms.length === 0) {
     return undefined;
   }
   const readers = input.readers ?? [];
   // In the order they were first seen (ids count up), so an atom keeps its place and its number.
-  const atoms = new Map(input.atoms.toSorted((a, b) => a.id - b.id).map((atom) => [atom.id, atom]));
+  const atoms = new Map(
+    input.atoms.toSorted((a, b) => a.id - b.id).map((atom) => [atom.id, atom])
+  );
   const status = new Map(input.atoms.map((atom) => [atom.id, atom.status]));
   const readNow = new Set([
     ...readers.map((reader) => reader.atom),
@@ -639,7 +747,9 @@ export const layoutGraph = (input: GraphInput, width: number): GraphLayout | und
 
   const tracks = new Tracks();
   placeComponents(shape, tracks, placeAtoms(shape, tracks));
-  const dotted = new Set([...groups.keys()].map((first) => tracks.rows.get(`a${first}`) ?? 0));
+  const dotted = new Set(
+    [...groups.keys()].map((first) => tracks.rows.get(`a${first}`) ?? 0)
+  );
   const { at, trackY } = positions(shape, tracks, dotted);
   const nodes = nodesOf(shape, groups, at);
   const lastRow = Math.max(...tracks.rows.values());
