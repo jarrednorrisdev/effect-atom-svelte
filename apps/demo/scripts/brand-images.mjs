@@ -2,7 +2,7 @@
 // (src/lib/docs/site-logo.svelte), the site's fonts and its dark theme's colours:
 //
 // - favicon.svg: the logo's three marks on one centre (the component's square, the atom's ring,
-//   the Effect's diamond), on the dark background.
+//   the Effect's diamond); the square, rounded like an iOS icon, is the icon's edge.
 // - favicon.ico (16 and 32 px) and apple-touch-icon.png (180 px), rendered from it.
 // - og-image.png (1200 x 630): the image Discord, Slack and the rest show for a link to the site,
 //   ruled in hairlines like the landing page, with the logo, the tagline and a small graph.
@@ -36,7 +36,17 @@ const fonts = `
 `;
 
 // The square, the ring and the diamond on one centre, as the logo draws them one after another.
-const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${color.background}"/><rect x="4" y="4" width="24" height="24" rx="2.5" fill="none" stroke="${color.muted}" stroke-width="2"/><circle cx="16" cy="16" r="8.25" fill="${color.background}" stroke="${color.brand}" stroke-width="3"/><rect x="12.25" y="12.25" width="7.5" height="7.5" fill="${color.foreground}" transform="rotate(45 16 16)"/></svg>`;
+// The square is the icon's edge, filled with the dark background (so the white diamond shows on a
+// light tab), and rounded as iOS rounds an app icon (about 22% of its width), so the touch icon's
+// outline survives iOS's own rounding.
+const marks = `<rect x="1" y="1" width="30" height="30" rx="6.5" fill="${color.background}" stroke="${color.muted}" stroke-width="2"/><circle cx="16" cy="16" r="9.25" fill="${color.background}" stroke="${color.brand}" stroke-width="3.5"/><rect x="11.5" y="11.5" width="9" height="9" fill="${color.foreground}" transform="rotate(45 16 16)"/>`;
+const svg = (body) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${body}</svg>`;
+const favicon = svg(marks);
+// iOS wants an opaque square and rounds it itself: dark corners behind the same marks.
+const touchIcon = svg(
+  `<rect width="32" height="32" fill="${color.background}"/>${marks}`
+);
 
 // The logo's mark in a row, as the header draws it, `scale` times its 11 px height.
 const mark = (scale) => {
@@ -146,9 +156,9 @@ const render = async (html, width, height) => {
   await page.close();
   return png;
 };
-const icon = (size, rounded = true) =>
+const icon = (size, source = favicon) =>
   render(
-    `<body style="margin:0">${(rounded ? favicon : favicon.replace('rx="7"', 'rx="0"')).replace("<svg ", `<svg width="${size}" height="${size}" `)}</body>`,
+    `<body style="margin:0">${source.replace("<svg ", `<svg width="${size}" height="${size}" `)}</body>`,
     size,
     size
   );
@@ -161,8 +171,7 @@ writeFileSync(
     { data: await icon(32), size: 32 },
   ])
 );
-// iOS rounds the corners itself, so the touch icon is square.
-writeFileSync(statics("apple-touch-icon.png"), await icon(180, false));
+writeFileSync(statics("apple-touch-icon.png"), await icon(180, touchIcon));
 writeFileSync(statics("og-image.png"), await render(og(), 1200, 630));
 await browser.close();
 console.log(
