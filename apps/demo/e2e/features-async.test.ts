@@ -128,15 +128,11 @@ test.describe("Async atoms page", () => {
     await page.waitForLoadState("networkidle");
     const log = logEntries(page, "Socket server");
     await expect(page.getByTestId("feed-gone")).toBeVisible();
-    // Under load, Firefox has taken this click before hydration and ignored it, so it is repeated
-    // until the reader appears. Once it has, the button says "Remove the reader" instead.
-    const add = page.getByRole("button", { name: "Add a reader" });
-    await expect(async () => {
-      if (await add.isVisible()) {
-        await add.click();
-      }
-      await expect(page.getByTestId("feed-gone")).toBeHidden({ timeout: 1000 });
-    }).toPass();
+    // Under load, Firefox has taken this click before hydration and ignored it; setPressed
+    // presses again until the toggle is on.
+    const read = page.getByRole("button", { name: "Read feedAtom" });
+    await setPressed(read, true);
+    await expect(page.getByTestId("feed-gone")).toBeHidden();
     await expect(page.getByTestId("feed")).toHaveText(
       "First message on socket 1"
     );
@@ -150,7 +146,7 @@ test.describe("Async atoms page", () => {
       /^\d+ ms\s*socket 1 closed$/u,
       /^\d+ ms\s*socket 2 opened$/u,
     ]);
-    await page.getByRole("button", { name: "Remove the reader" }).click();
+    await setPressed(read, false);
     await expect(page.getByTestId("feed-gone")).toBeVisible();
     await expect(log).toHaveText([
       /^0 ms\s*socket 1 opened$/u,
@@ -345,7 +341,7 @@ test.describe("Suspense page", () => {
     // The script didn't run again.
     expect(await steps.allTextContents()).toEqual(ran);
     // A new component waits again; nothing kept the atom, so it loads again.
-    await page.getByRole("button", { name: "Unmount the component" }).click();
+    await mount.click();
     await expect(notes).toHaveCount(0);
     await mount.click();
     await expect(steps.nth(1)).toHaveText(/waiting for the first result…$/u);

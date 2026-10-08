@@ -352,10 +352,11 @@ test("first atom: two counters share one atom", async ({ page }) => {
   await page.getByRole("button", { name: "Second counter: increment" }).click();
   await expect(page.locator("[data-example] output")).toHaveText(["2", "2"]);
   // Nothing reads the atom while the counters are hidden, so it starts again.
-  await page.getByRole("button", { name: "Hide counters" }).click();
+  const showCounters = page.getByRole("button", { name: "Show counters" });
+  await setPressed(showCounters, false);
   await expect(page.locator("[data-example] output")).toHaveCount(0);
   await expect(page.getByText("Nothing reads countAtom now")).toBeVisible();
-  await page.getByRole("button", { name: "Show counters" }).click();
+  await setPressed(showCounters, true);
   await expect(page.locator("[data-example] output")).toHaveText(["0", "0"]);
 });
 
@@ -486,17 +487,20 @@ test("effect basics: removing the reader aborts the request's signal", async ({
     .getByRole("listitem");
   // The page's clock follows the real one until paused, so a second ahead is never in its past.
   await page.clock.pauseAt(Date.now() + 1000);
-  await page.getByRole("button", { name: "Add a reader" }).click();
+  const read = page.getByRole("button", { name: "Read requestAtom" });
+  await read.click();
+  await expect(read).toHaveAttribute("aria-pressed", "true");
   await expect(state).toHaveText("Initial, waiting");
   await expect(server).toHaveText([/^0 ms\s*request received$/u]);
-  await page.getByRole("button", { name: "Remove the reader" }).click();
+  await read.click();
+  await expect(read).toHaveAttribute("aria-pressed", "false");
   await page.clock.resume();
   await expect(server).toHaveText([
     /^0 ms\s*request received$/u,
     /^\d+ ms\s*signal aborted, request dropped$/u,
   ]);
   // Left alone, the request answers after two seconds.
-  await page.getByRole("button", { name: "Add a reader" }).click();
+  await setPressed(read, true);
   await expect(page.getByTestId("request")).toHaveText("Here is your data", {
     timeout: 5000,
   });
@@ -657,14 +661,17 @@ test("suspense: pending, value, refresh and failure", async ({ page }) => {
     hasText: "Loading the forecast…",
   });
   await expect(forecast).toHaveCount(0);
-  await page.getByRole("button", { name: "Mount the forecast" }).click();
+  const mountForecast = page.getByRole("button", {
+    name: "Mount the forecast",
+  });
+  await setPressed(mountForecast, true);
   await expect(forecastPending).toBeVisible();
   await expect(forecast).toHaveText("18 °C, cloudy");
   await expect(forecastPending).toHaveCount(0);
   // Nothing kept the atom, so a new mount loads it again.
-  await page.getByRole("button", { name: "Unmount the forecast" }).click();
+  await setPressed(mountForecast, false);
   await expect(forecast).toHaveCount(0);
-  await page.getByRole("button", { name: "Mount the forecast" }).click();
+  await setPressed(mountForecast, true);
   await expect(forecastPending).toBeVisible();
   await expect(forecast).toHaveText("18 °C, cloudy");
 

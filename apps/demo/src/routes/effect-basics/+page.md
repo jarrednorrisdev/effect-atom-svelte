@@ -83,9 +83,9 @@ const getJson = (url: string) =>
 
 `try` receives an `AbortSignal`, which Effect aborts if the effect is interrupted. Pass it on, as above, and an atom that nobody reads any more cancels its request.
 
-The example below wraps a pretend slow API that takes an `AbortSignal`, as `fetch` does, in an async atom. The atom sends the request when `<Reader>` mounts. Remove the reader before the answer arrives, and the registry interrupts the effect, which aborts the signal: the server's log shows the request being dropped.
+The example below wraps a pretend slow API that takes an `AbortSignal`, as `fetch` does, in an async atom. The atom sends the request when `<Reader>` mounts. Stop reading it before the answer arrives, and the registry interrupts the effect, which aborts the signal: the server's log shows the request being dropped.
 
-<Example files={[{ html: requestSource, name: "request.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Click Add a reader, then Remove the reader before the two seconds are up: the server drops the request. Then add a reader and let it finish."> <Request /> </Example>
+<Example files={[{ html: requestSource, name: "request.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Turn on Read requestAtom, then turn it off before the two seconds are up: the server drops the request. Then turn it on and let it finish."> <Request /> </Example>
 
 Without `catch`, as in `Effect.tryPromise(() => fetch(url))`, a rejection becomes an `UnknownError`. When a promise can't reject, `Effect.promise` wraps it without an error type.
 

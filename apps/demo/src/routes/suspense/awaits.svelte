@@ -46,8 +46,12 @@
 </script>
 
 <p>
-  <button data-cue={mounted ? "reset" : "start"} onclick={toggle}>
-    {mounted ? "Unmount all three" : "Mount all three"}
+  <button
+    aria-pressed={mounted}
+    data-cue={mounted ? "reset" : "start"}
+    onclick={toggle}
+  >
+    Mount all three
   </button>
   <button aria-pressed={todosFail} onclick={toggleFail}>Todos fails</button>
 </p>
