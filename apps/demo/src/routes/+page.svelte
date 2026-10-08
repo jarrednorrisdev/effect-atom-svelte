@@ -31,7 +31,7 @@
   import HeroDrawing from "#lib/landing/prototype/hero-drawing.svelte";
   import HeroFrame from "#lib/landing/prototype/hero-frame.svelte";
   import HeroGraph from "#lib/landing/prototype/hero-graph.svelte";
-  import FrameGraph from "#lib/landing/prototype/frame-graph.svelte";
+  import FrameGraph from "#lib/docs/kit/frame-graph.svelte";
   import PrototypeSwitcher from "#lib/landing/prototype/prototype-switcher.svelte";
   import { sectionGraphs } from "#lib/landing/prototype/section-graphs.ts";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
@@ -207,6 +207,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={20}
         files={[
           { html: exchangeRateSource, name: "exchange-rate.ts" },
@@ -242,6 +243,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={16}
         files={[
           { html: todoLookupSource, name: "todo-lookup.svelte" },
@@ -274,6 +276,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={21}
         files={[{ html: reportSource, name: "report.svelte" }]}
         hint="Show the report, then hide it before three seconds pass: nothing reads reportAtom, so its effect is interrupted."
@@ -310,6 +313,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
         hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows."}

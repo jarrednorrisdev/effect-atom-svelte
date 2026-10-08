@@ -1,7 +1,7 @@
 <!--
-  PROTOTYPE (landing hero variants, ?variant=d): throwaway, not for main.
-
-  A dependency graph drawn on a hairline frame's own lines. Place it at the top-left of the frame
+  @component
+  A dependency graph drawn on a hairline frame's own lines: the landing page's hero and reasons, and
+  the live graph at the top of each docs example (example-graph.svelte). Place it at the top-left of the frame
   (or of one ruled line); x is a fraction of its width, y is pixels down from its top. Lit edges are
   drawn in the accent, in order, the first time the graph scrolls into view.
 
@@ -23,6 +23,8 @@
     readonly side?: "ne" | "se" | "nw" | "sw";
     /** The step at which it appears, with the edge that reaches it. */
     readonly step?: number;
+    /** Names the node, for a live graph to find it again (`data-node`) and pulse it. */
+    readonly id?: string;
   }
 
   export interface GraphEdge {
@@ -30,6 +32,10 @@
     readonly lit?: boolean;
     readonly dashed?: boolean;
     readonly step?: number;
+    /** The node it leads to (`data-to`), so a live graph can light the edges into a node. */
+    readonly to?: string;
+    /** Keeps an edge's element across redraws of a live graph. */
+    readonly id?: string;
   }
 </script>
 
@@ -103,9 +109,10 @@
   class:drawn
 >
   {#if width}
-    {#each edges as edge, index (index)}
+    {#each edges as edge, index (edge.id ?? index)}
       {#each segments(edge) as segment, part (part)}
         <span
+          data-to={edge.to}
           style:--step={edge.step ?? 0}
           style:--part={part}
           style:left="{segment.left}px"
@@ -123,14 +130,16 @@
       {/each}
     {/each}
   {/if}
-  {#each nodes as node, index (index)}
+  {#each nodes as node, index (node.id ?? index)}
     <span
+      data-node={node.id}
       style:--step={node.step ?? 0}
       style:left="{px(node.x)}px"
       style:top="{py(node.y)}px"
       class="node {node.kind} {node.side ?? 'ne'}"
     >
       <i></i>
+      <b class="ring"></b>
       {#if node.label}
         <span class="label">
           {node.label}
@@ -225,8 +234,9 @@
       linear-gradient(-45deg, transparent 45%, var(--brand-text) 45% 55%, transparent 55%);
     border: 0;
   }
+  /* Backed with what's behind the graph (--graph-background), so a label hides the lines under it. */
   .label {
-    background: var(--background);
+    background: var(--graph-background, var(--background));
     color: var(--foreground);
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -283,6 +293,62 @@
   @keyframes draw {
     to {
       scale: 1;
+    }
+  }
+  /*
+   * A live graph's events (example-graph.svelte adds and removes these classes): a value updated
+   * (the node rings, and the edges into it flash), or an atom interrupted (a cross over its node).
+   */
+  .ring {
+    opacity: 0;
+    pointer-events: none;
+    border: 1.5px solid var(--brand);
+    border-radius: 50%;
+    height: 9px;
+    left: -4px;
+    position: absolute;
+    top: -4px;
+    width: 9px;
+  }
+  .node:global(.pulse) .ring {
+    animation: ring 0.9s ease-out both;
+  }
+  .edge:global(.flash) {
+    animation: flash 0.9s ease-out both;
+  }
+  .node:global(.interrupted) i {
+    animation: interrupted 1.6s ease-out both;
+  }
+  @keyframes ring {
+    from {
+      opacity: 1;
+      scale: 1;
+    }
+    to {
+      opacity: 0;
+      scale: 3;
+    }
+  }
+  @keyframes flash {
+    from {
+      border-color: var(--brand);
+    }
+  }
+  @keyframes interrupted {
+    0%,
+    60% {
+      background:
+        linear-gradient(45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%),
+        linear-gradient(-45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%);
+      border-color: var(--brand-text);
+      scale: 1.4;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .node:global(.pulse) .ring,
+    .edge:global(.flash),
+    .node:global(.interrupted) i {
+      animation-duration: 0.01s;
     }
   }
   @keyframes appear {

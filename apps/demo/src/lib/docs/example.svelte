@@ -6,6 +6,9 @@
   import type { Cue } from "#lib/docs/kit/sound.ts";
   import { setExampleState } from "#lib/docs/kit/tone.ts";
   import type { Snippet } from "svelte";
+  import { provideInspectorScope } from "effect-atom-svelte/inspector";
+
+  import ExampleGraph from "./example-graph.svelte";
 
   /** A source file of an example: its name, and its code from a `?highlight` import. */
   interface ExampleFile {
@@ -31,18 +34,27 @@
    * example yet (`tone.ts`), so a page's own first load plays no outcome sounds.
    *
    * `cap` is how many lines of a long source show before "Show all" (14 by default).
+   *
+   * The result opens with a live graph of the atoms its components use (example-graph.svelte), read
+   * from an inspector scope round the result. `graph={false}` leaves it out, as the landing page
+   * does: its reasons already draw theirs.
    */
   const {
     cap = 14,
     children,
     files,
+    graph = true,
     hint,
   }: {
     cap?: number;
     children?: Snippet;
     files: readonly ExampleFile[];
+    graph?: boolean;
     hint?: string;
   } = $props();
+
+  // The hooks of every component in the result report the atoms they use to this scope.
+  const scope = provideInspectorScope();
 
   const cues = new Set<string>([
     "blocked",
@@ -204,6 +216,9 @@
       data-pagefind-ignore="all"
       {@attach listen}
     >
+      {#if graph}
+        <ExampleGraph {scope} />
+      {/if}
       <p class="example-label not-prose">Result</p>
       {#if hint}
         <Hint>{hint}</Hint>
@@ -247,7 +262,7 @@
   }
   /* The label (and hint) space the result from the top edge, so the result's own margins would
      double it. */
-  .demo > :global(:nth-child(2)),
+  .demo > .example-label + :global(*),
   .demo > :global(.hint + *) {
     margin-top: 0;
   }
