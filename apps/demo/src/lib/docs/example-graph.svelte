@@ -21,6 +21,8 @@
 
   let snapshot = $state.raw<ScopeSnapshot>();
   let host = $state<HTMLElement>();
+  // For the gaps at crossings, which are a few pixels wide whatever the graph's width.
+  let width = $state(0);
   // The server renders the strip empty; only once the scope is read does "nothing yet" mean it.
   let mounted = $state(false);
 
@@ -131,32 +133,53 @@
       depth(id);
     }
 
-    // One node per component instance, and what it does with each atom.
+    // What each component instance does with each atom.
     interface Component {
       readonly key: string;
       readonly label: string;
       readonly uses: Map<number, Set<string>>;
+      count: number;
     }
-    const components = new Map<string, Component>();
+    const instances = new Map<string, Component>();
     for (const reader of snapshot.readers) {
       if (!atoms.has(reader.atom)) {
         continue;
       }
       const name = reader.file ? basename(reader.file) : (reader.component ?? "component");
-      const key = `c${name}#${reader.instance ?? 0}`;
-      const component = components.get(key) ?? { key, label: name, uses: new Map() };
-      components.set(key, component);
-      component.uses.set(reader.atom, (component.uses.get(reader.atom) ?? new Set()).add(reader.kind));
+      const key = `${name}#${reader.instance ?? 0}`;
+      const instance = instances.get(key) ?? { count: 1, key, label: name, uses: new Map() };
+      instances.set(key, instance);
+      instance.uses.set(reader.atom, (instance.uses.get(reader.atom) ?? new Set()).add(reader.kind));
     }
-    // Two instances of one component are told apart by a number.
-    const counts = new Map<string, number>();
-    for (const component of components.values()) {
-      counts.set(component.label, (counts.get(component.label) ?? 0) + 1);
+    // Instances of one component that use the same atoms the same way are one node, with a count:
+    // three cards reading one log are `card.svelte ×3`, not three lines into three squares.
+    const components = new Map<string, Component>();
+    for (const instance of instances.values()) {
+      const uses = [...instance.uses]
+        .map(([atom, kinds]) => `${atom}:${[...kinds].toSorted().join("+")}`)
+        .toSorted()
+        .join(",");
+      const key = `c${instance.label}|${uses}`;
+      const known = components.get(key);
+      if (known) {
+        known.count += 1;
+      } else {
+        components.set(key, { ...instance, count: 1, key });
+      }
     }
 
     const atomColumns = Math.max(...depths.values()) + 1;
     const columns = atomColumns + (components.size > 0 ? 1 : 0);
-    const x = (column: number) => (columns === 1 ? 0.5 : 0.04 + (column * 0.84) / (columns - 1));
+    // Components sit in a column of their own at 72%, with their labels to the right of them, so the
+    // lines gathering into them run in clear space; atoms spread over what's left.
+    const componentColumn = 0.72;
+    const x = (column: number) => {
+      if (components.size > 0 && column === atomColumns) {
+        return componentColumn;
+      }
+      const span = components.size > 0 ? 0.52 : 0.84;
+      return atomColumns === 1 ? 0.04 : 0.04 + (column * (span - 0.04)) / (atomColumns - 1);
+    };
 
     // Tracks (rows), as on the landing page's diagrams: each source starts one, and a node stays on
     // its first parent's track when that's free in its column, so most edges run straight along a
@@ -216,8 +239,25 @@
     for (const node of atoms.values()) {
       visit(node.id, undefined);
     }
+    // Components first take the track of an atom they use, where it's free, so those reads run
+    // straight; the rest go on new tracks below, rather than pushing the others down.
+    const leftover: Component[] = [];
     for (const component of components.values()) {
-      place(atomColumns, component.key, firstTrack([...component.uses.keys()].map((a) => `a${a}`)));
+      const wanted = firstTrack([...component.uses.keys()].map((a) => `a${a}`));
+      const taken = placed.some(
+        (entry) => entry.column === atomColumns && rows.get(entry.key) === wanted
+      );
+      if (wanted === undefined || taken) {
+        leftover.push(component);
+      } else {
+        place(atomColumns, component.key, wanted);
+      }
+    }
+    // Grouped by the track they'd have liked, so what one atom fans out to stays together.
+    const wantedTrack = (component: Component) =>
+      firstTrack([...component.uses.keys()].map((a) => `a${a}`)) ?? Number.POSITIVE_INFINITY;
+    for (const component of leftover.toSorted((a, b) => wantedTrack(a) - wantedTrack(b))) {
+      place(atomColumns, component.key, tracks);
     }
     const at = (key: string) => {
       const column = placed.find((entry) => entry.key === key)?.column ?? 0;
@@ -241,23 +281,20 @@
         kind: "atom",
         label: (names.get(name) ?? 0) > 1 ? `${name} #${index}` : name,
         note: noteOf(node),
-        side: column === columns - 1 && columns > 1 ? "nw" : "ne",
+        side: components.size === 0 && column === columns - 1 && columns > 1 ? "nw" : "ne",
         x: nx,
         y,
       });
     }
-    const seen = new Map<string, number>();
     for (const component of components.values()) {
       const { x: nx, y } = at(component.key);
-      const index = (seen.get(component.label) ?? 0) + 1;
-      seen.set(component.label, index);
       const kinds = new Set([...component.uses.values()].flatMap((uses) => [...uses]));
       nodes.push({
         id: component.key,
         kind: "component",
-        label: (counts.get(component.label) ?? 0) > 1 ? `${component.label} #${index}` : component.label,
+        label: component.count > 1 ? `${component.label} ×${component.count}` : component.label,
         note: kinds.has("write") && kinds.size === 1 ? "writes" : kinds.has("write") ? "reads, writes" : undefined,
-        side: columns > 1 ? "nw" : "ne",
+        side: "ne",
         x: nx,
         y,
       });
@@ -268,6 +305,10 @@
     // different sources never share a vertical line.
     const lastRow = Math.max(...rows.values());
     const sources = new Map<string, number>();
+    // Vertical lines into components, none shared by two of them: a component that reads several
+    // atoms gathers them on a collector of its own; components that read only one atom share that
+    // atom's trunk, which shows what fans out from it.
+    const collectors = new Map<string, number>();
     // Every atom with an edge leaving it: from its children, or to the components using it.
     const sourceCount = new Set([
       ...[...parents.values()].flat(),
@@ -289,9 +330,14 @@
       sources.set(from, source);
       // Into a component, an atom runs along its own track to a short collector just before the
       // component, then joins it: nothing turns across the atoms in between.
-      const middle = collector
-        ? b.x - 0.025
-        : (a.x + b.x) / 2 + (source - (sourceCount - 1) / 2) * 0.018;
+      let middle = (a.x + b.x) / 2 + (source - (sourceCount - 1) / 2) * 0.018;
+      if (collector && a.y !== b.y) {
+        const single = (components.get(to)?.uses.size ?? 0) === 1;
+        const owner = single ? `from ${from}` : `into ${to}`;
+        const index = collectors.get(owner) ?? collectors.size;
+        collectors.set(owner, index);
+        middle = b.x - 0.025 - index * 0.016;
+      }
       const direct: [number, number][] =
         a.y === b.y
           ? [
@@ -336,13 +382,57 @@
       }
     }
 
+    // Where one edge's vertical run crosses the middle of another's horizontal one, and they're not
+    // headed for the same node, the horizontal one breaks for a few pixels either side: a crossing
+    // reads as passing over, not as a junction. Where lines join, one ends on the other, so they
+    // never meet this test.
+    const half = width > 0 ? 4 / width : 0;
+    const verticals = edges.flatMap((edge) =>
+      edge.points.slice(1).flatMap(([x2, y2], index) => {
+        const [x1, y1] = edge.points[index]!;
+        return x1 === x2 && y1 !== y2
+          ? [{ to: edge.to, x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2) }]
+          : [];
+      })
+    );
+    const broken: GraphEdge[] = edges.flatMap((edge) => {
+      const pieces: [number, number][][] = [[edge.points[0]!]];
+      edge.points.slice(1).forEach(([x2, y2], index) => {
+        const [x1, y1] = edge.points[index]!;
+        const piece = pieces.at(-1)!;
+        if (y1 === y2 && half > 0) {
+          const crossings = verticals
+            .filter((v) => v.to !== edge.to && y1 > v.y1 && y1 < v.y2)
+            .map((v) => v.x)
+            .filter((vx) => vx > Math.min(x1, x2) + half && vx < Math.max(x1, x2) - half)
+            .toSorted((a, b) => (x2 > x1 ? a - b : b - a));
+          for (const vx of crossings) {
+            const toward = x2 > x1 ? -1 : 1;
+            piece.push([vx + toward * half, y1]);
+            pieces.push([[vx - toward * half, y1]]);
+          }
+        }
+        pieces.at(-1)!.push([x2, y2]);
+      });
+      return pieces.map((points, part) => ({
+        ...edge,
+        id: `${edge.id}~${part}`,
+        points,
+      }));
+    });
+
     const height = top + lastRow * row + (lanes > 0 ? lanes * row - row / 2 : 0) + 16;
-    return { edges, height, nodes };
+    return { edges: broken, height, nodes };
   });
 </script>
 
 <!-- Always there, at least one row tall, so the example doesn't jump when its atoms appear. -->
-<div bind:this={host} class="example-graph" style:height={layout ? `${layout.height}px` : undefined}>
+<div
+  bind:clientWidth={width}
+  bind:this={host}
+  class="example-graph"
+  style:height={layout ? `${layout.height}px` : undefined}
+>
   {#if layout}
     <FrameGraph edges={layout.edges} nodes={layout.nodes} />
   {:else if mounted}

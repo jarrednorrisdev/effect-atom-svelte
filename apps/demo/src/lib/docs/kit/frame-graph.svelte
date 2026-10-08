@@ -159,8 +159,9 @@
     z-index: 2;
   }
   /* A run of an edge: a 1px border, like the frame's own lines. */
+  /* Solid, mixed with what's behind the graph: a translucent line brightens where two runs overlap. */
   .edge {
-    --edge: color-mix(in oklab, var(--foreground) 30%, transparent);
+    --edge: color-mix(in oklab, var(--foreground) 30%, var(--graph-background, var(--background)));
     position: absolute;
   }
   .edge.horizontal {
@@ -186,10 +187,12 @@
     --edge: var(--brand);
   }
   /* A node's anchor is the 1px square of line it sits on; its mark is centred on that square. */
+  /* Above every edge, so labels and marks are never crossed. */
   .node {
     height: 1px;
     position: absolute;
     width: 1px;
+    z-index: 2;
   }
   /* Centring a mark on a 1px line takes an odd size and whole-pixel borders: a 9px mark then sits
      exactly 4px either side of the line, so every edge of it falls on the same fraction of a device
