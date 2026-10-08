@@ -8,6 +8,7 @@
 //   ruled in hairlines like the landing page, with the logo, the tagline and a small graph.
 //
 // Run it from apps/demo after changing the logo or the colours: `node scripts/brand-images.mjs`.
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -172,7 +173,18 @@ writeFileSync(
   ])
 );
 writeFileSync(statics("apple-touch-icon.png"), await icon(180, touchIcon));
-writeFileSync(statics("og-image.png"), await render(og(), 1200, 630));
+const preview = await render(og(), 1200, 630);
+writeFileSync(statics("og-image.png"), preview);
+// The preview's URL carries a hash of it (src/lib/docs/site.ts), so a new image gets a new URL.
+const site = at("../src/lib/docs/site.ts");
+const hash = createHash("md5").update(preview).digest("hex").slice(0, 8);
+writeFileSync(
+  site,
+  readFileSync(site, "utf-8").replace(
+    /const previewVersion = "\w*";/u,
+    `const previewVersion = "${hash}";`
+  )
+);
 await browser.close();
 console.log(
   "Wrote favicon.svg, favicon.ico, apple-touch-icon.png and og-image.png to static/."
