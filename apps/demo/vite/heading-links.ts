@@ -8,6 +8,13 @@ interface Node {
 
 const linked = new Set(["h2", "h3"]);
 
+const cross = (side: string): Node => ({
+  children: [],
+  properties: { ariaHidden: "true", className: ["rule-cross", side] },
+  tagName: "i",
+  type: "element",
+});
+
 const link = (node: Node) => {
   if (node.type === "element" && linked.has(node.tagName ?? "")) {
     const id = node.properties?.id;
@@ -19,6 +26,8 @@ const link = (node: Node) => {
           tagName: "a",
           type: "element",
         },
+        // An h2 rules across the docs page: a cross at each end of its line (app.css).
+        ...(node.tagName === "h2" ? ["rule-start", "rule-end"].map(cross) : []),
       ];
     }
     return;
@@ -31,7 +40,8 @@ const link = (node: Node) => {
 /**
  * A rehype plugin that makes each h2 and h3 a link to itself, so a reader can copy a section's
  * address. It wraps the heading's text, so the heading's accessible name and the table of contents
- * stay the same; app.css shows a `#` beside it on hover and focus. Runs after rehype-slug, which
+ * stay the same; app.css shows a `#` beside it on hover and focus. Each h2 also gets the two
+ * crosses where its rule meets the docs column's lines; they're empty and hidden from assistive tech. Runs after rehype-slug, which
  * gives the headings their ids.
  */
 export const headingLinks = () => (tree: Node) => {

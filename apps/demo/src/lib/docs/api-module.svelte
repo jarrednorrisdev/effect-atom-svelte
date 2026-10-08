@@ -15,6 +15,16 @@
   const slug = (text: string) => text.toLowerCase().replaceAll(/\s+/gu, "-");
 </script>
 
+<!-- An h2 shaped like a Markdown page's (vite/heading-links.ts): a link to itself, and the crosses
+     where its rule meets the docs column's lines. -->
+{#snippet section(id: string, title: string)}
+  <h2 {id}>
+    <a class="heading-link" href="#{id}">{title}</a>
+    <i aria-hidden="true" class="rule-cross rule-start"></i>
+    <i aria-hidden="true" class="rule-cross rule-end"></i>
+  </h2>
+{/snippet}
+
 <PageDescription
   description={module.name === "index"
     ? "The API reference for effect-atom-svelte: its entry points, and every export with its signature and examples."
@@ -35,7 +45,7 @@
   </p>
 
   {#if module.entryPoints}
-    <h2 id="entry-points">Entry points</h2>
+    {@render section("entry-points", "Entry points")}
     <p>
       An app imports from these entry points, the <code>exports</code> in the package's
       <code>package.json</code>:
@@ -60,7 +70,7 @@
   {/if}
 
   {#each module.categories as category (category.title)}
-    <h2 id={slug(category.title)}>{capitalize(category.title)}</h2>
+    {@render section(slug(category.title), capitalize(category.title))}
     {#each category.exports as entry (entry.name)}
       <h3 id={entry.name}>{entry.name}</h3>
       {@html entry.description}
@@ -85,7 +95,7 @@
 
   <!-- Another package's modules, re-exported together: one description, then the names. -->
   {#each module.reExports as group (group.from)}
-    <h2 id={slug(group.category)}>{capitalize(group.category)}</h2>
+    {@render section(slug(group.category), capitalize(group.category))}
     {@html group.description}
     <p>
       Re-exported from <code>{group.from}</code>. Each links to the guide that teaches it, and to

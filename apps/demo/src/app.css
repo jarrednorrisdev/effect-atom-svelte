@@ -96,7 +96,8 @@
   --code-background: oklch(0.967 0.001 286.375 / 60%);
   --code-gutter: #1b1f2363;
   --code-gutter-border: #1b1f2333;
-  --code-shadow: #00000028;
+  /* Flat, like a drawing: frames and code cast no shadow. */
+  --code-shadow: transparent;
 }
 
 .dark {
@@ -132,7 +133,7 @@
   --code-background: oklch(0.21 0.006 285.885 / 60%);
   --code-gutter: #646c73;
   --code-gutter-border: #646c7333;
-  --code-shadow: #0000005b;
+  --code-shadow: transparent;
 }
 
 /* effect.website's type scale: a major third from 1rem, with a smaller xs. */
@@ -450,6 +451,152 @@ html {
 .heading-link:hover::after,
 .heading-link:focus-visible::after {
   opacity: 1;
+}
+
+/*
+ * The hairline frame: pages are ruled in 1px lines (--border), with a cross wherever two meet.
+ *
+ * A cross is placed on the 1px square where its lines cross, at the same CSS coordinates as the
+ * lines' own borders, and its arms are 1px borders too. At a fractional display scale (150%, say)
+ * the browser doesn't round lines to whole device pixels; drawn the same way from the same place, a
+ * cross blurs exactly as its lines do and stays centred on them. So: give it `left` and `top` equal
+ * to the lines' left and top edges, in its positioned ancestor's padding box (a line drawn as that
+ * box's top border is at `top: -1px`; one drawn as its right border is at `left: 100%`).
+ */
+:root {
+  --cross: color-mix(in oklab, var(--foreground) 55%, transparent);
+  /* A docs page's columns, beside the sidebar: the site header draws their crosses too, and its
+     search sits above the table of contents, as wide as it. */
+  --docs-column-width: 54rem;
+  --toc-width: 24rem;
+}
+/* Above the docs sidebar (z-index 10), whose edge many sit on, and under the site header (20). */
+.rule-cross {
+  height: 1px;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+  z-index: 15;
+}
+.rule-cross::before,
+.rule-cross::after {
+  content: "";
+  position: absolute;
+}
+.rule-cross::before {
+  border-top: 1px solid var(--cross);
+  left: -6px;
+  top: 0;
+  width: 13px;
+}
+.rule-cross::after {
+  border-left: 1px solid var(--cross);
+  height: 13px;
+  left: 0;
+  top: -6px;
+}
+
+/*
+ * A docs page (routes/+layout.svelte): the column sits centred, with no lines of its own, in the area
+ * between the sidebar's edge and the table of contents' line (the table of contents keeps to the
+ * right edge). Those two are the page's lines: a section's h2, the pager, the footer and the small
+ * screens' contents bar rule right across from one to the other, through the empty gutters either
+ * side of the column, with a cross at each end. vite/heading-links.ts adds an h2's crosses.
+ *
+ * The area is a size container, so the column can work out its gutter (100cqw is the area's width)
+ * and how far a rule must reach past its padding: --reach. Where two lines would sit side by side,
+ * the later box steps 1px back over the earlier one's: the area starts on the sidebar's last pixel,
+ * and the table of contents on the area's, so there's one line, not a 2px pair.
+ */
+.docs-area {
+  container-type: inline-size;
+}
+@media (width >= 48rem) {
+  .docs-area {
+    margin-left: -1px;
+  }
+  .docs-column {
+    max-width: var(--docs-column-width);
+  }
+}
+.docs-toc {
+  border-left: 1px solid var(--border);
+  margin-left: -1px;
+  width: var(--toc-width);
+}
+.docs-column {
+  /* The column's own padding (px-6 lg:px-10 in the layout). */
+  --pad: 1.5rem;
+  --reach: calc(var(--pad) + (100cqw - min(var(--docs-column-width), 100cqw)) / 2);
+}
+@media (width >= 64rem) {
+  .docs-column {
+    --pad: 2.5rem;
+  }
+}
+.docs-column .prose {
+  counter-reset: section;
+}
+.docs-column .prose h2,
+.docs-footer {
+  margin-inline: calc(-1 * var(--reach));
+  padding-inline: var(--reach);
+  position: relative;
+}
+.docs-column .prose h2 {
+  border-top: 1px solid var(--border);
+  counter-increment: section;
+  margin-top: 3.5rem;
+  padding-top: 2.5rem;
+}
+/* The section's number, a label like the landing page's 01 to 04, left out of its name. */
+.docs-column .prose h2 .heading-link::before {
+  color: var(--brand-text);
+  content: counter(section, decimal-leading-zero) / "";
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-bottom: 0.6rem;
+}
+/* A rule's crosses: on the sidebar's edge (from md up, where it shows) and on the table of contents'
+   line (from xl up), the first and last pixels of the rule. */
+.rule-start,
+.rule-end {
+  display: none;
+  top: -1px;
+}
+.rule-start {
+  left: 0;
+}
+.rule-end {
+  left: calc(100% - 1px);
+}
+@media (width >= 48rem) {
+  .rule-start {
+    display: block;
+  }
+}
+@media (width >= 80rem) {
+  .rule-end {
+    display: block;
+  }
+}
+
+/* A small label in the frame's voice: mono, spaced, upper case (the table of contents' title). */
+.docs-label {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The sidebar's sections, ruled apart (lib/docs/docs-sidebar.svelte). */
+.docs-group + .docs-group {
+  border-top: 1px solid var(--border);
 }
 
 /* The current page in the sidebar is named in the accent. */

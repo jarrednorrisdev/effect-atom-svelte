@@ -193,7 +193,7 @@
   </div>
 {/snippet}
 
-<!-- One frame and one shadow round the live result, the tabs and the code. -->
+<!-- One frame round the live result, the tabs and the code. -->
 <figure class="example my-8 rounded-lg" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
   {#if children}
@@ -239,9 +239,9 @@
   }
   .example-label {
     color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
     margin-bottom: 0.75rem;
     text-transform: uppercase;
   }

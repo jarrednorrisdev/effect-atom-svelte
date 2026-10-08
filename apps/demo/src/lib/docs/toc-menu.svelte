@@ -20,7 +20,7 @@
 {#if toc.entries.length > 0}
   <details
     bind:open
-    class="toc-menu sticky top-14 z-10 -mx-6 -mt-10 mb-8 border-b bg-background px-6 text-sm lg:-mx-10 lg:px-10 xl:hidden"
+    class="toc-menu sticky top-14 z-10 -mt-10 mb-8 border-b bg-background text-sm xl:hidden"
   >
     <summary class="flex h-11 cursor-pointer list-none items-center gap-2">
       <span class="font-semibold whitespace-nowrap text-navigation-heading">On this page</span>
@@ -34,6 +34,11 @@
 {/if}
 
 <style>
+  /* Right across the docs page, like its rules (app.css, .docs-column). */
+  .toc-menu {
+    margin-inline: calc(-1 * var(--reach));
+    padding-inline: var(--reach);
+  }
   .toc-menu summary::-webkit-details-marker {
     display: none;
   }

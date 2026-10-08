@@ -99,15 +99,23 @@
         <DocsSidebar />
         <!-- min-w-0: without it, wide code in an example stretches the page past the window. -->
         <Sidebar.Inset class="min-w-0">
-          <div class="mx-auto flex w-full max-w-6xl gap-12 px-6 py-10 lg:px-10">
-            <div class="min-w-0 flex-1">
+          <!-- Ruled like the landing page: the column sits centred between the sidebar's edge and
+               the table of contents' line, which keeps to the right edge. Sections, the pager and
+               the footer (app.css, .docs-column) rule right across between the two lines, with a
+               cross at each end. The site header draws the crosses where those lines meet it. -->
+          <div class="flex w-full">
+            <div class="docs-area min-w-0 flex-1">
+            <div class="docs-column relative mx-auto min-w-0 px-6 pt-10 lg:px-10">
               <TocMenu {toc} />
               <!-- Only this part is indexed for search; the navigation around it is not. -->
               <article bind:this={content} data-pagefind-body id="content">
                 {@render children()}
               </article>
               <Pager />
-              <footer class="mt-16 border-t pt-6 text-sm text-muted-foreground">
+              <!-- Right under the pager: its top line is the pager's bottom one. -->
+              <footer class="docs-footer relative border-t py-8 text-sm text-muted-foreground">
+                <i class="rule-cross rule-start"></i>
+                <i class="rule-cross rule-end"></i>
                 effect-atom-svelte is a community project by
                 <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
                   >Jarred Norris</a
@@ -116,11 +124,12 @@
                 <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.
               </footer>
             </div>
-            <aside class="hidden w-56 shrink-0 xl:block">
-              <div class="sticky top-24">
+            </div>
+            <aside class="docs-toc hidden shrink-0 xl:block">
+              <div class="sticky top-14 px-8 pt-10">
                 {#if toc.entries.length > 0}
                   <nav aria-label="On this page" class="text-sm">
-                    <h2 class="mb-3 font-semibold text-navigation-heading">On this page</h2>
+                    <h2 class="docs-label mb-4">On this page</h2>
                     <Toc {toc} />
                   </nav>
                 {/if}
