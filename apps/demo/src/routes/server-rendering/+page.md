@@ -67,7 +67,7 @@ export const currentUser = AtomRef.make<{ name: string } | null>(null);
 ```svelte
 <!-- +layout.svelte -->
 <script lang="ts">
-  import { currentUser } from "$lib/session";
+  import { currentUser } from "#lib/session";
 
   const { children, data } = $props();
   if (data.user) {

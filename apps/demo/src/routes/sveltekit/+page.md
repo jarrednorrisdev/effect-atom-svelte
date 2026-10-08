@@ -19,7 +19,7 @@ A SvelteKit app that renders atoms on the server needs these, each covered in mo
 
 1. **Svelte's options.** Turn on Svelte's experimental async in `vite.config.ts`, as in [Turn on async mode](/installation#turn-on-async-mode). If you use remote functions, add `experimental: { remoteFunctions: true }` beside `compilerOptions`.
 2. **A registry at the root.** Put one `RegistryProvider` in `src/routes/+layout.svelte`, and give it values from the request, such as cookies, through `initialValues`. See [Add a registry](/installation#add-a-registry) and [Starting atoms from request data](#starting-atoms-from-request-data).
-3. **Error hooks.** To tell typed errors apart in `failed` snippets, export the hooks from `src/hooks.client.ts` and `src/hooks.server.ts`, and declare `tag` on `App.Error` in `src/app.d.ts`. See [Errors in boundaries](#errors-in-boundaries).
+3. **Error hooks.** To tell typed errors apart in `failed` snippets, export the hooks from `src/hooks.client.ts` and `src/hooks.server.ts`, and declare `tag` on `App.Error` in `src/app.d.ts`. On SvelteKit 2, also turn on `handleRenderingErrors`. See [Errors in boundaries](#errors-in-boundaries).
 4. **API clients.** Give the server absolute URLs, and either send the visitor's credentials from the server or leave those queries to the browser. See [On the server](/rpc#on-the-server) and [Sending the visitor's credentials](#sending-the-visitors-credentials).
 5. **Prerendering and caching.** Prerender the pages that don't depend on the request, and keep pages rendered for one visitor out of shared caches. See [Prerender or render per request](#prerender-or-render-per-request).
 
@@ -74,6 +74,8 @@ The two hooks differ in one way:
 Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
 
 They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error, SvelteKit's own included, as one your code threw: both keep its tag, and the client hook keeps its message too.
+
+SvelteKit 2 also runs errors in a boundary through `handleError` only with `kit: { experimental: { handleRenderingErrors: true } }` in `svelte.config.js`. Without it, a boundary's error on the server renders SvelteKit's error page instead of the `failed` snippet, and in the browser the snippet gets the error without its tag.
 
 This site uses both hooks. In the example, the `failed` snippet tells the errors apart by their tag, and the panel below it shows the error it received.
 
@@ -137,7 +139,7 @@ export const load = ({ cookies }) => ({ token: cookies.get("token") });
 <script lang="ts">
   import { RegistryProvider } from "effect-atom-svelte";
 
-  import { tokenAtom } from "$lib/session.ts";
+  import { tokenAtom } from "#lib/session.ts";
 
   const { children, data } = $props();
 </script>
@@ -160,7 +162,7 @@ The provider reads `initialValues` once, when it creates the registry. That is a
 <script lang="ts">
   import { provideRegistry } from "effect-atom-svelte";
 
-  import { tokenAtom } from "$lib/session.ts";
+  import { tokenAtom } from "#lib/session.ts";
 
   const { children, data } = $props();
 

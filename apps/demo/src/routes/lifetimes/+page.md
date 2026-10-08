@@ -77,7 +77,7 @@ An idle TTL is not exact. The registry groups disposals into time buckets of `ti
 <!-- +layout.svelte -->
 <script lang="ts">
   import { useAtomMount } from "effect-atom-svelte";
-  import { messagesAtom } from "$lib/chat";
+  import { messagesAtom } from "#lib/chat";
 
   // Held until the layout unmounts, whichever page is open.
   useAtomMount(messagesAtom);

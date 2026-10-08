@@ -52,7 +52,7 @@ The server's store needs the request's cookies. Pass them from the root layout's
 
 ```ts
 // src/routes/+layout.server.ts
-import { preferencePrefix } from "$lib/preferences.ts";
+import { preferencePrefix } from "#lib/preferences.ts";
 
 // Page data is embedded in the HTML, so pass on preference cookies only.
 export const load = ({ cookies }) => ({
@@ -70,7 +70,7 @@ export const load = ({ cookies }) => ({
 <script lang="ts">
   import { RegistryProvider } from "effect-atom-svelte";
 
-  import { preferenceCookiesAtom } from "$lib/preferences.ts";
+  import { preferenceCookiesAtom } from "#lib/preferences.ts";
 
   const { children, data } = $props();
 </script>
