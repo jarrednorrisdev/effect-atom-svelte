@@ -1,5 +1,8 @@
+import os from "node:os";
+import path from "node:path";
+
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { createServer } from "vite";
+import { createLogger, createServer } from "vite";
 import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
@@ -59,5 +62,35 @@ describe("atomLabels", () => {
     ) => boolean;
     expect(apply({}, { command: "build", mode: "production" })).toBe(false);
     expect(apply({}, { command: "serve", mode: "development" })).toBe(true);
+  });
+});
+
+describe("atomLabels after the Svelte plugin", () => {
+  // vite-plugin-svelte 7 compiles in a plugin without `enforce: "pre"`, so atomLabels, which has
+  // it, still sees components first: the warning that they aren't labelled is wrong.
+  test("doesn't warn that components aren't labelled when they are", async () => {
+    const warnings: string[] = [];
+    const logger = createLogger("silent");
+    logger.warn = (message) => {
+      warnings.push(message);
+    };
+    const ordered = await createServer({
+      // Its own, so it doesn't re-bundle plugin.test.ts's dependencies as that runs.
+      cacheDir: path.join(os.tmpdir(), "effect-atom-svelte-devtools-hunt3"),
+      configFile: false,
+      customLogger: logger,
+      plugins: [svelte(), atomLabels()],
+      root: import.meta.dirname,
+      server: { middlewareMode: true, ws: false },
+    });
+    try {
+      const counter = await ordered.ssrLoadModule("/fixtures/counter.svelte");
+      expect(counter.sharedAtom.label?.[0]).toBe("sharedAtom");
+      expect(
+        warnings.filter((warning) => warning.includes("atomLabels()"))
+      ).toEqual([]);
+    } finally {
+      await ordered.close();
+    }
   });
 });

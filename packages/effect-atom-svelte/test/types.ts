@@ -15,6 +15,7 @@ import {
   useAtomSuspense,
 } from "../src/index.ts";
 import type { AtomValue, WriteMode } from "../src/index.ts";
+import { handleClientError, handleServerError } from "../src/SvelteKit.ts";
 
 declare const count: Atom.Writable<number>;
 declare const save: Atom.Writable<
@@ -79,4 +80,32 @@ export const scopedAtomTypes = () => {
   const None = ScopedAtom.make(() => Atom.make(0));
   None.provide();
   expectTypeOf(None[ScopedAtom.TypeId]).toEqualTypeOf<ScopedAtom.TypeId>();
+};
+
+// The error hooks fit SvelteKit 2's handleError, whose input has no `kind` and whose App.Error
+// requires a message, and SvelteKit 3's, whose App.Error does not.
+interface Kit2Input {
+  readonly error: unknown;
+  readonly event: unknown;
+  readonly status: number;
+  readonly message: string;
+}
+interface Kit3Input {
+  readonly error: unknown;
+  readonly event: unknown;
+  readonly status: number;
+  readonly kind: "unknown" | "app" | "framework";
+}
+type Kit2Hook = (
+  input: Kit2Input
+) => undefined | { readonly message: string; readonly tag?: string };
+type Kit3Hook = (
+  input: Kit3Input
+) => undefined | { readonly message?: string; readonly tag?: string };
+
+export const sveltekitHooks = () => {
+  expectTypeOf(handleClientError).toExtend<Kit2Hook>();
+  expectTypeOf(handleServerError).toExtend<Kit2Hook>();
+  expectTypeOf(handleClientError).toExtend<Kit3Hook>();
+  expectTypeOf(handleServerError).toExtend<Kit3Hook>();
 };

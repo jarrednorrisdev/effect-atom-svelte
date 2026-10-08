@@ -161,3 +161,20 @@ describe("without a kind, as in SvelteKit 2", () => {
     expect(log).toHaveBeenCalledWith(untagged);
   });
 });
+
+describe("handleClientError without a kind, as in SvelteKit 2", () => {
+  test("uses SvelteKit's message for an error whose own message is empty", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // SvelteKit 2 shows whatever message the hook returns, and needs one.
+    expect(
+      handleClientError({ error: new Unexplained(), message: "Internal Error" })
+    ).toStrictEqual({ message: "Internal Error", tag: "Unexplained" });
+    expect(
+      handleClientError({
+        // oxlint-disable-next-line unicorn/error-message -- an empty message is the case under test
+        error: new Error(""),
+        message: "Internal Error",
+      })
+    ).toStrictEqual({ message: "Internal Error" });
+  });
+});

@@ -4,7 +4,9 @@
  *
  * The module does not import SvelteKit: the hooks take the fields of SvelteKit's input they read
  * and return the fields they set, so they type-check against `HandleClientError` and
- * `HandleServerError` once `App.Error` declares `tag?: string`.
+ * `HandleServerError` once `App.Error` declares `tag?: string`. In SvelteKit 2, whose `App.Error`
+ * requires a message, they are typed to return one when there is no `kind`, as they then always
+ * set one.
  *
  * @since 0.1.0
  */
@@ -39,6 +41,29 @@ export interface CaughtError {
 export interface EffectErrorBody {
   readonly message?: string;
   readonly tag?: string;
+}
+
+/**
+ * SvelteKit 2's `handleError` input: no `kind`, and always a message, which the hooks fall back on.
+ *
+ * @stability unstable
+ * @since 0.2.1
+ * @category models
+ */
+export interface CaughtErrorWithoutKind extends CaughtError {
+  readonly kind?: undefined;
+  readonly message: string;
+}
+
+/**
+ * What the hooks return for SvelteKit 2's input: always a message, as its `App.Error` requires one.
+ *
+ * @stability unstable
+ * @since 0.2.1
+ * @category models
+ */
+export interface EffectErrorBodyWithMessage extends EffectErrorBody {
+  readonly message: string;
 }
 
 const tagOf = (error: unknown): string | undefined =>
@@ -91,17 +116,24 @@ const body = (
  * @since 0.1.0
  * @category hooks
  */
-export const handleClientError = (
+export function handleClientError(
+  input: CaughtErrorWithoutKind
+): EffectErrorBodyWithMessage;
+export function handleClientError(
   input: CaughtError
-): EffectErrorBody | undefined => {
+): EffectErrorBody | undefined;
+export function handleClientError(
+  input: CaughtError
+): EffectErrorBody | undefined {
   // Destructured here, not in the parameter list, so the API reference shows a named parameter.
   const { error, kind = "unknown" } = input;
   if (kind !== "unknown") {
     return undefined;
   }
   console.error(error);
-  return body(messageOf(error) ?? fallbackMessage(input), tagOf(error));
-};
+  // `||`, not `??`: an error with an empty message gets SvelteKit 2's instead.
+  return body(messageOf(error) || fallbackMessage(input), tagOf(error));
+}
 
 /**
  * A server `handleError` hook (`src/hooks.server.ts`) that keeps the `_tag` of errors thrown by
@@ -121,9 +153,15 @@ export const handleClientError = (
  * @since 0.1.0
  * @category hooks
  */
-export const handleServerError = (
+export function handleServerError(
+  input: CaughtErrorWithoutKind
+): EffectErrorBodyWithMessage;
+export function handleServerError(
   input: CaughtError
-): EffectErrorBody | undefined => {
+): EffectErrorBody | undefined;
+export function handleServerError(
+  input: CaughtError
+): EffectErrorBody | undefined {
   const { error, issues, kind = "unknown" } = input;
   if (kind === "validation") {
     console.error("Remote function schema validation failed:", issues);
@@ -134,4 +172,4 @@ export const handleServerError = (
   }
   console.error(error);
   return body(fallbackMessage(input), tagOf(error));
-};
+}

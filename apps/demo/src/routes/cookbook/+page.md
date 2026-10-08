@@ -47,7 +47,7 @@ A page such as `/todos/[id]` shows one item, chosen by the URL. SvelteKit gives 
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
 
-  import { TodosRpc } from "$lib/clients.ts";
+  import { TodosRpc } from "#lib/clients.ts";
 
   const { params } = $props();
   // Read inside the getter, so the hook follows params.id.
