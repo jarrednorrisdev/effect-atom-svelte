@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import adapter from "@sveltejs/adapter-auto";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
+import { atomLabels } from "effect-atom-svelte-devtools/vite";
 import { mdsvex } from "mdsvex";
 import rehypeSlug from "rehype-slug";
 import { defineConfig } from "vite";
@@ -22,6 +23,9 @@ export default defineConfig({
     highlightImports(),
     apiReference(),
     llms(),
+    // Names atoms after their variables in dev, for the devtools. Before sveltekit(): it labels
+    // components' scripts before they are compiled.
+    atomLabels(),
     sveltekit({
       adapter: adapter(),
       compilerOptions: { experimental: { async: true } },
