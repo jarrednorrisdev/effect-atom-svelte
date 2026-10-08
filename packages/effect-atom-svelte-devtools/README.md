@@ -26,6 +26,14 @@ It reads effect-atom-svelte's inspector, which is new in effect-atom-svelte 0.2:
 
 Use `import.meta.env.DEV` rather than SvelteKit's `dev`: Vite replaces it with `false` in a build, so the import is dropped, where `dev` leaves the panel's code in the build unused.
 
+The panel renders nothing in a production build, so leaving out the `DEV` check only costs the download. To show it in production on purpose, say for a demo that lets its visitors watch its atoms (as the effect-atom-svelte docs do), render it without the check and set `production`:
+
+```svelte
+<AtomDevtools production />
+```
+
+In production it shows the registry of the nearest `RegistryProvider`, or the one you pass, with no picker: only development keeps the list of every provider's registry. Declarations aren't links to your editor, which only the dev server can open, and atoms have names only if `atomLabels({ builds: true })` labels the build.
+
 Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset; with the keyboard, focus it and use the arrow keys), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it while focus is inside it. It's drawn in hairlines with mono labels, in the page's own colours where your app has shadcn-style tokens (`--background`, `--foreground`, `--border`, `--brand`), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
 
 It has three views:
@@ -66,7 +74,7 @@ export default defineConfig({
 });
 ```
 
-- Only the dev server applies it. Production builds are left as they are.
+- Only the dev server applies it, unless you pass `builds: true`: then production builds are labelled too (without keeping values across reloads, which builds don't have), for a page that shows atoms' names in production.
 - Put it before `sveltekit()` or `svelte()`, so it sees components before they are compiled. It warns if it comes after.
 - The atom is labelled in place and keeps its identity. `Atom.withLabel` would return a copy.
 - A label your code sets with `Atom.withLabel` wins. The one an `Atom.serializable` atom takes from its key (an RPC query's `AtomRpc:listTodos:home-todos`) gives way to the variable's name.

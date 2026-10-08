@@ -42,8 +42,21 @@
   const toc = new TableOfContents(() => content);
 
   // Marks the page as hydrated, for the e2e tests: input typed before hydration can be lost.
+  // The atom devtools, for visitors to watch the examples' atoms: loaded once the page is idle, so
+  // they cost the page's first load nothing.
+  let devtools = $state<Promise<typeof import("effect-atom-svelte-devtools")>>();
+  const load = () => {
+    devtools = import("effect-atom-svelte-devtools");
+  };
+
   onMount(() => {
     document.documentElement.dataset.hydrated = "";
+    if ("requestIdleCallback" in window) {
+      const idle = requestIdleCallback(load, { timeout: 4000 });
+      return () => cancelIdleCallback(idle);
+    }
+    const timer = setTimeout(load, 2000);
+    return () => clearTimeout(timer);
   });
 </script>
 
@@ -140,10 +153,13 @@
       </div>
     {/if}
   </Sidebar.Provider>
-  <!-- The atom devtools, in development only: the import is left out of builds. -->
-  {#if import.meta.env.DEV}
-    {#await import("effect-atom-svelte-devtools") then { AtomDevtools }}
-      <AtomDevtools />
+  <!-- The atom devtools, in production too: the site shows its own atoms (/devtools). Not on
+       phones, which have no room for the panel. -->
+  {#if devtools}
+    {#await devtools then { AtomDevtools }}
+      <div class="hidden md:contents">
+        <AtomDevtools production />
+      </div>
     {/await}
   {/if}
 </RegistryProvider>

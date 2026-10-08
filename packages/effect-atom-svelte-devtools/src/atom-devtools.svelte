@@ -1,8 +1,8 @@
 <!--
   @component
   A panel docked along the bottom of the window that shows the atom registry live: its dependency
-  graph, a sheet per atom and a timeline of everything it does. Development only: in a production
-  build, or on the server, it renders nothing.
+  graph, a sheet per atom and a timeline of everything it does. Development only unless you set
+  `production`: in a production build without it, or on the server, it renders nothing.
 
   It's drawn like the effect-atom-svelte docs: ruled in hairlines, with mono labels, numbered views
   and an amber accent, in the page's own colours where it has them (--background, --foreground,
@@ -13,7 +13,7 @@
   the app has several, a picker in the panel switches between them.
 
   Render it only in development, behind Vite's `DEV` flag, so a build leaves it out: the README
-  shows how.
+  shows how. To show it in production too, as the effect-atom-svelte docs do, set `production`.
 -->
 <script lang="ts">
   import { BROWSER, DEV } from "esm-env";
@@ -34,9 +34,15 @@
     readonly open?: boolean | undefined;
     /** Light paper, a dark blueprint, or the page's own (`auto`: a `dark` class on `<html>`, or the system's). */
     readonly theme?: "auto" | "light" | "dark" | undefined;
+    /**
+     * Shows the panel in production builds too, for a site that lets its visitors watch its atoms.
+     * Without it the panel renders nothing outside development. In production it follows the
+     * nearest provider's registry, or `registry`, with no picker: only development lists the rest.
+     */
+    readonly production?: boolean | undefined;
   }
 
-  const { registry, open: startOpen, theme = "auto" }: Props = $props();
+  const { registry, open: startOpen, production = false, theme = "auto" }: Props = $props();
 
   type Tab = "graph" | "sheets" | "timeline";
   interface Saved {
@@ -55,7 +61,8 @@
     }
   };
 
-  const enabled = DEV && BROWSER;
+  // svelte-ignore state_referenced_locally
+  const enabled = BROWSER && (DEV || production);
   // The registry in context, read while the component sets up, as context must be.
   // svelte-ignore state_referenced_locally
   const nearest = enabled ? (registry ?? getRegistry()) : undefined;

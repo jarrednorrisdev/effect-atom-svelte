@@ -4,6 +4,8 @@
   happened to it lately.
 -->
 <script lang="ts">
+  import { DEV } from "esm-env";
+
   import { detail, stateText } from "./format.ts";
   import type { AtomView, Model, TimelineEntry } from "./model.svelte.ts";
   import { openInEditor, shortPlace } from "./names.ts";
@@ -185,7 +187,12 @@
           <span class="key">DECLARED</span>
           {#if current.identity.place}
             {@const place = current.identity.place}
-            <button class="link" onclick={() => void openInEditor(place)} title="Open {place.file}:{place.line} in the editor" type="button">{shortPlace(place)}</button>
+            <!-- Only the dev server can open a file in the editor. -->
+            {#if DEV}
+              <button class="link" onclick={() => void openInEditor(place)} title="Open {place.file}:{place.line} in the editor" type="button">{shortPlace(place)}</button>
+            {:else}
+              <span title="{place.file}:{place.line}">{shortPlace(place)}</span>
+            {/if}
           {:else}
             —
           {/if}
