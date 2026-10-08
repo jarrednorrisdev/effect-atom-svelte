@@ -373,12 +373,22 @@
         children.set(parent, [...(children.get(parent) ?? []), child]);
       }
     }
+    // The components that read only one atom sit together as a block from that atom's track down,
+    // and the next atom starts below the block: an atom and what fans out from it read as one unit.
+    const exclusive = new Map<number, Component[]>();
+    for (const component of components.values()) {
+      if (component.uses.size === 1) {
+        const [atom] = component.uses.keys();
+        exclusive.set(atom!, [...(exclusive.get(atom!) ?? []), component]);
+      }
+    }
     const visit = (id: number, wanted: number | undefined) => {
       if (rows.has(`a${id}`)) {
         return;
       }
       place(depths.get(id) ?? 0, `a${id}`, wanted);
       const track = rows.get(`a${id}`);
+      tracks = Math.max(tracks, (track ?? 0) + (exclusive.get(id)?.length ?? 1));
       (children.get(id) ?? []).forEach((child, index) => {
         visit(child, index === 0 && !readDirectly.has(id) ? track : undefined);
       });
@@ -394,8 +404,15 @@
     }
     // Components first take the track of an atom they use, where it's free, so those reads run
     // straight; the rest go on new tracks below, rather than pushing the others down.
+    for (const [atom, block] of exclusive) {
+      const start = rows.get(`a${atom}`) ?? 0;
+      block.forEach((component, index) => place(atomColumns, component.key, start + index));
+    }
     const leftover: Component[] = [];
     for (const component of components.values()) {
+      if (rows.has(component.key)) {
+        continue;
+      }
       const wanted = firstTrack([...component.uses.keys()].map((a) => `a${a}`));
       const taken = placed.some(
         (entry) => entry.column === atomColumns && rows.get(entry.key) === wanted
