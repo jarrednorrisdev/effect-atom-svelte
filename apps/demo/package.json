@@ -43,6 +43,7 @@
     "alchemy": "2.0.0-beta.80",
     "bits-ui": "^2.18.0",
     "cn": "^0.3.0",
+    "effect-atom-svelte-devtools": "workspace:*",
     "marked": "^18.0.14",
     "mdsvex": "^0.12.8",
     "oxfmt": "^0.68.0",

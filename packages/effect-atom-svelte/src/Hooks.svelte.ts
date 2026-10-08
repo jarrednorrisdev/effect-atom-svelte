@@ -16,6 +16,8 @@ import {
   isWaiting,
   revalidatesOnHydrate,
 } from "./internal/hydration.ts";
+import { reportReads } from "./internal/scope.svelte.ts";
+import type { ReadKind } from "./internal/scope.svelte.ts";
 import { getRegistry } from "./RegistryContext.ts";
 
 /**
@@ -266,6 +268,7 @@ const subscribedReader = <A>(
       return Atom.getServerValue(atom, registry);
     };
   }
+  reportReads(registry, getAtom, "read");
   // The atom is picked on every read, not held in a $derived. In async mode Svelte renders a batch
   // with other pending batches' changes rolled back, deriveds included, but registry reads always
   // see the latest state; a derived atom could then pair an old atom with new state, and that
@@ -445,6 +448,17 @@ export const useAtom = <R, W>(
   );
 };
 
+/** useAtomMount, telling an inspector scope why the atom is held: `useAtomSet` holds it to write. */
+const mountWhileAlive = (
+  input: AtomInput<Atom.Atom<unknown>>,
+  kind: ReadKind
+): void => {
+  const registry = getRegistry();
+  const getAtom = toGetter(input);
+  reportReads(registry, getAtom, kind);
+  $effect(() => registry.mount(getAtom()));
+};
+
 /**
  * Keeps an atom alive for as long as this component is mounted, even when no component reads
  * it. Use it in a component that outlives the readers, such as a layout, so the atom keeps its
@@ -465,11 +479,8 @@ export const useAtom = <R, W>(
  * @category hooks
  */
 export const useAtomMount = (input: AtomInput<Atom.Atom<unknown>>): void => {
-  const registry = getRegistry();
-  const getAtom = toGetter(input);
-  $effect(() => registry.mount(getAtom()));
+  mountWhileAlive(input, "mount");
 };
-
 /**
  * Returns a setter. The atom is mounted for the component's lifetime, so an `Atom.fn` keeps its
  * state between calls and is not disposed between set and read.
@@ -528,7 +539,7 @@ export function useAtomSet(
 ) {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  useAtomMount(getAtom);
+  mountWhileAlive(getAtom, "write");
   const mode = options?.mode ?? "value";
 
   if (mode === "value") {
@@ -675,6 +686,7 @@ export const useAtomSubscribe = <A>(
 ): void => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
+  reportReads(registry, getAtom, "subscribe");
   $effect(() => {
     const atom = getAtom();
     // `immediate` calls `f` now, inside this effect; what `f` reads must not re-run it.

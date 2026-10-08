@@ -9,6 +9,7 @@ A Bun workspace, with tasks run by Turborepo:
 | Path | What |
 | --- | --- |
 | `packages/effect-atom-svelte` | The library. |
+| `packages/effect-atom-svelte-devtools` | Developer tools: the `<AtomDevtools />` panel, and a Vite plugin that names atoms after their variables. The demo uses both in development. |
 | `packages/demo-domain` | A todo domain served over Effect `HttpApi` and Effect RPC from one store. |
 | `apps/demo-api` | The demo domain on Bun, at `:3010`. |
 | `apps/demo` | The docs site: a SvelteKit 3 app with a guide, live examples and the API reference, at `:5180`. |

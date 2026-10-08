@@ -97,6 +97,7 @@ jobs:
           package-manager-cache: false
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bun run --cwd packages/effect-atom-svelte-devtools build
       - id: pack
         uses: changesets/action/pack@v2
         with:

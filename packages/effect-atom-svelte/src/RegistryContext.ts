@@ -4,10 +4,11 @@
  * @since 0.1.0
  */
 import { AtomRegistry } from "effect/reactivity";
-import { BROWSER } from "esm-env";
+import { BROWSER, DEV } from "esm-env";
 import { createContext, onDestroy } from "svelte";
 
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
+import { track } from "./internal/registries.ts";
 
 /**
  * Options for a registry created by `provideRegistry` or `RegistryProvider`: the options of
@@ -64,7 +65,12 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
       "No AtomRegistry in context. Wrap the app in <RegistryProvider> so each server request gets its own registry."
     );
   }
-  browserRegistry ??= AtomRegistry.make();
+  if (browserRegistry === undefined) {
+    browserRegistry = AtomRegistry.make();
+    if (DEV) {
+      track(browserRegistry);
+    }
+  }
   return browserRegistry;
 };
 
@@ -180,6 +186,10 @@ export const provideRegistry = (
   }
   if (!provided) {
     onDestroy(() => registry.dispose());
+  }
+  if (DEV && BROWSER) {
+    // For developer tools to find (effect-atom-svelte/inspector).
+    onDestroy(track(registry));
   }
   return registry;
 };

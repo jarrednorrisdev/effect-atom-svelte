@@ -26,6 +26,16 @@ export default defineConfig({
       },
     },
     {
+      // The devtools document their exports as the library does.
+      files: ["packages/effect-atom-svelte-devtools/src/**"],
+      rules: {
+        "jsdoc/check-tag-names": [
+          "error",
+          { definedTags: ["category", "stability"] },
+        ],
+      },
+    },
+    {
       // Effect schemas, errors, services and API groups are classes; a domain module holds several,
       // and so does a docs example that shows an error union.
       // Schema.TaggedError is a class factory, which unicorn mistakes for a throw without `new`.

@@ -6,6 +6,9 @@
   import type { Cue } from "#lib/docs/kit/sound.ts";
   import { setExampleState } from "#lib/docs/kit/tone.ts";
   import type { Snippet } from "svelte";
+  import { provideInspectorScope } from "effect-atom-svelte/inspector";
+
+  import ExampleGraph from "./example-graph.svelte";
 
   /** A source file of an example: its name, and its code from a `?highlight` import. */
   interface ExampleFile {
@@ -31,18 +34,33 @@
    * example yet (`tone.ts`), so a page's own first load plays no outcome sounds.
    *
    * `cap` is how many lines of a long source show before "Show all" (14 by default).
+   *
+   * The result opens with a live graph of the atoms its components use (example-graph.svelte), read
+   * from an inspector scope round the result. `graph={false}` leaves it out, as the landing page
+   * does: its reasons already draw theirs.
    */
   const {
     cap = 14,
     children,
     files,
+    graph = true,
     hint,
   }: {
     cap?: number;
     children?: Snippet;
     files: readonly ExampleFile[];
+    graph?: boolean;
     hint?: string;
   } = $props();
+
+  // The hooks of every component in the result report the atoms they use to this scope.
+  // svelte-ignore state_referenced_locally
+  const scope = graph ? provideInspectorScope() : undefined;
+
+  // Whether the example's code uses atoms at all, read from its highlighted source with the markup
+  // taken out. An example that doesn't gets no graph.
+  const atomic = /\bAtom\.|\buseAtom(?!Ref)\w*|\bAtom(?:Rpc|HttpApi)\b|\.(?:query|mutation)\(/u;
+  const usesAtoms = $derived(files.some((file) => atomic.test(file.html.replaceAll(/<[^>]*>/gu, ""))));
 
   const cues = new Set<string>([
     "blocked",
@@ -193,7 +211,7 @@
   </div>
 {/snippet}
 
-<!-- One frame and one shadow round the live result, the tabs and the code. -->
+<!-- One frame round the live result, the tabs and the code. -->
 <figure class="example my-8 rounded-lg" data-example>
   <!-- The live output is not indexed for search; the source below is. -->
   {#if children}
@@ -204,6 +222,9 @@
       data-pagefind-ignore="all"
       {@attach listen}
     >
+      {#if scope}
+        <ExampleGraph expected={usesAtoms} {scope} />
+      {/if}
       <p class="example-label not-prose">Result</p>
       {#if hint}
         <Hint>{hint}</Hint>
@@ -230,24 +251,21 @@
 </figure>
 
 <style>
-  .example {
-    box-shadow: 0.1rem 0.1rem 0.2rem var(--code-shadow);
-  }
   /* A light tint of the brand color sets the running example apart from the page around it. */
   .demo {
     background: color-mix(in oklab, var(--brand) 4%, var(--background));
   }
   .example-label {
     color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
     margin-bottom: 0.75rem;
     text-transform: uppercase;
   }
   /* The label (and hint) space the result from the top edge, so the result's own margins would
      double it. */
-  .demo > :global(:nth-child(2)),
+  .demo > .example-label + :global(*),
   .demo > :global(.hint + *) {
     margin-top: 0;
   }

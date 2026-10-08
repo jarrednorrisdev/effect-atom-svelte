@@ -1,7 +1,6 @@
 <script lang="ts">
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
-  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import { Button } from "#lib/components/ui/button/index.ts";
   import Example from "#lib/docs/example.svelte";
   import InstallCommand from "#lib/docs/install-command.svelte";
@@ -24,7 +23,10 @@
   import todoListSource from "#lib/landing/todo-list.svelte?highlight";
   import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
   /* oxlint-enable import/no-duplicates */
+  import HeroFrame from "#lib/landing/hero-frame.svelte";
   import { reveal } from "#lib/landing/reveal.ts";
+  import { sectionGraphs } from "#lib/landing/section-graphs.ts";
+  import { FrameGraph } from "effect-atom-svelte-devtools/graph";
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import rpcSource from "../../../../packages/demo-domain/src/rpc.ts?highlight";
 
@@ -38,9 +40,6 @@
       .querySelector("#where-atoms-fit")
       ?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth" });
   };
-
-  // The scroll cue fades once the reader has started scrolling.
-  let scrollY = $state(0);
 
   const notNeeded = [
     "Apps without Effect: context, remote functions or TanStack Query cover them well.",
@@ -66,18 +65,25 @@
   </p>
 {/snippet}
 
+<!-- A reason's top line: a cross where it meets each rail, and its example drawn as a graph on it
+     (section-graphs.ts) on wide screens. -->
+{#snippet sectionGraph(id: string)}
+  <i class="rule-cross" style:left="0" style:top="-1px"></i>
+  <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
+  {#if sectionGraphs[id]}
+    <div class="hidden lg:contents">
+      <!-- The reason's top border sits just above the graph's box. -->
+      <FrameGraph {...sectionGraphs[id]} origin={{ left: 0, right: -1, top: -1 }} />
+    </div>
+  {/if}
+{/snippet}
+
 {#snippet heading(number: string, title: string, id: string)}
   <p class="font-mono text-sm text-brand-text">{number}</p>
   <h3 class="mt-2 text-2xl font-semibold tracking-tight text-balance" {id}>{title}</h3>
 {/snippet}
 
-<svelte:window bind:scrollY />
-
-<section class="hero relative overflow-hidden border-b">
-  <div
-    class="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 py-16 lg:min-h-[calc(100svh-3.5rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:px-10 lg:py-10"
-  >
-    <div class="min-w-0">
+{#snippet heroCopy()}
       <p
         style:--rise="0"
         class="rise mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
@@ -104,26 +110,15 @@
       <div style:--rise="4" class="rise mt-8 max-w-xl">
         <InstallCommand />
       </div>
-    </div>
+{/snippet}
 
-    <div style:--rise="3" class="rise min-w-0">
-      <HeroPanel />
-    </div>
-  </div>
-  <!-- On wide screens the hero fills the first screen; this says there is more below. -->
-  <a
-    aria-hidden="true"
-    class="scroll-cue absolute inset-x-0 bottom-3 mx-auto hidden w-max items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:flex"
-    class:scrolled={scrollY > 40}
-    href="#where-atoms-fit"
-    onclick={seeItRun}
-    tabindex="-1"
-  >
-    Four reasons, each running on this page <ChevronDownIcon class="scroll-cue-icon size-4" />
-  </a>
-</section>
+{#snippet heroPanel()}
+  <HeroPanel />
+{/snippet}
 
-<div class="mx-auto w-full max-w-7xl px-6 lg:px-10">
+<HeroFrame copy={heroCopy} panel={heroPanel} {seeItRun} />
+
+<div class="rails mx-auto w-full max-w-7xl px-6 lg:px-10">
   <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
     <h2 class="text-3xl font-semibold tracking-tight" id="where-atoms-fit">Where atoms fit</h2>
     <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
@@ -154,6 +149,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={20}
         files={[
           { html: exchangeRateSource, name: "exchange-rate.ts" },
@@ -165,6 +161,7 @@
         <SharedRate />
       </Example>
     </div>
+    {@render sectionGraph("shared-effect")}
   </section>
 
   <section aria-labelledby="typed-errors" class="reason" {@attach reveal}>
@@ -188,6 +185,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={16}
         files={[
           { html: todoLookupSource, name: "todo-lookup.svelte" },
@@ -198,6 +196,7 @@
         <TodoLookup />
       </Example>
     </div>
+    {@render sectionGraph("typed-errors")}
   </section>
 
   <section aria-labelledby="cleanup" class="reason" {@attach reveal}>
@@ -219,6 +218,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={21}
         files={[{ html: reportSource, name: "report.svelte" }]}
         hint="Show the report, then hide it before three seconds pass: nothing reads reportAtom, so its effect is interrupted."
@@ -226,6 +226,7 @@
         <Report />
       </Example>
     </div>
+    {@render sectionGraph("cleanup")}
   </section>
 
   <section aria-labelledby="typed-backend" class="reason" {@attach reveal}>
@@ -254,6 +255,7 @@
     </div>
     <div class="min-w-0">
       <Example
+        graph={false}
         cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
         hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows."}
@@ -261,12 +263,13 @@
         <TodoList />
       </Example>
     </div>
+    {@render sectionGraph("typed-backend")}
   </section>
 
   <section
     {@attach reveal}
     aria-labelledby="get-started"
-    class="mt-20 grid gap-10 rounded-2xl border bg-card p-8 md:grid-cols-2 md:p-10"
+    class="ruled-cells mt-20 grid md:grid-cols-2"
   >
     <div class="min-w-0">
       <h2 class="text-2xl font-semibold tracking-tight" id="get-started">Get started</h2>
@@ -300,11 +303,17 @@
       </ul>
       {@render links([{ href: "/why-atoms", title: "Why atoms: the trade-offs" }])}
     </div>
+    <i class="rule-cross" style:left="0" style:top="-1px"></i>
+    <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
+    <i class="rule-cross" style:left="0" style:top="100%"></i>
+    <i class="rule-cross" style:left="calc(100% - 1px)" style:top="100%"></i>
+    <i class="rule-cross hidden md:block" style:left="50%" style:top="-1px"></i>
+    <i class="rule-cross hidden md:block" style:left="50%" style:top="100%"></i>
   </section>
 
   <nav
     aria-label="All pages"
-    class="mt-20 grid grid-cols-2 gap-x-8 gap-y-8 border-t pt-12 sm:grid-cols-3 lg:grid-cols-7"
+    class="grid grid-cols-2 gap-x-8 gap-y-8 py-12 sm:grid-cols-3 lg:grid-cols-7"
   >
     {#each nav as section (section.title)}
       <div>
@@ -320,7 +329,9 @@
     {/each}
   </nav>
 
-  <footer class="mt-12 border-t py-10 text-sm text-muted-foreground">
+  <footer class="ruled-footer border-t py-10 text-sm text-muted-foreground">
+    <i class="rule-cross" style:left="0" style:top="-1px"></i>
+    <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
     <p class="max-w-3xl">
       effect-atom-svelte is a community project by
       <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev">Jarred Norris</a
@@ -334,29 +345,57 @@
 </div>
 
 <style>
-  /* A faint grid fading out from the top, tinted with the accent behind the heading. */
-  .hero {
-    background:
-      radial-gradient(
-        60rem 30rem at 20% -10%,
-        color-mix(in oklab, var(--brand) 14%, transparent),
-        transparent 70%
-      ),
-      var(--background);
+  /* The hero frame's sides (hero-frame.svelte) run on down the page as rails, and each reason's
+     top line meets them with a cross (app.css, .rule-cross). */
+  .rails {
+    position: relative;
   }
-  .hero::before {
-    background-image:
-      linear-gradient(to right, var(--border) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-    background-size: 3rem 3rem;
+  .rails::before,
+  .rails::after {
+    border-left: 1px solid var(--border);
+    bottom: 0;
     content: "";
-    inset: 0;
-    mask-image: radial-gradient(ellipse 80% 70% at 30% 0%, black, transparent 75%);
-    opacity: 0.6;
-    pointer-events: none;
+    left: 1.5rem;
     position: absolute;
+    top: 0;
   }
-  .hero > * {
+  .rails::after {
+    left: auto;
+    right: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    .rails::before {
+      left: 2.5rem;
+    }
+    .rails::after {
+      right: 2.5rem;
+    }
+  }
+  /* Everything between the rails keeps clear of them. */
+  .rails > * {
+    padding-inline: 1rem;
+  }
+  @media (width >= 40rem) {
+    .rails > * {
+      padding-inline: 2rem;
+    }
+  }
+  /* Get started: two cells ruled like the hero. */
+  .ruled-cells {
+    border-block: 1px solid var(--border);
+    margin-inline: 0;
+    padding-inline: 0 !important;
+    position: relative;
+  }
+  .ruled-cells > div {
+    padding: 2.5rem 2rem;
+  }
+  @media (width >= 48rem) {
+    .ruled-cells > div + div {
+      border-left: 1px solid var(--border);
+    }
+  }
+  .ruled-footer {
     position: relative;
   }
   /* The hero's parts rise into place on load, one after another, once. */
@@ -365,32 +404,12 @@
       animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
       animation-delay: calc(var(--rise) * 70ms);
     }
-    /* A few slow nudges after the hero has settled, then it rests. */
-    .scroll-cue :global(.scroll-cue-icon) {
-      animation: nudge 1.6s ease-in-out 1.2s 3;
-    }
   }
   @keyframes rise {
     from {
       opacity: 0;
       transform: translateY(12px);
     }
-  }
-  @keyframes nudge {
-    50% {
-      transform: translateY(3px);
-    }
-  }
-  /* Absolute, over .hero > *'s relative: it sits on the hero's bottom edge. */
-  .scroll-cue {
-    position: absolute;
-    transition:
-      opacity 0.3s,
-      color 0.15s;
-  }
-  .scroll-cue.scrolled {
-    opacity: 0;
-    pointer-events: none;
   }
   /* A reason: its explanation beside its live example on wide screens, above it on narrow ones. */
   .reason {
@@ -400,6 +419,7 @@
     gap: 2rem;
     margin-top: 3rem;
     padding-top: 3rem;
+    position: relative;
   }
   .reason :global(.example) {
     margin: 0;

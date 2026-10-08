@@ -1,0 +1,80 @@
+{
+  "name": "effect-atom-svelte-devtools",
+  "version": "0.2.0",
+  "description": "Developer tools for effect-atom-svelte: atom names from your source, and a live view of the registry",
+  "keywords": [
+    "devtools",
+    "effect",
+    "effect-atom",
+    "effect-atom-svelte",
+    "svelte",
+    "vite-plugin"
+  ],
+  "homepage": "https://atom.jarrednorris.dev",
+  "bugs": "https://github.com/jarrednorrisdev/effect-atom-svelte/issues",
+  "license": "MIT",
+  "author": "Jarred Norris",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jarrednorrisdev/effect-atom-svelte.git",
+    "directory": "packages/effect-atom-svelte-devtools"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "svelte": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./graph": {
+      "types": "./dist/graph/index.d.ts",
+      "svelte": "./dist/graph/index.js",
+      "default": "./dist/graph/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "svelte-package -i src -o dist",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sveltejs/acorn-typescript": "^1.0.13",
+    "acorn": "^8.18.0",
+    "esm-env": "^1.2.2",
+    "magic-string": "^0.30.21"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@types/node": "^24",
+    "effect": "4.0.1",
+    "effect-atom-svelte": "workspace:*",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.6.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
+  },
+  "peerDependencies": {
+    "effect": "~4.0.0",
+    "effect-atom-svelte": "^0.2.0",
+    "svelte": "^5.57.2",
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  }
+}
