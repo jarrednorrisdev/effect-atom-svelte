@@ -1,7 +1,6 @@
 <script lang="ts">
-	import * as Sheet from "#lib/components/ui/sheet/index.js";
+	import * as Drawer from "#lib/components/ui/drawer/index.js";
 	import { cn, type WithElementRef } from "#lib/utils.js";
-	import { SIDEBAR_WIDTH_MOBILE } from "./constants.js";
 	import { useSidebar } from "./context.svelte.js";
 	import type { HTMLAttributes } from "svelte/elements";
 
@@ -34,28 +33,28 @@
 		{@render children?.()}
 	</div>
 {:else if sidebar.isMobile}
-	<Sheet.Root bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)} {...restProps}>
-		<Sheet.Content
+	<!-- On a phone: a drawer up from the bottom, which a swipe down closes (this site's change from
+	     shadcn's sheet). The page behind it doesn't scale back, as vaul's default would. -->
+	<Drawer.Root
+		bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)}
+		shouldScaleBackground={false}
+	>
+		<Drawer.Content
 			bind:ref
 			data-sidebar="sidebar"
 			data-slot="sidebar"
 			data-mobile="true"
-			class={cn(
-				"w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
-				className
-			)}
-			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
-			{side}
+			class={cn("max-h-[85svh] bg-sidebar p-0 text-sidebar-foreground", className)}
 		>
-			<Sheet.Header class="sr-only">
-				<Sheet.Title>Sidebar</Sheet.Title>
-				<Sheet.Description>Displays the mobile sidebar.</Sheet.Description>
-			</Sheet.Header>
-			<div class="flex h-full w-full flex-col">
+			<Drawer.Header class="sr-only">
+				<Drawer.Title>Docs</Drawer.Title>
+				<Drawer.Description>The docs' pages.</Drawer.Description>
+			</Drawer.Header>
+			<div class="flex min-h-0 w-full flex-1 flex-col">
 				{@render children?.()}
 			</div>
-		</Sheet.Content>
-	</Sheet.Root>
+		</Drawer.Content>
+	</Drawer.Root>
 {:else}
 	<div
 		bind:this={ref}

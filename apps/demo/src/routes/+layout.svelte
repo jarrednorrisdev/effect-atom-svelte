@@ -102,8 +102,8 @@
     >
     <SiteHeader />
     {#if landing}
-      <!-- The sidebar is only the small screens' sheet here, opened from the header. -->
-      <DocsSidebar sheetOnly />
+      <!-- The sidebar is only the small screens' drawer here, opened from the header. -->
+      <DocsSidebar drawerOnly />
       <main class="min-w-0 flex-1" id="content">
         {@render children()}
       </main>
