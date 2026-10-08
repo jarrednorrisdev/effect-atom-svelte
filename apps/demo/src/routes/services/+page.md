@@ -54,7 +54,7 @@ const runtime = Atom.runtime(RemoteTodosLayer.pipe(Layer.provide(HttpLayer)));
 
 <Aside type="caution" title="Make runtimes in a module">
 
-Like atoms, runtimes belong in a module, or a component's `<script module>`. `Atom.runtime` called in a component's script makes a new runtime for each instance, and new atoms from it, so each instance runs its effects itself and keeps its own results. The services are still built once per registry, as long as the layer itself comes from a module: see [When the layer is built](#when-the-layer-is-built).
+Like atoms, runtimes belong in a module, or a component's `<script module>`. `Atom.runtime` called in a component's script makes a new runtime for each instance, and new atoms from it, so each instance runs its effects itself and keeps its own results. The services are still shared within a registry, as long as the layer itself comes from a module: see [When the layer is built](#when-the-layer-is-built).
 
 </Aside>
 
@@ -62,9 +62,9 @@ Like atoms, runtimes belong in a module, or a component's `<script module>`. `At
 
 The runtime is an atom itself, so it follows the usual [lifetimes](/lifetimes). It builds its layer the first time one of its atoms runs, and every atom made from it shares the services. When none of its atoms is in use any more, the runtime is disposed and the layer's resources are released.
 
-Layers are built once per registry. On the server, each request has its own registry and so its own services. Two runtimes that use the same layer share one copy of it in each registry.
+Within a registry, two runtimes given the same layer share one copy of it while either is in use. Once nothing uses the layer, it is released, and the next read builds it again. On the server, each request has its own registry and so its own services.
 
-The example at the top shows this: the pool is built when the first atom is read, shared by the second, and released when neither is read.
+The example at the top shows this: the pool is built when the first atom is read, shared by the second, and released when neither is read. Reading one again builds pool 2.
 
 ## Choosing a layer with `get`
 

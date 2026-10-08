@@ -134,7 +134,7 @@ The diagram under this example follows one request: the mutation runs, succeeds 
 
 A round trip to the server can make the page feel slow. An **optimistic update** shows the result you expect straight away, then replaces it with the real one when the mutation finishes, or rolls it back if the mutation fails. Below, the left column is what the page shows and the right what the server has; the save takes a second and a half.
 
-<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Tick a todo: it changes on screen at once, marked provisional, while the server still has the old value. Once the save lands, both agree. Then turn on Make the next save fail and tick a todo again: the save fails, and the screen goes back to what the server has."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
+<Example files={[{ html: optimisticSource, name: "optimistic.svelte" }]} hint="Click a todo's checkbox: it changes on screen at once, marked provisional, while the server still has the old value. Once the save lands, both agree. Then turn on Make the next save fail and click a todo's checkbox again: the save fails, and the screen goes back to what the server has."> <div data-testid="optimistic-example"><Optimistic /></div> </Example>
 
 `Atom.optimistic` wraps the atom to update, and `Atom.optimisticFn` wraps the mutation with a `reducer` that computes the provisional value from the current value and the mutation's argument. Read the optimistic atom instead of the original, and call the wrapped mutation instead of the original one.
 

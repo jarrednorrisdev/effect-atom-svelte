@@ -96,7 +96,7 @@ The collection's `value` is one array that `push`, `insertAt` and `remove` chang
 
 Below, each `<TodoItem>` gets its item's ref, and the numbers count notifications: the list's in the corner, each item's beside it.
 
-<Example graph={false} files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Tick a todo: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
+<Example graph={false} files={[{ html: todosSource, name: "todos.svelte" }, { html: todoItemSource, name: "todo-item.svelte" }]} hint="Click a todo's checkbox: its count and the list's go up, the other item's stays. Then add a todo or remove one: only the list is notified."> <Todos /> </Example>
 
 ## Equal values change nothing
 
@@ -106,7 +106,9 @@ Atoms are different: they compare with `Object.is` unless you give them [`Atom.w
 
 That matters when code runs on every change. Below, a listener autosaves the draft half a second after each edit. The server answers with its own stored copy, a new object, and the form adopts it as the draft:
 
-<Example graph={false} files={[{ html: autosaveSource, name: "autosave.svelte" }, { html: apiSource, name: "profile-api.ts" }]} hint="Change the name to Ada Byron and pause: one request goes out. The server's answer equals the draft, so setting it notifies nobody and nothing saves again. Then type a name in lowercase: the server capitalizes it, that copy is a real change, so it saves once more and then stops."> <Autosave /> </Example>
+<Example graph={false} files={[{ html: autosaveSource, name: "autosave.svelte" }, { html: apiSource, name: "profile-api.ts" }]} hint="Change the name to Ada Byron and pause: one request goes out, and nothing saves again. Then type a name in lowercase: it saves once more, then stops."> <Autosave /> </Example>
+
+An answer equal to the draft notifies nobody, so nothing saves again. An answer that differs, such as a name the server capitalized, is a real change, so it saves once more, and the next answer matches.
 
 If the ref compared objects by reference, every answer would count as a change: it would save again, get another new object back, and loop forever.
 

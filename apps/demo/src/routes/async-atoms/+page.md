@@ -182,6 +182,6 @@ const feedAtom = Atom.make(
 );
 ```
 
-<Example files={[{ html: connectionSource, name: "connection.svelte" }, { html: feedSource, name: "feed.svelte" }]} hint="Add a reader: the atom opens a socket. Click Reconnect: the old socket closes before the new one opens. Then remove the reader: the last socket closes."> <Connection /> </Example>
+<Example files={[{ html: connectionSource, name: "connection.svelte" }, { html: feedSource, name: "feed.svelte" }]} hint="Turn on Read feedAtom: the atom opens a socket. Click Reconnect: the old socket closes before the new one opens. Then turn it off: the last socket closes."> <Connection /> </Example>
 
 This is the effect version of `get.addFinalizer`, described in [Lifetimes](/lifetimes#finalizers).

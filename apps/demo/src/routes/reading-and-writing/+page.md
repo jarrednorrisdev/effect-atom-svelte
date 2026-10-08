@@ -113,7 +113,7 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 </script>
 ```
 
-<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then pick savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
+<Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then click savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
 When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The example keeps both with `Atom.keepAlive`. See [Lifetimes](/lifetimes).
 
@@ -129,6 +129,6 @@ useAtomSubscribe(draftAtom, (draft) => localStorage.setItem("draft", draft));
 
 The function isn't called for the value the atom already has, only for changes. Pass `{ immediate: true }` to also call it once with the current value when the component mounts. Like `useAtomSet`, it holds the atom while the component lives, and it computes the atom, so a derived or async atom that nothing else reads still runs.
 
-The function may write `$state`. Svelte forbids writing state while it renders, so a change that arrives during a render reaches the function on the next microtask instead.
+The function may write `$state`. Svelte forbids writing state while it renders, so a change that arrives while a hook is reading an atom, as during a render, reaches the function on the next microtask instead.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>

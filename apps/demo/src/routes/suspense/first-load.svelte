@@ -8,10 +8,11 @@
 
 <p>
   <button
+    aria-pressed={mounted}
     data-cue={mounted ? "reset" : "start"}
     onclick={() => (mounted = !mounted)}
   >
-    {mounted ? "Unmount" : "Mount"} the forecast
+    Mount the forecast
   </button>
 </p>
 {#if mounted}

@@ -47,7 +47,7 @@
 </script>
 
 <div aria-label="Todo" class="flex flex-wrap gap-2" role="group">
-  {#each [1, 2, 7] as todoId (todoId)}
+  {#each [1, 2, 99] as todoId (todoId)}
     <button
       aria-pressed={id.current === todoId}
       onclick={() => (id.current = todoId)}

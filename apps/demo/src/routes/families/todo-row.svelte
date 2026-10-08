@@ -16,7 +16,7 @@
   const todo = useAtom(() => todoAtom(id));
 </script>
 
-<li class={["row m-0", selected && "selected"]}>
+<li class={["m-0 flex items-center gap-2 rounded-md px-2", selected && "bg-brand/15"]}>
   <input
     aria-label="{title} done"
     checked={todo.current.done}
@@ -25,36 +25,13 @@
   />
   <button
     aria-current={selected ? "true" : undefined}
-    class={["open", todo.current.done && "done"]}
+    class={[
+      "m-0! flex-1 border-0! bg-transparent! p-0! text-left",
+      todo.current.done && "text-muted-foreground! line-through",
+    ]}
     onclick={onselect}
     type="button"
   >
     {title}
   </button>
 </li>
-
-<style>
-  .row {
-    align-items: center;
-    border-radius: var(--radius-md);
-    display: flex;
-    gap: 0.5rem;
-    padding: 0 0.5rem;
-  }
-  .selected {
-    background: color-mix(in oklab, var(--brand) 15%, transparent);
-  }
-  /* The title opens the todo: a row, not a button, so drop the example's button look. */
-  .open,
-  .open:hover {
-    background: transparent;
-    border: 0;
-    flex: 1;
-    padding: 0;
-    text-align: left;
-  }
-  .done {
-    color: var(--muted-foreground);
-    text-decoration: line-through;
-  }
-</style>

@@ -72,10 +72,10 @@ test.describe("SvelteKit page", () => {
     const body = page.getByTestId("error-body");
     await expect(todo).toHaveText("Write the docs");
 
-    await page.getByRole("button", { name: "Todo 7, missing" }).click();
+    await page.getByRole("button", { name: "Todo 99, missing" }).click();
     await expect(failed).toHaveText("No such todo.");
     await expect(body).toContainText(
-      '{ message: "There is no todo 7", tag: "TodoNotFound" }'
+      '{ message: "There is no todo 99", tag: "TodoNotFound" }'
     );
 
     await page.getByRole("button", { name: "A slow todo" }).click();

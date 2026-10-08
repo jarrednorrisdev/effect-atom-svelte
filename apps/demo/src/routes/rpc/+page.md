@@ -70,9 +70,9 @@ A third argument takes options:
 
 ### Following arguments
 
-`query` returns the same atom whenever you pass the same arguments, compared by value. So you can call it inside a getter, and the hook moves to a new query whenever the arguments change:
+`query` returns the same atom whenever you pass the same arguments and options, compared by value. So you can call it inside a getter, and the hook moves to a new query whenever the arguments change:
 
-<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Pick another todo: the old one stays on screen, dimmed, until the new one arrives. Todo 99 comes back as the procedure's typed TodoNotFound."> <Lookup /> </Example>
+<Example files={[{ html: lookupSource, name: "lookup.svelte" }]} hint="Click another todo: the old one stays on screen, dimmed, until the new one arrives. Todo 99 comes back as the procedure's typed TodoNotFound."> <Lookup /> </Example>
 
 ## Mutations
 

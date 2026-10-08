@@ -12,7 +12,7 @@
     defect: Effect.die(new Error("todos is undefined")),
     forbidden: Effect.fail(new Forbidden()),
     interrupt: Effect.interrupt,
-    notFound: Effect.fail(new NotFound({ id: 7 })),
+    notFound: Effect.fail(new NotFound({ id: 99 })),
     success: Effect.succeed("Write the docs"),
   };
 
