@@ -186,14 +186,17 @@
     if (!snapshot || snapshot.nodes.length + lingering.length === 0) {
       return undefined;
     }
-    const atoms = new Map(snapshot.nodes.map((node) => [node.id, node]));
+    const current = new Map(snapshot.nodes.map((node) => [node.id, node]));
     const left = new Map<number, boolean>();
     for (const { node, removed } of lingering) {
-      if (!atoms.has(node.id)) {
-        atoms.set(node.id, node);
+      if (!current.has(node.id)) {
+        current.set(node.id, node);
         left.set(node.id, removed);
       }
     }
+    // In the order the scope first saw them (ids count up), so an atom keeps its place and its
+    // number (atom #2) however the example's reads move between atoms.
+    const atoms = new Map([...current].toSorted(([a], [b]) => a - b));
     const parents = new Map<number, number[]>();
     // The edges between what's left keep the last shape the scope saw.
     const allEdges = new Map(
