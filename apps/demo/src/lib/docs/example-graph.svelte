@@ -153,6 +153,26 @@
     };
   });
 
+  /** A family's or factory's atoms on one row (see the layout). */
+  interface Group {
+    readonly name: string;
+    readonly keys: number;
+    readonly dots: readonly { id: number; key: string; label: string; repeat: boolean }[];
+  }
+
+  /** A key as a dot's caption: an object's values (`1 · en`), or the argument as written. */
+  const keyOf = (args: string) => {
+    try {
+      const value: unknown = JSON.parse(args);
+      if (value && typeof value === "object") {
+        return Object.values(value).map(String).join(" · ");
+      }
+      return String(value);
+    } catch {
+      return args;
+    }
+  };
+
   /** A file's name without its folders: what the example's code tabs call it. */
   const basename = (file: string) => file.split(/[\\/]/).at(-1) ?? file;
 
@@ -176,6 +196,8 @@
   // The first line, and the space between rows: room for a two-line label above each.
   const top = 40;
   const row = 38;
+  // The extra a row of dots needs below it for their keys.
+  const keyRoom = 18;
 
   /**
    * Lays the snapshot out on the line: atoms in columns by how far they are from a source, then the
@@ -197,14 +219,55 @@
     // In the order the scope first saw them (ids count up), so an atom keeps its place and its
     // number (atom #2) however the example's reads move between atoms.
     const atoms = new Map([...current].toSorted(([a], [b]) => a - b));
+
+    // A family's or factory's atoms (named `draftAtom(…)` by the atomLabels plugin) share a row of
+    // dots when there are three or more of them and the example reads one at a time: a dot per
+    // atom, its key under it, so a key that gets a second atom stands out. The group's first atom
+    // stands for it in the layout; `canon` maps each member to it.
+    const canon = new Map<number, number>();
+    const groups = new Map<number, Group>();
+    const readNow = new Set(snapshot.readers.map((reader) => reader.atom));
+    const byName = new Map<string, { id: number; args: string }[]>();
+    for (const node of atoms.values()) {
+      const match = /^([^(]+)\((.*)\)$/su.exec(node.label ?? "");
+      if (match) {
+        const [, name, args] = match as unknown as [string, string, string];
+        byName.set(name, [...(byName.get(name) ?? []), { args, id: node.id }]);
+      }
+    }
+    for (const [name, members] of byName) {
+      if (members.length < 3 || members.filter(({ id }) => readNow.has(id)).length > 1) {
+        continue;
+      }
+      const first = members[0]!.id;
+      const seenKeys = new Set<string>();
+      groups.set(first, {
+        dots: members.map(({ args, id }) => {
+          const repeat = seenKeys.has(args);
+          seenKeys.add(args);
+          return { id, key: keyOf(args), label: `${name}(${args})`, repeat };
+        }),
+        keys: seenKeys.size,
+        name,
+      });
+      for (const { id } of members) {
+        canon.set(id, first);
+        if (id !== first) {
+          atoms.delete(id);
+        }
+      }
+    }
+    const canonical = (id: number) => canon.get(id) ?? id;
+
     const parents = new Map<number, number[]>();
     // The edges between what's left keep the last shape the scope saw.
     const allEdges = new Map(
       [...lingeringEdges, ...snapshot.edges].map((edge) => [`${edge.from}>${edge.to}`, edge])
     );
     for (const edge of allEdges.values()) {
-      if (atoms.has(edge.from) && atoms.has(edge.to)) {
-        parents.set(edge.to, [...(parents.get(edge.to) ?? []), edge.from]);
+      const [from, to] = [canonical(edge.from), canonical(edge.to)];
+      if (from !== to && atoms.has(from) && atoms.has(to) && !parents.get(to)?.includes(from)) {
+        parents.set(to, [...(parents.get(to) ?? []), from]);
       }
     }
     const depths = new Map<number, number>();
@@ -231,7 +294,7 @@
       count: number;
     }
     const instances = new Map<string, Component>();
-    for (const reader of snapshot.readers) {
+    for (const reader of snapshot.readers.map((r) => ({ ...r, atom: canonical(r.atom) }))) {
       if (!atoms.has(reader.atom)) {
         continue;
       }
@@ -349,9 +412,13 @@
     for (const component of leftover.toSorted((a, b) => wantedTrack(a) - wantedTrack(b))) {
       place(atomColumns, component.key, tracks);
     }
+    // A row of dots has its keys under it: every track after one moves down to make room.
+    const dotted = new Set([...groups.keys()].map((first) => rows.get(`a${first}`) ?? 0));
+    const trackY = (track: number) =>
+      top + track * row + [...dotted].filter((t) => t < track).length * keyRoom;
     const at = (key: string) => {
       const column = placed.find((entry) => entry.key === key)?.column ?? 0;
-      return { column, x: x(column), y: top + (rows.get(key) ?? 0) * row };
+      return { column, x: x(column), y: trackY(rows.get(key) ?? 0) };
     };
 
     // Two atoms with one name (one atom scoped twice, say) are told apart by a number too.
@@ -366,6 +433,20 @@
       const name = node.label ?? "atom";
       const index = (named.get(name) ?? 0) + 1;
       named.set(name, index);
+      const group = groups.get(node.id);
+      if (group) {
+        const repeats = group.dots.filter((dot) => dot.repeat).length;
+        nodes.push({
+          id: `g${node.id}`,
+          kind: "junction",
+          label: `${group.name}(…)`,
+          note: `${group.dots.length} atoms for ${group.keys} ${group.keys === 1 ? "key" : "keys"}${repeats ? ` · ${repeats} repeat a key` : ""}`,
+          side: "ne",
+          x: nx,
+          y,
+        });
+        continue;
+      }
       const gone = left.get(node.id);
       nodes.push({
         id: `a${node.id}`,
@@ -444,7 +525,7 @@
       const through =
         a.y === b.y ? blocked(a.y, a.x, b.x) : blocked(a.y, a.x, middle) || blocked(b.y, middle, b.x);
       // Through a node, it would read as passing through it: go round, along a lane of its own.
-      const lane = top + (lastRow + 1 + lanes) * row - row / 2;
+      const lane = trackY(lastRow + 1 + lanes) - row / 2;
       const gap = 0.015;
       const points: [number, number][] = through
         ? [
@@ -512,8 +593,26 @@
       }));
     });
 
-    const height = top + lastRow * row + (lanes > 0 ? lanes * row - row / 2 : 0) + 16;
-    return { edges: broken, height, nodes };
+    const height =
+      trackY(lastRow) + (lanes > 0 ? lanes * row - row / 2 : 0) + (dotted.has(lastRow) ? keyRoom : 0) + 16;
+    const rowsOfDots = [...groups].map(([first, group]) => {
+      const { x: start, y } = at(`a${first}`);
+      const end = components.size > 0 ? componentColumn - 0.06 : 0.94;
+      const step = Math.min(72 / Math.max(width, 1), (end - start - 0.04) / group.dots.length);
+      return {
+        dots: group.dots.map((dot, index) => ({
+          ...dot,
+          read: readNow.has(dot.id),
+          removed: left.get(dot.id) === true,
+          x: start + 0.04 + (index + 0.5) * step,
+          y,
+        })),
+        // Each dot's key fits under it only with room to spare; otherwise it's in the dot's title.
+        keys: step * Math.max(width, 1) >= 56,
+      };
+    });
+
+    return { dots: rowsOfDots, edges: broken, height, nodes };
   });
 </script>
 
@@ -526,6 +625,21 @@
 >
   {#if layout}
     <FrameGraph edges={layout.edges} nodes={layout.nodes} />
+    {#each layout.dots as row, index (index)}
+      {#each row.dots as dot (dot.id)}
+        <span
+          style:left="{dot.x * width}px"
+          style:top="{dot.y}px"
+          class={["dot", dot.read && "read", dot.repeat && "repeat", dot.removed && "removed"]}
+          data-node="a{dot.id}"
+          title={dot.label}
+        >
+          <i></i>
+          <b class="ring"></b>
+          {#if row.keys}<span class="key">{dot.key}</span>{/if}
+        </span>
+      {/each}
+    {/each}
   {:else if mounted}
     <p class="docs-label empty">No atom is in use yet</p>
   {/if}
@@ -540,6 +654,81 @@
     margin: -0.75rem -1.5rem 1rem;
     min-height: 3.5rem;
     position: relative;
+  }
+  /*
+   * A family's or factory's atoms as dots on its track: hollow while kept alive with no readers,
+   * filled while read, crossed once removed, and red when it's a second atom for a key already seen.
+   * Odd sizes and whole-pixel borders keep a dot centred on its 1px line (kit/frame-graph.svelte).
+   */
+  .dot {
+    height: 1px;
+    position: absolute;
+    width: 1px;
+    z-index: 3;
+  }
+  .dot i {
+    background: var(--graph-background);
+    border: 2px solid var(--brand);
+    border-radius: 50%;
+    height: 11px;
+    left: -5px;
+    position: absolute;
+    top: -5px;
+    width: 11px;
+  }
+  .dot.read i {
+    background: var(--brand);
+  }
+  .dot.repeat i {
+    border-color: var(--tone-failure, #ef4444);
+  }
+  .dot.repeat.read i {
+    background: var(--tone-failure, #ef4444);
+  }
+  .dot.removed i {
+    background:
+      linear-gradient(45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%),
+      linear-gradient(-45deg, transparent 42%, var(--brand-text) 42% 58%, transparent 58%);
+    border: 0;
+  }
+  .key {
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    left: 0;
+    position: absolute;
+    top: 0.6rem;
+    translate: -50% 0;
+    white-space: nowrap;
+  }
+  .dot.read .key {
+    color: var(--brand-text);
+  }
+  .dot.repeat .key {
+    color: var(--tone-failure-text, #ef4444);
+  }
+  .dot .ring {
+    border: 1.5px solid var(--brand);
+    border-radius: 50%;
+    height: 11px;
+    left: -5px;
+    opacity: 0;
+    position: absolute;
+    top: -5px;
+    width: 11px;
+  }
+  .dot:global(.pulse) .ring {
+    animation: dot-ring 0.9s ease-out both;
+  }
+  @keyframes dot-ring {
+    from {
+      opacity: 1;
+      scale: 1;
+    }
+    to {
+      opacity: 0;
+      scale: 2.6;
+    }
   }
   .empty {
     bottom: 1rem;
