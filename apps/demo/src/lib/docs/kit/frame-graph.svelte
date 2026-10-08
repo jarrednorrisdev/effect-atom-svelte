@@ -302,10 +302,32 @@
    * A live graph's events (example-graph.svelte adds and removes these classes): a value updated
    * (the node rings, and the edges into it flash), or an atom interrupted (a cross over its node).
    */
+  /* A live graph sets data-tone on a node and its edges as an update arrives (example-graph). */
+  .node,
+  .edge {
+    --pulse: var(--brand);
+  }
+  .node:global([data-tone="success"]),
+  .edge:global([data-tone="success"]) {
+    --pulse: var(--tone-success);
+  }
+  .node:global([data-tone="failure"]),
+  .edge:global([data-tone="failure"]) {
+    --pulse: var(--tone-failure);
+  }
+  .node:global(.pulse) i {
+    animation: mark 0.9s ease-out;
+  }
+  @keyframes mark {
+    from {
+      background: var(--pulse);
+      border-color: var(--pulse);
+    }
+  }
   .ring {
     opacity: 0;
     pointer-events: none;
-    border: 1.5px solid var(--brand);
+    border: 1.5px solid var(--pulse);
     border-radius: 50%;
     height: 9px;
     left: -4px;
@@ -334,7 +356,7 @@
   }
   @keyframes flash {
     from {
-      border-color: var(--brand);
+      border-color: var(--pulse);
     }
   }
   @keyframes interrupted {

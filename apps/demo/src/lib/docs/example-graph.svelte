@@ -23,7 +23,11 @@
   import FrameGraph from "./kit/frame-graph.svelte";
   import type { GraphEdge, GraphNode } from "./kit/frame-graph.svelte";
 
-  const { scope }: { scope: InspectorScope } = $props();
+  /**
+   * `expected`: whether the example's code uses atoms at all. If not, there's no strip, unless atoms
+   * turn up in the scope anyway; if so, the strip keeps its place before they do.
+   */
+  const { expected = true, scope }: { expected?: boolean; scope: InspectorScope } = $props();
 
   const registry = getRegistry();
 
@@ -105,12 +109,20 @@
         refresh();
         await tick();
       }
+      // A pulse takes the tone of the value it brought: green for a Success, red for a Failure,
+      // the accent for anything else (a plain value, or a result still waiting for the next one).
+      const nodes = new Map(snapshot?.nodes.map((node) => [node.id, node]));
       for (const id of pulses) {
-        const node = host?.querySelector(`[data-node="a${id}"]`);
-        if (node) {
-          replay(node, "pulse");
+        const node = nodes.get(id);
+        const state = node?.waiting ? undefined : node?.state;
+        const tone = state === "Success" ? "success" : state === "Failure" ? "failure" : "";
+        const mark = host?.querySelector<HTMLElement>(`[data-node="a${id}"]`);
+        if (mark) {
+          mark.dataset.tone = tone;
+          replay(mark, "pulse");
         }
-        for (const edge of host?.querySelectorAll(`[data-to="a${id}"]`) ?? []) {
+        for (const edge of host?.querySelectorAll<HTMLElement>(`[data-to="a${id}"]`) ?? []) {
+          edge.dataset.tone = tone;
           replay(edge, "flash");
         }
       }
@@ -633,7 +645,8 @@
   });
 </script>
 
-<!-- Always there, at least one row tall, so the example doesn't jump when its atoms appear. -->
+<!-- At least one row tall whenever the example uses atoms, so it doesn't jump when they appear. -->
+{#if layout || expected}
 <div
   bind:clientWidth={width}
   bind:this={host}
@@ -661,6 +674,7 @@
     <p class="docs-label empty">No atom is in use yet</p>
   {/if}
 </div>
+{/if}
 
 <style>
   /* Across the result's full width, ruled off from the result below it. */
@@ -724,8 +738,27 @@
   .dot.repeat .key {
     color: var(--tone-failure-text, #ef4444);
   }
+  /* A pulse's tone, set as the update arrives (see flush). */
+  .dot {
+    --pulse: var(--brand);
+  }
+  .dot:global([data-tone="success"]) {
+    --pulse: var(--tone-success);
+  }
+  .dot:global([data-tone="failure"]) {
+    --pulse: var(--tone-failure);
+  }
+  .dot:global(.pulse) i {
+    animation: dot-mark 0.9s ease-out;
+  }
+  @keyframes dot-mark {
+    from {
+      background: var(--pulse);
+      border-color: var(--pulse);
+    }
+  }
   .dot .ring {
-    border: 1.5px solid var(--brand);
+    border: 1.5px solid var(--pulse);
     border-radius: 50%;
     height: 11px;
     left: -5px;

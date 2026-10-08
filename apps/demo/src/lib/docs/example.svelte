@@ -56,6 +56,11 @@
   // The hooks of every component in the result report the atoms they use to this scope.
   const scope = provideInspectorScope();
 
+  // Whether the example's code uses atoms at all, read from its highlighted source with the markup
+  // taken out. An example that doesn't gets no graph.
+  const atomic = /\bAtom\.|\buseAtom(?!Ref)\w*|\bAtom(?:Rpc|HttpApi)\b|\.(?:query|mutation)\(/u;
+  const usesAtoms = $derived(files.some((file) => atomic.test(file.html.replaceAll(/<[^>]*>/gu, ""))));
+
   const cues = new Set<string>([
     "blocked",
     "down",
@@ -217,7 +222,7 @@
       {@attach listen}
     >
       {#if graph}
-        <ExampleGraph {scope} />
+        <ExampleGraph expected={usesAtoms} {scope} />
       {/if}
       <p class="example-label not-prose">Result</p>
       {#if hint}
