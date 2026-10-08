@@ -52,7 +52,7 @@ A stream hands over its items in **chunks**: groups of items that are ready at t
 
 While a pull runs, the result is that same `Success` with `waiting` set, so the items pulled so far stay on screen.
 
-<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until the button says No more fruit: each pull brings one chunk, a page of up to three, and the last brings nothing but done. Then turn on disableAccumulation and load again: items holds only the latest page, and the end arrives as a NoSuchElementError failure instead of done."> <Fruit /> </Example>
+<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until it says No more fruit. Then turn on disableAccumulation and load again: items holds only the latest page, and the end arrives as a NoSuchElementError."> <Fruit /> </Example>
 
 **Example** (Loading the next page)
 
