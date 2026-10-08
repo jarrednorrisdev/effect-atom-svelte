@@ -139,7 +139,7 @@
             </div>
             </div>
             <aside class="docs-toc hidden shrink-0 xl:block">
-              <div class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-8 pt-10 pb-10">
+              <div class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto overscroll-contain px-8 pt-10 pb-10">
                 {#if toc.entries.length > 0}
                   <nav aria-label="On this page" class="text-sm">
                     <h2 class="docs-label mb-4">On this page</h2>

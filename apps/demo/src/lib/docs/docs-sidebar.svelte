@@ -44,7 +44,8 @@
 <!-- Below the sticky header on wide screens; a drawer from the bottom on small ones. -->
 {#if sidebar.isMobile || !drawerOnly}
   <Sidebar.Root class={sidebar.isMobile ? undefined : "top-14 h-[calc(100svh-3.5rem)]"}>
-    <Sidebar.Content bind:ref={scroller} class="py-0">
+    <!-- Scrolling past its end doesn't carry on into the page behind it. -->
+    <Sidebar.Content bind:ref={scroller} class="overscroll-contain py-0">
       <!-- Ruled like the table of contents: numbered sections between hairlines, each section's
            pages on a line with the current one marked on it in the accent (app.css). -->
       <nav aria-label="Docs">
