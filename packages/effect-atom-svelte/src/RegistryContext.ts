@@ -5,10 +5,11 @@
  */
 import { AtomRegistry } from "effect/reactivity";
 import { BROWSER, DEV } from "esm-env";
-import { createContext, onDestroy } from "svelte";
+import { createContext } from "svelte";
 
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 import { track } from "./internal/registries.ts";
+import { onTeardown } from "./internal/teardown.svelte.ts";
 
 /**
  * Options for a registry created by `provideRegistry` or `RegistryProvider`: the options of
@@ -184,12 +185,13 @@ export const provideRegistry = (
   if (revalidateOnHydrate !== undefined) {
     setRevalidateOnHydrate(revalidateOnHydrate);
   }
+  // Not onDestroy: in the browser it never runs for a component destroyed while its script awaits.
   if (!provided) {
-    onDestroy(() => registry.dispose());
+    onTeardown(() => registry.dispose());
   }
   if (DEV && BROWSER) {
     // For developer tools to find (effect-atom-svelte/inspector).
-    onDestroy(track(registry));
+    onTeardown(track(registry));
   }
   return registry;
 };

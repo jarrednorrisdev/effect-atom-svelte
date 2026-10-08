@@ -19,10 +19,12 @@ import {
   useAtomValue,
 } from "../src/index.ts";
 import type { AtomState, ProvideRegistryOptions } from "../src/index.ts";
+import DerivedInHandler from "./fixtures/derived-in-handler.svelte";
 import Harness from "./fixtures/harness.svelte";
 import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
 import SubscribeIntoState from "./fixtures/subscribe-into-state.svelte";
+import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { sleep } from "./helpers.ts";
 
@@ -979,4 +981,207 @@ describe("ScopedAtom", () => {
     });
     await expect.element(output(screen)).toHaveTextContent("7");
   });
+});
+
+/** Wraps a ref to count its live subscriptions. */
+const countSubscriptions = <A>(ref: AtomRef.ReadonlyRef<A>) => {
+  const counter = { active: 0, total: 0 };
+  const counted: AtomRef.ReadonlyRef<A> = Object.create(ref, {
+    subscribe: {
+      value: (f: (a: A) => void) => {
+        counter.active += 1;
+        counter.total += 1;
+        const unsubscribe = ref.subscribe(f);
+        return () => {
+          counter.active -= 1;
+          unsubscribe();
+        };
+      },
+    },
+  });
+  return { counted, counter };
+};
+
+const asRef = (ref: AtomRef.ReadonlyRef<{ name: string }>) =>
+  ref as AtomRef.AtomRef<{ name: string }>;
+
+describe("regressions from a review of the hooks", () => {
+  test("one holder letting go does not release another holder's hold", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(0);
+    // A layout seeds the atom and stays mounted.
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        return () => "layout";
+      },
+    });
+    // A page seeds the same atom, then the user navigates away.
+    const page = await render(Toggle, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        return () => "page";
+      },
+      show: true,
+    });
+    await page.rerender({ show: false });
+    await sleep("50 millis");
+    // The layout still holds it, so it must keep its value.
+    expect(registry.getNodes().has(atom)).toBe(true);
+    const reader = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    await expect.element(output(reader)).toHaveTextContent("7");
+  });
+
+  test("useAtomInitialValues sets an atom another component already reads, as atom-react does", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(0);
+    const reader = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        return () => value.current;
+      },
+    });
+    registry.set(atom, 5);
+    await expect.element(output(reader)).toHaveTextContent("5");
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomInitialValues([[atom, 7]]);
+        return () => "later";
+      },
+    });
+    await expect.element(output(reader)).toHaveTextContent("7");
+  });
+
+  test("a getter switch whose subscribe throws still follows the new atom afterwards", async () => {
+    const registry = AtomRegistry.make();
+    const src = Atom.make(0);
+    // Throws while src is odd.
+    const bad = Atom.make((get) => {
+      const n = get(src);
+      if (n % 2 === 1) {
+        throw new Error("odd");
+      }
+      return n;
+    });
+    const good = Atom.make(-1);
+    const pick = Atom.make(false);
+    // Built once, then left stale and unobserved by the write below.
+    registry.get(bad);
+    let readInHandler!: () => void;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const useBad = useAtomValue(pick);
+        const value = useAtomValue(() => (useBad.current ? bad : good));
+        readInHandler = () => {
+          registry.set(src, 1);
+          registry.set(pick, true);
+          try {
+            void value.current;
+          } catch {
+            // as a handler that tolerates the failure would
+          }
+          registry.set(src, 2);
+        };
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("-1");
+    readInHandler();
+    await expect.element(output(screen)).toHaveTextContent("2");
+    registry.set(src, 4);
+    await expect.element(output(screen)).toHaveTextContent("4");
+  });
+
+  test("a $derived read only in an event handler sees the atom's latest value", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(1);
+    const screen = await render(DerivedInHandler, { atom, registry });
+    await screen.getByRole("button").click();
+    await expect.element(output(screen)).toHaveTextContent("1 10");
+    registry.set(atom, 2);
+    await screen.getByRole("button").click();
+    await expect.element(output(screen)).toHaveTextContent("2 20");
+  });
+
+  test("useAtomRef lets go of the old ref when its getter switches", async () => {
+    const first = countSubscriptions(AtomRef.make(1));
+    const second = countSubscriptions(AtomRef.make(2));
+    const pick = AtomRef.make(false);
+    const screen = await render(Harness, {
+      setup: () => {
+        const useSecond = useAtomRef(pick);
+        const value = useAtomRef(() =>
+          useSecond.current ? second.counted : first.counted
+        );
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    pick.set(true);
+    await expect.element(output(screen)).toHaveTextContent("2");
+    await sleep("20 millis");
+    expect(first.counter.active).toBe(0);
+    expect(second.counter.active).toBe(1);
+  });
+
+  test("useAtomRefPropValue lets go of the old parent when its getter switches", async () => {
+    const first = countSubscriptions(AtomRef.make({ name: "first" }));
+    const second = countSubscriptions(AtomRef.make({ name: "second" }));
+    const pick = AtomRef.make(false);
+    const screen = await render(Harness, {
+      setup: () => {
+        const useSecond = useAtomRef(pick);
+        const name = useAtomRefPropValue(
+          () => asRef(useSecond.current ? second.counted : first.counted),
+          "name"
+        );
+        return () => name.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("first");
+    pick.set(true);
+    await expect.element(output(screen)).toHaveTextContent("second");
+    await sleep("20 millis");
+    expect(first.counter.active).toBe(0);
+    expect(second.counter.active).toBe(1);
+  });
+
+  test.each([
+    { pending: false, title: "once mounted (control)" },
+    { pending: true, title: "while its script awaits" },
+  ])(
+    "a component that provides a registry disposes of it when destroyed $title",
+    async ({ pending }) => {
+      const log: string[] = [];
+      const resource = Atom.make((get) => {
+        get.addFinalizer(() => log.push("released"));
+        return 1;
+      }).pipe(Atom.keepAlive);
+      const screen = await render(ToggleScriptAwait, {
+        registry: AtomRegistry.make(),
+        setup: () => {
+          const own = provideRegistry();
+          own.get(resource);
+          return pending
+            ? Effect.runPromise(Effect.never)
+            : Promise.resolve("ok");
+        },
+        show: true,
+      });
+      await sleep("20 millis");
+      await screen.rerender({ show: false });
+      await expect.poll(() => log, { timeout: 500 }).toEqual(["released"]);
+    }
+  );
 });

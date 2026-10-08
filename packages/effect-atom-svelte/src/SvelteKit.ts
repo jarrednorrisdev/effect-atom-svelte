@@ -100,7 +100,8 @@ export const handleClientError = (
     return undefined;
   }
   console.error(error);
-  return body(messageOf(error) ?? fallbackMessage(input), tagOf(error));
+  // `||`, not `??`: an error with an empty message gets SvelteKit 2's instead.
+  return body(messageOf(error) || fallbackMessage(input), tagOf(error));
 };
 
 /**
