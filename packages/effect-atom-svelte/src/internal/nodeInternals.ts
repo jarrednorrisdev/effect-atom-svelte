@@ -22,6 +22,8 @@
 //
 // A node that lacks any of them is left alone (`instrumentNode` returns false), so a change in
 // Effect stops the inspector from reporting rather than breaking the registry.
+//
+// docs/proposals/atom-registry-inspector.md proposes an API in Effect that would replace this file.
 import type { AtomRegistry } from "effect/reactivity";
 
 interface LifetimeImpl {
