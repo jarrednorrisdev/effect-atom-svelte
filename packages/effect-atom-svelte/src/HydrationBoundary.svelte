@@ -26,6 +26,13 @@
   </HydrationBoundary>
   ```
 -->
+<script module lang="ts">
+  // Per registry, key and queued value, how many live boundaries queued it. Boundaries given the
+  // same state, as a layout and its page might be, queue the same values, and one destroyed first
+  // must leave them for the other's children.
+  const queuedBy = new WeakMap<object, Map<string, Map<unknown, number>>>();
+</script>
+
 <script lang="ts">
   import { Hydration } from "effect/reactivity";
   import { BROWSER } from "esm-env";
@@ -50,10 +57,43 @@
   // The values this boundary queued, by key, so it can drop the ones nobody took.
   const queued = new Map<string, unknown>();
 
+  const counts =
+    queuedBy.get(registry) ?? new Map<string, Map<unknown, number>>();
+  queuedBy.set(registry, counts);
+  /** Adds one to or takes one from the boundaries queueing a value, and returns the new count. */
+  const count = (key: string, value: unknown, delta: 1 | -1): number => {
+    const byValue = counts.get(key) ?? new Map<unknown, number>();
+    counts.set(key, byValue);
+    const next = (byValue.get(value) ?? 0) + delta;
+    if (next > 0) {
+      byValue.set(value, next);
+    } else {
+      byValue.delete(value);
+      if (byValue.size === 0) {
+        counts.delete(key);
+      }
+    }
+    return next;
+  };
+
   const queue = (atoms: readonly Hydration.DehydratedAtomValue[]): void => {
-    Hydration.hydrate(registry, atoms);
+    // On the server the render can't wait for a promise-encoded value, and one landing after the
+    // render would stay queued in a registry that outlives it.
+    Hydration.hydrate(
+      registry,
+      BROWSER
+        ? atoms
+        : atoms.map(({ resultPromise: _late, ...atom }) => atom as Hydration.DehydratedAtomValue)
+    );
     for (const { key, value } of atoms) {
+      if (queued.has(key)) {
+        if (queued.get(key) === value) {
+          continue;
+        }
+        count(key, queued.get(key), -1);
+      }
       queued.set(key, value);
+      count(key, value, 1);
     }
   };
 
@@ -111,13 +151,14 @@
 
   // A queued value stays in the registry until its key is looked up. With a registry that outlives
   // the boundary, such as one the caller passes to the server's provider, it would reach a later
-  // request. Drop the ones still waiting, unless something queued another value since.
+  // request. Drop the ones still waiting, unless something queued another value since or another
+  // live boundary queued the same one.
   onDestroy(() => {
     if (!preloaded) {
       return;
     }
     for (const [key, value] of queued) {
-      if (preloaded.get(key) === value) {
+      if (count(key, value, -1) <= 0 && preloaded.get(key) === value) {
         preloaded.delete(key);
       }
     }

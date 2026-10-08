@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Deferred, Effect, Schema, Stream } from "effect";
 import {
   AsyncResult,
   Atom,
@@ -34,7 +34,7 @@ import {
   streamAtom,
   unencodableAtom,
 } from "./fixtures/unsent-seed.ts";
-import { repeat } from "./helpers.ts";
+import { repeat, sleep } from "./helpers.ts";
 
 let clients: ReturnType<typeof makeClients> | undefined;
 afterEach(async () => {
@@ -267,6 +267,32 @@ describe("server rendering", () => {
       expect(output.body).toContain("Success");
       expect(output.head).toContain("waiting:true");
     });
+
+    test("with suspendOnWaiting, the settled result the server rendered is sent", async () => {
+      const atom = (
+        Atom.make(
+          Stream.make(1, 2, 3).pipe(Stream.tap(() => Effect.sleep("5 millis")))
+        ) as Atom.Atom<AsyncResult.AsyncResult<number>>
+      ).pipe(
+        Atom.serializable({
+          key: "waiting-seed",
+          schema: AsyncResult.Schema({ success: Schema.Number }),
+        })
+      );
+      const output = await renderSetup(() => {
+        const result = useAtomResult(atom, { suspendOnWaiting: true });
+        return (async () => {
+          const live = await result;
+          return () =>
+            live.current._tag === "Success"
+              ? `value ${live.current.value} waiting ${live.current.waiting}`
+              : live.current._tag;
+        })();
+      });
+      expect(output.body).toContain("value 3 waiting false");
+      // A waiting seed would have the browser run the atom again for a value it already has.
+      expect(output.head).not.toContain("waiting:true");
+    });
   });
 
   describe("HydrationBoundary", () => {
@@ -294,6 +320,35 @@ describe("server rendering", () => {
       });
       expect(first.body).toContain("<output>-</output>");
       // Kept, the first request's value would be the next request's.
+      const second = await render(HydrateAbove, {
+        props: { ...props, readInside: true, state: undefined },
+      });
+      expect(second.body).toContain("<output>0</output>");
+      registry.dispose();
+    });
+
+    test("doesn't pass a value that lands after the render on to a later request", async () => {
+      const atom = numberAtom("boundary-late");
+      const registry = AtomRegistry.make();
+      const late = Deferred.makeUnsafe<unknown>();
+      // As Hydration.dehydrate(registry, { encodeInitialAs: "promise" }) gives for an Initial result.
+      const state = [
+        {
+          dehydratedAt: Date.now(),
+          key: "boundary-late",
+          resultPromise: Effect.runPromise(Deferred.await(late)),
+          value: 0,
+          "~effect/reactivity/Hydration/DehydratedAtom": true,
+        },
+      ] as unknown as Hydration.DehydratedAtom[];
+      const props = { atom, readAbove: false, registry };
+      const first = await render(HydrateAbove, {
+        props: { ...props, readInside: false, state },
+      });
+      expect(first.body).toContain("<output>-</output>");
+      // The first request's value arrives after its render has ended.
+      Deferred.doneUnsafe(late, Effect.succeed(42));
+      await sleep("10 millis");
       const second = await render(HydrateAbove, {
         props: { ...props, readInside: true, state: undefined },
       });
@@ -536,6 +591,47 @@ describe("server rendering", () => {
     expect(body).toContain("<output>dark</output>");
     expect(computed).toBe(0);
   });
+
+  test.each([
+    ["useAtomResult", false],
+    ["useAtomSuspense", false],
+    ["useAtomResult", true],
+    ["useAtomSuspense", true],
+  ])(
+    "%s (serializable: %s) renders an initial value without computing the atom on the server",
+    async (hook, serializable) => {
+      let fetched = 0;
+      const plain = Atom.make(
+        Effect.sync(() => {
+          fetched += 1;
+          return "fetched";
+        })
+      );
+      const user = serializable
+        ? plain.pipe(
+            Atom.serializable({
+              key: `initial-${hook}`,
+              schema: AsyncResult.Schema({ success: Schema.String }),
+            })
+          )
+        : plain;
+      const { body } = await renderSetup(() => {
+        useAtomInitialValues([[user, AsyncResult.success("initial")]]);
+        if (hook === "useAtomResult") {
+          const result = useAtomResult(user);
+          return (async () => {
+            const live = await result;
+            return () =>
+              live.current._tag === "Success" ? live.current.value : "";
+          })();
+        }
+        const value = useAtomSuspense(user);
+        return () => value.current;
+      });
+      expect(body).toContain("<output>initial</output>");
+      expect(fetched).toBe(0);
+    }
+  );
 
   test("an initial value nothing reads leaves its async atom unstarted on the server", async () => {
     let fetched = 0;

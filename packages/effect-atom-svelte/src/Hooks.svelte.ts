@@ -902,6 +902,33 @@ const notStartedError = (hook: string): Error =>
     `${hook} read an atom that has not started on the server: its result is Initial and nothing is running it, as for an Atom.fn that has not been called, so the render would wait for it forever. Read it with useAtomValue, which renders Initial, or inside a <svelte:boundary> with a pending snippet, which the server renders instead.`
   );
 
+/**
+ * Whether, on the server, an atom's node holds a value from `useAtomInitialValues`. The server
+ * renders that value, as `subscribedReader` does: mounting, reading or waiting for the atom would
+ * run its read, which may be browser-only or start a request the value was there to save.
+ */
+const initialOnServer = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): boolean =>
+  !BROWSER && internals(registry).ensureNode(atom).preserveInitialValueOnBuild;
+/** Keeps an atom for the server render: a node with an initial value is held, not mounted. */
+const serverMount = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): (() => void) =>
+  initialOnServer(registry, atom)
+    ? holdNode(internals(registry), internals(registry).ensureNode(atom))
+    : registry.mount(atom);
+/** Reads an atom on the server, without building a node that has an initial value. */
+const serverGet = <A>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<A>
+): A =>
+  initialOnServer(registry, atom)
+    ? (internals(registry).ensureNode(atom)._value as A)
+    : registry.get(atom);
+
 /** One serialization key's seed in a registry, shared by every component using that key. */
 interface Seed {
   readonly atom: Atom.Atom<unknown>;
@@ -960,10 +987,11 @@ const seedOnServer = (
   registry: AtomRegistry.AtomRegistry,
   atom: ResultAtom<unknown, unknown>,
   key: string,
-  encode: (value: AsyncResult.AsyncResult<unknown, unknown>) => unknown
+  encode: (value: AsyncResult.AsyncResult<unknown, unknown>) => unknown,
+  suspendOnWaiting?: boolean | undefined
 ): Promise<void> => {
   // Mounted until the render ends, so the settled node is what the render reads.
-  const release = registry.mount(atom);
+  const release = serverMount(registry, atom);
   onDestroy(release);
   // hydratable hands every later reader of a key the first reader's value, but Svelte's dev build
   // also runs each later reader's callback and throws hydratable_clobbering if what it encodes
@@ -977,11 +1005,13 @@ const seedOnServer = (
       if (claim.first !== claim.own) {
         return await claim.first;
       }
-      // Not waited for if nothing has started it: the hook rejects once seeded.
-      if (!notStarted(registry.get(atom))) {
-        await awaitResult(registry, atom);
+      // Not waited for if nothing has started it: the hook rejects once seeded. Waited for as the hook
+      // waits, so with suspendOnWaiting the seed is the settled result the render shows, not one the
+      // browser would run again because it was still waiting.
+      if (!initialOnServer(registry, atom) && !notStarted(registry.get(atom))) {
+        await awaitResult(registry, atom, { suspendOnWaiting });
       }
-      return encodeSeed(key, encode, registry.get(atom));
+      return encodeSeed(key, encode, serverGet(registry, atom));
     })();
     return claim.own;
   });
@@ -1027,7 +1057,10 @@ const serverValues = (): ReadonlyMap<string, unknown> | undefined => {
 
 const warnIfSent = async (key: string, sent: unknown): Promise<void> => {
   try {
-    if ((await sent) === undefined) {
+    // Undefined when the key wasn't sent, null when the server sent that it had no seed for it, as
+    // for a defect: either way the browser was always going to compute the atom.
+    const value = await sent;
+    if (value === undefined || value === null) {
       return;
     }
   } catch {
@@ -1077,7 +1110,8 @@ const claimServerValue = (key: string, missed: boolean): void => {
 const seedFromServer = (
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => ResultAtom<unknown, unknown>,
-  revalidateOption: boolean | undefined
+  revalidateOption: boolean | undefined,
+  suspendOnWaiting?: boolean | undefined
 ): SeedWait | undefined => {
   const atom = getAtom();
   // The server never computes an atom with a server value, so it has no value to pass on, and the
@@ -1088,7 +1122,7 @@ const seedFromServer = (
   const { decode, encode, key } = atom[Atom.SerializableTypeId];
   if (!BROWSER) {
     return {
-      done: seedOnServer(registry, atom, key, encode),
+      done: seedOnServer(registry, atom, key, encode, suspendOnWaiting),
       letGo: noSeedMount,
     };
   }
@@ -1259,13 +1293,23 @@ export const useAtomResult = async <A, E>(
     release = undefined;
     return unmount;
   });
-  const seed = seedFromServer(registry, getAtom, options?.revalidateOnHydrate);
+  const seed = seedFromServer(
+    registry,
+    getAtom,
+    options?.revalidateOnHydrate,
+    options?.suspendOnWaiting
+  );
   if (seed) {
     await seed.done;
   }
   // Destroyed while seeding: reading the atom now would only compute it for nobody. On the server,
   // an atom with a server value is read as that value, with nothing to wait for.
   if (lifetime.signal.aborted || (!BROWSER && hasServerValue(atom))) {
+    return value;
+  }
+  // On the server, an initial value is what the render shows, with nothing to wait for.
+  if (initialOnServer(registry, atom)) {
+    release = serverMount(registry, atom);
     return value;
   }
   if (effectHolds) {
@@ -1532,7 +1576,12 @@ export function useAtomSuspense<A, E>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   const result = useAtomValue(getAtom);
-  const seed = seedFromServer(registry, getAtom, options.revalidateOnHydrate);
+  const seed = seedFromServer(
+    registry,
+    getAtom,
+    options.revalidateOnHydrate,
+    options.suspendOnWaiting
+  );
   // A plain variable, not $state: a render in a batch with this write rolled back would take the
   // pre-seed path and track nothing but the flag. Reading `trackSeed` asks for a re-read instead.
   let seeded = seed === undefined;
@@ -1628,7 +1677,12 @@ export function useAtomSuspense<A, E>(
           if (live.length === 0) {
             return undefined;
           }
-          holdWhileRead(registry, atom, live);
+          // A read outside any reaction can't say when it is done, so it doesn't hold the atom: held
+          // by the component's lifetime, the atom would stay mounted after the getter moves on.
+          const reactions = live.filter((reader) => reader !== lifetime.signal);
+          if (reactions.length > 0) {
+            holdWhileRead(registry, atom, reactions);
+          }
           seed.letGo();
           const current = registry.get(atom);
           let waited: Promise<unknown> | undefined;
