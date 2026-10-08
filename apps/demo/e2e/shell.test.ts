@@ -310,17 +310,17 @@ test.describe("docs shell", () => {
     await expect(open).toHaveText("1");
   });
 
-  test("on a phone the landing page's menu opens the sidebar sheet", async ({
+  test("on a phone the landing page's menu opens the docs drawer", async ({
     page,
   }) => {
     await page.setViewportSize({ height: 800, width: 390 });
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-    const sheet = page.getByRole("dialog");
-    await sheet.getByRole("link", { name: "Installation" }).click();
+    await page.getByRole("button", { name: "Docs menu" }).click();
+    const drawer = page.getByRole("dialog");
+    await drawer.getByRole("link", { name: "Installation" }).click();
     await expect(page).toHaveURL(/\/installation$/u);
-    await expect(sheet).toBeHidden();
+    await expect(drawer).toBeHidden();
   });
 
   test("the favicon, preview image and sitemap are served", async ({
@@ -647,16 +647,16 @@ test.describe("docs shell", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("on small screens the sidebar opens as a sheet and closes after navigating", async ({
+  test("on small screens the sidebar opens as a drawer and closes after navigating", async ({
     page,
   }) => {
     await page.setViewportSize({ height: 800, width: 390 });
     await page.goto("/scoped-atoms");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-    const sheet = page.getByRole("dialog");
-    await sheet.getByRole("link", { name: "Lifetimes" }).click();
+    await page.getByRole("button", { name: "Docs menu" }).click();
+    const drawer = page.getByRole("dialog");
+    await drawer.getByRole("link", { name: "Lifetimes" }).click();
     await expect(page).toHaveURL(/\/lifetimes$/u);
-    await expect(sheet).toBeHidden();
+    await expect(drawer).toBeHidden();
   });
 });

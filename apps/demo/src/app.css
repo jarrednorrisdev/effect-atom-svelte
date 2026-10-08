@@ -1,14 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-svelte/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
 @import "@fontsource-variable/jetbrains-mono";
 
 /*
  * Libron (github.com/nicoverbruggen/libron, SIL Open Font License; see src/lib/fonts/libron) is
- * the optional text font: the header's font switch sets `<html data-font="libron">` to use it
- * instead of Inter; see src/lib/docs/font-preference.ts. Libron has only regular and bold, so
- * medium and semibold text uses the nearer of the two.
+ * the site's serif, `--font-serif`, for the graphs' and the devtools' italic notes only. Geist is
+ * the text font; JetBrains Mono is for headings, labels and code.
  */
 @font-face {
   font-display: swap;
@@ -162,8 +161,8 @@
 }
 
 @theme inline {
-  /* The text font, Libron or Inter; html sets --font-text below. */
-  --font-sans: var(--font-text);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Libron", ui-serif, Georgia, serif;
   --font-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -219,11 +218,7 @@
     @apply bg-background text-foreground antialiased;
   }
   html {
-    --font-text: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
     @apply font-sans;
-  }
-  html[data-font="libron"] {
-    --font-text: "Libron", ui-serif, Georgia, serif;
   }
 }
 
@@ -250,6 +245,11 @@
   & :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
     font-weight: 600;
     letter-spacing: -0.025em;
+  }
+  /* Headings in the mono, like the site's labels; the text stays in Geist. */
+  & :where(h1, h2, h3):not(:where([class~="not-prose"] *)) {
+    font-family: var(--font-mono);
+    letter-spacing: -0.03em;
   }
   & :where(a):not(:where([class~="not-prose"] *)) {
     font-weight: 500;

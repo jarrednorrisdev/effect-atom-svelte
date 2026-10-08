@@ -1,11 +1,11 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { Effect, Option } from "effect";
+import { Cause, Data, Effect, Option } from "effect";
 import { inspect } from "effect-atom-svelte/inspector";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { detail, preview } from "../src/internal/format.ts";
+import { detail, failureText, preview } from "../src/internal/format.ts";
 import { Model } from "../src/internal/model.svelte.ts";
 import { identify, parseFrame } from "../src/internal/names.ts";
 
@@ -25,6 +25,21 @@ describe("format", () => {
     );
     expect(preview(AsyncResult.initial())).toBe("Initial");
     expect(preview(AsyncResult.fail("boom"))).toContain("boom");
+  });
+
+  test("says what a failure failed with", () => {
+    class CityNotFound extends Data.TaggedError("CityNotFound")<{
+      readonly city: string;
+    }> {}
+    const cause = Cause.fail(new CityNotFound({ city: "Atlantis" }));
+    expect(failureText(cause)).toBe("CityNotFound");
+    expect(preview(AsyncResult.failure(cause))).toBe(
+      'CityNotFound { city: "Atlantis" }'
+    );
+    expect(failureText(Cause.die(new TypeError("bad")))).toBe(
+      "defect: TypeError"
+    );
+    expect(failureText(Cause.interrupt())).toBe("interrupted");
   });
 
   test("writes out a value in full, through Effect's toJSON, without looping", () => {

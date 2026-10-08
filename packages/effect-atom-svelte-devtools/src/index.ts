@@ -6,7 +6,8 @@
 
 /**
  * A panel docked along the bottom of the window, with the registry's dependency graph, a sheet per
- * atom and a timeline of everything the registry does. Development only.
+ * atom and a timeline of everything the registry does. Development only, unless `production` is
+ * set.
  *
  * @since 0.2.0
  * @category components

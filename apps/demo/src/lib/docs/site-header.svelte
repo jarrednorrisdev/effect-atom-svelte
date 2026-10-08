@@ -1,16 +1,20 @@
 <script lang="ts">
+  import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import MenuIcon from "@lucide/svelte/icons/menu";
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
-  import FontToggle from "./font-toggle.svelte";
   import GitHubButton from "./github-button.svelte";
   import ResetDemoApi from "./reset-demo-api.svelte";
   import SearchButton from "./search-button.svelte";
+  import SiteLogo from "./site-logo.svelte";
   import SoundToggle from "./sound-toggle.svelte";
   import ThemeToggle from "./theme-toggle.svelte";
 
   // The pages whose examples call the demo API (#lib/clients.ts). Only they show its reset button.
   const demoApiPages = new Set(["/cookbook", "/http", "/rpc"]);
+
+  const sidebar = Sidebar.useSidebar();
 
   // The landing page has no sidebar: its header lines up with the hero's frame instead.
   const landing = $derived(!page.error && page.url.pathname === "/");
@@ -33,28 +37,32 @@
 -->
 <header class="sticky top-0 z-20 h-14 shrink-0 border-b bg-background" class:landing>
   <div class="cells">
-    <div class="cell brand">
-      <Sidebar.Trigger class="md:hidden" />
-      <a class="min-w-0 truncate font-semibold tracking-tight whitespace-nowrap text-foreground" href="/"
-        >effect-atom-svelte</a
+    <!-- The name, then a cell of its own saying it's a community project. On the landing page the
+         two share the frame's left half. -->
+    <!-- On a phone, the docs' pages are in a drawer (docs-sidebar.svelte) this cell opens. -->
+    <div class="cell control menu">
+      <button
+        aria-expanded={sidebar.openMobile}
+        aria-label="Docs menu"
+        onclick={() => sidebar.toggle()}
+        type="button"><MenuIcon aria-hidden="true" class="size-4" /></button
       >
-      {#if landing}
-        <span
-          class="hidden shrink-0 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap text-muted-foreground xl:inline"
-        >
-          Community project
-        </span>
-      {/if}
     </div>
-    <!-- A docs page's brand cell is only the sidebar's width, so the badge has a cell of its own. -->
-    {#if !landing}
+    <div class="start">
+      <div class="cell brand">
+        <SiteLogo />
+      </div>
       <div
         class="cell note font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase"
       >
         Community project
       </div>
-    {/if}
+    </div>
     <div class="tools">
+      <!-- The landing page's way into the docs, beside the search. -->
+      {#if landing}
+        <a class="cell docs-link" href="/introduction">Docs <ArrowRightIcon aria-hidden="true" class="size-3.5" /></a>
+      {/if}
       <div class="cell search">
         <SearchButton />
       </div>
@@ -62,7 +70,6 @@
       {#if demoApiPages.has(page.url.pathname)}
         <div class="cell control"><ResetDemoApi /></div>
       {/if}
-      <div class="cell control"><FontToggle /></div>
       <div class="cell control"><SoundToggle /></div>
       <div class="cell control"><ThemeToggle /></div>
     </div>
@@ -115,6 +122,23 @@
     .landing .tools {
       border-left: 1px solid var(--line);
     }
+  }
+  /* On a docs page the name's cell and the note's are cells of the header like the rest. */
+  .start {
+    display: contents;
+  }
+  /* On the landing page they share the frame's left half: the name takes its width, the note the
+     rest. */
+  .landing .start {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .landing .brand {
+    flex: 0 1 auto;
+  }
+  .landing .note {
+    border-left: 1px solid var(--line);
   }
   .cell {
     align-items: center;
@@ -209,6 +233,66 @@
       width: 3.5rem;
     }
   }
+  /* A cell like the controls, labelled like the header's other mono labels, in the brand's color. */
+  .docs-link {
+    border-left: 1px solid var(--line);
+    color: var(--brand-text);
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    gap: 0.4rem;
+    letter-spacing: 0.08em;
+    padding-inline: 1.25rem;
+    text-transform: uppercase;
+    transition: background-color 0.15s;
+  }
+  .docs-link:hover {
+    background: color-mix(in oklab, var(--brand) 10%, transparent);
+  }
+  .docs-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+  /* In the landing page's right half, it starts at the frame's middle line, which draws its left
+     edge. */
+  @media (width >= 64rem) {
+    .landing .docs-link {
+      border-left: 0;
+    }
+    .landing .docs-link + .search {
+      border-left: 1px solid var(--line);
+    }
+  }
+  /* The menu's cell starts the header, so its line is on its right; only phones and tablets have
+     it, as wider screens show the sidebar. */
+  .control.menu {
+    border-left: 0;
+    border-right: 1px solid var(--line);
+  }
+  @media (width >= 48rem) {
+    .control.menu {
+      display: none;
+    }
+  }
+  /* Like the other cells' ghost buttons. */
+  .menu button {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: var(--foreground);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    transition: background-color 0.15s;
+  }
+  .menu button:hover {
+    background: var(--accent);
+  }
+  .menu button:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
   .control {
     border-left: 1px solid var(--line);
     flex: none;
@@ -242,6 +326,9 @@
     /* An icon button, but a full-size target. */
     .search {
       padding-inline: 0.25rem;
+    }
+    .docs-link {
+      padding-inline: 0.75rem;
     }
   }
   /* A cross on the 1px square where the sidebar's edge meets the header's bottom line, its arms

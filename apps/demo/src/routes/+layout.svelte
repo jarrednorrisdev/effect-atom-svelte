@@ -1,6 +1,6 @@
 <script lang="ts">
   import "../app.css";
-  import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+  import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
   import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
   import { page } from "$app/state";
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
@@ -42,8 +42,21 @@
   const toc = new TableOfContents(() => content);
 
   // Marks the page as hydrated, for the e2e tests: input typed before hydration can be lost.
+  // The atom devtools, for visitors to watch the examples' atoms: loaded once the page is idle, so
+  // they cost the page's first load nothing.
+  let devtools = $state<Promise<typeof import("effect-atom-svelte-devtools")>>();
+  const load = () => {
+    devtools = import("effect-atom-svelte-devtools");
+  };
+
   onMount(() => {
     document.documentElement.dataset.hydrated = "";
+    if ("requestIdleCallback" in window) {
+      const idle = requestIdleCallback(load, { timeout: 4000 });
+      return () => cancelIdleCallback(idle);
+    }
+    const timer = setTimeout(load, 2000);
+    return () => clearTimeout(timer);
   });
 </script>
 
@@ -53,7 +66,7 @@
   <!-- Every page uses both fonts; without these, they only start loading once the stylesheet has
        arrived and the page has been laid out. Only the Latin files: app.css's other subsets load
        only for text that needs them. -->
-  <link as="font" crossorigin="anonymous" href={interLatin} rel="preload" type="font/woff2" />
+  <link as="font" crossorigin="anonymous" href={geistLatin} rel="preload" type="font/woff2" />
   <link as="font" crossorigin="anonymous" href={monoLatin} rel="preload" type="font/woff2" />
   <title>{fullTitle}</title>
   <!-- Each page adds its own description (page-description.svelte), so there is none here. -->
@@ -89,8 +102,8 @@
     >
     <SiteHeader />
     {#if landing}
-      <!-- The sidebar is only the small screens' sheet here, opened from the header. -->
-      <DocsSidebar sheetOnly />
+      <!-- The sidebar is only the small screens' drawer here, opened from the header. -->
+      <DocsSidebar drawerOnly />
       <main class="min-w-0 flex-1" id="content">
         {@render children()}
       </main>
@@ -126,7 +139,7 @@
             </div>
             </div>
             <aside class="docs-toc hidden shrink-0 xl:block">
-              <div class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-8 pt-10 pb-10">
+              <div class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto overscroll-contain px-8 pt-10 pb-10">
                 {#if toc.entries.length > 0}
                   <nav aria-label="On this page" class="text-sm">
                     <h2 class="docs-label mb-4">On this page</h2>
@@ -140,10 +153,13 @@
       </div>
     {/if}
   </Sidebar.Provider>
-  <!-- The atom devtools, in development only: the import is left out of builds. -->
-  {#if import.meta.env.DEV}
-    {#await import("effect-atom-svelte-devtools") then { AtomDevtools }}
-      <AtomDevtools />
+  <!-- The atom devtools, in production too: the site shows its own atoms (/devtools). Not on
+       phones, which have no room for the panel. -->
+  {#if devtools}
+    {#await devtools then { AtomDevtools }}
+      <div class="hidden md:contents">
+        <AtomDevtools production />
+      </div>
     {/await}
   {/if}
 </RegistryProvider>
