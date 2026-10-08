@@ -7,7 +7,7 @@ import { Cause, Effect, Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomRef } from "effect/reactivity";
 import { BROWSER, DEV } from "esm-env";
-import { getAbortSignal, hydratable, onDestroy, untrack } from "svelte";
+import { getAbortSignal, hydratable, untrack } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
 import {
@@ -16,6 +16,7 @@ import {
   isWaiting,
   revalidatesOnHydrate,
 } from "./internal/hydration.ts";
+import { onRenderEnd } from "./internal/renderEnd.ts";
 import { reportReads } from "./internal/scope.svelte.ts";
 import type { ReadKind } from "./internal/scope.svelte.ts";
 import { onTeardown } from "./internal/teardown.svelte.ts";
@@ -214,14 +215,14 @@ const subscribedReader = <A>(
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
     // render awaits, losing initial values and refetching async atoms. Mounting at setup, before any
-    // await, keeps it for the request. The mounts are released in onDestroy, which runs when the
-    // server render ends, because a registry passed in by the caller outlives the request (JND-17).
+    // await, keeps it for the request. The mounts are released when the server render ends,
+    // because a registry passed in by the caller outlives the request (JND-17).
     // An atom with a withServerValue override is never computed on the server, so it is not mounted:
     // mounting would run its real read, which is often browser-only. Nor is one that holds a value
     // from useAtomInitialValues: the server renders that value, which is what the atom's first build
     // would keep, without running a read that may be browser-only or start a request.
     const releases: (() => void)[] = [];
-    onDestroy(() => {
+    onRenderEnd(() => {
       for (const release of releases) {
         release();
       }
@@ -1001,7 +1002,7 @@ const seedOnServer = (
 ): Promise<void> => {
   // Mounted until the render ends, so the settled node is what the render reads.
   const release = serverMount(registry, atom);
-  onDestroy(release);
+  onRenderEnd(release);
   // hydratable hands every later reader of a key the first reader's value, but Svelte's dev build
   // also runs each later reader's callback and throws hydratable_clobbering if what it encodes
   // differs. Reading the atom again there would encode whatever it holds by then, so a later
