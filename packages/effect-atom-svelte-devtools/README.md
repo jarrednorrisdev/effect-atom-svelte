@@ -57,6 +57,7 @@ export default defineConfig({
 - An atom in a top-level object literal is named by its path: `const pair = { todosAtom: Atom.make(...) }` labels `pair.todosAtom`.
 - Inside functions, only `Atom.*` calls are labelled, so a function that makes atoms names them without every other call in it being wrapped.
 - Atoms in mdsvex (`.md`) pages aren't labelled.
+- Each component's instance script also starts by naming the component (`Counter`, from `counter.svelte`), so an inspector scope (`provideInspectorScope` in `effect-atom-svelte/inspector`) can say which component reads each atom.
 
 ## State across hot reloads
 

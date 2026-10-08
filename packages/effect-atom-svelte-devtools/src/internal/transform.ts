@@ -17,6 +17,16 @@ import MagicString from "magic-string";
 export const labelModule = "virtual:effect-atom-svelte-devtools/label";
 
 const labelBinding = "__effectAtomSvelteLabel";
+const componentBinding = "__effectAtomSvelteComponent";
+
+/** A component's name from its file, as Svelte names it: `counter-list.svelte` is `CounterList`. */
+export const componentName = (file: string): string =>
+  path
+    .basename(file, ".svelte")
+    .split(/[^a-z0-9]+/iu)
+    .filter((part) => part !== "")
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join("") || "Component";
 
 const parser = Parser.extend(tsPlugin());
 
@@ -318,9 +328,10 @@ const address = (file: string, root: string): string => {
 };
 
 /**
- * Labels the atoms declared at the top level of a module or of a component's scripts. Returns the
- * new code and its source map, or `undefined` when there is nothing to label or the code doesn't
- * parse (a component whose script needs a preprocessor, say), which leaves the file as it is.
+ * Labels the atoms declared in a module or a component's scripts, and names the component at the
+ * top of its instance script, for the inspector scopes its hooks report to. Returns the new code and
+ * its source map, or `undefined` when there is nothing to do or the code doesn't parse (a component
+ * whose script needs a preprocessor, say), which leaves the file as it is.
  */
 export const labelAtoms = (
   code: string,
@@ -334,6 +345,8 @@ export const labelAtoms = (
   let found: Site[] = [];
   // Where the import of `label` goes.
   let importAt = 0;
+  // Where a component's instance script starts, to name the component there.
+  let instanceAt: number | undefined;
   try {
     if (svelte) {
       const blocks = scripts(code).map((block) => ({
@@ -347,6 +360,7 @@ export const labelAtoms = (
         blocks.find((block) => block.module && block.sites.length > 0) ??
         blocks.find((block) => block.sites.length > 0);
       importAt = host?.start ?? 0;
+      instanceAt = blocks.find((block) => !block.module)?.start;
     } else {
       found = sites(parse(code), 0, defaultName, true);
       importAt = code.startsWith("#!") ? code.indexOf("\n") + 1 : 0;
@@ -354,17 +368,26 @@ export const labelAtoms = (
   } catch {
     return undefined;
   }
-  if (found.length === 0) {
+  if (found.length === 0 && instanceAt === undefined) {
     return undefined;
   }
 
   const at = locate(code);
   const place = address(file, root);
   const output = new MagicString(code);
-  output.appendLeft(
-    importAt,
-    `import { label as ${labelBinding} } from ${JSON.stringify(labelModule)};`
-  );
+  if (found.length > 0) {
+    output.appendLeft(
+      importAt,
+      `import { label as ${labelBinding} } from ${JSON.stringify(labelModule)};`
+    );
+  }
+  if (instanceAt !== undefined) {
+    // Before anything else in the script, so the component's hooks see its name.
+    output.appendLeft(
+      instanceAt,
+      `import { component as ${componentBinding} } from ${JSON.stringify(labelModule)};${componentBinding}(${JSON.stringify(componentName(file))}, ${JSON.stringify(place)});`
+    );
+  }
   for (const site of found) {
     const options = {
       ...(site.family ? { family: true } : {}),

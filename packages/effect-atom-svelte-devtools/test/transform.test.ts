@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { labelAtoms } from "../src/internal/transform.ts";
+import { componentName, labelAtoms } from "../src/internal/transform.ts";
 
 const root = "/app";
 const transform = (code: string, file = "/app/src/lib/atoms.ts") =>
@@ -9,6 +9,10 @@ const transform = (code: string, file = "/app/src/lib/atoms.ts") =>
 // The import every transformed file starts its labelled script with.
 const header =
   'import { label as __effectAtomSvelteLabel } from "virtual:effect-atom-svelte-devtools/label";';
+
+// What starts every component's instance script: its name, for inspector scopes.
+const naming = (name: string, file: string) =>
+  `import { component as __effectAtomSvelteComponent } from "virtual:effect-atom-svelte-devtools/label";__effectAtomSvelteComponent(${JSON.stringify(name)}, ${JSON.stringify(file)});`;
 
 /** The hash a declaration is kept across reloads by, if it is. */
 const keep = (code: string) =>
@@ -141,7 +145,7 @@ describe("labelAtoms", () => {
         '  export const shared = __effectAtomSvelteLabel(Atom.make(load), "shared", "/src/routes/Counter.svelte:2:16");',
         "</script>",
         "",
-        '<script lang="ts">',
+        `<script lang="ts">${naming("Counter", "/src/routes/Counter.svelte")}`,
         "  const { start }: { start: number } = $props();",
         '  const local = __effectAtomSvelteLabel(Atom.make(start), "local", "/src/routes/Counter.svelte:7:9");',
         "</script>",
@@ -187,6 +191,25 @@ describe("labelAtoms", () => {
     expect(
       kept("<script module>const a = Atom.make(0);</script>", "/app/A.svelte")
     ).toBe(true);
+  });
+
+  test("names a component that declares no atoms, in its instance script only", () => {
+    expect(
+      transform(
+        '<script module>export const x = 1;</script><script lang="ts">let a = $state(0);</script><p>{a}</p>',
+        "/app/src/lib/todo-list.svelte"
+      )
+    ).toBe(
+      `<script module>export const x = 1;</script><script lang="ts">${naming("TodoList", "/src/lib/todo-list.svelte")}let a = $state(0);</script><p>{a}</p>`
+    );
+    expect(transform("<p>no script</p>", "/app/src/A.svelte")).toBeUndefined();
+  });
+
+  test("names components as Svelte does", () => {
+    expect(componentName("/a/counter.svelte")).toBe("Counter");
+    expect(componentName("/a/create-and-read.svelte")).toBe("CreateAndRead");
+    expect(componentName("/a/+page.svelte")).toBe("Page");
+    expect(componentName("/a/HeroGraph.svelte")).toBe("HeroGraph");
   });
 
   test("addresses a file outside the root by its full path", () => {

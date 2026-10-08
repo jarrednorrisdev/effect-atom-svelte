@@ -1,12 +1,21 @@
-import { registries } from "effect-atom-svelte/inspector";
 // What code transformed by the atomLabels Vite plugin calls: the plugin wraps the value of each
-// declaration it labels in `label(value, name, at, options)`. The plugin serves this module to the
-// app as is.
+// declaration it labels in `label(value, name, at, options)`, and names each component with
+// `component(name, file)`. The plugin serves this module to the app as is.
 //
 // Only atoms are labelled; anything else passes through untouched, which is what lets the plugin
 // wrap calls without knowing what they return.
+
+import { nameComponent, registries } from "effect-atom-svelte/inspector";
 import { Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
+
+/**
+ * Names the component being set up, for the inspector scopes its hooks report to: the plugin calls
+ * it at the top of each component's instance script.
+ */
+export const component = (name: string, file: string): void => {
+  nameComponent(name, file);
+};
 
 interface Labelled {
   label?: readonly [name: string, stack: string];

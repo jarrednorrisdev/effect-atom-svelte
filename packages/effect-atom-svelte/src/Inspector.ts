@@ -10,9 +10,19 @@
  */
 import { AsyncResult, Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
+import { BROWSER, DEV } from "esm-env";
 
 import { defaultIdleTTL, instrumentNode } from "./internal/nodeInternals.ts";
 import { list, watch } from "./internal/registries.ts";
+import {
+  nameComponent as setComponentName,
+  setReporter,
+} from "./internal/scope.svelte.ts";
+import type {
+  ComponentName,
+  ReadKind,
+  Reporter,
+} from "./internal/scope.svelte.ts";
 
 /**
  * Why a node computed its value.
@@ -372,3 +382,415 @@ export const registries = (): readonly AtomRegistry.AtomRegistry[] => list();
 export const watchRegistries = (
   f: (registries: readonly AtomRegistry.AtomRegistry[]) => void
 ): (() => void) => watch(f);
+
+/**
+ * How a component uses an atom it reports to a scope: `read` (`useAtomValue`, `useAtom`,
+ * `useAtomResult`, `useAtomSuspense`), `mount` (`useAtomMount`), `subscribe`
+ * (`useAtomSubscribe`) or `write` (`useAtomSet`, which holds the atom mounted to write it).
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export type ReaderKind = ReadKind;
+
+/**
+ * A hook in the scope's part of the component tree that uses an atom. `component` and `file` name
+ * the component it is in, when the atomLabels plugin of effect-atom-svelte-devtools (or
+ * `nameComponent`) names components; `instance` tells two instances of one component apart.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export interface ScopeReader {
+  readonly id: number;
+  readonly kind: ReaderKind;
+  /** The `id` of the atom's node in the snapshot. */
+  readonly atom: number;
+  readonly component: string | undefined;
+  readonly file: string | undefined;
+  readonly instance: number | undefined;
+}
+
+/**
+ * An atom in a scope's snapshot.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export interface ScopeNode {
+  /** Stable for the atom while the scope lives. */
+  readonly id: number;
+  readonly atom: Atom.Atom<unknown>;
+  readonly node: AtomRegistry.Node<unknown>;
+  /** The atom's label (its variable's name, with the atomLabels plugin), if it has one. */
+  readonly label: string | undefined;
+  /** Used by a hook in the scope, rather than only upstream of one. */
+  readonly read: boolean;
+  /** Has no label while other atoms in the scope do: made by a runtime, mutation or store. */
+  readonly plumbing: boolean;
+  /** Every listener the node has: the scope's hooks, and anything else that subscribes. */
+  readonly listeners: number;
+  /** The tag of its value when that is an `AsyncResult`, otherwise `Value`. */
+  readonly state: "Value" | "Initial" | "Success" | "Failure";
+  readonly waiting: boolean;
+}
+
+/**
+ * An edge from an atom to one that reads it. With plumbing left out, an atom that reads plumbing is
+ * linked to the nearest atoms upstream of it that are shown.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export interface ScopeEdge {
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * What a scope's part of the component tree reads, at one moment: the atoms its hooks use, the
+ * atoms upstream of them, the edges between, and the hooks.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export interface ScopeSnapshot {
+  readonly nodes: readonly ScopeNode[];
+  readonly edges: readonly ScopeEdge[];
+  readonly readers: readonly ScopeReader[];
+}
+
+/**
+ * An event a scope passes on: the inspector's `Event` for a node in the scope, with the node's
+ * `id`, or `ScopeChanged` once its atoms, edges or hooks have changed, after the registry's work,
+ * to take a new `snapshot()`. A node's `NodeAdded` arrives before the node is linked into the
+ * scope, so it isn't passed on; the `ScopeChanged` that follows is.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export type ScopeEvent =
+  | (Event & { readonly id: number })
+  | { readonly _tag: "ScopeChanged" };
+
+/**
+ * A part of the component tree, as `provideInspectorScope` returns it.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category models
+ */
+export interface InspectorScope {
+  /** The atoms the scope reads now. `plumbing: true` includes those otherwise left out. */
+  readonly snapshot: (options?: {
+    readonly plumbing?: boolean;
+  }) => ScopeSnapshot;
+  /**
+   * Calls `listener` with each event for the scope's atoms; returns the function that stops it. The
+   * first listener starts the inspector on the registries the scope reads from. As with
+   * `Inspector.subscribe`, a listener must not read or write atoms or write Svelte state.
+   */
+  readonly subscribe: (listener: (event: ScopeEvent) => void) => () => void;
+}
+
+const emptySnapshot: ScopeSnapshot = { edges: [], nodes: [], readers: [] };
+
+/** The scope outside development in the browser: always empty. */
+const inertScope: InspectorScope = {
+  snapshot: () => emptySnapshot,
+  subscribe: () => () => undefined,
+};
+
+interface ScopeRead {
+  readonly id: number;
+  readonly registry: AtomRegistry.AtomRegistry;
+  readonly atom: Atom.Atom<unknown>;
+  readonly kind: ReaderKind;
+  readonly component: ComponentName | undefined;
+}
+
+const stateOf = (
+  node: AtomRegistry.Node<unknown>
+): Pick<ScopeNode, "state" | "waiting"> => {
+  // A valid node's value is read without computing anything.
+  const value = node.currentState() === "valid" ? node.value() : undefined;
+  return AsyncResult.isAsyncResult(value)
+    ? { state: value._tag, waiting: value.waiting }
+    : { state: "Value", waiting: false };
+};
+
+class Scope implements InspectorScope {
+  readonly #reads = new Map<number, ScopeRead>();
+  readonly #ids = new WeakMap<Atom.Atom<unknown>, number>();
+  readonly #listeners = new Set<(event: ScopeEvent) => void>();
+  // The inspectors the scope follows while it has listeners, by registry.
+  readonly #following = new Map<AtomRegistry.AtomRegistry, () => void>();
+  #nextId = 0;
+  #nextRead = 0;
+  // The nodes in the scope, worked out again only after something that can change them.
+  #members: Set<AtomRegistry.Node<unknown>> | undefined;
+  // The last nodes worked out, so a node removed from the scope still has its removal passed on.
+  #previous = new Set<AtomRegistry.Node<unknown>>();
+  #signature = "";
+  #checking = false;
+
+  readonly reporter: Reporter = {
+    report: ({ atom, component, kind, registry }) => {
+      this.#nextRead += 1;
+      const id = this.#nextRead;
+      this.#reads.set(id, { atom, component, id, kind, registry });
+      this.#follow(registry);
+      this.#changed();
+      return () => {
+        this.#reads.delete(id);
+        this.#changed();
+      };
+    },
+  };
+
+  #id(atom: Atom.Atom<unknown>): number {
+    let id = this.#ids.get(atom);
+    if (id === undefined) {
+      this.#nextId += 1;
+      id = this.#nextId;
+      this.#ids.set(atom, id);
+    }
+    return id;
+  }
+
+  /** Every node the scope's hooks use, and every node upstream of them. */
+  #nodes(): Set<AtomRegistry.Node<unknown>> {
+    if (this.#members !== undefined) {
+      return this.#members;
+    }
+    const members = new Set<AtomRegistry.Node<unknown>>();
+    const add = (node: AtomRegistry.Node<unknown>) => {
+      if (!members.has(node)) {
+        members.add(node);
+        for (const parent of node.parents) {
+          add(parent);
+        }
+      }
+    };
+    for (const read of this.#reads.values()) {
+      const node = read.registry.getNodes().get(nodeKey(read.atom));
+      if (node !== undefined) {
+        add(node);
+      }
+    }
+    this.#members = members;
+    return members;
+  }
+
+  /** The nearest shown atoms upstream of `node`, looking through those not shown. */
+  #shownParents(
+    node: AtomRegistry.Node<unknown>,
+    shown: ReadonlySet<number>
+  ): Set<number> {
+    const found = new Set<number>();
+    const seen = new Set<AtomRegistry.Node<unknown>>();
+    const walk = (parents: Iterable<AtomRegistry.Node<unknown>>) => {
+      for (const parent of parents) {
+        const id = this.#id(parent.atom);
+        if (shown.has(id)) {
+          found.add(id);
+        } else if (!seen.has(parent)) {
+          seen.add(parent);
+          walk(parent.parents);
+        }
+      }
+    };
+    walk(node.parents);
+    found.delete(this.#id(node.atom));
+    return found;
+  }
+
+  snapshot(options?: { readonly plumbing?: boolean }): ScopeSnapshot {
+    const members = [...this.#nodes()];
+    const read = new Set(
+      [...this.#reads.values()].map((entry) => this.#id(entry.atom))
+    );
+    const labelled = members.some((node) => node.atom.label !== undefined);
+    const nodes: ScopeNode[] = members.map((node) => {
+      const id = this.#id(node.atom);
+      return {
+        atom: node.atom,
+        id,
+        label: node.atom.label?.[0],
+        listeners: node.listeners.size,
+        node,
+        plumbing: labelled && node.atom.label === undefined,
+        read: read.has(id),
+        ...stateOf(node),
+      };
+    });
+    // An atom a hook uses is shown even without a label: it is what the component uses.
+    const shown = nodes.filter(
+      (node) => options?.plumbing === true || !node.plumbing || node.read
+    );
+    const shownIds = new Set(shown.map((node) => node.id));
+    const edges = shown.flatMap((node) =>
+      [...this.#shownParents(node.node, shownIds)].map((from) => ({
+        from,
+        to: node.id,
+      }))
+    );
+    const readers = [...this.#reads.values()].map((entry) => ({
+      atom: this.#id(entry.atom),
+      component: entry.component?.name,
+      file: entry.component?.file,
+      id: entry.id,
+      instance: entry.component?.instance,
+      kind: entry.kind,
+    }));
+    return { edges, nodes: shown, readers };
+  }
+
+  subscribe(listener: (event: ScopeEvent) => void): () => void {
+    this.#listeners.add(listener);
+    for (const read of this.#reads.values()) {
+      this.#follow(read.registry);
+    }
+    this.#signature = this.#sign();
+    return () => {
+      this.#listeners.delete(listener);
+      if (this.#listeners.size === 0) {
+        for (const stop of this.#following.values()) {
+          stop();
+        }
+        this.#following.clear();
+      }
+    };
+  }
+
+  #follow(registry: AtomRegistry.AtomRegistry): void {
+    if (this.#listeners.size === 0 || this.#following.has(registry)) {
+      return;
+    }
+    this.#following.set(
+      registry,
+      inspect(registry).subscribe((event) => this.#receive(event))
+    );
+  }
+
+  #receive(event: Event): void {
+    const inScope =
+      this.#previous.has(event.node) || this.#nodes().has(event.node);
+    if (
+      event._tag === "NodeAdded" ||
+      event._tag === "NodeRemoved" ||
+      event._tag === "Built"
+    ) {
+      this.#changed();
+    }
+    if (inScope) {
+      this.#emit({ ...event, id: this.#id(event.node.atom) });
+    }
+  }
+
+  #emit(event: ScopeEvent): void {
+    for (const listener of this.#listeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        console.error(
+          "effect-atom-svelte: an inspector scope listener threw",
+          error
+        );
+      }
+    }
+  }
+
+  /** What the snapshot shows, in short, to tell whether it changed. */
+  #sign(): string {
+    const { edges, nodes, readers } = this.snapshot();
+    return [
+      nodes.map((node) => node.id).join(","),
+      edges.map((edge) => `${edge.from}>${edge.to}`).join(","),
+      readers.map((reader) => `${reader.id}:${reader.atom}`).join(","),
+    ].join("|");
+  }
+
+  /** The scope may have changed: work it out again once the registry's work is done. */
+  #changed(): void {
+    if (this.#members !== undefined) {
+      this.#previous = this.#members;
+    }
+    this.#members = undefined;
+    if (this.#checking || this.#listeners.size === 0) {
+      return;
+    }
+    this.#checking = true;
+    queueMicrotask(() => {
+      this.#checking = false;
+      const signature = this.#sign();
+      this.#previous = this.#nodes();
+      if (signature !== this.#signature) {
+        this.#signature = signature;
+        this.#emit({ _tag: "ScopeChanged" });
+      }
+    });
+  }
+}
+
+/**
+ * Makes the component being set up, and everything below it, an inspector scope, and returns it.
+ * The library's hooks below report the atoms they use to the nearest scope, which shows those
+ * atoms, everything upstream of them, and the hooks that use them. Call it while the component
+ * sets up, as context requires.
+ *
+ * Only in development in the browser; elsewhere it returns a scope that is always empty. Until the
+ * scope has a listener it only keeps a list of its hooks: the registry's inspector starts with the
+ * first listener.
+ *
+ * **Example** (A graph of what an example reads)
+ *
+ * ```ts
+ * import { provideInspectorScope } from "effect-atom-svelte/inspector";
+ *
+ * // In the component that frames the example, around its content
+ * const scope = provideInspectorScope();
+ * $effect(() =>
+ *   scope.subscribe((event) => {
+ *     if (event._tag === "ScopeChanged") {
+ *       draw(scope.snapshot());
+ *     } else if (event._tag === "Updated") {
+ *       pulse(event.id);
+ *     }
+ *   })
+ * );
+ * ```
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category inspecting
+ */
+export const provideInspectorScope = (): InspectorScope => {
+  if (!(DEV && BROWSER)) {
+    return inertScope;
+  }
+  const scope = new Scope();
+  setReporter(scope.reporter);
+  return scope;
+};
+
+/**
+ * Names the component being set up, for the scopes its hooks report to. The atomLabels plugin of
+ * effect-atom-svelte-devtools calls it at the top of each component's script; without the plugin,
+ * call it yourself. Only in development in the browser.
+ *
+ * @stability unstable
+ * @since 0.2.0
+ * @category inspecting
+ */
+export const nameComponent = (name: string, file?: string): void => {
+  if (DEV && BROWSER) {
+    setComponentName(name, file);
+  }
+};
