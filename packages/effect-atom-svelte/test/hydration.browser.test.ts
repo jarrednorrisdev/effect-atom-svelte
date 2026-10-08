@@ -17,6 +17,7 @@ import {
 } from "./fixtures/revalidate.ts";
 import { computed } from "./fixtures/seeded-list.ts";
 import { serverValueComputed } from "./fixtures/server-value.ts";
+import { skewComputed } from "./fixtures/skew-seed.ts";
 import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
 import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
@@ -29,6 +30,7 @@ import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
+import SsrSkewSeed from "./fixtures/ssr-skew-seed.svelte";
 import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
 import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
@@ -385,6 +387,23 @@ describe("hydrating server output", () => {
       .poll(outputs(target))
       .toEqual(["defect from the browser", "unencodable from the browser"]);
     expect(new Set(unsentComputed)).toEqual(new Set(["defect", "unencodable"]));
+  });
+
+  test("a seed the browser can't decode is dropped, so the browser computes the atom", async () => {
+    skewComputed.length = 0;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-skew-seed.svelte",
+      SsrSkewSeed
+    );
+    // As for a result the server can't encode: the browser computes it, with nothing unhandled.
+    await expect.poll(outputs(target)).toEqual(["skew from the browser"]);
+    expect(skewComputed).toEqual(["skew"]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("doesn't decode with its schema"),
+      expect.anything()
+    );
   });
 
   test("a stream sent between its values hydrates with the server's value, then runs again", async () => {
