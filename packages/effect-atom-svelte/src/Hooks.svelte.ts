@@ -677,8 +677,11 @@ export const useAtomSubscribe = <A>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   reportReads(registry, getAtom, "subscribe");
+  // The effect follows the atom, not what the getter reads: a getter that runs again and returns
+  // the same atom must not call `immediate` again, nor drop a change still waiting for delivery.
+  const current = $derived(getAtom());
   $effect(() => {
-    const atom = getAtom();
+    const atom = current;
     // `immediate` calls `f` now, inside this effect; what `f` reads must not re-run it.
     return untrack(() => {
       // registry.subscribe does not compute a node that has never been read, so an atom nothing
@@ -1132,7 +1135,9 @@ const seedFromServer = (
         // atom computes here instead. A seed still waiting, as a stream's between its values, runs
         // again too: the server's run ended with the render, so it would wait forever.
         const seed =
-          !computedHere && holders > 0 ? decodeSeed(value, decode) : undefined;
+          !computedHere && holders > 0
+            ? decodeSeed(key, value, decode)
+            : undefined;
         if (seed !== undefined) {
           applySeed(registry, atom, seed, revalidating > 0 || isWaiting(seed));
         }

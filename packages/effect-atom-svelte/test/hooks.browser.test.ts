@@ -381,6 +381,14 @@ const trackedAtom = (log: string[]) =>
     return 1;
   });
 
+/** A family whose atom a getter can return again while what it reads changes. */
+const sameAtomSetup = () => {
+  const registry = AtomRegistry.make();
+  const pick = Atom.make({ id: 1, tag: "x" });
+  const watched = Atom.family((_id: number) => Atom.make(0));
+  return { pick, registry, watched };
+};
+
 describe("mounting and lifecycle", () => {
   test("useAtomMount keeps an atom alive until unmount", async () => {
     const registry = AtomRegistry.make();
@@ -442,6 +450,58 @@ describe("mounting and lifecycle", () => {
     await expect.element(output(screen)).toHaveTextContent("1");
     refresh();
     await expect.element(output(screen)).toHaveTextContent("2");
+  });
+
+  test("useAtomSubscribe with a getter that returns the same atom again doesn't call immediate again", async () => {
+    const { pick, registry, watched } = sameAtomSetup();
+    const seen: number[] = [];
+    await render(Harness, {
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        useAtomSubscribe(
+          () => watched(choice.current.id),
+          (value) => seen.push(value),
+          { immediate: true }
+        );
+        return () => choice.current.tag;
+      },
+    });
+    await expect.poll(() => seen).toEqual([0]);
+    // Same id, so the getter returns the same atom.
+    registry.set(pick, { id: 1, tag: "y" });
+    await sleep("30 millis");
+    expect(seen).toEqual([0]);
+  });
+
+  test("useAtomSubscribe with a getter that returns the same atom again keeps a change waiting for its microtask", async () => {
+    const { pick, registry, watched } = sameAtomSetup();
+    // Its first build writes the watched atom, during the read, so that change is deferred.
+    const read = Atom.make((get) => {
+      get.set(watched(1), 1);
+      return "read";
+    });
+    const seen: number[] = [];
+    let act!: () => void;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        const choice = useAtomValue(pick);
+        useAtomSubscribe(
+          () => watched(choice.current.id),
+          (value) => seen.push(value)
+        );
+        const value = useAtomValue(read);
+        act = () => {
+          registry.set(pick, { id: 1, tag: "y" });
+          void value.current;
+        };
+        return () => choice.current.tag;
+      },
+    });
+    act();
+    await sleep("30 millis");
+    expect(seen).toEqual([1]);
   });
 
   test("useAtomSubscribe sees every change, and the current value when immediate", async () => {
