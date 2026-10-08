@@ -239,8 +239,9 @@
     .control {
       width: 2.75rem;
     }
+    /* An icon button, but a full-size target. */
     .search {
-      padding-inline: 0;
+      padding-inline: 0.25rem;
     }
   }
   /* A cross on the 1px square where the sidebar's edge meets the header's bottom line, its arms
