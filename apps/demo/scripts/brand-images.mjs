@@ -36,7 +36,7 @@ const fonts = `
 `;
 
 // The square, the ring and the diamond on one centre, as the logo draws them one after another.
-const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${color.background}"/><rect x="6.75" y="6.75" width="18.5" height="18.5" rx="2" fill="none" stroke="${color.muted}" stroke-width="1.5"/><circle cx="16" cy="16" r="6.25" fill="${color.background}" stroke="${color.brand}" stroke-width="2.5"/><rect x="13.25" y="13.25" width="5.5" height="5.5" fill="${color.foreground}" transform="rotate(45 16 16)"/></svg>`;
+const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${color.background}"/><rect x="4" y="4" width="24" height="24" rx="2.5" fill="none" stroke="${color.muted}" stroke-width="2"/><circle cx="16" cy="16" r="8.25" fill="${color.background}" stroke="${color.brand}" stroke-width="3"/><rect x="12.25" y="12.25" width="7.5" height="7.5" fill="${color.foreground}" transform="rotate(45 16 16)"/></svg>`;
 
 // The logo's mark in a row, as the header draws it, `scale` times its 11 px height.
 const mark = (scale) => {
