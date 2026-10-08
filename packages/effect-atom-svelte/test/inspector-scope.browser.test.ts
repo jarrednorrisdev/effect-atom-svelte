@@ -1,11 +1,16 @@
+import { Schema } from "effect";
+import { Atom } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
+import { useAtomValue } from "../src/index.ts";
+import { provideInspectorScope } from "../src/Inspector.ts";
 import type {
   InspectorScope,
   ScopeEvent,
   ScopeSnapshot,
 } from "../src/Inspector.ts";
+import Harness from "./fixtures/harness.svelte";
 import ScopeHost from "./fixtures/scope-host.svelte";
 
 const mount = async (shown = true) => {
@@ -24,6 +29,13 @@ const mount = async (shown = true) => {
   }
   return { scope, screen };
 };
+
+/** A new atom object for one serializable key, as a hot reload makes. */
+const sharedAtom = () =>
+  Atom.make(1).pipe(
+    Atom.serializable({ key: "shared-key", schema: Schema.Number }),
+    Atom.withLabel("shared")
+  );
 
 const names = (snapshot: ScopeSnapshot) =>
   new Set(snapshot.nodes.map((node) => node.label ?? "?"));
@@ -84,6 +96,30 @@ describe("provideInspectorScope", () => {
       .toBe(true);
     expect(scope.snapshot().readers).toEqual([]);
     stop();
+    await screen.unmount();
+  });
+
+  test("points each reader of a serializable atom at a node in its snapshot", async () => {
+    // Two atom objects with one key share a node, as after a hot reload: the second reader's atom
+    // didn't make the node.
+    const first = sharedAtom();
+    const second = sharedAtom();
+    let scope: InspectorScope | undefined;
+    const screen = await render(Harness, {
+      setup: () => {
+        scope = provideInspectorScope();
+        const held = useAtomValue(first);
+        const value = useAtomValue(second);
+        return () => `${held.current} ${value.current}`;
+      },
+    });
+    await expect.poll(() => screen.container.textContent).toContain("1 1");
+    const snapshot = scope?.snapshot();
+    const ids = new Set(snapshot?.nodes.map((node) => node.id));
+    expect(snapshot?.readers).toHaveLength(2);
+    for (const reader of snapshot?.readers ?? []) {
+      expect(ids.has(reader.atom)).toBe(true);
+    }
     await screen.unmount();
   });
 });
