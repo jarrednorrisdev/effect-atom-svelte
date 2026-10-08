@@ -13,7 +13,7 @@ const [load] = Object.values(
     import.meta as ImportMeta & {
       glob: <M>(pattern: string) => Record<string, () => Promise<M>>;
     }
-  ).glob<{ default: Component<{ shortcut?: string }> }>(
+  ).glob<{ default: Component<{ shortcut?: string; open?: boolean }> }>(
     "../../effect-atom-svelte-devtools/src/atom-devtools.svelte"
   )
 );
@@ -56,6 +56,41 @@ describe("AtomDevtools", () => {
     await render(AtomDevtools, { shortcut: "ctrl+shift+f2" });
     await sleep(50);
     press({ code: "F2", ctrlKey: true, key: "F2", shiftKey: true });
+    await tick();
+    expect(docked()).toBe(true);
+    localStorage.clear();
+  });
+
+  test("keeps the default shortcut a user chose in the settings over the app's", async () => {
+    localStorage.clear();
+    const first = await render(AtomDevtools, {
+      open: true,
+      shortcut: "ctrl+shift+f2",
+    });
+    await sleep(50);
+    const settingsTab = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim().endsWith("Settings")
+    );
+    settingsTab?.click();
+    await tick();
+    const change = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Change"
+    );
+    expect(change).toBeDefined();
+    change?.click();
+    await tick();
+    // The user records the library's default, Alt+Shift+A.
+    press({ altKey: true, code: "KeyA", key: "A", shiftKey: true });
+    await sleep(50);
+    expect(
+      JSON.parse(localStorage.getItem("effect-atom-svelte-devtools") ?? "{}")
+        .shortcut
+    ).toBe("alt+shift+a");
+    await first.unmount();
+
+    await render(AtomDevtools, { open: false, shortcut: "ctrl+shift+f2" });
+    await sleep(50);
+    press({ altKey: true, code: "KeyA", key: "A", shiftKey: true });
     await tick();
     expect(docked()).toBe(true);
     localStorage.clear();

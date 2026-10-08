@@ -70,6 +70,8 @@
     readonly corner: Corner;
     readonly opacity: number;
     readonly scale: number;
+    /** Set from 0.2.2, whose `shortcut` is only one chosen in the settings; 0.2.1 saved the default. */
+    readonly shortcutChosen: true;
   }
   const storageKey = "effect-atom-svelte-devtools";
   const load = (): Partial<Saved> => {
@@ -121,10 +123,11 @@
     showPlumbing = saved.plumbing ?? false;
     expanded = saved.expanded ?? false;
     height = saved.height ?? 320;
-    // Settings saved by 0.2.1 hold the default even when nobody chose it, which would hide a shortcut
-    // the app sets: the default counts as unset.
+    // Settings saved by 0.2.1, without `shortcutChosen`, hold the default even when nobody chose it,
+    // which would hide a shortcut the app sets: there the default counts as unset.
     shortcut =
-      saved.shortcut === undefined || saved.shortcut === defaultShortcut
+      saved.shortcut === undefined ||
+      (saved.shortcutChosen !== true && saved.shortcut === defaultShortcut)
         ? appShortcut
         : saved.shortcut;
     corner = saved.corner ?? "bottom-right";
@@ -186,6 +189,7 @@
       plumbing: showPlumbing,
       scale,
       shortcut: shortcut === appShortcut ? undefined : shortcut,
+      shortcutChosen: true,
       tab,
     };
     try {
