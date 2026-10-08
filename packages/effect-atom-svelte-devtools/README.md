@@ -53,6 +53,7 @@ export default defineConfig({
 - The atom is labelled in place and keeps its identity. `Atom.withLabel` would return a copy.
 - A label your code sets with `Atom.withLabel` wins. The one an `Atom.serializable` atom takes from its key (an RPC query's `AtomRpc:listTodos:home-todos`) gives way to the variable's name.
 - Members of an `Atom.family` are labelled with their argument, as `todoAtom(3)`.
+- A call to a function whose name ends in `Atom` (`mapDraftAtom(key)`, `makeSessionAtom(user)`) names the atom it returns after the call and its arguments, as `mapDraftAtom({"doc":1})`. Every call's atom is named, so two atoms made for equal keys share a name: what a hand-rolled cache that keeps making new atoms looks like. A more specific label wins: a family's, a top-level variable's, or one your code set. Only plain calls count, not methods (`store.todoAtom(1)`).
 - It wraps any top-level `const x = f(...)` and checks at run time whether the value is an atom, so `runtime.atom(...)`, `TodosRpc.query(...)` and your own helpers are labelled too. Runes and `use*` hooks are left alone.
 - An atom in a top-level object literal is named by its path: `const pair = { todosAtom: Atom.make(...) }` labels `pair.todosAtom`.
 - Inside functions, only `Atom.*` calls are labelled, so a function that makes atoms names them without every other call in it being wrapped.

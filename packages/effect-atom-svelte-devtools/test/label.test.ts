@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
-import { keepAcrossReloads, label } from "../src/internal/label.ts";
+import { call, keepAcrossReloads, label } from "../src/internal/label.ts";
 
 const f = () => 1;
 
@@ -97,5 +97,83 @@ describe("keepAcrossReloads", () => {
     const after = reload(registry, "/a.ts#unread", "same");
     expect(registry.getNodes().has(after)).toBe(false);
     registry.dispose();
+  });
+});
+
+// A key as the Families page's example uses, and its two ways to give each key an atom.
+interface Key {
+  readonly doc: number;
+  readonly lang: string;
+}
+const newDraft = () => Atom.make("").pipe(Atom.keepAlive);
+const at = "/src/same-key.svelte:9:3";
+
+describe("call", () => {
+  test("names a factory's new atom after the call and its arguments", () => {
+    const draftAtom = call((_key: Key) => newDraft(), "mapDraftAtom", at);
+    expect(draftAtom({ doc: 1, lang: "en" }).label).toEqual([
+      'mapDraftAtom({"doc":1,"lang":"en"})',
+      `at mapDraftAtom({"doc":1,"lang":"en"}) (${at})`,
+    ]);
+    const twoArgs = call(
+      (_a: number, _b: string) => newDraft(),
+      "pairAtom",
+      at
+    );
+    expect(twoArgs(1, "x").label?.[0]).toBe('pairAtom(1, "x")');
+  });
+
+  test("leaves the atom a cache returns again with the name it was first given", () => {
+    const cache = new Map<number, Atom.Writable<string>>();
+    const cached = (id: number) => {
+      const atom = cache.get(id) ?? newDraft();
+      cache.set(id, atom);
+      return atom;
+    };
+    const first = call(cached, "cachedAtom", at)(1);
+    const again = call(cached, "otherAtom", at)(1);
+    expect(again).toBe(first);
+    expect(again.label?.[0]).toBe("cachedAtom(1)");
+  });
+
+  test("gives two atoms made for equal keys the same name", () => {
+    const mapDraftAtom = call((_key: Key) => newDraft(), "mapDraftAtom", at);
+    const one = mapDraftAtom({ doc: 1, lang: "en" });
+    const two = mapDraftAtom({ doc: 1, lang: "en" });
+    expect(two).not.toBe(one);
+    expect(two.label?.[0]).toBe(one.label?.[0]);
+  });
+
+  test("returns a result that isn't an atom as it is", () => {
+    const value = { draft: "" };
+    expect(call(() => value, "settingsAtom", at)()).toBe(value);
+    expect(call(() => 3, "countAtom", at)()).toBe(3);
+    const notAFunction = 1 as unknown as () => unknown;
+    expect(call(notAFunction, "brokenAtom", at)).toBe(notAFunction);
+  });
+
+  test("keeps a more specific label: a family's, one the code set, a top-level name", () => {
+    const familyAtom = label(
+      Atom.family((_key: number) => newDraft()),
+      "draftAtom",
+      at,
+      { family: true }
+    );
+    expect(call(familyAtom, "draftAtom", at)(1).label?.[0]).toBe(
+      "draftAtom(1)"
+    );
+    const mine = Atom.make(0).pipe(Atom.withLabel("mine"));
+    expect(call(() => mine, "pickAtom", at)().label?.[0]).toBe("mine");
+    const shared = label(Atom.make(0), "sharedAtom", at);
+    expect(call(() => shared, "pickAtom", at)().label?.[0]).toBe("sharedAtom");
+  });
+
+  test("names the atom over a name it was given inside the factory", () => {
+    const makeAtom = call(
+      (id: number) => label(Atom.make(id), "inner", at, { local: true }),
+      "makeAtom",
+      at
+    );
+    expect(makeAtom(4).label?.[0]).toBe("makeAtom(4)");
   });
 });

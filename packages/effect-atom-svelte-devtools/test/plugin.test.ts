@@ -34,6 +34,15 @@ describe("atomLabels", () => {
     expect(atoms.notAnAtom).toBe("1");
   });
 
+  test("names what an atom factory's calls return after the call", async () => {
+    const atoms = await server.ssrLoadModule("/fixtures/atoms.ts");
+    const [one, two] = atoms.fromMap;
+    expect(one).not.toBe(two);
+    expect(one.label[0]).toBe('mapDraftAtom("a")');
+    expect(two.label[0]).toBe('mapDraftAtom("a")');
+    expect(atoms.fromFamily.label[0]).toBe('draftAtom("a")');
+  });
+
   test("labels the atoms of a component's module script", async () => {
     const counter = await server.ssrLoadModule("/fixtures/counter.svelte");
     expect(counter.sharedAtom.label).toEqual([

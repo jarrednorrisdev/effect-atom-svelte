@@ -73,7 +73,7 @@ export interface Totals {
 interface Entry {
   readonly id: number;
   readonly atom: Atom.Atom<unknown>;
-  readonly identity: Identity;
+  identity: Identity;
   node: AtomRegistry.Node<unknown> | undefined;
   value: unknown;
   hasValue: boolean;
@@ -324,6 +324,13 @@ export class Model {
     const states: Record<string, number> = {};
     let readers = 0;
     let plumbing = 0;
+    // An atom can get its label after the panel first sees it, as a cache's atom does when a
+    // factory's call returns it later: read it again until it has one.
+    for (const entry of this.#entries.values()) {
+      if (entry.identity.name === undefined) {
+        entry.identity = identify(entry.atom);
+      }
+    }
     const labelled = [...this.#entries.values()].some(
       (entry) => entry.identity.name !== undefined
     );
