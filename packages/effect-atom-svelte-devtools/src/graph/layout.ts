@@ -215,6 +215,9 @@ const depthsOf = (
     const from = (parents.get(id) ?? []).filter((parent) => !seen.has(parent));
     const value =
       from.length === 0 ? 0 : 1 + Math.max(...from.map((p) => depth(p, seen)));
+    // Only the atoms on the path here are skipped: another child's path may reach this atom's
+    // parents too, as in a diamond.
+    seen.delete(id);
     depths.set(id, value);
     return value;
   };
