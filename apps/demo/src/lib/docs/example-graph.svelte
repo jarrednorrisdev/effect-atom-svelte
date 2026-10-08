@@ -183,12 +183,38 @@
       const known = keys.map((key) => rows.get(key)).filter((track) => track !== undefined);
       return known.length ? Math.min(...known) : undefined;
     };
-    for (let column = 0; column < atomColumns; column++) {
-      for (const node of atoms.values()) {
-        if (depths.get(node.id) === column) {
-          place(column, `a${node.id}`, firstTrack((parents.get(node.id) ?? []).map((p) => `a${p}`)));
-        }
+    // An atom a component reads keeps its track clear to the component: what derives from it starts
+    // a track of its own instead of taking that one.
+    const readDirectly = new Set(
+      [...components.values()].flatMap((component) => [...component.uses.keys()])
+    );
+    // Depth first: a source, then what derives from it, then the next source, so a derived atom sits
+    // just under its parent. Its first child takes the parent's track (unless a component reads the
+    // parent), the rest new ones.
+    const children = new Map<number, number[]>();
+    for (const [child, from] of parents) {
+      for (const parent of from) {
+        children.set(parent, [...(children.get(parent) ?? []), child]);
       }
+    }
+    const visit = (id: number, wanted: number | undefined) => {
+      if (rows.has(`a${id}`)) {
+        return;
+      }
+      place(depths.get(id) ?? 0, `a${id}`, wanted);
+      const track = rows.get(`a${id}`);
+      (children.get(id) ?? []).forEach((child, index) => {
+        visit(child, index === 0 && !readDirectly.has(id) ? track : undefined);
+      });
+    };
+    for (const node of atoms.values()) {
+      if ((parents.get(node.id) ?? []).length === 0) {
+        visit(node.id, undefined);
+      }
+    }
+    // Anything left (a cycle, say) still gets a place.
+    for (const node of atoms.values()) {
+      visit(node.id, undefined);
     }
     for (const component of components.values()) {
       place(atomColumns, component.key, firstTrack([...component.uses.keys()].map((a) => `a${a}`)));
@@ -256,12 +282,16 @@
     // Lanes below the last row, one for each edge that would otherwise run through a node.
     let lanes = 0;
     const edges: GraphEdge[] = [];
-    const route = (from: string, to: string, dashed: boolean) => {
+    const route = (from: string, to: string, dashed: boolean, collector = false) => {
       const a = at(from);
       const b = at(to);
       const source = sources.get(from) ?? sources.size;
       sources.set(from, source);
-      const middle = (a.x + b.x) / 2 + (source - (sourceCount - 1) / 2) * 0.018;
+      // Into a component, an atom runs along its own track to a short collector just before the
+      // component, then joins it: nothing turns across the atoms in between.
+      const middle = collector
+        ? b.x - 0.025
+        : (a.x + b.x) / 2 + (source - (sourceCount - 1) / 2) * 0.018;
       const direct: [number, number][] =
         a.y === b.y
           ? [
@@ -302,7 +332,7 @@
     for (const component of components.values()) {
       for (const [atom, kinds] of component.uses) {
         // An atom the component only writes to: dashed, since nothing flows back to it.
-        route(`a${atom}`, component.key, kinds.size === 1 && kinds.has("write"));
+        route(`a${atom}`, component.key, kinds.size === 1 && kinds.has("write"), true);
       }
     }
 
