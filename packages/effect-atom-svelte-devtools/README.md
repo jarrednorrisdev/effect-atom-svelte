@@ -31,3 +31,11 @@ export default defineConfig({
 - An atom in a top-level object literal is named by its path: `const pair = { todosAtom: Atom.make(...) }` labels `pair.todosAtom`.
 - Inside functions, only `Atom.*` calls are labelled, so a function that makes atoms names them without every other call in it being wrapped.
 - Atoms in mdsvex (`.md`) pages aren't labelled.
+
+## State across hot reloads
+
+A hot reload runs a module again, which makes new atoms, so state written to them is lost. With the plugin, a state atom a module declares (`Atom.make` of a plain value, such as `Atom.make(0)` or `Atom.make([]).pipe(Atom.keepAlive)`, in a module or a `<script module>`) takes the value of the atom it replaces. Edit a component and its counters keep their counts.
+
+- Edit the atom's own declaration and it starts from its new value: the old one no longer applies.
+- Derived atoms compute again from the kept values, and effects run again, as their code may have changed.
+- Atoms in a component's `<script>` aren't kept: there is one per instance, so there is no telling which old one a new one replaces.

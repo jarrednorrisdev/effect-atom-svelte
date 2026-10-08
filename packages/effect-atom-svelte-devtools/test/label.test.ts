@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
-import { label } from "../src/internal/label.ts";
+import { keepAcrossReloads, label } from "../src/internal/label.ts";
 
 const f = () => 1;
 
@@ -41,7 +41,7 @@ describe("label", () => {
       Atom.family((id: number) => Atom.make(id)),
       "todoAtom",
       "/src/a.ts:1:7",
-      true
+      { family: true }
     );
     expect(todoAtom(3).label?.[0]).toBe("todoAtom(3)");
     expect(todoAtom(3)).toBe(todoAtom(3));
@@ -49,10 +49,53 @@ describe("label", () => {
       Atom.family((key: { readonly id: string }) => Atom.make(key.id)),
       "byKey",
       "/src/a.ts:1:7",
-      true
+      { family: true }
     );
     expect(byKey({ id: "a".repeat(50) }).label?.[0]).toMatch(
       /^byKey\(\{"id":"a+…\)$/u
     );
+  });
+});
+
+// A module run, then run again by a hot reload: each run makes its own atom.
+const reload = (
+  registry: AtomRegistry.AtomRegistry,
+  key: string,
+  source: string
+) => {
+  const atom = Atom.make(0);
+  keepAcrossReloads(atom, key, source, () => [registry]);
+  return atom;
+};
+
+describe("keepAcrossReloads", () => {
+  test("gives the new atom the value of the one it replaces", () => {
+    const registry = AtomRegistry.make();
+    const before = reload(registry, "/a.ts#count", "same");
+    const release = registry.mount(before);
+    registry.set(before, 7);
+    const after = reload(registry, "/a.ts#count", "same");
+    expect(after).not.toBe(before);
+    expect(registry.get(after)).toBe(7);
+    release();
+    registry.dispose();
+  });
+
+  test("starts an edited declaration from its new value", () => {
+    const registry = AtomRegistry.make();
+    const before = reload(registry, "/a.ts#edited", "old");
+    const release = registry.mount(before);
+    registry.set(before, 7);
+    expect(registry.get(reload(registry, "/a.ts#edited", "new"))).toBe(0);
+    release();
+    registry.dispose();
+  });
+
+  test("leaves a registry that never read the old atom alone", () => {
+    const registry = AtomRegistry.make();
+    reload(registry, "/a.ts#unread", "same");
+    const after = reload(registry, "/a.ts#unread", "same");
+    expect(registry.getNodes().has(after)).toBe(false);
+    registry.dispose();
   });
 });

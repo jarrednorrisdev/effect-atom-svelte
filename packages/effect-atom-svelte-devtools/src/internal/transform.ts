@@ -36,6 +36,8 @@ interface Site {
   /** Offset of the declared name, which `at` points at. */
   readonly at: number;
   readonly family: boolean;
+  /** Whether a hot reload carries its value over to the atom that replaces it. */
+  readonly keep: boolean;
 }
 
 // Type annotations around the call, as in `Atom.make(0) as Atom.Writable<number>`, are looked
@@ -92,6 +94,40 @@ const isFamily = (node: Node): boolean => {
   return property.type === "Identifier" && property.name === "family";
 };
 
+// The arguments `Atom.make` takes as a plain value, rather than a function or an effect.
+const plainValues = new Set([
+  "Literal",
+  "TemplateLiteral",
+  "ObjectExpression",
+  "ArrayExpression",
+  "UnaryExpression",
+]);
+
+/**
+ * Whether the call makes a state atom, such as `Atom.make(0)` or `Atom.make([]).pipe(...)`: one
+ * that holds what is written to it, which a hot reload can carry over.
+ */
+const isState = (node: Node): boolean => {
+  const callee = node.callee as Node;
+  if (callee.type !== "MemberExpression") {
+    return false;
+  }
+  const object = callee.object as Node;
+  const property = callee.property as Node;
+  if (property.type === "Identifier" && property.name === "pipe") {
+    return object.type === "CallExpression" && isState(object);
+  }
+  const [argument] = node.arguments as Node[];
+  return (
+    object.type === "Identifier" &&
+    object.name === "Atom" &&
+    property.type === "Identifier" &&
+    property.name === "make" &&
+    argument !== undefined &&
+    plainValues.has(unwrap(argument).type)
+  );
+};
+
 /** A property's name, when it is written out: `todosAtom` in `{ todosAtom: ... }`. */
 const propertyName = (property: Node): string | undefined => {
   const key = property.key as Node;
@@ -124,15 +160,24 @@ const descendants = (node: Node, found: Node[] = []): Node[] => {
  * The calls to wrap in a program, offset by `base`: every call its top-level declarations make,
  * also inside object literals (`oneByOne.todosAtom` in `const oneByOne = { todosAtom: ... }`), and
  * any `Atom.*` call declared elsewhere, such as in a function that makes atoms.
+ *
+ * `once` says the program runs once per module, as a module or a `<script module>` does, not once
+ * per component; only then are state atoms its top level declares kept across hot reloads.
  */
-const sites = (program: Node, base: number, defaultName: string): Site[] => {
+const sites = (
+  program: Node,
+  base: number,
+  defaultName: string,
+  once: boolean
+): Site[] => {
   const found: Site[] = [];
   const handled = new Set<Node>();
-  const add = (node: Node, name: string, at: number) => {
+  const add = (node: Node, name: string, at: number, topLevel = true) => {
     found.push({
       at: base + at,
       end: base + node.end,
       family: isFamily(node),
+      keep: once && topLevel && isState(node),
       name,
       start: base + node.start,
     });
@@ -200,7 +245,7 @@ const sites = (program: Node, base: number, defaultName: string): Site[] => {
       start?.type === "Identifier" &&
       start.name === "Atom"
     ) {
-      add(init, String(id.name), id.start);
+      add(init, String(id.name), id.start, false);
     }
   }
   return found;
@@ -255,6 +300,16 @@ const locate = (source: string) => {
   };
 };
 
+/** A short hash of some source, to tell whether it changed. */
+const hash = (text: string): string => {
+  let value = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    // Modulo the largest prime below 2^32, so the product stays an exact integer.
+    value = (value * 31 + (text.codePointAt(index) ?? 0)) % 4_294_967_291;
+  }
+  return value.toString(36);
+};
+
 /** Where a file is, as the dev server addresses it: relative to `root`, with forward slashes. */
 const address = (file: string, root: string): string => {
   const relative = path.relative(root, file);
@@ -283,7 +338,7 @@ export const labelAtoms = (
     if (svelte) {
       const blocks = scripts(code).map((block) => ({
         ...block,
-        sites: sites(parse(block.code), block.start, defaultName),
+        sites: sites(parse(block.code), block.start, defaultName, block.module),
       }));
       found = blocks.flatMap((block) => block.sites);
       // The module script if it declares atoms, as the instance script can see its imports but
@@ -293,7 +348,7 @@ export const labelAtoms = (
         blocks.find((block) => block.sites.length > 0);
       importAt = host?.start ?? 0;
     } else {
-      found = sites(parse(code), 0, defaultName);
+      found = sites(parse(code), 0, defaultName, true);
       importAt = code.startsWith("#!") ? code.indexOf("\n") + 1 : 0;
     }
   } catch {
@@ -311,10 +366,15 @@ export const labelAtoms = (
     `import { label as ${labelBinding} } from ${JSON.stringify(labelModule)};`
   );
   for (const site of found) {
+    const options = {
+      ...(site.family ? { family: true } : {}),
+      // The declaration's source, hashed: an edit to it means the old value no longer applies.
+      ...(site.keep ? { keep: hash(code.slice(site.start, site.end)) } : {}),
+    };
     const args = [
       JSON.stringify(site.name),
       JSON.stringify(`${place}:${at(site.at)}`),
-      ...(site.family ? ["true"] : []),
+      ...(site.family || site.keep ? [JSON.stringify(options)] : []),
     ];
     output.appendLeft(site.start, `${labelBinding}(`);
     output.appendRight(site.end, `, ${args.join(", ")})`);

@@ -10,41 +10,53 @@ const transform = (code: string, file = "/app/src/lib/atoms.ts") =>
 const header =
   'import { label as __effectAtomSvelteLabel } from "virtual:effect-atom-svelte-devtools/label";';
 
+/** The hash a declaration is kept across reloads by, if it is. */
+const keep = (code: string) =>
+  /"keep":"(?<hash>\w+)"/u.exec(transform(code) ?? "")?.groups?.hash;
+
+/** Whether the transform keeps a declaration across reloads. */
+const kept = (code: string, file?: string) =>
+  transform(code, file)?.includes('"keep"');
+
 describe("labelAtoms", () => {
   test("wraps a top-level declaration made by a call, with its name and place", () => {
-    expect(transform("export const countAtom = Atom.make(0);")).toBe(
-      `${header}export const countAtom = __effectAtomSvelteLabel(Atom.make(0), "countAtom", "/src/lib/atoms.ts:1:14");`
+    expect(transform("export const countAtom = Atom.make(load);")).toBe(
+      `${header}export const countAtom = __effectAtomSvelteLabel(Atom.make(load), "countAtom", "/src/lib/atoms.ts:1:14");`
     );
   });
 
   test("wraps a whole .pipe chain and every declarator of a declaration", () => {
     const code = [
-      "const a = Atom.make(0).pipe(Atom.keepAlive),",
+      "const a = Atom.make(load).pipe(Atom.keepAlive),",
       "  b = runtime.atom(effect);",
     ].join("\n");
     expect(transform(code)).toBe(
       [
-        `${header}const a = __effectAtomSvelteLabel(Atom.make(0).pipe(Atom.keepAlive), "a", "/src/lib/atoms.ts:1:7"),`,
+        `${header}const a = __effectAtomSvelteLabel(Atom.make(load).pipe(Atom.keepAlive), "a", "/src/lib/atoms.ts:1:7"),`,
         '  b = __effectAtomSvelteLabel(runtime.atom(effect), "b", "/src/lib/atoms.ts:2:3");',
       ].join("\n")
     );
   });
 
   test("looks through type assertions to the call", () => {
-    expect(transform("const a = Atom.make(0) as Atom.Writable<number>;")).toBe(
-      `${header}const a = __effectAtomSvelteLabel(Atom.make(0), "a", "/src/lib/atoms.ts:1:7") as Atom.Writable<number>;`
+    expect(
+      transform("const a = Atom.make(load) as Atom.Writable<number>;")
+    ).toBe(
+      `${header}const a = __effectAtomSvelteLabel(Atom.make(load), "a", "/src/lib/atoms.ts:1:7") as Atom.Writable<number>;`
     );
   });
 
   test("marks a family, so its members are labelled", () => {
     expect(
       transform("const todoAtom = Atom.family((id: number) => Atom.make(id));")
-    ).toContain('"todoAtom", "/src/lib/atoms.ts:1:7", true)');
+    ).toContain('"todoAtom", "/src/lib/atoms.ts:1:7", {"family":true})');
   });
 
   test("names a default export after its file", () => {
-    expect(transform("export default Atom.make(0);", "/app/src/count.ts")).toBe(
-      `${header}export default __effectAtomSvelteLabel(Atom.make(0), "count", "/src/count.ts:1:16");`
+    expect(
+      transform("export default Atom.make(load);", "/app/src/count.ts")
+    ).toBe(
+      `${header}export default __effectAtomSvelteLabel(Atom.make(load), "count", "/src/count.ts:1:16");`
     );
   });
 
@@ -74,10 +86,10 @@ describe("labelAtoms", () => {
     ].join("\n");
     const output = transform(code);
     expect(output).toContain(
-      '__effectAtomSvelteLabel(Atom.make(0), "pair.todosAtom", "/src/lib/atoms.ts:3:3")'
+      '__effectAtomSvelteLabel(Atom.make(0), "pair.todosAtom", "/src/lib/atoms.ts:3:3"'
     );
     expect(output).toContain(
-      '__effectAtomSvelteLabel(runtime.atom(effect), "pair.nested.userAtom", "/src/lib/atoms.ts:4:13")'
+      '__effectAtomSvelteLabel(runtime.atom(effect), "pair.nested.userAtom", "/src/lib/atoms.ts:4:13"'
     );
     expect(output).toContain("[computed]: Atom.make(1),");
   });
@@ -113,7 +125,7 @@ describe("labelAtoms", () => {
   test("labels both scripts of a component, importing in the module script", () => {
     const code = [
       '<script lang="ts" module>',
-      "  export const shared = Atom.make(0);",
+      "  export const shared = Atom.make(load);",
       "</script>",
       "",
       '<script lang="ts">',
@@ -126,7 +138,7 @@ describe("labelAtoms", () => {
     expect(transform(code, "/app/src/routes/Counter.svelte")).toBe(
       [
         `<script lang="ts" module>${header}`,
-        '  export const shared = __effectAtomSvelteLabel(Atom.make(0), "shared", "/src/routes/Counter.svelte:2:16");',
+        '  export const shared = __effectAtomSvelteLabel(Atom.make(load), "shared", "/src/routes/Counter.svelte:2:16");',
         "</script>",
         "",
         '<script lang="ts">',
@@ -149,6 +161,32 @@ describe("labelAtoms", () => {
     const output = transform(code, "/app/src/A.svelte");
     expect(output).toContain('"b", "/src/A.svelte:3:9")');
     expect(output).not.toContain('"a"');
+  });
+
+  test("marks the state atoms a module declares to keep across reloads, with a hash of each", () => {
+    const zero = keep("export const countAtom = Atom.make(0);");
+    expect(zero).toBeDefined();
+    expect(keep("export const countAtom = Atom.make(0);")).toBe(zero);
+    expect(keep("export const countAtom = Atom.make(5);")).not.toBe(zero);
+    for (const value of ["[]", "{ open: false }", "`a`", "-1", "true"]) {
+      expect(keep(`const a = Atom.make(${value});`)).toBeDefined();
+    }
+    expect(keep("const a = Atom.make([]).pipe(Atom.keepAlive);")).toBeDefined();
+    expect(keep("const a = { b: Atom.make(0) };")).toBeDefined();
+  });
+
+  test("keeps only state atoms, and only those that run once per module", () => {
+    expect(kept("const a = Atom.make(() => 0);")).toBe(false);
+    expect(kept("const a = Atom.make(Effect.succeed(0));")).toBe(false);
+    expect(kept("const a = Atom.make(initial);")).toBe(false);
+    expect(kept("const a = runtime.atom(0);")).toBe(false);
+    expect(kept("function f() { const a = Atom.make(0); }")).toBe(false);
+    expect(
+      kept("<script>const a = Atom.make(0);</script>", "/app/A.svelte")
+    ).toBe(false);
+    expect(
+      kept("<script module>const a = Atom.make(0);</script>", "/app/A.svelte")
+    ).toBe(true);
   });
 
   test("addresses a file outside the root by its full path", () => {

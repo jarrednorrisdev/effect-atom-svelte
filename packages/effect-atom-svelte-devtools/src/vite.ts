@@ -3,10 +3,12 @@
  *
  * @since 0.1.0
  */
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createFilter } from "vite";
+import { createFilter, normalizePath } from "vite";
 import type { FilterPattern, Plugin } from "vite";
 
 import { labelAtoms, labelModule } from "./internal/transform.ts";
@@ -70,10 +72,20 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
     options.exclude ?? /[\\/]node_modules[\\/]/u
   );
   let root = process.cwd();
+  // This package's code and the library's aren't the app's, even when a workspace links them from
+  // outside node_modules. Labelling the library would also loop: the label module imports it.
+  const packages = [normalizePath(import.meta.dirname)];
   return {
     apply: (_, env) => env.command === "serve",
     configResolved(config) {
       ({ root } = config);
+      try {
+        const require = createRequire(path.join(root, "package.json"));
+        const library = require.resolve("effect-atom-svelte/package.json");
+        packages.push(`${normalizePath(path.dirname(realpathSync(library)))}/`);
+      } catch {
+        // The app can't resolve the library, so there is none of its code to skip.
+      }
       const names = config.plugins.map((plugin) => plugin.name);
       const svelte = names.findIndex((name) =>
         name.startsWith("vite-plugin-svelte")
@@ -94,7 +106,11 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
     },
     transform(code, id) {
       // Ids with a query are other views of a file, such as a component's styles.
-      if (id.includes("?") || id === labelFile || !filter(id)) {
+      if (
+        id.includes("?") ||
+        !filter(id) ||
+        packages.some((directory) => id.startsWith(directory))
+      ) {
         return undefined;
       }
       return labelAtoms(code, id, root);

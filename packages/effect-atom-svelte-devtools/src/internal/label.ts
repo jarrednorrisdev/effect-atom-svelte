@@ -1,21 +1,16 @@
+import { registries } from "effect-atom-svelte/inspector";
 // What code transformed by the atomLabels Vite plugin calls: the plugin wraps the value of each
-// top-level declaration made by a call in `label(value, name, at)`. The plugin serves this module
-// to the app as is, so it imports nothing.
+// declaration it labels in `label(value, name, at, options)`. The plugin serves this module to the
+// app as is.
 //
 // Only atoms are labelled; anything else passes through untouched, which is what lets the plugin
 // wrap calls without knowing what they return.
-
-// Effect Atom's type ids (effect/reactivity, Atom.TypeId and Atom.SerializableTypeId).
-const AtomTypeId = "~effect/reactivity/Atom";
-const SerializableTypeId = "~effect-atom/atom/Atom/Serializable";
+import { Atom } from "effect/reactivity";
+import type { AtomRegistry } from "effect/reactivity";
 
 interface Labelled {
   label?: readonly [name: string, stack: string];
-  readonly [SerializableTypeId]?: { readonly key: string };
 }
-
-const isAtom = (value: unknown): value is Labelled =>
-  typeof value === "object" && value !== null && AtomTypeId in value;
 
 /**
  * Names an atom in place, keeping its identity: `Atom.withLabel` returns a copy, which would leave
@@ -24,14 +19,17 @@ const isAtom = (value: unknown): value is Labelled =>
  * A label the code gave itself wins. The one `Atom.serializable` falls back to, its key (such as
  * `AtomRpc:listTodos:home-todos` for an RPC query), gives way to the variable's name.
  */
-const setLabel = (atom: Labelled, text: string, at: string): void => {
+const setLabel = (atom: Atom.Atom<unknown>, text: string, at: string): void => {
   const current = atom.label;
-  if (current !== undefined && current[0] !== atom[SerializableTypeId]?.key) {
+  const key = Atom.isSerializable(atom)
+    ? atom[Atom.SerializableTypeId].key
+    : undefined;
+  if (current !== undefined && current[0] !== key) {
     return;
   }
   try {
     // The second element is a stack frame, as Effect's own labels hold.
-    atom.label = [text, `at ${text} (${at})`];
+    (atom as Labelled).label = [text, `at ${text} (${at})`];
   } catch {
     // A frozen atom keeps the label it has.
   }
@@ -51,6 +49,59 @@ const formatArg = (arg: unknown): string => {
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 };
 
+interface Kept {
+  readonly atom: WeakRef<Atom.Atom<unknown>>;
+  readonly source: string;
+}
+
+// The last atom declared under each name in each file, with a hash of its declaration.
+const kept = new Map<string, Kept>();
+
+// How long the carried-over value is held for the reloaded components to read it: the registry
+// removes an atom nobody reads on its next tick.
+const holdFor = 1000;
+
+/**
+ * After a hot reload re-runs a module, gives the state atom it declared, in each registry, the
+ * value the atom it replaces holds: the one declared before under the same `key` (file and name),
+ * if its declaration's `source` is the same. An edited declaration starts from its new value.
+ */
+export const keepAcrossReloads = (
+  atom: Atom.Atom<unknown>,
+  key: string,
+  source: string,
+  inRegistries: () => readonly AtomRegistry.AtomRegistry[] = registries
+): void => {
+  const previous = kept.get(key);
+  kept.set(key, { atom: new WeakRef(atom), source });
+  const replaced = previous?.atom.deref();
+  if (
+    replaced === undefined ||
+    replaced === atom ||
+    previous?.source !== source ||
+    !Atom.isWritable(atom)
+  ) {
+    return;
+  }
+  for (const registry of inRegistries()) {
+    const node = registry.getNodes().get(replaced);
+    if (node?.currentState() !== "valid") {
+      continue;
+    }
+    const release = registry.mount(atom);
+    registry.set(atom, node.value());
+    setTimeout(release, holdFor);
+  }
+};
+
+/** What the plugin knows about a declaration besides its name and place. */
+interface LabelOptions {
+  /** The value is an `Atom.family`: label its members. */
+  readonly family?: boolean;
+  /** A state atom a module declares, and a hash of its declaration: keep its value across reloads. */
+  readonly keep?: string;
+}
+
 /**
  * Labels `value` with `text` and the place it was declared, `at` (`/src/lib/todos.ts:12:14`), if
  * it is an atom, and returns it. For an `Atom.family`, returns a family that labels each member
@@ -60,15 +111,22 @@ export const label = <T>(
   value: T,
   text: string,
   at: string,
-  family?: boolean
+  options: LabelOptions = {}
 ): T => {
-  if (isAtom(value)) {
+  if (Atom.isAtom(value)) {
     setLabel(value, text, at);
-  } else if (family && typeof value === "function") {
+    if (options.keep !== undefined) {
+      keepAcrossReloads(
+        value,
+        `${at.replace(/:\d+:\d+$/u, "")}#${text}`,
+        options.keep
+      );
+    }
+  } else if (options.family && typeof value === "function") {
     const members = value as (arg: unknown) => unknown;
     return ((arg: unknown) => {
       const member = members(arg);
-      if (isAtom(member)) {
+      if (Atom.isAtom(member)) {
         setLabel(member, `${text}(${formatArg(arg)})`, at);
       }
       return member;
