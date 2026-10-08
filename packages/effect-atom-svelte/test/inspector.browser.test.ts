@@ -164,6 +164,77 @@ describe("inspect", () => {
     registry.dispose();
   });
 
+  test("reports a node removed after its idle TTL once its teardown is reported", async () => {
+    const registry = AtomRegistry.make();
+    const forever = Atom.make(Effect.never).pipe(
+      Atom.setIdleTTL(20),
+      Atom.withLabel("forever")
+    );
+    const release = registry.mount(forever);
+    const log = record(registry);
+    release();
+    await expect
+      .poll(() => log, { timeout: 3000 })
+      .toContain("NodeRemoved forever");
+    await sleep(20);
+    expect(log).toEqual([
+      "ReadersChanged forever 0",
+      "Interrupted forever",
+      "Finalized forever 2",
+      "NodeRemoved forever",
+    ]);
+    registry.dispose();
+  });
+
+  test("reports the readers registry.reset drops", () => {
+    const registry = AtomRegistry.make();
+    const count = Atom.make(1).pipe(Atom.withLabel("count"));
+    const release = registry.mount(count);
+    const log = record(registry);
+    registry.reset();
+    expect(log).toContain("ReadersChanged count 0");
+    release();
+    registry.dispose();
+  });
+
+  test("names only the parent that changed since a lazy atom last computed", () => {
+    const registry = AtomRegistry.make();
+    const c = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("c"));
+    const d = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("d"));
+    const b = Atom.make((get) => get(c) * 2).pipe(
+      Atom.keepAlive,
+      Atom.withLabel("b")
+    );
+    const a = Atom.make((get) => get(b) + get(d)).pipe(
+      Atom.keepAlive,
+      Atom.withLabel("a")
+    );
+    registry.get(a);
+    const log = record(registry);
+    // a computes b on reading it, and b's change comes while a is computing, before a has read it:
+    // a reads the new value, so the change isn't a cause of a's next computation.
+    registry.set(c, 2);
+    registry.get(a);
+    log.length = 0;
+    registry.set(d, 2);
+    registry.get(a);
+    expect(log.filter((line) => line.startsWith("Built"))).toEqual([
+      "Built a ParentChanged(d)",
+    ]);
+    registry.dispose();
+  });
+
+  test("reports the first computation of a node that held an initial value as its first read", () => {
+    const count = Atom.make(() => 0).pipe(Atom.withLabel("count"));
+    const registry = AtomRegistry.make({ initialValues: [[count, 5]] });
+    const log = record(registry);
+    expect(registry.get(count)).toBe(5);
+    expect(log.filter((line) => line.startsWith("Built"))).toEqual([
+      "Built count FirstRead",
+    ]);
+    registry.dispose();
+  });
+
   test("returns one inspector per registry, and gives idle TTLs", () => {
     const registry = AtomRegistry.make({ defaultIdleTTL: 400 });
     const inspector = inspect(registry);
@@ -192,6 +263,27 @@ describe("inspect", () => {
     } finally {
       console.error = original;
     }
+    registry.dispose();
+  });
+
+  test("a refresh that changes nothing doesn't make a later computation 'Refreshed'", () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1).pipe(Atom.withLabel("base"));
+    const double = base.pipe(
+      Atom.map((n) => n * 2),
+      Atom.withLabel("double")
+    );
+    const release = registry.mount(double);
+    const log = record(registry);
+    registry.refresh(double);
+    log.length = 0;
+    registry.set(base, 5);
+    expect(log).toEqual([
+      "Updated base 1 -> 5 (write)",
+      "Built double ParentChanged(base)",
+      "Updated double 2 -> 10 (build)",
+    ]);
+    release();
     registry.dispose();
   });
 });

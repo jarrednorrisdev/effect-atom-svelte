@@ -62,4 +62,21 @@ describe("shortcut", () => {
       shortcutFromEvent(press({ ...plain, code: "KeyD", ctrlKey: true }))?.ctrl
     ).toBe(true);
   });
+
+  test("matches and names a recorded key whose code has several words once saved", () => {
+    const arrowUp = press({
+      altKey: true,
+      code: "ArrowUp",
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    // The settings save the string, and the panel reads it back on every key press.
+    const saved = stringifyShortcut(
+      shortcutFromEvent(arrowUp) ?? ({} as never)
+    );
+    const shortcut = parseShortcut(saved);
+    expect(shortcut && matchesShortcut(arrowUp, shortcut)).toBe(true);
+    expect(shortcut && formatShortcut(shortcut, false)).toBe("Alt ArrowUp");
+  });
 });

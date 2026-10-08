@@ -12,7 +12,12 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
 import { BROWSER } from "esm-env";
 
-import { defaultIdleTTL, instrumentNode } from "./internal/nodeInternals.ts";
+import {
+  buildWillRead,
+  defaultIdleTTL,
+  holdsInitialValue,
+  instrumentNode,
+} from "./internal/nodeInternals.ts";
 import { list, watch } from "./internal/registries.ts";
 import {
   nameComponent as setComponentName,
@@ -30,8 +35,10 @@ import type {
  * - `FirstRead`: its first computation.
  * - `ParentChanged`: atoms it read changed since its last computation; `parents` are those nodes.
  * - `Refreshed`: `registry.refresh` (or `useAtomRefresh`) asked for it, or for an atom it wraps.
- * - `Invalidated`: something else made it stale, such as the atom refreshing itself (`refreshSelf`,
- *   a reactivity key, a window-focus signal).
+ *   A signal that refreshes the atom (`refreshOnWindowFocus`, `makeRefreshOnSignal`, `swr`) calls
+ *   `registry.refresh` too, so it is reported the same way.
+ * - `Invalidated`: something else made it stale, such as the atom refreshing itself (`refreshSelf`)
+ *   or a reactivity key.
  *
  * @stability unstable
  * @since 0.2.0
@@ -148,6 +155,8 @@ interface NodeRecord {
   refreshed: boolean;
   /** How many computations of this node are running: values given meanwhile are their result. */
   building: number;
+  /** The registry announced its removal before removing it: NodeRemoved waits for remove(). */
+  removing: boolean;
 }
 
 const nodeKey = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> | string =>
@@ -178,6 +187,7 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
         builds: 0,
         changed: new Set(),
         refreshed: false,
+        removing: false,
         values: 0,
       };
       records.set(node, found);
@@ -225,13 +235,24 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
           time: performance.now(),
         });
       },
+      removed: () => {
+        const self = record(node);
+        if (self.removing) {
+          self.removing = false;
+          emit({ _tag: "NodeRemoved", node, time: performance.now() });
+        }
+      },
       value: (previous, value) => {
         const self = record(node);
         const first = self.values === 0;
         self.values += 1;
         if (!first) {
           for (const child of node.children) {
-            record(child).changed.add(node);
+            // A running build that hasn't read this node yet reads the new value: not a cause of
+            // its next computation.
+            if (!buildWillRead(child, node)) {
+              record(child).changed.add(node);
+            }
           }
         }
         let source: UpdateSource = "async";
@@ -276,7 +297,15 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
     if (node !== undefined) {
       record(node).refreshed = true;
     }
-    refresh.call(registry, atom);
+    try {
+      refresh.call(registry, atom);
+    } finally {
+      // Still valid: the refresh didn't reach it (what it wraps computed an equal value), or it
+      // computed already. Either way the mark isn't the cause of a later computation.
+      if (node?.currentState() === "valid") {
+        record(node).refreshed = false;
+      }
+    }
   };
   patchable.onNodeAdded = (node) => {
     onNodeAdded?.(node);
@@ -285,6 +314,11 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
   };
   patchable.onNodeRemoved = (node) => {
     onNodeRemoved?.(node);
+    // An idle node is announced before it is removed; its teardown is reported first.
+    if (node.currentState() !== "removed" && records.has(node)) {
+      record(node).removing = true;
+      return;
+    }
     emit({ _tag: "NodeRemoved", node, time: performance.now() });
   };
   for (const node of registry.getNodes().values()) {
@@ -292,7 +326,7 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
     // A node that has computed before isn't on its first read or value any more.
     if (node.currentState() !== "uninitialized") {
       const self = record(node);
-      self.builds = 1;
+      self.builds = holdsInitialValue(node) ? 0 : 1;
       self.values = 1;
     }
   }
@@ -528,6 +562,7 @@ const stateOf = (
 class Scope implements InspectorScope {
   readonly #reads = new Map<number, ScopeRead>();
   readonly #ids = new WeakMap<Atom.Atom<unknown>, number>();
+  readonly #keyIds = new Map<string, number>();
   readonly #listeners = new Set<(event: ScopeEvent) => void>();
   // The inspectors the scope follows while it has listeners, by registry.
   readonly #following = new Map<AtomRegistry.AtomRegistry, () => void>();
@@ -555,11 +590,17 @@ class Scope implements InspectorScope {
   };
 
   #id(atom: Atom.Atom<unknown>): number {
-    let id = this.#ids.get(atom);
+    const key = nodeKey(atom);
+    let id =
+      typeof key === "string" ? this.#keyIds.get(key) : this.#ids.get(atom);
     if (id === undefined) {
       this.#nextId += 1;
       id = this.#nextId;
-      this.#ids.set(atom, id);
+      if (typeof key === "string") {
+        this.#keyIds.set(key, id);
+      } else {
+        this.#ids.set(atom, id);
+      }
     }
     return id;
   }

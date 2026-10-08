@@ -18,6 +18,7 @@ import {
 } from "./internal/hydration.ts";
 import { reportReads } from "./internal/scope.svelte.ts";
 import type { ReadKind } from "./internal/scope.svelte.ts";
+import { onTeardown } from "./internal/teardown.svelte.ts";
 import { getRegistry } from "./RegistryContext.ts";
 
 /**
@@ -103,20 +104,6 @@ const duringRead = <A>(f: () => A): A => {
   }
 };
 
-/**
- * Runs `f` when the component is destroyed, even while its script is still awaiting. In the browser
- * `onDestroy` only takes effect once the component mounts, so a component removed while pending
- * would never call it. A pre effect runs during init and is torn down with the component (JND-16).
- * On the server, `onDestroy` runs when the render ends.
- */
-const onTeardown = (f: () => void): void => {
-  if (BROWSER) {
-    $effect.pre(() => f);
-  } else {
-    onDestroy(f);
-  }
-};
-
 /** Holds read and write closures; a class so `.current` is a real accessor `bind:` can use. */
 class AtomCell<R, W> {
   readonly #read: () => R;
@@ -185,18 +172,17 @@ const initialValueTarget = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> => {
   return target;
 };
 
-const noop = (): void => undefined;
-
 /**
  * Keeps an atom's node in the registry without computing it, as a mount would but without the read.
  * The registry sweeps a node without listeners, so a listener holds it; letting go schedules the
- * sweep, as an unsubscribe does.
+ * sweep, as an unsubscribe does. Each hold has its own listener: the node keeps its listeners in a
+ * set, so holds sharing one would all end with the first to let go.
  */
 const holdNode = (
   registry: RegistryInternals,
   node: RegistryNode
 ): (() => void) => {
-  const unsubscribe = node.subscribe(noop);
+  const unsubscribe = node.subscribe(() => undefined);
   return () => {
     unsubscribe();
     if (node.canBeRemoved) {
@@ -330,8 +316,10 @@ const subscribedReader = <A>(
     if (atom !== undefined && atom !== committed) {
       const previous = atom;
       const previousCancel = cancel;
+      // Subscribing can throw, as it rebuilds a stale atom; nothing moves until it has succeeded.
+      const next = follow(committed);
       atom = committed;
-      cancel = follow(committed);
+      cancel = next;
       if (previousCancel) {
         releaseKept();
         kept = { atom: previous, cancel: previousCancel };
@@ -354,8 +342,10 @@ const subscribedReader = <A>(
       if (current !== atom) {
         const previous = atom;
         const previousCancel = cancel;
+        // As in the effect: a throwing subscribe leaves the reader on its old atom, to try again.
+        const next = follow(current);
         atom = current;
-        cancel = follow(current);
+        cancel = next;
         if (
           previous === committed &&
           previous !== undefined &&
@@ -687,8 +677,11 @@ export const useAtomSubscribe = <A>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   reportReads(registry, getAtom, "subscribe");
+  // The effect follows the atom, not what the getter reads: a getter that runs again and returns
+  // the same atom must not call `immediate` again, nor drop a change still waiting for delivery.
+  const current = $derived(getAtom());
   $effect(() => {
-    const atom = getAtom();
+    const atom = current;
     // `immediate` calls `f` now, inside this effect; what `f` reads must not re-run it.
     return untrack(() => {
       // registry.subscribe does not compute a node that has never been read, so an atom nothing
@@ -724,6 +717,10 @@ const setNodeValue = (
 // registry sweeps is gone from here too, so the next component to start it gives it the value again.
 const initialValuesApplied = new WeakSet<RegistryNode>();
 
+// On the server, how many renders hold each applied node. The value applies again only once none
+// does, so a request ending doesn't let a request starting overwrite the value another still renders.
+const serverHolders = new WeakMap<RegistryNode, number>();
+
 /**
  * Sets starting values as `AtomRegistry.make({ initialValues })` would: on the atom that receives it
  * (a wrapper such as `withRefresh` passes it to its source), kept as the value of the atom's first
@@ -733,9 +730,10 @@ const initialValuesApplied = new WeakSet<RegistryNode>();
  * an atom that can only compute in the browser can start from a value on the server.
  *
  * A value applies once while the atom is held, so a component mounted later, or a second
- * component with its own value, does not overwrite a value the atom has moved on from. Once nothing
- * holds the atom and the registry disposes it, the next component to start it applies its value
- * again. On the server a value lasts one render, so each request against a shared registry applies
+ * component with its own value, does not overwrite a value the atom has moved on from since the
+ * first applied one. An atom that is already in use without one, read by another component, is set
+ * to the value, as `@effect/atom-react` does. Once nothing holds the atom and the registry disposes
+ * it, the next component to start it applies its value again. On the server a value lasts one render, so each request against a shared registry applies
  * its own; requests rendering at the same time share the registry's atoms, and with them the value
  * the first one applied.
  *
@@ -766,11 +764,19 @@ export const useAtomInitialValues = (
     if (!initialValuesApplied.has(node)) {
       initialValuesApplied.add(node);
       node.setInitialValue(value);
-      if (!BROWSER) {
-        // A registry passed in by the caller outlives the request, and its node may not be swept
-        // before the next request starts, whose value must apply too (JND-17).
-        releases.push(() => initialValuesApplied.delete(node));
-      }
+    }
+    if (!BROWSER) {
+      // A registry passed in by the caller outlives the request, and its node may not be swept
+      // before the next request starts, whose value must apply too (JND-17). Requests rendering at
+      // the same time share the value the first applied, until the last of them ends.
+      serverHolders.set(node, (serverHolders.get(node) ?? 0) + 1);
+      releases.push(() => {
+        const holders = (serverHolders.get(node) ?? 1) - 1;
+        serverHolders.set(node, holders);
+        if (holders === 0) {
+          initialValuesApplied.delete(node);
+        }
+      });
     }
     releases.push(holdNode(registry, node));
   }
@@ -1175,7 +1181,9 @@ const seedFromServer = (
         // atom computes here instead. A seed still waiting, as a stream's between its values, runs
         // again too: the server's run ended with the render, so it would wait forever.
         const seed =
-          !computedHere && holders > 0 ? decodeSeed(value, decode) : undefined;
+          !computedHere && holders > 0
+            ? decodeSeed(key, value, decode)
+            : undefined;
         if (seed !== undefined) {
           applySeed(registry, atom, seed, revalidating > 0 || isWaiting(seed));
         }

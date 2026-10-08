@@ -3,6 +3,7 @@ import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
 import { call, keepAcrossReloads, label } from "../src/internal/label.ts";
+import { identify } from "../src/internal/names.ts";
 
 const f = () => 1;
 
@@ -175,5 +176,17 @@ describe("call", () => {
       at
     );
     expect(makeAtom(4).label?.[0]).toBe("makeAtom(4)");
+  });
+});
+
+describe("where an atom was declared", () => {
+  test("reads a place in a SvelteKit route group, whose folder has parentheses", () => {
+    const atom = Atom.make(0);
+    label(atom, "countAtom", "/src/routes/(app)/+page.svelte:5:9");
+    expect(identify(atom).place).toEqual({
+      column: 9,
+      file: "/src/routes/(app)/+page.svelte",
+      line: 5,
+    });
   });
 });

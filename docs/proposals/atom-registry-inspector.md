@@ -19,7 +19,7 @@ A devtools panel for atoms needs to answer three questions: which atoms are aliv
 | Readers | `Node.listeners`, a `Set` to read | Puts its own `Set` subclass on each node's `listeners` field to hear adds and deletes. |
 | A value changed | none (`subscribe` would add a listener, which keeps the atom alive and makes a lazy atom compute) | Turns `NodeImpl._value` into an accessor on each node. |
 | A computation started and ended | none | Wraps `NodeImpl.build` on each node. |
-| Why it computed | none | Infers it: marks a node when `registry.refresh` is called for it, and marks a node's children when the node's value changes. Anything else is reported as "invalidated", so `refreshSelf`, a reactivity key and a window-focus signal look alike. |
+| Why it computed | none | Infers it: marks a node when `registry.refresh` is called for it, and marks a node's children when the node's value changes. Anything else is reported as "invalidated", so `refreshSelf` and a reactivity key look alike, and a window-focus or other refresh signal, which calls `registry.refresh`, looks like a refresh the app asked for. |
 | What it started was torn down | none | Turns `NodeImpl.lifetime` into an accessor, and counts `lifetime.finalizers` when it is cleared. |
 | An effect was interrupted | none | Infers it: a teardown with finalizers while the value is a waiting `AsyncResult`. An uninterruptible effect, or a stream between elements, is reported wrongly. |
 | A write came from outside | none | Replaces `registry.set`, `update` and `modify` on the instance to count writes in progress. |

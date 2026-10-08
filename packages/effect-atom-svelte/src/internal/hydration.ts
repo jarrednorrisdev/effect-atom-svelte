@@ -63,11 +63,34 @@ export const encodeSeed = (
   }
 };
 
-/** The server's result, decoded, or undefined when the server sent none. */
+/**
+ * The server's result, decoded, or undefined when the server sent none or it doesn't decode with
+ * the browser's schema: the browser then computes the atom itself, as for a result the server
+ * couldn't encode. Development builds warn.
+ */
 export const decodeSeed = (
+  key: string,
   value: unknown,
   decode: (value: unknown) => unknown
-): unknown => (value === noSeed ? undefined : decode(value));
+): unknown => {
+  if (value === noSeed) {
+    return undefined;
+  }
+  try {
+    return decode(value);
+  } catch (error) {
+    if (!Schema.isSchemaError(error)) {
+      throw error;
+    }
+    if (DEV) {
+      console.warn(
+        `effect-atom-svelte: the server's result for the serializable atom "${key}" doesn't decode with its schema, so the browser computes the atom again.`,
+        error
+      );
+    }
+    return undefined;
+  }
+};
 
 /**
  * Whether a seed is still waiting, as a stream's result is between its values. The browser runs

@@ -32,6 +32,8 @@ interface LifetimeImpl {
 
 interface NodeImpl {
   build: () => void;
+  remove: () => void;
+  preserveInitialValueOnBuild?: boolean;
   _value: unknown;
   lifetime: LifetimeImpl | undefined;
   listeners: Set<() => void>;
@@ -52,6 +54,8 @@ export interface NodeHooks {
   readonly dispose: (finalizers: number, value: unknown) => void;
   /** A listener was added or removed; the node's `listeners` hold the new set. */
   readonly readers: () => void;
+  /** The node's remove() has returned. */
+  readonly removed: () => void;
 }
 
 const isNodeImpl = (node: object): node is NodeImpl =>
@@ -78,6 +82,13 @@ class Listeners extends Set<() => void> {
     }
     return this;
   }
+  override clear(): void {
+    const had = this.size > 0;
+    super.clear();
+    if (had) {
+      this.#changed();
+    }
+  }
   override delete(listener: () => void): boolean {
     const deleted = super.delete(listener);
     if (deleted) {
@@ -95,7 +106,14 @@ export const instrumentNode = (
   if (!isNodeImpl(node)) {
     return false;
   }
-  const { build: compute } = node;
+  const { build: compute, remove: removeNode } = node;
+  node.remove = function remove() {
+    try {
+      removeNode.call(this);
+    } finally {
+      hooks.removed();
+    }
+  };
   let value = node._value;
   let { lifetime } = node;
   node.build = function build() {
@@ -144,4 +162,19 @@ export const defaultIdleTTL = (
   const ttl = (registry as { readonly defaultIdleTTL?: unknown })
     .defaultIdleTTL;
   return typeof ttl === "number" ? ttl : undefined;
+};
+
+/** Whether the node holds an initial value it hasn't computed (setInitialValue on a new node). */
+export const holdsInitialValue = (node: AtomRegistry.Node<unknown>): boolean =>
+  (node as { preserveInitialValueOnBuild?: unknown })
+    .preserveInitialValueOnBuild === true;
+
+/** Whether the node is building and its running build has not read `parent` yet. */
+export const buildWillRead = (
+  node: AtomRegistry.Node<unknown>,
+  parent: AtomRegistry.Node<unknown>
+): boolean => {
+  const reads = (node as { lifetime?: { reads?: Set<unknown> } }).lifetime
+    ?.reads;
+  return reads !== undefined && !reads.has(parent);
 };
