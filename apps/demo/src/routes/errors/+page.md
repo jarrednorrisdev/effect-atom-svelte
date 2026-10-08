@@ -78,7 +78,7 @@ const describe = (cause: Cause.Cause<TodoNotFound | Forbidden>) => {
 
 Each way of reading an atom hands you failure in its own form. The example reads one atom three ways:
 
-<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Click Todo 7. useAtomValue and includeFailure get the typed error, id and all; the boundary swaps in its failed snippet, which gets only the tag SvelteKit's handleError kept. Then click Todo 1: the boundary stays failed until you click Try again, which runs the atom again and renders the boundary afresh."> <Places /> </Example>
+<Example files={[{ html: placesSource, name: "places.svelte" }]} hint="Click Todo 99: useAtomValue and includeFailure get the error with its id, and the boundary gets only its tag. Then click Todo 1: the boundary stays failed until you click Try again."> <Places /> </Example>
 
 ### With `useAtomValue` or `useAtomResult`
 
@@ -86,9 +86,7 @@ Both give you the `AsyncResult`, failures included. Check `_tag` in the markup, 
 
 ### In a boundary
 
-`useAtomSuspense` rejects when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. The promise rejects with `Cause.squash(cause)`: the first typed error if there is one, otherwise the defect, otherwise an `Error` saying the effect was interrupted. See [When it fails](/suspense#when-it-fails).
-
-The snippet's `reset` renders the boundary's content again, but the atom still holds the same `Failure`. Refresh the atom first, with `useAtomRefresh`, and read it with `suspendOnWaiting: true`, so the content waits for the refresh's result instead of rejecting again with the old failure: see [When it fails](/suspense#when-it-fails). The example's **Try again** gets away without it, because by the time you click it, Todo 1 has already loaded.
+`useAtomSuspense` rejects with `Cause.squash(cause)` when the atom fails, and the nearest `<svelte:boundary>` renders its `failed` snippet. To try again, refresh the atom, call the snippet's `reset`, and read the atom with `suspendOnWaiting: true`: [When it fails](/suspense#when-it-fails) explains each step. The example's **Try again** gets away without `suspendOnWaiting`, because by the time you click it, Todo 1 has already loaded.
 
 In a SvelteKit app, the error passes through SvelteKit's `handleError` hook before the `failed` snippet sees it: see [SvelteKit's `handleError`](#sveltekits-handleerror).
 

@@ -44,7 +44,7 @@ The server can't know what a visitor saved in their browser. Reload the page abo
 
 A cookie goes to the server with every request, so the server can render the stored value. Back `Atom.kvs` with a store that reads and writes `document.cookie` in the browser, and reads the request's cookies on the server:
 
-<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Pick dark, then reload the page. The box is dark from the first paint, and In the HTML says dark: the server read the cookie."> <Theme /> </Example>
+<Example files={[{ html: themeSource, name: "theme.svelte" }, { html: preferencesSource, name: "preferences.ts" }]} hint="Click dark, then reload the page. The box is dark from the first paint, and In the HTML says dark: the server read the cookie."> <Theme /> </Example>
 
 The server's store needs the request's cookies. Pass them from the root layout's `load` function to the registry, through `initialValues`:
 
@@ -82,7 +82,7 @@ export const load = ({ cookies }) => ({
 
 Like any atom given a value through `initialValues`, `preferenceCookiesAtom` needs `Atom.keepAlive`, or the registry could dispose of it, and its cookies, before a component reads a preference. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data).
 
-A page that reads cookies depends on the request, so it can't be prerendered. This site's pages are prerendered, so its own theme menu keeps the choice in `localStorage` with `Atom.kvs` instead, and a small inline script applies it before first paint.
+A page that reads cookies depends on the request, so it can't be prerendered.
 
 A page rendered from cookies differs from one visitor to the next, so keep it out of shared caches: see [Prerender or render per request](/sveltekit#prerender-or-render-per-request).
 

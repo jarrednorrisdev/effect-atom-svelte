@@ -77,7 +77,7 @@ They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. S
 
 This site uses both hooks. In the example, the `failed` snippet tells the errors apart by their tag, and the panel below it shows the error it received.
 
-<Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 7, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
+<Example files={[{ html: boundaryErrorsSource, name: "boundary-errors.svelte" }]} hint="Click Todo 99, missing, then A slow todo: the failed snippet gets each error's tag and says what went wrong. A broken response is a defect with no tag, so only its message arrives."> <BoundaryErrors /> </Example>
 
 <Aside type="tip" title="Your own handleError">
 
@@ -267,11 +267,5 @@ export const load = ({ setHeaders }) => {
 <Aside type="caution" title="Vary: Cookie is not enough">
 
 `Vary: Cookie` asks a shared cache to keep one copy per `Cookie` header. Some CDNs ignore `Vary` apart from `Accept-Encoding`, so they would serve one visitor's page to the next. Those that honor it key on the whole header, so any other cookie, such as an analytics ID, makes a copy per visitor. Consider it only for a page that varies by a preference cookie with a few values, such as a theme, and check how your CDN treats it. For a page with a visitor's own data, send `Cache-Control: private`.
-
-</Aside>
-
-<Aside type="note" title="This site">
-
-This site prerenders every page that doesn't depend on the request, so in its examples, "Computed on the server" means computed when the site was built. That includes [RPC](/rpc) and [HTTP API](/http), whose lists come from a copy of the demo API that runs during the build. [Browser atoms](/browser) reads cookies, so it is rendered for each request.
 
 </Aside>

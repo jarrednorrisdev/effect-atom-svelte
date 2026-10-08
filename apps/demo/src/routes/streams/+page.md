@@ -29,11 +29,11 @@ The value is an `AsyncResult`, as with [async atoms](/async-atoms):
 
 - `Initial` until the first item arrives.
 - `Success` with the latest item, and `waiting` set while the stream is still running.
-- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom still has an item from an earlier run, as after a refresh: then it keeps that item.
+- `Success` without `waiting` once the stream ends, or `Failure` if it fails. A stream that ends without emitting anything fails with `NoSuchElementError`, unless the atom already has a value, such as an item from an earlier run: then it keeps it.
 
 A failure keeps the last item as its previous success, so `AsyncResult.getOrElse` still gives it. The example below counts down from 3 and then finishes in one of the three ways.
 
-<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then pick Fails: the stream fails after 1, and the atom still gives 1. Pick Emits nothing, and there is no item to keep."> <Countdown /> </Example>
+<Example files={[{ html: countdownSource, name: "countdown.svelte" }]} hint="Watch the countdown end: the result stops waiting and keeps 1. Then click Fails: the stream fails after 1, and the atom still gives 1. Click Emits nothing, and there is no item to keep."> <Countdown /> </Example>
 
 <Aside type="tip" title="Keep browser-only streams off the server">
 
@@ -52,7 +52,7 @@ A stream hands over its items in **chunks**: groups of items that are ready at t
 
 While a pull runs, the result is that same `Success` with `waiting` set, so the items pulled so far stay on screen.
 
-<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until the button says No more fruit: each pull brings one chunk, a page of up to three, and the last brings nothing but done. Then turn on disableAccumulation and load again: items holds only the latest page, and the end arrives as a NoSuchElementError failure instead of done."> <Fruit /> </Example>
+<Example files={[{ html: fruitSource, name: "fruit.svelte" }]} hint="Click Load more until it says No more fruit. Then turn on disableAccumulation and load again: items holds only the latest page, and the end arrives as a NoSuchElementError."> <Fruit /> </Example>
 
 **Example** (Loading the next page)
 

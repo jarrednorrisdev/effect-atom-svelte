@@ -187,7 +187,7 @@ The first render uses `"all"` on both sides, and hydrates from the server's resu
 
 The example saves its filter with `Atom.kvs`, whose server store is in memory, so the server reads `"all"` there too.
 
-<Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Pick done, then click Reload the page. In the HTML shows the server rendered all three todos; the list then switches to the saved filter, computed in the browser."> <SavedFilter /> </Example>
+<Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Click done, then click Reload the page. In the HTML shows the server rendered all three todos; the list then switches to the saved filter, computed in the browser."> <SavedFilter /> </Example>
 
 ## HydrationBoundary
 

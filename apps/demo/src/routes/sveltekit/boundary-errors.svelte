@@ -16,7 +16,7 @@
     return Effect.gen(function* fetchTodo() {
       yield* Effect.sleep("400 millis");
       if (ask === "missing") {
-        return yield* new TodoNotFound({ message: "There is no todo 7" });
+        return yield* new TodoNotFound({ message: "There is no todo 99" });
       }
       if (ask === "slow") {
         return yield* new Timeout({ message: "No answer within 5 seconds" });
@@ -40,7 +40,7 @@
 
   const asks = [
     ["found", "Todo 1"],
-    ["missing", "Todo 7, missing"],
+    ["missing", "Todo 99, missing"],
     ["slow", "A slow todo"],
     ["broken", "A broken response"],
   ] as const;

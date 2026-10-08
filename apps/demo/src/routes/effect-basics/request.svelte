@@ -9,10 +9,11 @@
 
 <p>
   <button
+    aria-pressed={reading}
     data-cue={reading ? "interrupt" : "start"}
     onclick={() => (reading = !reading)}
   >
-    {reading ? "Remove the reader" : "Add a reader"}
+    Read requestAtom
   </button>
 </p>
 <Part code dashed={!reading} label="<Reader>" tone={reading ? "success" : "idle"}>

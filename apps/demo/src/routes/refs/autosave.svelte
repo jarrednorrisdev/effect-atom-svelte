@@ -54,7 +54,14 @@
       {#each requests.slice(-5) as { sent, status }, index (index)}
         <li class="m-0 flex items-baseline justify-between gap-2">
           <code class="truncate">"{sent.name}", "{sent.role}"</code>
-          <span class={["status shrink-0", status]}>
+          <span
+            class={[
+              "shrink-0 text-xs",
+              status === "sending" && "text-muted-foreground",
+              status === "saved" && "text-(--tone-success-text)",
+              status === "tidied" && "text-(--tone-running-text)",
+            ]}
+          >
             {status === "sending" ? "saving…" : status === "saved" ? "saved" : "saved, tidied"}
           </span>
         </li>
@@ -64,16 +71,3 @@
     </ol>
   </Part>
 </div>
-
-<style>
-  .status {
-    color: var(--muted-foreground);
-    font-size: 0.75rem;
-  }
-  .saved {
-    color: var(--tone-success-text);
-  }
-  .tidied {
-    color: var(--tone-running-text);
-  }
-</style>

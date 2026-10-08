@@ -19,10 +19,10 @@ test.describe("Errors page", () => {
     await expect(boundary).toHaveText("Write the docs");
     await expect(inPlace).toHaveText("Write the docs");
 
-    await pick(7);
+    await pick(99);
     await expect(page.getByTestId("places-result-state")).toHaveText("Failure");
     await expect(page.getByTestId("places-result")).toContainText(
-      "NotFound { id: 7 }"
+      "NotFound { id: 99 }"
     );
     // The handleError hook keeps the tag, not the error's id. NotFound has no message, so
     // SvelteKit's own stays.
@@ -33,7 +33,7 @@ test.describe("Errors page", () => {
       status: 500,
       tag: "NotFound",
     });
-    await expect(inPlace).toContainText("NotFound { id: 7 }");
+    await expect(inPlace).toContainText("NotFound { id: 99 }");
 
     // The boundary stays failed until it is reset; the others follow the atom.
     await pick(2);

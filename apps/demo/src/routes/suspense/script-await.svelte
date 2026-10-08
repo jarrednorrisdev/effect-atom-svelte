@@ -15,8 +15,12 @@
 </script>
 
 <p>
-  <button data-cue={mounted ? "reset" : "start"} onclick={toggle}>
-    {mounted ? "Unmount" : "Mount"} the component
+  <button
+    aria-pressed={mounted}
+    data-cue={mounted ? "reset" : "start"}
+    onclick={toggle}
+  >
+    Mount the component
   </button>
 </p>
 <Part

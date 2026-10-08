@@ -5,8 +5,8 @@
 </script>
 
 <p>
-  <button onclick={() => (shown = !shown)}>
-    {shown ? "Hide counters" : "Show counters"}
+  <button aria-pressed={shown} onclick={() => (shown = !shown)}>
+    Show counters
   </button>
 </p>
 

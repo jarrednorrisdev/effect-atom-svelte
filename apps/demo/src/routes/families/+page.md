@@ -40,7 +40,7 @@ The value you pass in (here, the id) is called the **key**. It can be any value 
 
 Try it below. The list and the details panel are separate components that pass no state between them: each row calls `todoAtom` with its todo's id, and the panel calls it with the id of the todo you opened. When both use the same id, they read the same atom.
 
-<Example files={[{ html: todosSource, name: "todos.ts" }, { html: rowSource, name: "todo-row.svelte" }, { html: detailsSource, name: "todo-details.svelte" }, { html: listSource, name: "todo-list.svelte" }, { html: appSource, name: "todo-app.svelte" }]} hint="Tick Buy milk in the list: the details panel shows it done too, because both read todoAtom(1). Open another todo and mark it done from the panel. Then add a todo: its new id gets a new atom, starting open."> <TodoApp /> </Example>
+<Example files={[{ html: todosSource, name: "todos.ts" }, { html: rowSource, name: "todo-row.svelte" }, { html: detailsSource, name: "todo-details.svelte" }, { html: listSource, name: "todo-list.svelte" }, { html: appSource, name: "todo-app.svelte" }]} hint="Click Buy milk's checkbox in the list: the details panel shows it done too, because both read todoAtom(1). Open another todo and mark it done from the panel. Then add a todo: its new id gets a new atom, starting open."> <TodoApp /> </Example>
 
 ## New keys make new atoms
 
@@ -91,11 +91,11 @@ const draftAtom = Atom.family(
 draftAtom({ doc: 1, lang: "en" }) === draftAtom({ doc: 1, lang: "en" }); // true
 ```
 
-This matters because object keys are usually built fresh: in the example below, every change of document or language makes a new `{ doc, lang }` object. A cache you write yourself with `new Map()` compares object keys by reference, so a new object never finds the old entry.
+This matters because object keys are usually built fresh: in the example below, every change of document or language makes a new `{ doc, lang }` object. A cache you write yourself with `new Map()` compares object keys by reference, so a new object never finds the old entry. It makes a fresh atom instead, and the old one stays in the map with nothing able to reach it.
 
 Try it below. Both editors keep one draft per document and language, one in a family and one in a `Map`:
 
-<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Switch to lang: fr, then back to en. The family finds your draft again, because the new key equals the old one. The Map compared the new object by reference, missed, and made a fresh empty atom: now it has more atoms than keys, and your old draft is still in it with nothing able to reach it."> <SameKey /> </Example>
+<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Click lang: fr, then lang: en: the family gives your draft back, while the Map shows an empty one and counts more atoms than keys."> <SameKey /> </Example>
 
 ## Keeping a family's atoms
 

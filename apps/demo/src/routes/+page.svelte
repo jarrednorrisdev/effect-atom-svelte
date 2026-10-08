@@ -43,7 +43,7 @@
   let scrollY = $state(0);
 
   const notNeeded = [
-    "Apps without Effect: context and remote functions cover them well.",
+    "Apps without Effect: context, remote functions or TanStack Query cover them well.",
     "An effect that only one component runs: Effect.runPromise with getAbortSignal is enough.",
     "Route data that doesn't change on the page: a load function is enough.",
   ];
@@ -193,7 +193,7 @@
           { html: todoLookupSource, name: "todo-lookup.svelte" },
           { html: rpcSource, name: "rpc.ts" },
         ]}
-        hint="Pick Todo 99: the server fails with its typed TodoNotFound, and the component matches on it."
+        hint="Click Todo 99: the server fails with its typed TodoNotFound, and the component matches on it."
       >
         <TodoLookup />
       </Example>
@@ -204,8 +204,8 @@
     <div class="min-w-0">
       {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
       <p class="mt-4 text-muted-foreground">
-        When the last component reading an atom goes away, its effect is interrupted and its
-        finalizers run: a request is canceled, a stream stops, a socket closes. With one component,
+        When the last component reading an atom goes away, its finalizers run, and its effect is
+        interrupted if it is still running: a request is canceled, a stream stops, a socket closes. With one component,
         an <code class="font-mono text-[0.9em]">$effect</code>'s teardown does this. When several
         share the work, the registry counts the readers for you.
       </p>

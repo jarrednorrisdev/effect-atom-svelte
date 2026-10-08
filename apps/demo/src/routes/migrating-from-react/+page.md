@@ -20,7 +20,7 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
 | None | `await useAtomResult(atom)` in the script |
 | `useAtomMount`, `useAtomRefresh` | The same |
-| `useAtomSubscribe` | The same, but it computes the atom, so a derived atom nothing else reads still runs |
+| `useAtomSubscribe` | The same, but it always computes the atom, so a derived atom nothing else reads still runs. React's computes it only with `immediate: true` |
 | `useAtomInitialValues` | Also holds its atoms while the component lives, and gives a wrapped atom's value to its source, as `initialValues` does. See [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data) |
 | `useAtomRef(ref)`, `useAtomRefPropValue(ref, prop)` | The same, read through `current` |
 | `useAtomRefProp(ref, prop)` | The same |
@@ -101,14 +101,12 @@ Here, `useAtomSuspense` returns a promise that you `await` in markup, inside a `
 | --- | --- |
 | `<RegistryProvider>` | `<RegistryProvider>`, or `provideRegistry()` in a script |
 | `useContext(RegistryContext)` | `getRegistry()` |
-| No provider: a module-level default registry | No provider: a shared default registry in the browser, and an error on the server |
+| No provider: a module-level default registry, on the server too | No provider: a shared default registry in the browser, and an error on the server, so one visitor's state can't reach another's page |
 | Registry work runs on React's scheduler, at low priority. The default registry also has `defaultIdleTTL: 400` | Effect's default scheduler, and no idle TTL unless you pass `defaultIdleTTL` |
 
 So an atom nothing reads lasts 400 milliseconds in React's default registry, but is dropped here once the current task ends. React's `RegistryProvider` has no idle TTL either, unless you pass one.
 
 `RegistryProvider` takes the same `initialValues`, `scheduleTask`, `timeoutResolution` and `defaultIdleTTL`. It also takes `registry`, to provide one you made yourself, and `revalidateOnHydrate`. See [Registry options](/installation#registry-options).
-
-React's default registry, used when there is no provider, is one module-level registry, on the server too. Here, the server throws `No AtomRegistry in context` instead, so a page can't share one visitor's state with another. Put a `RegistryProvider` in your root layout.
 
 ## Server rendering and hydration
 
@@ -118,7 +116,7 @@ With React, you dehydrate a registry on the server and pass the state to a `Hydr
 
 <Aside type="caution" title="Nothing runs again after hydration by default">
 
-In `@effect/atom-react`, some queries are fetched again straight after hydration, as a side effect of how Effect's `Hydration.hydrate` restores atoms wrapped by `Atom.withReactivity`, `swr`, `debounce` and similar. That includes `AtomRpc` and `AtomHttpApi` queries with `reactivityKeys`. Here, the hooks run nothing again unless you set `revalidateOnHydrate`, on `RegistryProvider` or on the hook. `HydrationBoundary` goes through `Hydration.hydrate`, so it behaves like React's. See [Running again after hydration](/hydration#running-again-after-hydration).
+`@effect/atom-react` fetches some queries again straight after hydration, such as those with `reactivityKeys`. Here, the hooks run nothing again unless you set `revalidateOnHydrate`. `HydrationBoundary` behaves like React's. See [Running again after hydration](/hydration#running-again-after-hydration).
 
 </Aside>
 

@@ -130,7 +130,7 @@ export const userAtom = Atom.make(currentUser);
 </script>
 ```
 
-The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both, and when neither is on the page, it's interrupted. The next piece of shared state is one more atom, and the layout doesn't change.
+The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both. When neither is on the page, the registry disposes of the atom, and interrupts the effect if it is still running. The next piece of shared state is one more atom, and the layout doesn't change.
 
 The server awaits the atom too, so the page renders with the user and sends the result along for hydration. Values live in a **registry**, not in the atom. The provider gives each request on the server its own registry, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
@@ -151,7 +151,7 @@ export const todosAtom = TodosRpc.query("listTodos", undefined, {
 });
 ```
 
-Components share `todosAtom` like any atom. The server awaits it, and when nothing reads it, the registry interrupts it along with its request. `AtomHttpApi` does the same for an `HttpApi`.
+Components share `todosAtom` like any atom. The server awaits it. When nothing reads it, the registry disposes of it, and cancels its request if it is still in flight. `AtomHttpApi` does the same for an `HttpApi`.
 
 **What it costs:** you define the client once, with the protocol it uses to reach your server. See [RPC](/rpc) and [HTTP API](/http).
 
@@ -313,9 +313,9 @@ A test gives the runtime a different layer, such as a fake API or data held in m
 
 ## Why not TanStack Query?
 
-TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`, and every query whose key starts with `"todos"` refetches. For an Effect backend, atoms differ in four ways:
+TanStack Query is the closest alternative, with a long track record and a large community. Its invalidation is close to reactivity keys. A mutation's `onSuccess` calls `queryClient.invalidateQueries({ queryKey: ["todos"] })`. Every query whose key starts with `"todos"` is marked stale, and the ones on screen refetch. For an Effect backend, atoms differ in four ways:
 
-- **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue in every query. An atom runs the effect itself.
+- **Queries are effects.** A TanStack Query function returns a promise, so each one ends in `Effect.runPromise`. You can pass its `signal` along and provide services there, but you write that glue yourself, in each query or in a helper. An atom runs the effect itself.
 - **Error types are checked.** TanStack Query types a query's error as `Error` unless you register another type or pass one per query, and either way it's an assertion: nothing checks what the query function throws. An atom's error type is inferred from the effect, or from the procedure's schema.
 - **Client state lives alongside.** A derived atom reads a query and a filter alike. TanStack Query can combine queries, but client state lives outside it, in a store or a context.
 - **Unused data goes straight away.** TanStack Query keeps a query nothing reads for its `gcTime`, five minutes by default, as a cache. The registry disposes of an atom when its last reader goes, unless you give it an idle TTL or keep it alive.
@@ -332,6 +332,6 @@ Three cases don't need atoms:
 
 <Aside type="note" title="Mixing them">
 
-You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. Atoms can also start from `load` data: see [Registry options](/installation#registry-options).
+You can mix them. Components can keep local `$state`, read route data from `load`, and use atoms for what they share. Atoms can also start from `load` data: see [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data).
 
 </Aside>

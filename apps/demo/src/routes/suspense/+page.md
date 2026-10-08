@@ -36,7 +36,7 @@ The hooks on this page need `experimental.async` turned on in Svelte's compiler 
 
 In the example, a component awaits a slow atom inside a boundary. Under it, the inspector lights up the branch the boundary renders:
 
-<Example files={[{ html: forecastSource, name: "forecast.svelte" }, { html: firstLoadSource, name: "first-load.svelte" }]} hint="Click Mount the forecast: the boundary shows its pending snippet until the forecast arrives, then the content. Unmount and mount it again: nothing kept the atom, so it loads again."> <FirstLoad /> </Example>
+<Example files={[{ html: forecastSource, name: "forecast.svelte" }, { html: firstLoadSource, name: "first-load.svelte" }]} hint="Turn on Mount the forecast: the boundary shows its pending snippet until the forecast arrives, then the content. Turn it off and on again: nothing kept the atom, so it loads again."> <FirstLoad /> </Example>
 
 ## Awaiting in markup
 
@@ -62,7 +62,7 @@ In the example, a component awaits a slow atom inside a boundary. Under it, the 
 
 The promise stays the same object while the atom's result is unchanged, so Svelte only renders again when there is something new. When the result changes, `current` is a new promise.
 
-Await `current` in markup, `$derived` or `$effect`, and the hook holds the atom only while that read lasts. A promise you await anywhere else, such as at the top level of the script or in an event handler, holds the atom until the component is destroyed.
+Await `current` in markup, `$derived` or `$effect`, and the hook holds the atom only while that read lasts. A promise you await anywhere else, such as at the top level of the script or in an event handler, holds the atom until it settles or the component is destroyed, whichever comes first.
 
 ## After the first load
 
@@ -80,11 +80,11 @@ Like the other hooks that take an atom, `useAtomSuspense` accepts a getter, and 
 
 In the example, `weatherAtom` is an [`Atom.family`](/families), with one atom per city. Each is wrapped in `Atom.withServerValueInitial`, so the server doesn't run the load and renders the `pending` snippet instead, and the browser loads it: see [Server values](/server-rendering#server-values).
 
-<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Pick another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Pick two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
+<Example files={[{ html: weatherSource, name: "weather.svelte" }]} hint="Click another city: the old forecast stays, with Updating…, and the pending snippet doesn't come back. Click two cities quickly: the log shows the first one's load interrupted."> <Weather /> </Example>
 
 <Aside type="note" title="Abandoned waits">
 
-When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect: pick two cities quickly in the example, and the log shows the first one's load interrupted. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
+When a getter moves to another atom while the old one is still loading, or the component is destroyed, the hook stops holding the old atom. The registry then disposes of it and interrupts its effect: click two cities quickly in the example, and the log shows the first one's load interrupted. The old promise rejects with Svelte's own abort reason, which Svelte ignores, so the boundary keeps waiting for the new value rather than showing an interruption.
 
 </Aside>
 
@@ -169,7 +169,7 @@ The script waits only once. From then on, `todos.current` updates like a `useAto
 
 In the example, a `<Notes>` component awaits `useAtomResult` in its script, inside a boundary with a `pending` snippet. Under it, its script's lines show where the script has got to:
 
-<Example files={[{ html: scriptAwaitSource, name: "script-await.svelte" }, { html: notesSource, name: "notes.svelte" }]} hint="Click Mount the component: the script stops at the await while the boundary shows its pending snippet, and carries on once the atom has its first result. Then click Refresh: current shows waiting, and the script doesn't run again."> <ScriptAwait /> </Example>
+<Example files={[{ html: scriptAwaitSource, name: "script-await.svelte" }, { html: notesSource, name: "notes.svelte" }]} hint="Turn on Mount the component: the script stops at the await while the boundary shows its pending snippet, and carries on once the atom has its first result. Then click Refresh: current shows waiting, and the script doesn't run again."> <ScriptAwait /> </Example>
 
 On the server, the render waits for the first result too. If the atom has a serialization key, the browser starts from the server's result instead of running the effect again: see [Hydration](/hydration). [RPC](/rpc) shows this with a real query.
 
@@ -181,7 +181,7 @@ Svelte restores the component's context after each top-level `await`, so you can
 
 Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
 
-<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Click Mount all three. One by one, the user's load starts only when the todos have loaded, so it is ready after three seconds. Promise.all and Effect.all start both loads at once, and are ready after one and a half. Then turn on Todos fails and mount again: only Effect.all stops at the failure and interrupts the user's load."> <Awaits /> </Example>
+<Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Turn on Mount all three: one by one is ready after three seconds, the other two after one and a half. Then turn on Todos fails, and turn Mount all three off and on: only Effect.all interrupts the user's load."> <Awaits /> </Example>
 
 <Aside type="caution" title="Only top-level awaits">
 
