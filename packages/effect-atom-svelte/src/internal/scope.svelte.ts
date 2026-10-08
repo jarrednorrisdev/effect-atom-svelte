@@ -1,10 +1,10 @@
 // What the hooks tell an inspector scope (`provideInspectorScope` in ../Inspector.ts): which atoms a
 // part of the component tree reads, and which component reads each.
 //
-// The hooks only look for a scope in context, in development in the browser. Without one they do
+// The hooks only look for a scope in context, in the browser. Without one they do
 // nothing more than before; the scope's own work lives in ../Inspector.ts, which only tools import.
 import type { Atom, AtomRegistry } from "effect/reactivity";
-import { BROWSER, DEV } from "esm-env";
+import { BROWSER } from "esm-env";
 import { createContext } from "svelte";
 
 /** How a hook uses its atom: reads it, holds it mounted, subscribes to it, or writes it. */
@@ -45,14 +45,14 @@ export const nameComponent = (name: string, file?: string): void => {
 
 /**
  * Reports the atom a hook uses, following its getter, while the component lives. Called while the
- * hook sets up; adds an effect only in development in the browser, and only under a scope.
+ * hook sets up; adds an effect only in the browser, and only under a scope.
  */
 export const reportReads = (
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => Atom.Atom<unknown>,
   kind: ReadKind
 ): void => {
-  if (!(DEV && BROWSER) || !hasReporter()) {
+  if (!BROWSER || !hasReporter()) {
     return;
   }
   const reporter = getReporter();

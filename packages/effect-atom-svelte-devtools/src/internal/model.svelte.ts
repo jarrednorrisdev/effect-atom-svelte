@@ -141,6 +141,8 @@ export class Model {
   #interruptions = 0;
   #finalizers = 0;
   #frame: number | undefined;
+  // Set once the model stops: a removal's timer may still fire, and must not schedule a frame.
+  #stopped = false;
   #paused = false;
 
   constructor(inspector: Inspector) {
@@ -168,8 +170,10 @@ export class Model {
     this.#schedule();
     return () => {
       unsubscribe();
+      this.#stopped = true;
       if (this.#frame !== undefined) {
         cancelAnimationFrame(this.#frame);
+        this.#frame = undefined;
       }
     };
   }
@@ -308,10 +312,15 @@ export class Model {
       Math.max(0, removed.length - removedKept)
     )) {
       this.#entries.delete(entry.id);
+      // An atom added again later starts a new entry, which the views see.
+      this.#byAtom.delete(entry.atom);
     }
   }
 
   #schedule(): void {
+    if (this.#stopped) {
+      return;
+    }
     this.#frame ??= requestAnimationFrame(() => {
       this.#frame = undefined;
       this.#publish();

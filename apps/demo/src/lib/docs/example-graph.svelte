@@ -201,9 +201,10 @@
   });
 </script>
 
-<!-- At least one row tall whenever the example uses atoms, so it doesn't jump when they appear. -->
+<!-- At least one row tall whenever the example uses atoms, so it doesn't jump when they appear.
+     Hidden from screen readers: it draws what the example's code says. -->
 {#if input || expected}
-  <div class="example-graph">
+  <div aria-hidden="true" class="example-graph">
     {#if input}
       <AtomGraph bind:this={graph} graph={input} />
     {:else if mounted}

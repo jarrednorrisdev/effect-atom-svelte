@@ -31,8 +31,7 @@ export const parseFrame = (frame: string): Place | undefined => {
   }
   let { file } = groups;
   try {
-    const url = new URL(file);
-    file = url.pathname.replace(/^\/@fs/u, "");
+    file = new URL(file).pathname;
   } catch {
     // Not a URL: already a path.
   }
@@ -57,12 +56,17 @@ export const shortPlace = (place: Place): string =>
 
 /**
  * Opens the place in the editor, through the dev server's `/__open-in-editor`, which takes a path
- * relative to the project's root or a full one.
+ * relative to the project's root or a full one: `/src/a.ts` becomes `src/a.ts`, and
+ * `/@fs/home/me/a.ts` or `/@fs/C:/a.ts` the full path after `/@fs`.
  */
 export const openInEditor = async (place: Place): Promise<void> => {
-  const file = /^\/[a-z]:\//iu.test(place.file)
-    ? place.file.slice(1)
-    : place.file.replace(/^\//u, "");
+  const full = place.file.startsWith("/@fs/")
+    ? place.file.slice("/@fs".length)
+    : undefined;
+  let file = place.file.replace(/^\//u, "");
+  if (full !== undefined) {
+    file = /^\/[a-z]:\//iu.test(full) ? full.slice(1) : full;
+  }
   try {
     await fetch(
       `/__open-in-editor?file=${encodeURIComponent(`${file}:${place.line}:${place.column}`)}`

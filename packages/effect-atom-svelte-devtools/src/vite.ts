@@ -1,7 +1,7 @@
 /**
  * The Vite plugin that names your atoms after the variables that hold them.
  *
- * @since 0.1.0
+ * @since 0.2.0
  */
 import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -16,7 +16,7 @@ import { labelAtoms, labelModule } from "./internal/transform.ts";
 /**
  * Options for `atomLabels`.
  *
- * @since 0.1.0
+ * @since 0.2.0
  * @category models
  */
 export interface AtomLabelsOptions {
@@ -24,6 +24,11 @@ export interface AtomLabelsOptions {
   readonly include?: FilterPattern | undefined;
   /** Files to leave alone. Defaults to anything in `node_modules`. */
   readonly exclude?: FilterPattern | undefined;
+  /**
+   * Labels production builds too, for an app that shows its atoms' names in production: the
+   * effect-atom-svelte docs draw each example's graph. Off by default.
+   */
+  readonly builds?: boolean | undefined;
 }
 
 // ./internal/label.ts, or its build next to this file once the package is built.
@@ -47,7 +52,8 @@ const labelFile = (() => {
  * label the code sets itself wins. Members of an `Atom.family` are labelled with their argument,
  * as `todoAtom(3)`.
  *
- * Only the dev server applies it; production builds are left as they are. Put it before
+ * Only the dev server applies it, unless `builds` is set; production builds are left as they are,
+ * and never keep values across reloads. Put it before
  * `sveltekit()` or `svelte()`, so it sees components before they are compiled.
  *
  * **Example** (Adding the plugin)
@@ -63,7 +69,7 @@ const labelFile = (() => {
  * });
  * ```
  *
- * @since 0.1.0
+ * @since 0.2.0
  * @category plugins
  */
 export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
@@ -72,13 +78,18 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
     options.exclude ?? /[\\/]node_modules[\\/]/u
   );
   let root = process.cwd();
+  let serving = true;
   // This package's code and the library's aren't the app's, even when a workspace links them from
   // outside node_modules. Labelling the library would also loop: the label module imports it.
-  const packages = [normalizePath(import.meta.dirname)];
+  // Not import.meta.dirname, which Node only has from 20.11; Vite 5 runs on Node 18.
+  // oxlint-disable-next-line unicorn/prefer-import-meta-properties
+  const here = fileURLToPath(new URL(".", import.meta.url));
+  const packages = [normalizePath(here)];
   return {
-    apply: (_, env) => env.command === "serve",
+    apply: (_, env) => options.builds === true || env.command === "serve",
     configResolved(config) {
       ({ root } = config);
+      serving = config.command === "serve";
       try {
         const require = createRequire(path.join(root, "package.json"));
         const library = require.resolve("effect-atom-svelte/package.json");
@@ -113,7 +124,7 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
       ) {
         return undefined;
       }
-      return labelAtoms(code, id, root);
+      return labelAtoms(code, id, root, { keep: serving });
     },
   };
 };

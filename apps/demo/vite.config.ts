@@ -25,7 +25,8 @@ export default defineConfig({
     llms(),
     // Names atoms after their variables in dev, for the devtools. Before sveltekit(): it labels
     // components' scripts before they are compiled.
-    atomLabels(),
+    // The docs draw each example's atoms by name, in production too (example-graph.svelte).
+    atomLabels({ builds: true }),
     sveltekit({
       adapter: adapter(),
       compilerOptions: { experimental: { async: true } },

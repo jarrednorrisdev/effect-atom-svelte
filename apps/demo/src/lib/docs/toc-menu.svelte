@@ -20,7 +20,7 @@
 {#if toc.entries.length > 0}
   <details
     bind:open
-    class="toc-menu sticky top-14 z-10 -mt-10 mb-8 border-b bg-background text-sm xl:hidden"
+    class="toc-menu sticky top-14 z-[16] -mt-10 mb-8 border-b bg-background text-sm xl:hidden"
   >
     <summary class="flex h-11 cursor-pointer list-none items-center gap-2">
       <span class="font-semibold whitespace-nowrap text-navigation-heading">On this page</span>

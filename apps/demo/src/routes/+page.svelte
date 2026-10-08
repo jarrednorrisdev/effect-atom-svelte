@@ -373,7 +373,12 @@
   }
   /* Everything between the rails keeps clear of them. */
   .rails > * {
-    padding-inline: 2rem;
+    padding-inline: 1rem;
+  }
+  @media (width >= 40rem) {
+    .rails > * {
+      padding-inline: 2rem;
+    }
   }
   /* Get started: two cells ruled like the hero. */
   .ruled-cells {

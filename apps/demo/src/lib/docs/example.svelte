@@ -54,7 +54,8 @@
   } = $props();
 
   // The hooks of every component in the result report the atoms they use to this scope.
-  const scope = provideInspectorScope();
+  // svelte-ignore state_referenced_locally
+  const scope = graph ? provideInspectorScope() : undefined;
 
   // Whether the example's code uses atoms at all, read from its highlighted source with the markup
   // taken out. An example that doesn't gets no graph.
@@ -221,7 +222,7 @@
       data-pagefind-ignore="all"
       {@attach listen}
     >
-      {#if graph}
+      {#if scope}
         <ExampleGraph expected={usesAtoms} {scope} />
       {/if}
       <p class="example-label not-prose">Result</p>
@@ -250,9 +251,6 @@
 </figure>
 
 <style>
-  .example {
-    box-shadow: 0.1rem 0.1rem 0.2rem var(--code-shadow);
-  }
   /* A light tint of the brand color sets the running example apart from the page around it. */
   .demo {
     background: color-mix(in oklab, var(--brand) 4%, var(--background));

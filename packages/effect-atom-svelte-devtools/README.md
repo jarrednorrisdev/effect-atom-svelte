@@ -6,7 +6,7 @@ Developer tools for [effect-atom-svelte](https://atom.jarrednorris.dev): a panel
 bun add -D effect-atom-svelte-devtools
 ```
 
-It reads effect-atom-svelte's inspector, so it needs effect-atom-svelte 0.2 or later. Its version follows effect-atom-svelte's: devtools 0.2 goes with effect-atom-svelte 0.2.
+It reads effect-atom-svelte's inspector, which is new in effect-atom-svelte 0.2: devtools 0.2 goes with effect-atom-svelte 0.2.
 
 ## The panel
 
@@ -26,7 +26,7 @@ It reads effect-atom-svelte's inspector, so it needs effect-atom-svelte 0.2 or l
 
 Use `import.meta.env.DEV` rather than SvelteKit's `dev`: Vite replaces it with `false` in a build, so the import is dropped, where `dev` leaves the panel's code in the build unused.
 
-Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it. It's drawn in hairlines with mono labels, in the page's own colours where your app has shadcn-style tokens (`--background`, `--foreground`, `--border`, `--brand`), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
+Closed, it's a small "Atoms" button in the corner with the registry's count. Open, drag its top line to make it taller or shorter (double-click to reset; with the keyboard, focus it and use the arrow keys), or enlarge it to most of the window; the page gets room below it while it's open, and Escape closes it while focus is inside it. It's drawn in hairlines with mono labels, in the page's own colours where your app has shadcn-style tokens (`--background`, `--foreground`, `--border`, `--brand`), and in zinc and amber, light or dark, where it doesn't. Its bar counts the registry's atoms, readers, updates and interruptions.
 
 It has three views:
 

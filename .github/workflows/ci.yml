@@ -37,7 +37,7 @@ jobs:
           all='["chromium","firefox","webkit"]'
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$BASE^{commit}"; then
             engines=$all
-          elif git diff --name-only "$BASE" HEAD | grep -qE '^(packages/effect-atom-svelte/|apps/demo/e2e/|apps/demo/playwright\.config\.ts$|\.github/workflows/|bun\.lock$|(.*/)?package\.json$)'; then
+          elif git diff --name-only "$BASE" HEAD | grep -qE '^(packages/effect-atom-svelte/|packages/effect-atom-svelte-devtools/|apps/demo/e2e/|apps/demo/playwright\.config\.ts$|\.github/workflows/|bun\.lock$|(.*/)?package\.json$)'; then
             engines=$all
           else
             engines='["chromium"]'
@@ -106,6 +106,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bun run --cwd packages/effect-atom-svelte-devtools build
       - run: bunx playwright test --project=${{ matrix.engine }} --shard=${{ matrix.shard }}/${{ matrix.of }}
         working-directory: apps/demo
       - uses: actions/upload-artifact@v7
@@ -131,6 +132,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bun run --cwd packages/effect-atom-svelte-devtools build
       - run: bunx playwright test -c playwright.hosted.config.ts
         working-directory: apps/demo
       - uses: actions/upload-artifact@v7
@@ -161,8 +163,9 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      # The site imports the library's build.
+      # The site imports the library's build, and the devtools'.
       - run: bun run --cwd packages/effect-atom-svelte build
+      - run: bun run --cwd packages/effect-atom-svelte-devtools build
       - run: bun run --cwd apps/demo deploy --yes --no-input
 
   changeset:

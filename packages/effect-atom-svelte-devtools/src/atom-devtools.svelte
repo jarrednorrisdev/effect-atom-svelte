@@ -20,7 +20,7 @@
   import type { AtomRegistry } from "effect/reactivity";
   import { getRegistry } from "effect-atom-svelte";
   import { inspect, watchRegistries } from "effect-atom-svelte/inspector";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
   import GraphView from "./internal/graph-view.svelte";
   import { Model } from "./internal/model.svelte.ts";
@@ -73,8 +73,15 @@
   let registries = $state.raw<readonly AtomRegistry.AtomRegistry[]>([]);
   let chosen = $state.raw<AtomRegistry.AtomRegistry | undefined>(nearest);
   let model = $state.raw<Model>();
+  let dock = $state<HTMLElement>();
+  let launcher = $state<HTMLElement>();
+  // Opened from the launcher, the dock takes focus; opened as it was left, on load, it doesn't.
+  let focusOnOpen = false;
 
   onMount(() => {
+    if (!enabled) {
+      return;
+    }
     const saved = load();
     open = startOpen ?? saved.open ?? false;
     tab = saved.tab ?? "graph";
@@ -84,9 +91,10 @@
     mounted = true;
 
     const stopWatching = watchRegistries((list) => {
-      registries = list;
-      if (chosen === undefined || !list.includes(chosen)) {
-        chosen = nearest !== undefined && list.includes(nearest) ? nearest : (list[0] ?? nearest);
+      // A registry given as a prop stays in the picker, even one no provider holds.
+      registries = registry !== undefined && !list.includes(registry) ? [registry, ...list] : list;
+      if (chosen === undefined || !registries.includes(chosen)) {
+        chosen = nearest !== undefined && registries.includes(nearest) ? nearest : (registries[0] ?? nearest);
       }
     });
 
@@ -124,7 +132,7 @@
   });
 
   $effect(() => {
-    if (!mounted) {
+    if (!enabled || !mounted) {
       return;
     }
     const saved: Saved = { expanded, height, open, plumbing: showPlumbing, tab };
@@ -143,7 +151,7 @@
 
   // While open, the page gets room below its end, so the dock never hides the last of it.
   $effect(() => {
-    if (!open || !mounted) {
+    if (!enabled || !open || !mounted) {
       return;
     }
     const { body } = document;
@@ -175,6 +183,42 @@
     handle.addEventListener("pointercancel", stop);
   };
 
+  $effect(() => {
+    if (dock !== undefined && focusOnOpen) {
+      focusOnOpen = false;
+      dock.focus();
+    }
+  });
+
+  const openPanel = () => {
+    focusOnOpen = true;
+    open = true;
+  };
+  /** Closes the dock; focus inside it goes back to the launcher, rather than to the page's start. */
+  const closePanel = async () => {
+    const inside = dock?.contains(document.activeElement) ?? false;
+    open = false;
+    if (inside) {
+      await tick();
+      launcher?.focus();
+    }
+  };
+
+  /** The dock's top line from the keyboard: arrows make it taller or shorter, Home resets it. */
+  const resizeByKey = (event: KeyboardEvent) => {
+    const step = event.shiftKey ? 96 : 24;
+    const by = { ArrowDown: -step, ArrowUp: step }[event.key];
+    if (by !== undefined) {
+      event.preventDefault();
+      expanded = false;
+      height = Math.round(shown + by);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      expanded = false;
+      height = 320;
+    }
+  };
+
   const pad = (count: number) => String(count).padStart(2, "0");
 
   const select = (id: number | undefined) => {
@@ -194,19 +238,34 @@
 {#if enabled && mounted && model}
   <div class="devtools" class:dark>
     {#if open}
-      <div
+      <!-- A region of the page, not a modal: the page stays usable with it open. Escape from anything
+           in it closes it. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <section
+        bind:this={dock}
         style:height="{shown}px"
         aria-label="Atom devtools"
         class="dock"
         onkeydown={(event) => {
           if (event.key === "Escape") {
-            open = false;
+            void closePanel();
           }
         }}
-        role="dialog"
         tabindex="-1">
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="resize" ondblclick={() => (height = 320)} onpointerdown={resize} title="Drag to resize; double-click to reset"></div>
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div
+          aria-label="Resize the panel"
+          aria-orientation="horizontal"
+          aria-valuemax={Math.round(innerHeight * 0.85)}
+          aria-valuemin={160}
+          aria-valuenow={Math.round(shown)}
+          class="resize"
+          ondblclick={() => (height = 320)}
+          onkeydown={resizeByKey}
+          onpointerdown={resize}
+          role="separator"
+          tabindex="0"
+          title="Drag to resize; double-click to reset"></div>
         <header class="bar">
           <span class="cell title"><b aria-hidden="true">◎</b> Atoms</span>
           <nav aria-label="Views" class="tabs">
@@ -248,7 +307,7 @@
               {/if}
             </svg>
           </button>
-          <button aria-label="Close the panel" class="cell icon" onclick={() => (open = false)} title="Close (Esc)" type="button">
+          <button aria-label="Close the panel" class="cell icon" onclick={closePanel} title="Close (Esc)" type="button">
             <svg aria-hidden="true" height="12" viewBox="0 0 12 12" width="12">
               <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.25" />
             </svg>
@@ -276,9 +335,9 @@
             <TimelineView {model} onselect={select} {showPlumbing} />
           {/if}
         </div>
-      </div>
+      </section>
     {:else}
-      <button aria-label="Open the atom devtools" class="launcher" onclick={() => (open = true)} type="button">
+      <button bind:this={launcher} aria-label="Open the atom devtools" class="launcher" onclick={openPanel} type="button">
         <b aria-hidden="true">◎</b> Atoms <span class="n">{pad(model.totals.atoms)}</span>
       </button>
     {/if}
@@ -391,6 +450,13 @@
     right: 0;
     top: -4px;
     z-index: 1;
+  }
+  .resize:focus-visible {
+    box-shadow: inset 0 -2px 0 var(--accent);
+    outline: none;
+  }
+  .dock:focus-visible {
+    outline: none;
   }
   .resize:hover {
     box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--accent) 60%, transparent);

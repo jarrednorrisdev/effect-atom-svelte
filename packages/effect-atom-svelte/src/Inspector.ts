@@ -10,7 +10,7 @@
  */
 import { AsyncResult, Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
-import { BROWSER, DEV } from "esm-env";
+import { BROWSER } from "esm-env";
 
 import { defaultIdleTTL, instrumentNode } from "./internal/nodeInternals.ts";
 import { list, watch } from "./internal/registries.ts";
@@ -51,9 +51,9 @@ export type BuildCause =
  *
  * - `build`: its computation returned it.
  * - `write`: `registry.set`, `update` or `modify` (which the write hooks use), on it or on a
- *   writable atom that wrote it.
+ *   writable atom that wrote it, and another atom's `get.set`, which goes through `registry.set`.
  * - `async`: anything else, such as an effect settling or a stream emitting after the computation
- *   returned, or another atom setting it.
+ *   returned.
  *
  * @stability unstable
  * @since 0.2.0
@@ -501,7 +501,7 @@ export interface InspectorScope {
 
 const emptySnapshot: ScopeSnapshot = { edges: [], nodes: [], readers: [] };
 
-/** The scope outside development in the browser: always empty. */
+/** The scope on the server: always empty. */
 const inertScope: InspectorScope = {
   snapshot: () => emptySnapshot,
   subscribe: () => () => undefined,
@@ -745,7 +745,8 @@ class Scope implements InspectorScope {
  * atoms, everything upstream of them, and the hooks that use them. Call it while the component
  * sets up, as context requires.
  *
- * Only in development in the browser; elsewhere it returns a scope that is always empty. Until the
+ * Only in the browser, in development and production alike (the effect-atom-svelte docs draw each
+ * example's atoms from one); on the server it returns a scope that is always empty. Until the
  * scope has a listener it only keeps a list of its hooks: the registry's inspector starts with the
  * first listener.
  *
@@ -772,7 +773,7 @@ class Scope implements InspectorScope {
  * @category inspecting
  */
 export const provideInspectorScope = (): InspectorScope => {
-  if (!(DEV && BROWSER)) {
+  if (!BROWSER) {
     return inertScope;
   }
   const scope = new Scope();
@@ -783,14 +784,14 @@ export const provideInspectorScope = (): InspectorScope => {
 /**
  * Names the component being set up, for the scopes its hooks report to. The atomLabels plugin of
  * effect-atom-svelte-devtools calls it at the top of each component's script; without the plugin,
- * call it yourself. Only in development in the browser.
+ * call it yourself. Only in the browser.
  *
  * @stability unstable
  * @since 0.2.0
  * @category inspecting
  */
 export const nameComponent = (name: string, file?: string): void => {
-  if (DEV && BROWSER) {
+  if (BROWSER) {
     setComponentName(name, file);
   }
 };

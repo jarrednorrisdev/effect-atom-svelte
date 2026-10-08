@@ -539,6 +539,14 @@ html {
 .docs-column .prose {
   counter-reset: section;
 }
+/* Under the pager, the footer's top line is the pager's bottom one; a page without one (the 404)
+   gives it room of its own. */
+.docs-footer {
+  margin-top: 4rem;
+}
+.pager + .docs-footer {
+  margin-top: 0;
+}
 .docs-column .prose h2,
 .docs-footer {
   margin-inline: calc(-1 * var(--reach));

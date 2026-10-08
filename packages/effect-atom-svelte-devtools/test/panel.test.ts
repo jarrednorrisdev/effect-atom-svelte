@@ -45,7 +45,7 @@ describe("names", () => {
     });
     expect(
       parseFrame("    at http://localhost:5173/@fs/J:/app/src/a.ts?t=1:12:3")
-    ).toEqual({ column: 3, file: "/J:/app/src/a.ts", line: 12 });
+    ).toEqual({ column: 3, file: "/@fs/J:/app/src/a.ts", line: 12 });
     expect(parseFrame("no place here")).toBeUndefined();
   });
 

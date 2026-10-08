@@ -356,11 +356,15 @@ const hash = (text: string): string => {
   return value.toString(36);
 };
 
-/** Where a file is, as the dev server addresses it: relative to `root`, with forward slashes. */
+/**
+ * Where a file is, as the dev server addresses it, with forward slashes: relative to `root`, or
+ * outside it by its full path after `/@fs/`.
+ */
 const address = (file: string, root: string): string => {
   const relative = path.relative(root, file);
   const inside = !relative.startsWith("..") && !path.isAbsolute(relative);
-  return (inside ? `/${relative}` : file).replaceAll("\\", "/");
+  const slashed = (inside ? relative : file).replaceAll("\\", "/");
+  return inside ? `/${slashed}` : `/@fs/${slashed.replace(/^\//u, "")}`;
 };
 
 /** Wraps each labelled declaration's call in `label(...)`, and each factory's callee in `call(...)`. */
@@ -405,7 +409,8 @@ const wrap = (
 export const labelAtoms = (
   code: string,
   file: string,
-  root: string
+  root: string,
+  { keep = true }: { readonly keep?: boolean } = {}
 ):
   | { code: string; map: ReturnType<MagicString["generateMap"]> }
   | undefined => {
@@ -451,6 +456,10 @@ export const labelAtoms = (
     return undefined;
   }
 
+  if (!keep) {
+    // A build has no hot reloads to keep values across.
+    found = found.map((site) => ({ ...site, keep: false }));
+  }
   const at = locate(code);
   const place = address(file, root);
   const output = new MagicString(code);

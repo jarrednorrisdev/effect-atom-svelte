@@ -33,13 +33,28 @@
         href="#{entry.id}"
         onclick={onnavigate}
       >
+        <!-- The number is drawn by CSS, so it isn't part of the link's text. -->
         {#if numbers.get(entry.id)}
-          <span aria-hidden="true" class="pt-px font-mono text-xs text-brand-text tabular-nums"
-            >{numbers.get(entry.id)}</span
-          >
+          <span class="number" data-number={numbers.get(entry.id)}></span>
         {/if}
         <span>{entry.title}</span>
       </a>
     </li>
   {/each}
 </ul>
+
+
+<style>
+  .number::before {
+    color: var(--brand-text);
+    content: attr(data-number) / "";
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1rem;
+  }
+  .number {
+    display: block;
+    padding-top: 1px;
+  }
+</style>

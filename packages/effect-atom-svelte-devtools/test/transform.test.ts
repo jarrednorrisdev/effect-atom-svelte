@@ -233,9 +233,9 @@ describe("labelAtoms", () => {
     );
   });
 
-  test("addresses a file outside the root by its full path", () => {
+  test("addresses a file outside the root by its full path, as /@fs/ does", () => {
     expect(
       transform("const a = Atom.make(0);", "/elsewhere/atoms.ts")
-    ).toContain('"/elsewhere/atoms.ts:1:7"');
+    ).toContain('"/@fs/elsewhere/atoms.ts:1:7"');
   });
 });

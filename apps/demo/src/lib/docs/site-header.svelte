@@ -19,7 +19,9 @@
   // cross goes once the hero has scrolled away.
   let scrollY = $state(0);
   let innerHeight = $state(0);
-  const pastHero = $derived(scrollY > innerHeight - 56);
+  // innerHeight is 0 on the server, where nothing has scrolled: the cross shows there as it will on
+  // load, so hydration finds what the server rendered.
+  const pastHero = $derived(innerHeight > 0 && scrollY > innerHeight - 56);
 </script>
 
 <svelte:window bind:innerHeight bind:scrollY />
@@ -36,7 +38,6 @@
       <a class="min-w-0 truncate font-semibold tracking-tight whitespace-nowrap text-foreground" href="/"
         >effect-atom-svelte</a
       >
-      <!-- A docs page's brand cell is only the sidebar's width: the badge fits on the landing page. -->
       {#if landing}
         <span
           class="hidden shrink-0 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap text-muted-foreground xl:inline"
@@ -45,6 +46,14 @@
         </span>
       {/if}
     </div>
+    <!-- A docs page's brand cell is only the sidebar's width, so the badge has a cell of its own. -->
+    {#if !landing}
+      <div
+        class="cell note hidden font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase lg:flex"
+      >
+        Community project
+      </div>
+    {/if}
     <div class="tools">
       <div class="cell search">
         <SearchButton />
@@ -136,6 +145,11 @@
       padding-inline: 1.25rem;
     }
   }
+  .note {
+    flex: 1 1 0;
+    overflow: hidden;
+    padding-inline: 1.5rem;
+  }
   .tools {
     display: flex;
     justify-content: flex-end;
@@ -217,6 +231,9 @@
     .search,
     .control {
       width: 2.75rem;
+    }
+    .search {
+      padding-inline: 0;
     }
   }
   /* A cross on the 1px square where the sidebar's edge meets the header's bottom line, its arms

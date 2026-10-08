@@ -56,10 +56,10 @@
   <!-- Row 1: labels. -->
   <div bind:contentRect={labelsRect} class="row labels">
     <div class="cell">
-      <span>A</span><span>One Effect → one atom → every component that reads it</span>
+      <span aria-hidden="true">A</span><span>One Effect → one atom → every component that reads it</span>
     </div>
     <div class="cell hidden lg:flex">
-      <span>B</span><span>When to reach for atoms</span>
+      <span aria-hidden="true">B</span><span>When to reach for atoms</span>
     </div>
     <!-- No crosses: the site header draws them on its own bottom line, which this row sits under. -->
   </div>
@@ -76,10 +76,10 @@
   <!-- Row 3: where to go next. -->
   <div class="row foot">
     <a class="cell next" href="#where-atoms-fit" onclick={seeItRun}>
-      <span>01–04</span>Four reasons, each running on this page <ArrowDownIcon class="size-3.5" />
+      <span aria-hidden="true">01–04</span>Four reasons, each running on this page <ArrowDownIcon class="size-3.5" />
     </a>
     <div class="cell hidden lg:flex">
-      <span>MIT</span>A community project · not made by the Effect team
+      <span aria-hidden="true">MIT</span>A community project · not made by the Effect team
     </div>
     <i class="cross" style:left="-1px"></i>
     <i class="cross mid hidden lg:block"></i>
