@@ -64,6 +64,19 @@ describe("names", () => {
     expect(parseFrame("no place here")).toBeUndefined();
   });
 
+  test("reads a browser URL in a SvelteKit route group, whose folder holds parentheses", () => {
+    expect(
+      parseFrame(
+        "    at http://localhost:5173/src/routes/(app)/+page.svelte?t=1:5:9"
+      )
+    ).toEqual({ column: 9, file: "/src/routes/(app)/+page.svelte", line: 5 });
+    expect(
+      parseFrame(
+        "    at Object.load (http://localhost:5173/src/routes/(app)/+page.ts?t=1:5:9)"
+      )
+    ).toEqual({ column: 9, file: "/src/routes/(app)/+page.ts", line: 5 });
+  });
+
   test("identifies an atom by its label and key", () => {
     const named = Atom.make(0).pipe(Atom.withLabel("countAtom"));
     expect(identify(named).name).toBe("countAtom");

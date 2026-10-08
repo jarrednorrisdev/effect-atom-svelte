@@ -277,4 +277,52 @@ describe("labelAtoms", () => {
       "__effectAtomSvelteLabel(Atom.make(0)"
     );
   });
+
+  test("labels the instance script after a comment that mentions <svelte:head>", () => {
+    const component = [
+      "<!-- The title moved out of <svelte:head> into the layout. -->",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<svelte:head>",
+      "  <title>Counter</title>",
+      "</svelte:head>",
+    ].join("\n");
+    const out = transform(component, "/app/src/lib/counter.svelte");
+    expect(out).toContain("__effectAtomSvelteLabel(Atom.make(0)");
+    // One instance script, not a second one added for the component's name.
+    expect(out?.match(/<script/gu)?.length).toBe(1);
+  });
+});
+
+describe("keeping state across hot reloads, through a pipe", () => {
+  // A mapped atom writes through to its source, so carrying its value over would write the mapped
+  // value into the source: `Atom.make(1).pipe(Atom.map((n) => n * 2))` set to 5 reads 10, and read
+  // 20 after a reload.
+  test("keeps only a pipe of Atom.make that leaves it a state atom", () => {
+    expect(keep("const a = Atom.make(0).pipe(Atom.keepAlive);")).toBeDefined();
+    expect(
+      keep("const a = Atom.make(1).pipe(Atom.map((n) => n * 2));")
+    ).toBeUndefined();
+    expect(
+      keep("const a = Atom.make([]).pipe(Atom.optimistic);")
+    ).toBeUndefined();
+  });
+
+  // These return a copy of the same state atom, as keepAlive does.
+  test("keeps a pipe of Atom.make through setLazy, withEquality or withServerValue", () => {
+    expect(
+      keep("const a = Atom.make(0).pipe(Atom.setLazy(false));")
+    ).toBeDefined();
+    expect(
+      keep(
+        "const a = Atom.make({ n: 0 }).pipe(Atom.withEquality((x, y) => x.n === y.n));"
+      )
+    ).toBeDefined();
+    expect(
+      keep(
+        'const a = Atom.make("dark").pipe(Atom.withServerValue(() => "light"));'
+      )
+    ).toBeDefined();
+  });
 });

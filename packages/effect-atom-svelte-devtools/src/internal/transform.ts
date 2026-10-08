@@ -123,6 +123,35 @@ const plainValues = new Set([
   "UnaryExpression",
 ]);
 
+// What a state atom can be piped through and stay one: what is written to it is still what it
+// reads. `Atom.map` and the like write through to their source, so their value can't be written
+// back.
+const stateKeeping = new Set([
+  "keepAlive",
+  "autoDispose",
+  "setIdleTTL",
+  "setLazy",
+  "withEquality",
+  "withLabel",
+  "serializable",
+  "withServerValue",
+  "withServerValueInitial",
+]);
+
+/** Whether `Atom.keepAlive`, `Atom.setIdleTTL(...)` or the like: one of `stateKeeping`. */
+const keepsState = (argument: Node): boolean => {
+  const node = unwrap(argument);
+  const callee =
+    node.type === "CallExpression" ? unwrap(node.callee as Node) : node;
+  return (
+    callee.type === "MemberExpression" &&
+    !callee.computed &&
+    (callee.object as Node).type === "Identifier" &&
+    (callee.object as Node).name === "Atom" &&
+    stateKeeping.has(String((callee.property as Node).name))
+  );
+};
+
 /**
  * Whether the call makes a state atom, such as `Atom.make(0)` or `Atom.make([]).pipe(...)`: one
  * that holds what is written to it, which a hot reload can carry over.
@@ -135,7 +164,11 @@ const isState = (node: Node): boolean => {
   const object = callee.object as Node;
   const property = callee.property as Node;
   if (property.type === "Identifier" && property.name === "pipe") {
-    return object.type === "CallExpression" && isState(object);
+    return (
+      object.type === "CallExpression" &&
+      isState(object) &&
+      (node.arguments as Node[]).every(keepsState)
+    );
   }
   const [argument] = node.arguments as Node[];
   return (
@@ -310,9 +343,12 @@ const scriptPattern =
 /** The scripts of a component: where each one's code starts, the code, and if it is the module script. */
 const scripts = (source: string) => {
   const found: { start: number; code: string; module: boolean }[] = [];
+  // Comments are matched too, so one that mentions <svelte:head> doesn't start a head.
   const heads = [
-    ...source.matchAll(/<svelte:head\b[^]*?<\/svelte:head>/gu),
-  ].map((m) => [m.index, m.index + m[0].length] as const);
+    ...source.matchAll(/<!--[^]*?-->|<svelte:head\b[^]*?<\/svelte:head>/gu),
+  ]
+    .filter((m) => m[0].startsWith("<svelte:head"))
+    .map((m) => [m.index, m.index + m[0].length] as const);
   for (const match of source.matchAll(scriptPattern)) {
     const { attributes, code } = match.groups ?? {};
     if (attributes === undefined || code === undefined) {

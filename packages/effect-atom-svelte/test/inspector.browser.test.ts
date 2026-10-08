@@ -265,6 +265,27 @@ describe("inspect", () => {
     }
     registry.dispose();
   });
+
+  test("a refresh that changes nothing doesn't make a later computation 'Refreshed'", () => {
+    const registry = AtomRegistry.make();
+    const base = Atom.make(1).pipe(Atom.withLabel("base"));
+    const double = base.pipe(
+      Atom.map((n) => n * 2),
+      Atom.withLabel("double")
+    );
+    const release = registry.mount(double);
+    const log = record(registry);
+    registry.refresh(double);
+    log.length = 0;
+    registry.set(base, 5);
+    expect(log).toEqual([
+      "Updated base 1 -> 5 (write)",
+      "Built double ParentChanged(base)",
+      "Updated double 2 -> 10 (build)",
+    ]);
+    release();
+    registry.dispose();
+  });
 });
 
 describe("registries", () => {

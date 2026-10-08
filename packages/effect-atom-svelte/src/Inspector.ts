@@ -297,7 +297,15 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
     if (node !== undefined) {
       record(node).refreshed = true;
     }
-    refresh.call(registry, atom);
+    try {
+      refresh.call(registry, atom);
+    } finally {
+      // Still valid: the refresh didn't reach it (what it wraps computed an equal value), or it
+      // computed already. Either way the mark isn't the cause of a later computation.
+      if (node?.currentState() === "valid") {
+        record(node).refreshed = false;
+      }
+    }
   };
   patchable.onNodeAdded = (node) => {
     onNodeAdded?.(node);
