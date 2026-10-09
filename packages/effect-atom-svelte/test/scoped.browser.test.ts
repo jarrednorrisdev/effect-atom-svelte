@@ -6,6 +6,7 @@ import { commands } from "vitest/browser";
 
 import ScopedRemountFade from "./fixtures/scoped-remount-fade.svelte";
 import { familyComputed, scopedComputed } from "./fixtures/scoped-seed.ts";
+import SsrFamilyThread from "./fixtures/ssr-family-thread.svelte";
 import SsrScopedFamily from "./fixtures/ssr-scoped-family.svelte";
 import SsrScopedRemount from "./fixtures/ssr-scoped-remount.svelte";
 import { sleep } from "./helpers.ts";
@@ -121,6 +122,32 @@ const serverOutputs = (body: string) =>
       .parseFromString(body, "text/html")
       .querySelectorAll("output"),
   ].map((output) => output.textContent);
+
+describe("a family for data that belongs to an id", () => {
+  beforeAll(async () => {
+    await commands.renderOnServer("/test/fixtures/ssr-family-thread.svelte");
+  }, 120_000);
+
+  test("a list that repeats an id renders on the server and hydrates without computing", async () => {
+    familyComputed.length = 0;
+    const { body } = await commands.renderOnServer(
+      "/test/fixtures/ssr-family-thread.svelte"
+    );
+    expect(serverOutputs(body)).toEqual([
+      "a from the server",
+      "b from the server",
+      "a from the server",
+    ]);
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-family-thread.svelte",
+      SsrFamilyThread
+    );
+    await expect
+      .poll(outputs(target))
+      .toEqual(["a from the server", "b from the server", "a from the server"]);
+    expect(familyComputed).toEqual([]);
+  });
+});
 
 describe("ScopedAtom providing a family's atom", () => {
   beforeAll(async () => {
