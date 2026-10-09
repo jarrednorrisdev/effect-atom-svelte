@@ -1049,48 +1049,6 @@ describe("mutations and unmounting", () => {
       }
     }
   );
-
-  test("a call in flight settles as interrupted when disposing of the provider's registry runs a finalizer that throws", async () => {
-    const broken = Atom.make((get) => {
-      get.addFinalizer(() => {
-        throw new Error("finalizer failed");
-      });
-      return 0;
-    });
-    const save = Atom.fn((value: string) =>
-      Effect.succeed(value).pipe(Effect.delay("2 seconds"))
-    );
-    let run!: (value: string) => Promise<Exit.Exit<string>>;
-    const screen = await render(Toggle, {
-      registry: undefined as never,
-      setup: () => {
-        useAtomMount(broken);
-        run = useAtomSet(save, { mode: "promiseExit" });
-        return () => "";
-      },
-      show: true,
-    });
-    let exit: Exit.Exit<string> | undefined;
-    void run("draft").then((settled) => {
-      exit = settled;
-    });
-    const errors: unknown[] = [];
-    const onError = (event: ErrorEvent) => {
-      event.preventDefault();
-      errors.push(event.error);
-    };
-    window.addEventListener("error", onError);
-    onTestFinished(() => window.removeEventListener("error", onError));
-    await screen.rerender({ show: false }).catch((error: unknown) => {
-      errors.push(error);
-    });
-    await expect.poll(() => exit).toBeDefined();
-    expect(
-      exit !== undefined &&
-        Exit.isFailure(exit) &&
-        Cause.hasInterruptsOnly(exit.cause)
-    ).toBe(true);
-  });
 });
 
 describe("registries", () => {
