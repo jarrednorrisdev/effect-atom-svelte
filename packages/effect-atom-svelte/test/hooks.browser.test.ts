@@ -999,6 +999,34 @@ describe("getter switches (JND-60)", () => {
 });
 
 describe("a reader's own first build after mount", () => {
+  test("a failed rebuild that a later read recovers reaches the page", async () => {
+    const registry = AtomRegistry.make();
+    const flag = { n: 1, ok: true };
+    const atom = Atom.make(() => {
+      if (!flag.ok) {
+        throw new Error("broken");
+      }
+      return flag.n;
+    });
+    let cell: { readonly current: number } | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        cell = value;
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    flag.ok = false;
+    flag.n = 2;
+    expect(() => registry.refresh(atom)).toThrow("broken");
+    flag.ok = true;
+    // An imperative read, as from an event handler, rebuilds the stale node and announces it.
+    expect(cell?.current).toBe(2);
+    await expect.element(output(screen)).toHaveTextContent("2");
+  });
+
   test("a getter switch to an atom not built yet runs the transform once for it", async () => {
     const registry = AtomRegistry.make();
     const calls: string[] = [];

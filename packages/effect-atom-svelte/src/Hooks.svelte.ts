@@ -150,6 +150,7 @@ interface RegistryNode {
   readonly _value: unknown;
   readonly setValue: (value: unknown) => void;
   readonly setInitialValue: (value: unknown) => void;
+  readonly currentState: () => string;
   readonly subscribe: (listener: () => void) => () => void;
 }
 
@@ -283,7 +284,10 @@ const subscribedReader = <A>(
   // unchanged value, and re-ran an $effect that first read the atom. Only the build's own
   // announcement is dropped: a value set during a registry batch is announced at commit, after
   // `reading` is reset, and later changes arrive as usual. A getter switched in onMount once
-  // depended on that update, by accident (JND-98, fixed in the effect below).
+  // depended on that update, by accident (JND-98, fixed in the effect below). After mount, only a
+  // first build is dropped: a stale node the read rebuilds, as after a failed rebuild, announces a
+  // value the reader's other reads haven't seen.
+  let mounted = false;
   let reading: Atom.Atom<A> | undefined;
   const listen = (current: Atom.Atom<A>, update: () => void) =>
     registry.subscribe(current, () => {
@@ -300,6 +304,7 @@ const subscribedReader = <A>(
     return notify ? listen(current, notify) : undefined;
   };
   $effect(() => {
+    mounted = true;
     committed = getAtom();
     if (kept && kept.atom !== committed) {
       releaseKept();
@@ -359,8 +364,18 @@ const subscribedReader = <A>(
       }
       subscribe();
       const outer = reading;
-      reading = current;
+      if (!mounted) {
+        reading = current;
+      }
       try {
+        // After mount, only a first build is dropped: a stale node rebuilt here, as after a failed
+        // rebuild, announces a change other reads of this reader have not seen.
+        if (
+          internals(registry).ensureNode(current).currentState() ===
+          "uninitialized"
+        ) {
+          reading = current;
+        }
         return registry.get(current);
       } finally {
         reading = outer;
