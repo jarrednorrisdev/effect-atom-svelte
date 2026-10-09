@@ -5,7 +5,8 @@ import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
 import ScopedRemountFade from "./fixtures/scoped-remount-fade.svelte";
-import { scopedComputed } from "./fixtures/scoped-seed.ts";
+import { familyComputed, scopedComputed } from "./fixtures/scoped-seed.ts";
+import SsrScopedFamily from "./fixtures/ssr-scoped-family.svelte";
 import SsrScopedRemount from "./fixtures/ssr-scoped-remount.svelte";
 import { sleep } from "./helpers.ts";
 
@@ -110,5 +111,58 @@ describe("ScopedAtom with server rendering", () => {
       .poll(outputs(target), { timeout: 5000 })
       .toEqual(["a from the browser"]);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+/** The text of each <output> in server-rendered HTML. */
+const serverOutputs = (body: string) =>
+  [
+    ...new DOMParser()
+      .parseFromString(body, "text/html")
+      .querySelectorAll("output"),
+  ].map((output) => output.textContent);
+
+describe("ScopedAtom providing a family's atom", () => {
+  beforeAll(async () => {
+    await commands.renderOnServer("/test/fixtures/ssr-scoped-family.svelte");
+  }, 120_000);
+
+  test("two providers of one input make two different atoms with one key, which fails the server render", async () => {
+    // Thrown during the render, past any boundary: the whole render fails.
+    await expect(
+      commands.renderOnServer("/test/fixtures/ssr-scoped-same-input.svelte")
+    ).rejects.toThrow(
+      'Two different atoms share the serialization key "scoped-user-a"'
+    );
+  });
+
+  test("two providers of one input share the family's atom: the server renders both, and the browser hydrates without computing", async () => {
+    familyComputed.length = 0;
+    const { body } = await commands.renderOnServer(
+      "/test/fixtures/ssr-scoped-family.svelte"
+    );
+    expect(serverOutputs(body)).toEqual([
+      "a from the server",
+      "a from the server",
+      "b from the server",
+    ]);
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-scoped-family.svelte",
+      SsrScopedFamily
+    );
+    await expect
+      .poll(outputs(target))
+      .toEqual(["a from the server", "a from the server", "b from the server"]);
+    expect(familyComputed).toEqual([]);
+
+    // The remounted provider gets the same atom from the family, still holding the server's value.
+    click(target, "remount");
+    await sleep("50 millis");
+    expect(outputs(target)()).toEqual([
+      "a from the server",
+      "a from the server",
+      "b from the server",
+    ]);
+    expect(familyComputed).toEqual([]);
   });
 });

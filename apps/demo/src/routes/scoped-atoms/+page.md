@@ -80,4 +80,25 @@ Both give you more than one atom from one definition. Choose by where the atom b
 
 Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
 
-If the value comes from the server, use a family, not a scoped atom. The server sends one value per serialization key, and every atom with that key shares it, so a serializable scoped atom loses what makes it scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers on one page with the same key make the server render throw `Two different atoms share the serialization key`. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
+### Values from the server
+
+A value from the server belongs to its id, not to a place on the page. The server sends one value per serialization key, and every atom with that key shares it, so a scoped atom that makes its own serializable atom isn't really scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers with the same input make the server render throw `Two different atoms share the serialization key`.
+
+Make the atom a family instead. If components below should still reach it without being passed the id, provide the family's atom with a scoped atom:
+
+```ts
+export const userAtom = Atom.family((id: string) =>
+  Atom.make(fetchUser(id)).pipe(
+    Atom.serializable({ key: `user-${id}`, schema: UserResult })
+  )
+);
+
+// UserProvider calls User.provide(id); components below call User.use()
+export const User = ScopedAtom.make((id: string) => userAtom(id), {
+  name: "User",
+});
+```
+
+Every provider of the same id now holds the same atom, so any number of them can share a page, on the server too. The provider still reads its input once: if its `id` prop can change, read `userAtom(id)` with a getter instead, as in [Families](/families).
+
+Without a serialization key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
