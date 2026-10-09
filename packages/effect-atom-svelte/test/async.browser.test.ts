@@ -14,6 +14,7 @@ import CityWeather from "./fixtures/city-weather.svelte";
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
+import SuspenseInEffect from "./fixtures/suspense-in-effect.svelte";
 import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
@@ -102,6 +103,19 @@ describe("useAtomSuspense", () => {
       },
     });
     await expect.poll(text(screen)).toBe("failed: boom");
+  });
+
+  test("a synchronously resolving atom awaited in an $effect runs the code after the await once", async () => {
+    const registry = AtomRegistry.make();
+    const seen: unknown[] = [];
+    await render(SuspenseInEffect, {
+      atom: Atom.make(Effect.succeed(7)),
+      registry,
+      seen,
+    });
+    await expect.poll(() => seen.length).toBeGreaterThan(0);
+    await sleep("50 millis");
+    expect(seen).toEqual([7]);
   });
 
   test("includeFailure resolves with the Failure instead of rejecting", async () => {

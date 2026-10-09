@@ -273,21 +273,21 @@ const subscribedReader = <A>(
     kept?.cancel();
     kept = undefined;
   };
-  // Whether the component has mounted: its effects have run once.
-  let mounted = false;
   // The atom this reader's own registry.get is reading. A subscribed node is rebuilt as soon as it
   // goes stale, so the read builds it only the first time, and that build announces the very value
-  // the read returns. Before the component mounts, that announcement can only re-render its first
-  // render, which already has the value, so it is dropped. Delivered on a microtask it started a
-  // Svelte batch that, when the first render ran after an await in markup (a HydrationBoundary
-  // awaiting its state), committed before hydration's own and made Svelte's dev build throw "Batch
-  // has scheduled effects" (JND-95). After mount it is still delivered, as before. Nothing depends
-  // on the update it starts: a getter switched in onMount once did, by accident, as that update
-  // rendered before the registry swept the old atom (JND-98, fixed in the effect below).
+  // the read returns, so it is dropped: it could only re-render a read that already has the value.
+  // Before mount, delivered on a microtask it started a Svelte batch that, when the first render ran
+  // after an await in markup (a HydrationBoundary awaiting its state), committed before hydration's
+  // own and made Svelte's dev build throw "Batch has scheduled effects" (JND-95). After mount, a
+  // getter switched to an atom not built yet ran a transform twice, made a new object for an
+  // unchanged value, and re-ran an $effect that first read the atom. Only the build's own
+  // announcement is dropped: a value set during a registry batch is announced at commit, after
+  // `reading` is reset, and later changes arrive as usual. A getter switched in onMount once
+  // depended on that update, by accident (JND-98, fixed in the effect below).
   let reading: Atom.Atom<A> | undefined;
   const listen = (current: Atom.Atom<A>, update: () => void) =>
     registry.subscribe(current, () => {
-      if (mounted || reading !== current) {
+      if (reading !== current) {
         update();
       }
     });
@@ -300,7 +300,6 @@ const subscribedReader = <A>(
     return notify ? listen(current, notify) : undefined;
   };
   $effect(() => {
-    mounted = true;
     committed = getAtom();
     if (kept && kept.atom !== committed) {
       releaseKept();
