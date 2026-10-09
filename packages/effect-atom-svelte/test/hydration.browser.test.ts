@@ -12,6 +12,7 @@ import HydratePending from "./fixtures/hydrate-pending.svelte";
 import HydrateReaderAboveToggle from "./fixtures/hydrate-reader-above-toggle.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
+import ProviderSeedReadAbove from "./fixtures/provider-seed-read-above.svelte";
 import { providerSeedSeen } from "./fixtures/provider-seed.ts";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import {
@@ -42,6 +43,7 @@ import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
 import SsrUnsentAfterAwait from "./fixtures/ssr-unsent-after-await.svelte";
 import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
 import SsrValueAndSuspense from "./fixtures/ssr-value-and-suspense.svelte";
+import SsrValueReaderSwitch from "./fixtures/ssr-value-reader-switch.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import TwoBoundaries from "./fixtures/two-boundaries.svelte";
 import {
@@ -309,6 +311,34 @@ describe("HydrationBoundary destroyed before a promise-encoded value lands", () 
     registry.dispose();
   });
 
+  test("doesn't hand the late value to a reader that came after the boundary's own reader was swept", async () => {
+    const registry = AtomRegistry.make();
+    const late = Deferred.makeUnsafe<unknown>();
+    const resultPromise = Effect.runPromise(Deferred.await(late));
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "count",
+        resultPromise,
+        value: 0,
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as Hydration.DehydratedAtom[];
+    const screen = await render(Hydrate, { registry, setup: readCount, state });
+    await expect.poll(text(screen)).toBe("0");
+    await screen.unmount();
+    await expect.poll(() => registry.getNodes().has("count")).toBe(false);
+    // A reader on the next page, whose node is a new one.
+    const release = registry.mount(countAtom);
+    Deferred.doneUnsafe(late, Effect.succeed(42));
+    await resultPromise;
+    // Nothing to wait for when the value is rightly dropped, so give a wrong hand-off a moment.
+    await sleep("20 millis");
+    expect(registry.get(countAtom)).toBe(0);
+    release();
+    registry.dispose();
+  });
+
   test("hands the late value to a reader above it that already held the atom", async () => {
     const schema = AsyncResult.Schema({ success: Schema.String });
     const encode = Schema.encodeSync(schema);
@@ -540,6 +570,44 @@ describe("hydrating server output", () => {
       .toEqual(["Success", "a from the server"]);
     await sleep(afterSweep);
     expect(computed).toEqual([]);
+  });
+
+  test("a plain reader shows Initial, waiting, while the server's value for its atom is on its way", async () => {
+    computed.length = 0;
+    const seed = Deferred.makeUnsafe<unknown>();
+    let value: unknown;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-value-reader-switch.svelte",
+      SsrValueReaderSwitch,
+      () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      }
+    );
+    await expect.poll(() => outputs(target)()[0]).toBe("Initial waiting");
+    Deferred.doneUnsafe(seed, Effect.succeed(value));
+    await expect.poll(() => outputs(target)()[0]).toBe("Success");
+    expect(computed).toEqual([]);
+  });
+
+  test("a plain reader switched to another atom before its seed lands shows that atom at once", async () => {
+    computed.length = 0;
+    const seed = Deferred.makeUnsafe<unknown>();
+    let value: unknown;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-value-reader-switch.svelte",
+      SsrValueReaderSwitch,
+      () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      }
+    );
+    await expect.poll(() => outputs(target)()[0]).toBe("Initial waiting");
+    click(target, "other");
+    await expect.poll(() => outputs(target)()[0]).toBe("Success");
+    Deferred.doneUnsafe(seed, Effect.succeed(value));
   });
 
   test("useAtomResult destroyed before its seed lands computes nothing", async () => {
@@ -1086,6 +1154,27 @@ describe("RegistryProvider initialValues with a HydrationBoundary", () => {
     // Hydration must start from the server's markup, not flash the provider's default.
     expect(providerSeedSeen).toEqual([2]);
   }, 120_000);
+
+  test("rendered in the browser alone, the boundary's value replaces an unread initial value before the children render", async () => {
+    providerSeedSeen.length = 0;
+    const screen = await render(SsrProviderSeed);
+    await expect.poll(text(screen)).toBe("2");
+    expect(providerSeedSeen).toEqual([2]);
+  });
+
+  test("rendered in the browser alone, an initial value already read above the boundary is updated after the children render", async () => {
+    providerSeedSeen.length = 0;
+    const screen = await render(ProviderSeedReadAbove);
+    await expect
+      .poll(() =>
+        [...screen.container.querySelectorAll("output")].map(
+          (output) => output.textContent
+        )
+      )
+      .toEqual(["above 2", "2"]);
+    // What is on the page already doesn't jump to the incoming value mid-render.
+    expect(providerSeedSeen[0]).toBe(1);
+  });
 
   test("an atom read above the boundary: the boundary's children hydrate with what the server rendered", async () => {
     providerSeedSeen.length = 0;
