@@ -357,6 +357,24 @@ describe("labelAtoms", () => {
     );
   });
 
+  test("leaves the calls of a script in a component's markup alone when its style needs a preprocessor", () => {
+    const component = [
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<div>",
+      "  <script>const theme = localStorage.getItem('theme');</script>",
+      "</div>",
+      '<style lang="scss">',
+      "  $gap: 4px;",
+      "  div { margin: $gap; }",
+      "</style>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "<script>const theme = localStorage.getItem('theme');</script>"
+    );
+  });
+
   test("labels the instance script after a style with an emoji in it", () => {
     const component = [
       "<style>",
