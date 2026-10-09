@@ -82,7 +82,9 @@ Either way, the atom's value lives in the registry, and the usual [lifetimes](/l
 
 ### Values from the server
 
-Data that belongs to an id, such as a user or a todo, is a family's job, not a scoped atom's. A scoped atom is for state that belongs to a place on the page, such as a draft in one editor, where two places really should hold two values.
+A value from the server belongs to its id, not to a place on the page. The server sends one value per serialization key, and every atom with that key shares it, so a scoped atom that makes its own serializable atom isn't really scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers with the same input make the server render throw `Two different atoms share the serialization key`. That happens easily: give each comment in a thread a provider for its author, and an author who comments twice puts two providers with the same id on the page.
+
+Make the atom a family instead. If components below should still reach it without being passed the id, provide the family's atom with a scoped atom:
 
 ```ts
 export const userAtom = Atom.family((id: string) =>
@@ -90,20 +92,13 @@ export const userAtom = Atom.family((id: string) =>
     Atom.serializable({ key: `user-${id}`, schema: UserResult })
   )
 );
+
+// UserProvider calls User.provide(id); components below call User.use()
+export const User = ScopedAtom.make((id: string) => userAtom(id), {
+  name: "User",
+});
 ```
 
-```svelte
-<!-- CommentCard.svelte -->
-<script lang="ts">
-  const { comment } = $props();
-  const author = useAtomSuspense(() => userAtom(comment.authorId));
-</script>
-```
-
-Every comment by the same author reads the same atom, so the server sends its value once.
-
-A scoped atom that makes its own serializable atom goes wrong instead. The server sends one value per serialization key, so every copy shares the value anyway: remounting a provider with `{#key}` doesn't reset it. Worse, two providers with the same input make the server render throw `Two different atoms share the serialization key`, and that happens as soon as a list repeats an id, such as a provider per comment for its author and an author who comments twice.
-
-If you do want components below to reach a family's atom without being passed the id, a scoped atom can provide it: `ScopedAtom.make((id: string) => userAtom(id))`. Every provider of one id then holds the same atom.
+Every provider of the same id now holds the same atom, so any number of them can share a page, on the server too. The provider still reads its input once: if its `id` prop can change, read `userAtom(id)` with a getter instead, as in [Families](/families).
 
 Without a serialization key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
