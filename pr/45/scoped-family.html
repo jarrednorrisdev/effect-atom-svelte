@@ -191,7 +191,7 @@
   .strip { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
   .frames { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .frame {
-    width: 44px; height: 40px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    min-width: 44px; padding: 0 9px; height: 40px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center;
     font: 600 17px var(--mono); color: var(--muted-fg); opacity: .3; transition: opacity .3s, border-color .3s, background .3s, color .3s;
   }
   .frame.seen { opacity: 1; color: var(--fg); }
@@ -222,6 +222,12 @@
 /* Last, so no later `font` shorthand turns them back on: JetBrains Mono draws => and <!-- as arrows. */
 code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 
+/* A box marked wrong or right. Last, so it wins over the active ring's border. */
+.node.tone-bad, .chip.tone-bad { border: 1px solid var(--bad); background: color-mix(in oklab, var(--bad) 9%, var(--bg)); }
+.node.tone-ok, .chip.tone-ok { border: 1px solid var(--ok); background: color-mix(in oklab, var(--ok) 8%, var(--bg)); }
+.tone-bad .val, .tone-bad pre b, .tone-bad .body { color: var(--bad); border-color: var(--bad); }
+.tone-ok .val, .tone-ok pre b, .tone-ok .body { color: var(--ok); border-color: var(--ok); }
+
 </style>
 </head>
 <body>
@@ -244,7 +250,10 @@ const Stepper = (() => {
   };
   const valueOf = (s) => (s !== null && typeof s === "object" ? s.v : s);
 
-  /** Box kinds: `make` builds the element once, `paint` shows one step's state (null only for a screen). */
+  /**
+   * Box kinds: `make` builds the element once, `paint` shows one step's state (null only for a
+   * screen). A state object's `tone` ("bad" | "ok") colours any box; render() applies it.
+   */
   const KINDS = {
     // A store with one named value, such as a registry holding countAtom.
     store: {
@@ -276,7 +285,8 @@ const Stepper = (() => {
     data: {
       make: (b) => el("div", "chip", `<span class="label">${b.label}</span><span class="body"></span>`),
       paint: (e, s, b) => {
-        e.querySelector(".body").textContent = typeof s === "string" ? s : b.text;
+        const text = typeof s === "string" ? s : typeof s === "object" ? s.text : undefined;
+        e.querySelector(".body").textContent = text ?? b.text;
       },
     },
     // Something waiting to happen. State "applied" strikes it through.
@@ -423,6 +433,10 @@ const Stepper = (() => {
         const hidden = st == null && b.kind !== "screen";
         e.classList.toggle("hidden", hidden);
         e.classList.toggle("active", (s.active ?? []).includes(b.id));
+        // Any box but the screen (which has its own) can be marked wrong or right: { …, tone }.
+        const tone = b.kind !== "screen" && st !== null && typeof st === "object" ? st.tone : undefined;
+        e.classList.toggle("tone-bad", tone === "bad");
+        e.classList.toggle("tone-ok", tone === "ok");
         if (!hidden) KINDS[b.kind].paint(e, st, b, painted);
       }
       const packet = q(".packet");
@@ -522,11 +536,22 @@ const Stepper = (() => {
 <script>
 Stepper.mount({
   "meta": {
-    "title": "Two providers of one user on a server-rendered page",
+    "title": "One author, two comments, on a server-rendered page",
     "subtitle": "Why a scoped atom should provide a family's atom when its value comes from the server. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/45\">#45<\/a>.",
     "kicker": "Scoped atoms · one page render, step by step",
     "beforeLabel": "Old advice",
-    "afterLabel": "New advice"
+    "afterLabel": "New advice",
+    "stripLabel": "The page so far",
+    "verdict": {
+      "before": {
+        "tone": "bad",
+        "text": "the render fails"
+      },
+      "after": {
+        "tone": "ok",
+        "text": "renders and hydrates"
+      }
+    }
   },
   "lanes": [
     {
@@ -549,21 +574,21 @@ Stepper.mount({
       "id": "provA",
       "lane": "S",
       "kind": "store",
-      "label": "header's UserProvider",
+      "label": "comment 1's UserProvider",
       "row": "User.provide(\"a\")"
     },
     {
       "id": "provB",
       "lane": "S",
       "kind": "store",
-      "label": "sidebar's UserProvider",
+      "label": "comment 2's UserProvider",
       "row": "User.provide(\"a\")"
     },
     {
       "id": "family",
       "lane": "S",
       "kind": "data",
-      "label": "userAtom family · remembers one atom per id",
+      "label": "userAtom family · one atom per id",
       "text": "a → atom #1"
     },
     {
@@ -571,7 +596,7 @@ Stepper.mount({
       "lane": "S",
       "kind": "data",
       "label": "values to send · by serialization key",
-      "text": "user-a → atom #1 (\"Alice\")"
+      "text": "user-a → atom #1"
     },
     {
       "id": "html",
@@ -597,12 +622,21 @@ Stepper.mount({
     "page": {
       "name": "+page.svelte",
       "lines": [
-        "<header>",
-        "  <UserProvider id=\"a\"><Avatar /><\/UserProvider>",
-        "<\/header>",
-        "<aside>",
-        "  <UserProvider id=\"a\"><ProfileCard /><\/UserProvider>",
-        "<\/aside>"
+        "{#each comments as comment}",
+        "  <UserProvider id={comment.authorId}>",
+        "    <CommentCard {comment} />",
+        "  <\/UserProvider>",
+        "{/each}"
+      ]
+    },
+    "card": {
+      "name": "CommentCard.svelte · no author id passed in",
+      "lines": [
+        "<article>",
+        "  <Avatar />      <!-- calls User.use() -->",
+        "  <AuthorName />  <!-- calls User.use() -->",
+        "  <p>{comment.text}<\/p>",
+        "<\/article>"
       ]
     },
     "userOld": {
@@ -624,17 +658,9 @@ Stepper.mount({
         "  )",
         ");",
         "",
-        "export const User = ScopedAtom.make((id: string) => userAtom(id));"
-      ]
-    },
-    "reader": {
-      "name": "Avatar.svelte · ProfileCard is the same",
-      "lines": [
-        "<script lang=\"ts\">",
-        "  const user = useAtomSuspense(User.use());",
-        "<\/script>",
-        "",
-        "<p>{(await user.current).name}<\/p>"
+        "export const User = ScopedAtom.make(",
+        "  (id: string) => userAtom(id)",
+        ");"
       ]
     },
     "claim": {
@@ -661,7 +687,7 @@ Stepper.mount({
     "hydrate": {
       "name": "what the server sends",
       "lines": [
-        "<p>Alice<\/p> … <p>Alice<\/p>",
+        "<b>Alice<\/b> … <b>Alice<\/b>",
         "",
         "<!-- plus the values, by serialization key -->",
         "user-a: Success({ name: \"Alice\" })"
@@ -674,12 +700,24 @@ Stepper.mount({
         "side": "S",
         "file": "page",
         "hl": [
+          0,
           1,
-          4
+          2
         ],
-        "title": "A page shows the same user twice",
-        "body": "The header and the sidebar both show user <code>a<\/code>, each inside its own <code>UserProvider<\/code>. <code>User<\/code> is a <em>scoped atom<\/em> (from this library): <code>User.provide(id)<\/code> in a component makes an atom for its subtree, and <code>User.use()<\/code> below reads it, like Svelte context.",
-        "note": "Two providers, one user. The question is how many atoms that makes."
+        "title": "A comment thread gives each comment its author",
+        "body": "Each comment is wrapped in a <code>UserProvider<\/code> for its author. <code>User<\/code> is a <em>scoped atom<\/em> (from this library): <code>User.provide(id)<\/code> makes an atom for the component's subtree, and <code>User.use()<\/code> anywhere below reads it, like Svelte context. Alice wrote two of the comments, so two providers get the id <code>a<\/code>.",
+        "note": "Nothing unusual: any list where the same person appears twice does this."
+      },
+      {
+        "side": "S",
+        "file": "card",
+        "hl": [
+          1,
+          2
+        ],
+        "title": "Inside a card, nobody passes the author's id",
+        "body": "<code>CommentCard<\/code>'s parts call <code>User.use()<\/code> to get the author. Without the scoped atom, <code>authorId<\/code> would have to be passed down as a prop to every part that shows the author.",
+        "note": "That's why a scoped atom is worth keeping here."
       }
     ],
     "before": [
@@ -697,7 +735,7 @@ Stepper.mount({
         "set": {
           "provA": "atom #1"
         },
-        "title": "The header's provider makes an atom",
+        "title": "Comment 1's provider makes an atom",
         "body": "<code>User.provide(\"a\")<\/code> runs the scoped atom's recipe, which makes a brand-new atom. Its <em>serialization key<\/em> is <code>user-a<\/code>: the name its value travels under from the server to the browser.",
         "note": "A new atom per provider is what scoped atoms promise."
       },
@@ -711,13 +749,14 @@ Stepper.mount({
           "claims",
           "html"
         ],
+        "frame": "Alice",
         "set": {
           "claims": true,
-          "html": "header: Alice"
+          "html": "comment 1: Alice"
         },
-        "title": "<code>&lt;Avatar /&gt;<\/code> reads it: the key is claimed for atom #1",
-        "body": "<code>useAtomSuspense<\/code> fetches the user, renders <b>Alice<\/b>, and claims the key <code>user-a<\/code> for atom #1, so that atom's value is sent to the browser with the HTML.",
-        "note": "The server sends one value per key, so it records which atom owns it."
+        "title": "Comment 1's <code>&lt;AuthorName /&gt;<\/code> reads it: the key is claimed for atom #1",
+        "body": "<code>useAtomSuspense<\/code> fetches the user and renders <b>Alice<\/b>. It also claims the key <code>user-a<\/code> for atom #1, so that atom's value is sent to the browser with the HTML.",
+        "note": "The server sends one value per key, so it records which atom owns each key."
       },
       {
         "side": "S",
@@ -730,10 +769,11 @@ Stepper.mount({
         "active": [
           "provB"
         ],
+        "frame": "Alice",
         "set": {
           "provB": "atom #2"
         },
-        "title": "The sidebar's provider makes a <em>second<\/em> atom",
+        "title": "Comment 2's provider makes a <em>second<\/em> atom",
         "body": "The second <code>User.provide(\"a\")<\/code> runs the recipe again and gets another brand-new atom. Same id, so the same key: <code>user-a<\/code>.",
         "note": "Two different atoms now have one key."
       },
@@ -747,15 +787,27 @@ Stepper.mount({
           4
         ],
         "active": [
-          "claims",
-          "html"
+          "claims"
         ],
+        "frame": "✕",
+        "bad": true,
         "set": {
-          "html": "render failed"
+          "provB": {
+            "v": "atom #2",
+            "tone": "bad"
+          },
+          "claims": {
+            "text": "user-a → atom #1, but atom #2 wants it too",
+            "tone": "bad"
+          },
+          "html": {
+            "v": "render failed",
+            "tone": "bad"
+          }
         },
-        "title": "<code>&lt;ProfileCard /&gt;<\/code> reads atom #2, and the server render throws",
-        "body": "Its <code>useAtomSuspense<\/code> finds <code>user-a<\/code> already claimed by atom #1. The server can't send two atoms' values under one key, and it can't tell whether the two atoms mean the same thing, so it throws. The error escapes every <code>&lt;svelte:boundary&gt;<\/code>, and the whole render fails.",
-        "note": "This is the check that catches two genuinely different atoms given one name by mistake. Here it fires on a page that did nothing wrong."
+        "title": "Comment 2's <code>&lt;AuthorName /&gt;<\/code> reads atom #2, and the server render throws",
+        "body": "Its <code>useAtomSuspense<\/code> finds <code>user-a<\/code> already claimed by atom #1. The server can't send two atoms' values under one key, and it can't tell whether they mean the same thing, so it throws. The error escapes every <code>&lt;svelte:boundary&gt;<\/code>, and the whole render fails.",
+        "note": "This check exists to catch two genuinely different atoms given one name by mistake. Here it fires on a page that did nothing wrong."
       },
       {
         "side": "B",
@@ -768,6 +820,8 @@ Stepper.mount({
         "active": [
           "screen"
         ],
+        "frame": "500",
+        "bad": true,
         "set": {
           "screen": {
             "v": "500",
@@ -777,8 +831,8 @@ Stepper.mount({
           }
         },
         "title": "The browser gets an error page",
-        "body": "Instead of the page, the user gets SvelteKit's error page. Nothing reaches the browser registry.",
-        "note": "Two providers of one user, a perfectly reasonable page, can't be rendered at all."
+        "body": "Instead of the thread, the user gets SvelteKit's error page. Nothing reaches the browser.",
+        "note": "One author commenting twice breaks the whole page."
       }
     ],
     "after": [
@@ -787,17 +841,17 @@ Stepper.mount({
         "file": "userNew",
         "hl": [
           0,
-          6
+          7
         ],
         "active": [
           "family",
           "provA"
         ],
         "set": {
-          "family": "a → atom #1",
+          "family": true,
           "provA": "atom #1"
         },
-        "title": "The header's provider asks the family for user <code>a<\/code>'s atom",
+        "title": "Comment 1's provider asks the family for user <code>a<\/code>'s atom",
         "body": "<code>User<\/code>'s recipe now calls <code>userAtom(id)<\/code>. <code>userAtom<\/code> is a <em>family<\/em> (from Effect): it makes one atom per id and remembers it. This is the first call for <code>a<\/code>, so it makes atom #1.",
         "note": "The family, not the provider, decides which atom user a gets."
       },
@@ -811,11 +865,12 @@ Stepper.mount({
           "claims",
           "html"
         ],
+        "frame": "Alice",
         "set": {
           "claims": true,
-          "html": "header: Alice"
+          "html": "comment 1: Alice"
         },
-        "title": "<code>&lt;Avatar /&gt;<\/code> reads it: the key is claimed for atom #1",
+        "title": "Comment 1's <code>&lt;AuthorName /&gt;<\/code> reads it: the key is claimed for atom #1",
         "body": "As before: <code>useAtomSuspense<\/code> fetches the user, renders <b>Alice<\/b>, and claims <code>user-a<\/code> for atom #1.",
         "note": "Nothing different yet."
       },
@@ -823,17 +878,21 @@ Stepper.mount({
         "side": "S",
         "file": "userNew",
         "hl": [
-          6
+          7
         ],
         "active": [
           "family",
           "provB"
         ],
+        "frame": "Alice",
         "set": {
-          "provB": "atom #1"
+          "provB": {
+            "v": "atom #1",
+            "tone": "ok"
+          }
         },
-        "title": "The sidebar's provider gets the <em>same<\/em> atom",
-        "body": "The second <code>User.provide(\"a\")<\/code> calls <code>userAtom(\"a\")<\/code> again, and the family returns the atom it made for <code>a<\/code>: atom #1.",
+        "title": "Comment 2's provider gets the <em>same<\/em> atom",
+        "body": "The second <code>User.provide(\"a\")<\/code> calls <code>userAtom(\"a\")<\/code> again, and the family returns the atom it already made for <code>a<\/code>: atom #1.",
         "note": "Two providers, one atom."
       },
       {
@@ -843,14 +902,21 @@ Stepper.mount({
           1
         ],
         "active": [
-          "claims",
-          "html"
+          "claims"
         ],
+        "frame": "Alice ×2",
         "set": {
-          "html": "header: Alice · sidebar: Alice"
+          "claims": {
+            "text": "user-a → atom #1, and this is atom #1",
+            "tone": "ok"
+          },
+          "html": {
+            "v": "comment 1: Alice · comment 2: Alice",
+            "tone": "ok"
+          }
         },
-        "title": "<code>&lt;ProfileCard /&gt;<\/code> reads atom #1: the claim matches",
-        "body": "<code>user-a<\/code> is claimed by atom #1, and this is atom #1, so there's no conflict. The sidebar renders <b>Alice<\/b> from the same value.",
+        "title": "Comment 2's <code>&lt;AuthorName /&gt;<\/code> reads atom #1: the claim matches",
+        "body": "<code>user-a<\/code> is claimed by atom #1, and this is atom #1, so there's no conflict. Comment 2 renders <b>Alice<\/b> from the same value.",
         "note": "The render completes, with one value for one key."
       },
       {
@@ -865,18 +931,19 @@ Stepper.mount({
           "browser"
         ],
         "packet": true,
+        "frame": "Alice ×2",
         "set": {
           "browser": "Alice",
           "screen": {
             "v": "Alice",
-            "badge": "✓ header and sidebar, no fetch in the browser",
+            "badge": "✓ both comments, no fetch in the browser",
             "tone": "ok",
             "live": true
           }
         },
-        "title": "The browser hydrates both from the one value",
+        "title": "The browser hydrates both comments from the one value",
         "body": "The HTML arrives with <code>user-a<\/code>'s value. In the browser, both providers again get atom #1 from the family, and it starts from the server's value instead of fetching.",
-        "note": "And components below still just call User.use(): nobody had to pass the id down."
+        "note": "And inside each card, the parts still just call User.use()."
       }
     ]
   }
