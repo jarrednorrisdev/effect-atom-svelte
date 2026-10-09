@@ -7,6 +7,7 @@ import { AtomRegistry } from "effect/reactivity";
 import { BROWSER, DEV } from "esm-env";
 import { createContext } from "svelte";
 
+import { disposeRegistry } from "./internal/disposal.ts";
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 import { track } from "./internal/registries.ts";
 import { onTeardownAfterChildren } from "./internal/teardown.svelte.ts";
@@ -187,7 +188,7 @@ export const provideRegistry = (
   }
   // Not onDestroy: in the browser it never runs for a component destroyed while its script awaits.
   if (!provided) {
-    onTeardownAfterChildren(() => registry.dispose());
+    onTeardownAfterChildren(() => disposeRegistry(registry));
   }
   if (DEV && BROWSER) {
     // For developer tools to find (effect-atom-svelte/inspector).

@@ -379,6 +379,84 @@ describe("useAtomSet", () => {
     expect(registry.get(double)).toMatchObject({ _tag: "Success", value: 2 });
   });
 
+  test("a call in flight settles as interrupted when another setter resets the mutation", async () => {
+    const registry = AtomRegistry.make();
+    const save = Atom.fn((value: string) =>
+      Effect.succeed(value).pipe(Effect.delay("200 millis"))
+    );
+    let run!: (value: string) => Promise<Exit.Exit<string>>;
+    let reset!: (value: typeof Atom.Reset) => void;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promiseExit" });
+        reset = useAtomSet(save);
+        return () => "";
+      },
+    });
+    const saved = run("draft");
+    await expect.poll(() => registry.get(save).waiting).toBe(true);
+    // A Cancel button that resets while the save runs.
+    reset(Atom.Reset);
+    const exit = await saved;
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true
+    );
+    expect(registry.get(save)).toMatchObject({ _tag: "Initial" });
+  });
+
+  test("a call in flight rejects instead of resolving with the initial value when another setter resets the mutation", async () => {
+    const registry = AtomRegistry.make();
+    const save = Atom.fn(
+      (value: string) => Effect.succeed(value).pipe(Effect.delay("200 millis")),
+      { initialValue: "empty" }
+    );
+    // The initial value is stamped when the Atom.fn is made; the call must start later to tell them apart.
+    const made = Date.now();
+    let run!: (value: string) => Promise<string>;
+    let reset!: (value: typeof Atom.Reset) => void;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promise" });
+        reset = useAtomSet(save);
+        return () => "";
+      },
+    });
+    await expect.poll(() => Date.now()).toBeGreaterThan(made);
+    const saved = run("draft");
+    await expect.poll(() => registry.get(save).waiting).toBe(true);
+    reset(Atom.Reset);
+    await expect(saved).rejects.toThrow("All fibers interrupted without error");
+    expect(registry.get(save)).toMatchObject({
+      _tag: "Success",
+      value: "empty",
+    });
+  });
+
+  test("a later call's result is not mistaken for a reset", async () => {
+    const registry = AtomRegistry.make();
+    const save = Atom.fn(
+      (value: string) => Effect.succeed(value).pipe(Effect.delay("50 millis")),
+      { initialValue: "empty" }
+    );
+    const made = Date.now();
+    let run!: (value: string) => Promise<string>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promise" });
+        return () => "";
+      },
+    });
+    await expect.poll(() => Date.now()).toBeGreaterThan(made);
+    const first = run("first");
+    const second = run("second");
+    // Calls share one result, so both resolve with the latest call's.
+    await expect(first).resolves.toBe("second");
+    await expect(second).resolves.toBe("second");
+  });
+
   test("value mode stores a function wrapped in an updater", async () => {
     const registry = AtomRegistry.make();
     // Atom.make would take a function as the atom's read, not its value.
@@ -820,6 +898,48 @@ describe("mutations and unmounting", () => {
     await expect(saved).resolves.toBe("draft");
     expect(log).toEqual(["saved draft"]);
   });
+
+  test.each(["promise", "promiseExit"] as const)(
+    "a %s call in flight settles as interrupted when the provider's own registry is disposed of",
+    async (mode) => {
+      const save = Atom.fn((value: string) =>
+        Effect.succeed(value).pipe(Effect.delay("200 millis"))
+      );
+      let run!: (value: string) => Promise<unknown>;
+      const screen = await render(Toggle, {
+        // No registry: the harness's provider creates one and disposes of it on unmount.
+        registry: undefined as never,
+        setup: () => {
+          run =
+            mode === "promise"
+              ? useAtomSet(save, { mode: "promise" })
+              : useAtomSet(save, { mode: "promiseExit" });
+          return () => "";
+        },
+        show: true,
+      });
+      // Handled from the start: the promise can reject while the provider unmounts.
+      const saved = Promise.allSettled([run("draft")]);
+      await screen.rerender({ show: false });
+      const [outcome] = await saved;
+      if (mode === "promiseExit") {
+        const exit =
+          outcome?.status === "fulfilled"
+            ? (outcome.value as Exit.Exit<string>)
+            : undefined;
+        expect(
+          exit !== undefined &&
+            Exit.isFailure(exit) &&
+            Cause.hasInterruptsOnly(exit.cause)
+        ).toBe(true);
+      } else {
+        expect(outcome?.status).toBe("rejected");
+        expect(
+          String(outcome?.status === "rejected" ? outcome.reason : "")
+        ).toContain("All fibers interrupted without error");
+      }
+    }
+  );
 });
 
 describe("registries", () => {
@@ -966,6 +1086,37 @@ describe("getter switches (JND-60)", () => {
       );
     }
   );
+
+  test("useAtomValue, useAtomMount, useAtomRefresh and useAtomSubscribe on one getter compute each atom once and let go of the old one", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const named = Atom.family((name: string) =>
+      Atom.make((get) => {
+        log.push(`start ${name}`);
+        get.addFinalizer(() => log.push(`stop ${name}`));
+        return name;
+      })
+    );
+    const pick = new SvelteMap([["name", "a"]]);
+    const getAtom = () => named(pick.get("name") ?? "a");
+    await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(getAtom);
+        useAtomMount(getAtom);
+        useAtomRefresh(getAtom);
+        useAtomSubscribe(getAtom, () => undefined);
+        return () => value.current;
+      },
+    });
+    await expect.poll(() => log).toEqual(["start a"]);
+    pick.set("name", "b");
+    await expect.poll(() => log).toEqual(["start a", "start b", "stop a"]);
+    pick.set("name", "a");
+    await expect
+      .poll(() => log)
+      .toEqual(["start a", "start b", "stop a", "start a", "stop b"]);
+  });
 
   test("useAtomRefPropValue follows a getter to a different ref", async () => {
     const first = AtomRef.make({ name: "first" });
