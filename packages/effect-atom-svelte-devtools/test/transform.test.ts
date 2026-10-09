@@ -440,4 +440,29 @@ describe("keeping state across hot reloads, through a pipe", () => {
       )
     ).toBeDefined();
   });
+
+  test("labels the instance script of a component saved with a byte order mark", () => {
+    const component = [
+      '\uFEFF<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<p>{count}</p>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
+
+  test("labels the instance script of a component with CRLF line endings", () => {
+    const component = [
+      "<svelte:head><script>window.x = 1;</script></svelte:head>",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<p>{count}</p>",
+    ].join("\r\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
 });

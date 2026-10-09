@@ -375,10 +375,12 @@ const markupOf = (
 const topLevel = (markup: string): Set<number> | undefined => {
   try {
     const ast = parseComponent(markup, { modern: true });
+    // Svelte drops a byte order mark before parsing, so its offsets are one short of the source's.
+    const shift = markup.startsWith("\uFEFF") ? 1 : 0;
     return new Set(
-      [ast.instance?.start, ast.module?.start].filter(
-        (start) => start !== undefined
-      )
+      [ast.instance?.start, ast.module?.start]
+        .filter((start) => start !== undefined)
+        .map((start) => start + shift)
     );
   } catch {
     return undefined;
