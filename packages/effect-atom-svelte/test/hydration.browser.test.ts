@@ -35,6 +35,7 @@ import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrProviderSeed from "./fixtures/ssr-provider-seed.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
+import SsrScriptAwaitResult from "./fixtures/ssr-script-await-result.svelte";
 import SsrScriptRead from "./fixtures/ssr-script-read.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
@@ -969,6 +970,35 @@ describe("hydrating server output", () => {
     // Long enough for Svelte to commit the hydration and everything it scheduled. Its dev build used
     // to throw "Batch has scheduled effects" while committing the update that first build announced.
     await sleep("100 millis");
+    expect(errors).toEqual([]);
+  });
+
+  test("a useAtomResult awaited in the script hydrates beside a pending boundary", async () => {
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      errors.push(event.error ?? event.message);
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      errors.push(event.reason);
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    onTestFinished(() => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    });
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-script-await-result.svelte",
+      SsrScriptAwaitResult
+    );
+
+    // The hook seeds its atom itself. Its value reader also waited on that seed, as a plain
+    // useAtomValue does, and set state when it landed, while Svelte was still committing the
+    // hydration. Here Svelte dropped the server's result from the page; in the demo, under
+    // SvelteKit, its dev build threw "Batch has scheduled effects" instead.
+    await expect.poll(outputs(target)).toEqual(["server", "browser"]);
+    await sleep("100 millis");
+    expect(outputs(target)()).toEqual(["server", "browser"]);
     expect(errors).toEqual([]);
   });
 

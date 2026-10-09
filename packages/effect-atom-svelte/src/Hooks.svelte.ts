@@ -210,7 +210,9 @@ interface KeptSubscription<A> {
 
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
-  getAtom: () => Atom.Atom<A>
+  getAtom: () => Atom.Atom<A>,
+  // The async hooks seed their atom themselves, with seedFromServer, and read it only once seeded.
+  seedsItself = false
 ): (() => A) => {
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
@@ -258,9 +260,14 @@ const subscribedReader = <A>(
   reportReads(registry, getAtom, "read");
   // While the server's value for the first atom is on its way, reading would compute what
   // hydration is about to provide: the reader shows Initial, waiting, until the seed is in.
+  // Not for an async hook's reader: waiting on the hook's own seed, it set seedLanded while Svelte
+  // was still committing hydration, after a top-level await in the script, and Svelte's dev build
+  // threw "Batch has scheduled effects".
   const seedAtom = untrack(getAtom);
-  // oxlint-disable-next-line eslint/no-use-before-define -- runs at component setup, once the module has loaded
-  const awaitingSeed = pendingSeed(registry, getAtom);
+  const awaitingSeed = seedsItself
+    ? undefined
+    : // oxlint-disable-next-line eslint/no-use-before-define -- runs at component setup, once the module has loaded
+      pendingSeed(registry, getAtom);
   let seedLanded = $state(awaitingSeed === undefined);
   if (awaitingSeed) {
     void (async () => {
@@ -1381,7 +1388,10 @@ export const useAtomResult = async <A, E>(
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const value = useAtomValue(getAtom);
+  const value = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
+    subscribedReader(registry, getAtom, true),
+    readOnly
+  );
   const atom = getAtom();
   let release: (() => void) | undefined;
   // Aborted when the component is destroyed, which interrupts the wait below so the atom is not held.
@@ -1682,7 +1692,10 @@ export function useAtomSuspense<A, E>(
 ): AtomValue<Promise<unknown>> {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const result = useAtomValue(getAtom);
+  const result = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
+    subscribedReader(registry, getAtom, true),
+    readOnly
+  );
   const seed = seedFromServer(
     registry,
     getAtom,
