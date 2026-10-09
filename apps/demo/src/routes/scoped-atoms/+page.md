@@ -82,7 +82,7 @@ Either way, the atom's value lives in the registry, and the usual [lifetimes](/l
 
 ### Values from the server
 
-A value from the server belongs to its id, not to a place on the page. The server sends one value per serialization key, and every atom with that key shares it, so a scoped atom that makes its own serializable atom isn't really scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers with the same input make the server render throw `Two different atoms share the serialization key`.
+A value from the server belongs to its id, not to a place on the page. The server sends one value per serialization key, and every atom with that key shares it, so a scoped atom that makes its own serializable atom isn't really scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers with the same input make the server render throw `Two different atoms share the serialization key`. That happens easily: give each comment in a thread a provider for its author, and an author who comments twice puts two providers with the same id on the page.
 
 Make the atom a family instead. If components below should still reach it without being passed the id, provide the family's atom with a scoped atom:
 
