@@ -92,6 +92,30 @@ describe("format", () => {
     expect(preview(colliding, 100)).toBe('[[1,"number"],["1","string"]]');
   });
 
+  test("writes a map whose one key is an object or a function as pairs, not under the key's string", () => {
+    const byObject = preview(new Map([[{ id: 1 }, "ann"]]), 100);
+    expect(byObject.startsWith("[[")).toBe(true);
+    expect(byObject).not.toContain("[object Object]");
+    const byFunction = preview(new Map([[() => "loaded", "ann"]]), 100);
+    expect(byFunction.startsWith("[[")).toBe(true);
+    expect(byFunction).not.toContain("loaded");
+  });
+
+  test("says nothing is cut from a map, a set, an array or an object of exactly the limit", () => {
+    const fifty = Array.from({ length: 50 }, (_, index) => index);
+    expect(detail(fifty)).not.toContain("more");
+    expect(detail(new Set(fifty))).not.toContain("more");
+    expect(detail(new Map(fifty.map((index) => [index, index])))).not.toContain(
+      "more"
+    );
+    expect(
+      detail(new Map(fifty.map((index) => [{ index }, index])))
+    ).not.toContain("more");
+    expect(
+      detail(Object.fromEntries(fifty.map((index) => [`k${index}`, index])))
+    ).not.toContain("more");
+  });
+
   test("says when a map, a set or an object is cut short, as it does for an array", () => {
     const many = Array.from({ length: 60 }, (_, index) => index);
     expect(detail(many)).toContain("… 10 more");
