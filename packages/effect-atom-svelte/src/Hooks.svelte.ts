@@ -1154,7 +1154,21 @@ const seedFromServer = (
   const { held, spent } = registrySeeds;
   let entry = held.get(key);
   if (entry && entry.atom !== atom) {
-    throw new Error(`Two different atoms share the serialization key "${key}"`);
+    // Svelte sets up a remounted branch, as under {#key}, before it destroys the old one, whose
+    // atom holds the key until then, or until its outro ends. Svelte gives no public signal that a
+    // branch is leaving, so the new atom takes no seed rather than throwing, as the server does.
+    // Development builds warn if another atom still holds the key once the update has committed.
+    if (DEV) {
+      $effect(() => {
+        const holder = held.get(key);
+        if (holder && holder.atom !== atom) {
+          console.warn(
+            `effect-atom-svelte: Two different atoms share the serialization key "${key}". The server sends one result per key, so the browser can't tell which atom it belongs to: put what tells the atoms apart into the key. See https://atom.jarrednorris.dev/troubleshooting#two-different-atoms-share-the-serialization-key`
+          );
+        }
+      });
+    }
+    return undefined;
   }
   if (!entry && spent.has(key)) {
     return undefined;

@@ -80,4 +80,6 @@ Both give you more than one atom from one definition. Choose by where the atom b
 
 Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
 
-A scoped atom can't take a fixed serialization key. Every provider makes its own atom, so two providers on one page would share the key, and the async hooks throw `Two different atoms share the serialization key`. If you need one, put the input in the key. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
+A scoped atom can't take a fixed serialization key. Every provider makes its own atom, so two providers on one page would share the key: the server render throws `Two different atoms share the serialization key`, and in the browser development builds warn. If you need one, put the input in the key. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
+
+Remounting a provider with `{#key}` doesn't reset a serializable scoped atom. The registry keeps a serializable atom's value under its serialization key, not under the atom, so the new provider's atom reads the value the old one left. To start over, refresh the atom with `useAtomRefresh`, or set it.
