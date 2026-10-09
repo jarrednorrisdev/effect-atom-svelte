@@ -210,9 +210,7 @@ interface KeptSubscription<A> {
 
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
-  getAtom: () => Atom.Atom<A>,
-  // The async hooks seed their atom themselves, with seedFromServer, and read it only once seeded.
-  seedsItself = false
+  getAtom: () => Atom.Atom<A>
 ): (() => A) => {
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
@@ -258,23 +256,6 @@ const subscribedReader = <A>(
     };
   }
   reportReads(registry, getAtom, "read");
-  // While the server's value for the first atom is on its way, reading would compute what
-  // hydration is about to provide: the reader shows Initial, waiting, until the seed is in.
-  // Not for an async hook's reader: waiting on the hook's own seed, it set seedLanded while Svelte
-  // was still committing hydration, after a top-level await in the script, and Svelte's dev build
-  // threw "Batch has scheduled effects".
-  const seedAtom = untrack(getAtom);
-  const awaitingSeed = seedsItself
-    ? undefined
-    : // oxlint-disable-next-line eslint/no-use-before-define -- runs at component setup, once the module has loaded
-      pendingSeed(registry, getAtom);
-  let seedLanded = $state(awaitingSeed === undefined);
-  if (awaitingSeed) {
-    void (async () => {
-      await awaitingSeed;
-      seedLanded = true;
-    })();
-  }
   // The atom is picked on every read, not held in a $derived. In async mode Svelte renders a batch
   // with other pending batches' changes rolled back, deriveds included, but registry reads always
   // see the latest state; a derived atom could then pair an old atom with new state, and that
@@ -359,9 +340,6 @@ const subscribedReader = <A>(
   return () =>
     duringRead(() => {
       const current = getAtom();
-      if (!seedLanded && current === seedAtom) {
-        return AsyncResult.initial(true) as A;
-      }
       if (current !== atom) {
         const previous = atom;
         const previousCancel = cancel;
@@ -1089,7 +1067,7 @@ const noSeedMount = (): void => undefined;
 const claimedKeys = new WeakMap<object, Set<string>>();
 
 // The store is not public API, so a Svelte that changes its shape or drops it turns the warning off
-// and makes a plain reader fetch a seeded atom again, as it did before, rather than throwing.
+// rather than throwing.
 const serverValues = (): ReadonlyMap<string, unknown> | undefined => {
   const store = (globalThis as { __svelte?: { h?: unknown } }).__svelte?.h;
   return store instanceof Map ? store : undefined;
@@ -1115,9 +1093,8 @@ const warnIfSent = async (key: string, sent: unknown): Promise<void> => {
  * Records that a reader had its chance at the server's value for `key`. Development builds warn
  * when it missed one the server sent for it: Svelte reads them only while it is hydrating, which
  * stops at a component script's first top-level `await`, so a hook called after one gets nothing
- * and its atom runs again in the browser (JND-96, fix proposed in sveltejs/svelte#18927). The store
- * is read here to warn, and in `pendingSeed` to tell whether the server sent a key: no public API
- * can tell without Svelte warning about a missing value.
+ * and its atom runs again in the browser (JND-96, fix proposed in sveltejs/svelte#18927). This reads
+ * Svelte's internal store only to warn.
  */
 const claimServerValue = (key: string, missed: boolean): void => {
   const store = DEV ? serverValues() : undefined;
@@ -1268,55 +1245,6 @@ const seedFromServer = (
 };
 
 /**
- * For a plain reader in the browser: resolves once the server's value for the getter's first atom
- * is in the registry, when the server sent one that nothing has used yet, as an async hook on the
- * server does. The reader claims and holds it as the async hooks do, so it is seeded whichever
- * reader renders first. Undefined when there is nothing to wait for.
- */
-const pendingSeed = (
-  registry: AtomRegistry.AtomRegistry,
-  getAtom: () => Atom.Atom<unknown>
-): Promise<void> | undefined => {
-  const atom = getAtom();
-  if (!Atom.isSerializable(atom) || hasServerValue(atom)) {
-    return undefined;
-  }
-  const { key } = atom[Atom.SerializableTypeId];
-  const registrySeeds = seeds.get(registry);
-  const entry = registrySeeds?.held.get(key);
-  if (entry) {
-    return entry.done;
-  }
-  if (
-    registrySeeds?.spent.has(key) ||
-    registry.getNodes().has(key) ||
-    !serverValues()?.has(key)
-  ) {
-    return undefined;
-  }
-  // Svelte keeps the server's values after hydration, so a key can still be there for a component
-  // rendered after client-side navigation: hydratable calls back only when Svelte isn't hydrating,
-  // and the reader then reads as it always has.
-  let hydrating = true;
-  hydratable(key, (): unknown => {
-    hydrating = false;
-    return undefined;
-  });
-  if (!hydrating) {
-    return undefined;
-  }
-  const wait = seedFromServer(
-    registry,
-    getAtom as () => ResultAtom<unknown, unknown>,
-    // Only the async hooks ask for a run after hydration.
-    false
-  );
-  // The reader's own subscription holds the atom once it reads it.
-  wait?.letGo();
-  return wait?.done;
-};
-
-/**
  * Options for `useAtomResult`.
  *
  * @stability unstable
@@ -1366,10 +1294,7 @@ export const useAtomResult = async <A, E>(
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const value = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
-    subscribedReader(registry, getAtom, true),
-    readOnly
-  );
+  const value = useAtomValue(getAtom);
   const atom = getAtom();
   let release: (() => void) | undefined;
   // Aborted when the component is destroyed, which interrupts the wait below so the atom is not held.
@@ -1670,10 +1595,7 @@ export function useAtomSuspense<A, E>(
 ): AtomValue<Promise<unknown>> {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const result = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
-    subscribedReader(registry, getAtom, true),
-    readOnly
-  );
+  const result = useAtomValue(getAtom);
   const seed = seedFromServer(
     registry,
     getAtom,

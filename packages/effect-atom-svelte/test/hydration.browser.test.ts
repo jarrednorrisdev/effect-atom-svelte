@@ -7,7 +7,6 @@ import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
-import Harness from "./fixtures/harness.svelte";
 import HydratePending from "./fixtures/hydrate-pending.svelte";
 import HydrateReaderAboveToggle from "./fixtures/hydrate-reader-above-toggle.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
@@ -35,7 +34,6 @@ import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrProviderSeed from "./fixtures/ssr-provider-seed.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
-import SsrScriptAwaitResult from "./fixtures/ssr-script-await-result.svelte";
 import SsrScriptRead from "./fixtures/ssr-script-read.svelte";
 import SsrServerValue from "./fixtures/ssr-server-value.svelte";
 import SsrSharedSeed from "./fixtures/ssr-shared-seed.svelte";
@@ -43,8 +41,6 @@ import SsrSkewSeed from "./fixtures/ssr-skew-seed.svelte";
 import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
 import SsrUnsentAfterAwait from "./fixtures/ssr-unsent-after-await.svelte";
 import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
-import SsrValueAndSuspense from "./fixtures/ssr-value-and-suspense.svelte";
-import SsrValueReaderSwitch from "./fixtures/ssr-value-reader-switch.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import TwoBoundaries from "./fixtures/two-boundaries.svelte";
 import {
@@ -559,58 +555,6 @@ describe("hydrating server output", () => {
     expect(computed).toEqual(["b"]);
   });
 
-  test("an atom also read with useAtomValue takes the server's result without computing again", async () => {
-    computed.length = 0;
-    const target = await hydrateFromServer(
-      "/test/fixtures/ssr-value-and-suspense.svelte",
-      SsrValueAndSuspense
-    );
-
-    await expect
-      .poll(outputs(target))
-      .toEqual(["Success", "a from the server"]);
-    await sleep(afterSweep);
-    expect(computed).toEqual([]);
-  });
-
-  test("a plain reader shows Initial, waiting, while the server's value for its atom is on its way", async () => {
-    computed.length = 0;
-    const seed = Deferred.makeUnsafe<unknown>();
-    let value: unknown;
-    const target = await hydrateFromServer(
-      "/test/fixtures/ssr-value-reader-switch.svelte",
-      SsrValueReaderSwitch,
-      () => {
-        const store = hydratables();
-        value = store.get("seeded-list-a");
-        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
-      }
-    );
-    await expect.poll(() => outputs(target)()[0]).toBe("Initial waiting");
-    Deferred.doneUnsafe(seed, Effect.succeed(value));
-    await expect.poll(() => outputs(target)()[0]).toBe("Success");
-    expect(computed).toEqual([]);
-  });
-
-  test("a plain reader switched to another atom before its seed lands shows that atom at once", async () => {
-    computed.length = 0;
-    const seed = Deferred.makeUnsafe<unknown>();
-    let value: unknown;
-    const target = await hydrateFromServer(
-      "/test/fixtures/ssr-value-reader-switch.svelte",
-      SsrValueReaderSwitch,
-      () => {
-        const store = hydratables();
-        value = store.get("seeded-list-a");
-        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
-      }
-    );
-    await expect.poll(() => outputs(target)()[0]).toBe("Initial waiting");
-    click(target, "other");
-    await expect.poll(() => outputs(target)()[0]).toBe("Success");
-    Deferred.doneUnsafe(seed, Effect.succeed(value));
-  });
-
   test("useAtomResult destroyed before its seed lands computes nothing", async () => {
     computed.length = 0;
     const seed = Deferred.makeUnsafe<unknown>();
@@ -973,35 +917,6 @@ describe("hydrating server output", () => {
     expect(errors).toEqual([]);
   });
 
-  test("a useAtomResult awaited in the script hydrates beside a pending boundary", async () => {
-    const errors: unknown[] = [];
-    const onError = (event: ErrorEvent) => {
-      errors.push(event.error ?? event.message);
-    };
-    const onRejection = (event: PromiseRejectionEvent) => {
-      errors.push(event.reason);
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    onTestFinished(() => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
-    });
-    const target = await hydrateFromServer(
-      "/test/fixtures/ssr-script-await-result.svelte",
-      SsrScriptAwaitResult
-    );
-
-    // The hook seeds its atom itself. Its value reader also waited on that seed, as a plain
-    // useAtomValue does, and set state when it landed, while Svelte was still committing the
-    // hydration. Here Svelte dropped the server's result from the page; in the demo, under
-    // SvelteKit, its dev build threw "Batch has scheduled effects" instead.
-    await expect.poll(outputs(target)).toEqual(["server", "browser"]);
-    await sleep("100 millis");
-    expect(outputs(target)()).toEqual(["server", "browser"]);
-    expect(errors).toEqual([]);
-  });
-
   describe("a getter that picks a different atom in the browser (JND-24)", () => {
     const path = "/test/fixtures/ssr-browser-choice.svelte";
 
@@ -1062,22 +977,6 @@ const renderCounted = (registry: AtomRegistry.AtomRegistry, read: boolean) => {
   return { options, screen };
 };
 
-/** Leaves a value in the head script's store, as the first page load does, for this test only. */
-const leaveServerValue = (key: string, value: unknown) => {
-  const global = window as unknown as {
-    __svelte?: { h?: Map<string, unknown> };
-  };
-  const before = global.__svelte;
-  global.__svelte = { h: new Map([[key, value]]) };
-  onTestFinished(() => {
-    if (before === undefined) {
-      Reflect.deleteProperty(window, "__svelte");
-    } else {
-      global.__svelte = before;
-    }
-  });
-};
-
 describe("seeding after client-side navigation", () => {
   // Nothing is hydrating, so hydratable fetches in the browser; that value is no seed (JND-37).
   test("coming back after the node is disposed fetches again", async () => {
@@ -1103,50 +1002,6 @@ describe("seeding after client-side navigation", () => {
     options.read = true;
     await screen.rerender({ show: true });
     await expect.poll(text(screen)).toBe("1");
-  });
-
-  test("a key the first page load left doesn't hold back a reader of a fresh registry", async () => {
-    const syncAtom = Atom.make(Effect.succeed("now")).pipe(
-      Atom.serializable({
-        key: "leftover-sync",
-        schema: AsyncResult.Schema({ success: Schema.String }),
-      })
-    );
-    // As the head script of the first page load left it; Svelte never removes these.
-    leaveServerValue("leftover-sync", undefined);
-    const seen: string[] = [];
-    const screen = await render(Harness, {
-      registry: AtomRegistry.make(),
-      setup: () => {
-        const result = useAtomValue(syncAtom);
-        return () => {
-          seen.push(result.current._tag);
-          return result.current._tag;
-        };
-      },
-    });
-    await expect.poll(text(screen)).toBe("Success");
-    expect(seen).toEqual(["Success"]);
-  });
-
-  test("a key the first page load left doesn't reach a non-result atom's transform as a result", async () => {
-    const numberAtom = Atom.make(5).pipe(
-      Atom.serializable({ key: "leftover-number", schema: Schema.Number })
-    );
-    leaveServerValue("leftover-number", 5);
-    const seen: unknown[] = [];
-    const screen = await render(Harness, {
-      registry: AtomRegistry.make(),
-      setup: () => {
-        const plusOne = useAtomValue(numberAtom, (n) => n + 1);
-        return () => {
-          seen.push(plusOne.current);
-          return plusOne.current;
-        };
-      },
-    });
-    await expect.poll(text(screen)).toBe("6");
-    expect(seen.every((value) => value === 6)).toBe(true);
   });
 
   test("a useAtomSuspense read in the script lets go of its atom once the getter moves on", async () => {
