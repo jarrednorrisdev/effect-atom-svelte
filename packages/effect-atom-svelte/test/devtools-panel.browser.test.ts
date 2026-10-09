@@ -203,20 +203,23 @@ describe("AtomDevtools", () => {
     );
     const release = registry.mount(double);
     const screen = await render(AtomDevtools, { open: true, registry });
-    await sleep(50);
+    // Polled rather than slept: WebKit on CI can take longer to render.
+    await expect.poll(() => panelButton("Graph")).toBeDefined();
     panelButton("Graph")?.click();
-    await sleep(50);
+    await expect.poll(() => graphNode("doubleAtom")).toBeDefined();
     graphNode("doubleAtom")?.click();
-    await sleep(50);
+    await expect.poll(() => panelButton("Graph")).toBeDefined();
     panelButton("Graph")?.click();
-    await sleep(50);
-    expect(graphNode("doubleAtom")?.classList.contains("selected")).toBe(true);
+    await expect
+      .poll(() => graphNode("doubleAtom")?.classList.contains("selected"))
+      .toBe(true);
     // Something starts reading doubleAtom: the graph grows a column after it.
     const quad = Atom.make((get) => get(double) * 2).pipe(
       Atom.withLabel("quadAtom")
     );
     const releaseQuad = registry.mount(quad);
-    await sleep(100);
+    await expect.poll(() => graphNode("quadAtom")).toBeDefined();
+    await sleep(50);
     expect(graphNode("doubleAtom")?.classList.contains("selected")).toBe(true);
     releaseQuad();
     release();
