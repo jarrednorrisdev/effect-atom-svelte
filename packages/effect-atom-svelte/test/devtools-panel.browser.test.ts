@@ -159,13 +159,13 @@ describe("AtomDevtools", () => {
     });
     mine.get(alpha);
     mine.set(alpha, 1);
-    await sleep(50);
+    // Polled rather than slept: WebKit on CI can take longer to render.
+    await expect.poll(() => panelButton("Timeline")).toBeDefined();
     panelButton("Timeline")?.click();
-    await sleep(50);
     // Only alphaAtom's rows.
+    await expect.poll(() => panelButton("alphaAtom")).toBeDefined();
     panelButton("alphaAtom")?.click();
-    await sleep(50);
-    expect(panelButton("only alphaAtom ✕")).toBeDefined();
+    await expect.poll(() => panelButton("only alphaAtom ✕")).toBeDefined();
     const picker = document.querySelector<HTMLSelectElement>(
       "[data-atom-devtools] select"
     );
@@ -175,12 +175,16 @@ describe("AtomDevtools", () => {
       picker.value = String(picker.options.length - 1);
       picker.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    await sleep(100);
     // Now on the provider's registry.
-    expect(
-      document.querySelector<HTMLSelectElement>("[data-atom-devtools] select")
-        ?.selectedIndex
-    ).toBe((picker?.options.length ?? 0) - 1);
+    await expect
+      .poll(
+        () =>
+          document.querySelector<HTMLSelectElement>(
+            "[data-atom-devtools] select"
+          )?.selectedIndex
+      )
+      .toBe((picker?.options.length ?? 0) - 1);
+    await sleep(50);
     // The other registry has no alphaAtom: the filter mustn't now pick one of its atoms.
     const filter = [...document.querySelectorAll("[data-atom-devtools] button")]
       .map((item) => item.textContent?.trim() ?? "")
