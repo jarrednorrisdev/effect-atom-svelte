@@ -30,6 +30,74 @@ const hasToJSON = (value: object): value is { toJSON: () => unknown } =>
 const maxDepth = 5;
 const maxItems = 50;
 
+// Values JSON has no words for, written out bare: `NaN`, `Infinity`, `undefined`.
+const bare = (text: string) => `\u0000${text}\u0000`;
+
+const json = (data: unknown, indent?: number): string =>
+  (typeof data === "string"
+    ? JSON.stringify(data)
+    : (JSON.stringify(data, undefined, indent) ?? String(data))
+  ).replaceAll(/"\\u0000(?<text>.*?)\\u0000"/gu, "$<text>");
+
+/** An error's name: a tagged error's `_tag`, an `Error`'s `name`, or the value as a string. */
+const errorName = (error: unknown): string => {
+  if (typeof error === "object" && error !== null) {
+    if ("_tag" in error && typeof error._tag === "string") {
+      return error._tag;
+    }
+    if (error instanceof Error) {
+      return error.name;
+    }
+  }
+  return String(error);
+};
+
+/**
+ * An error with its fields, each written by `write`, as `CityNotFound { city: "Atlantis" }`, or
+ * its message if it has one.
+ */
+const errorText = (
+  error: unknown,
+  write: (field: unknown) => string
+): string => {
+  const name = errorName(error);
+  if (typeof error !== "object" || error === null) {
+    return name;
+  }
+  if (
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message !== ""
+  ) {
+    return `${name}: ${error.message}`;
+  }
+  const fields = Object.entries(error).filter(([key]) => key !== "_tag");
+  const body = fields.map(([key, field]) => `${key}: ${write(field)}`);
+  return body.length > 0 ? `${name} { ${body.join(", ")} }` : name;
+};
+
+/**
+ * What a failure failed with, from its first reason: a typed error by its name (`CityNotFound`),
+ * or with its fields, each written by `write`, when given; a defect as `defect: TypeError`; an
+ * interruption as `interrupted`.
+ */
+export const failureText = (
+  cause: Cause.Cause<unknown>,
+  write?: (field: unknown) => string
+): string => {
+  const [reason] = cause.reasons;
+  if (reason === undefined) {
+    return "empty cause";
+  }
+  if (Cause.isFailReason(reason)) {
+    return write ? errorText(reason.error, write) : errorName(reason.error);
+  }
+  if (Cause.isDieReason(reason)) {
+    return `defect: ${write ? errorText(reason.defect, write) : errorName(reason.defect)}`;
+  }
+  return "interrupted";
+};
+
 const plainResult = (
   result: AsyncResult.AsyncResult<unknown, unknown>,
   inner: (value: unknown) => unknown
@@ -46,14 +114,32 @@ const plainResult = (
       };
     }
     default: {
+      // What it failed with, fields and all, as the graph's note promises; then the whole cause.
+      // oxlint-disable-next-line eslint/sort-keys -- what it failed with reads before the whole cause
       return {
         _tag: "Failure",
+        error: failureText(result.cause, (field) => json(inner(field))),
         cause: Cause.pretty(result.cause),
         waiting: result.waiting,
       };
     }
   }
 };
+
+/** The first `maxItems` items, and how many more there are. */
+const listed = <A>(items: readonly A[], inner: (item: A) => unknown) => {
+  const shown = items.slice(0, maxItems).map(inner);
+  return items.length > maxItems
+    ? [...shown, `… ${items.length - maxItems} more`]
+    : shown;
+};
+
+/** An object cut to `maxItems` entries, saying how many more there are. */
+const withMore = (object: Record<string, unknown>, count: number) =>
+  count > maxItems ? { ...object, "…": `${count - maxItems} more` } : object;
+
+const isPrimitive = (value: unknown) =>
+  value === null || (typeof value !== "object" && typeof value !== "function");
 
 const plainObject = (
   value: object,
@@ -66,34 +152,47 @@ const plainObject = (
     return value.toISOString();
   }
   if (value instanceof Error) {
-    return `${value.name}: ${value.message}`;
+    // A tagged error's fields, as `CityNotFound { city: "Atlantis" }`.
+    return errorText(value, (field) => json(inner(field)));
   }
   if (value instanceof Map) {
-    return Object.fromEntries(
-      [...value]
-        .slice(0, maxItems)
-        .map(([key, entry]) => [String(key), inner(entry)])
-    );
+    const entries = [...value];
+    // Primitive keys that stay distinct as strings make an object; any other keys would collide
+    // or lose themselves as strings, so those maps are written as `[key, value]` pairs.
+    const keys = entries.map(([key]) => key);
+    if (
+      keys.every((key) => isPrimitive(key)) &&
+      new Set(keys.map(String)).size === keys.length
+    ) {
+      return withMore(
+        Object.fromEntries(
+          entries
+            .slice(0, maxItems)
+            .map(([key, entry]) => [String(key), inner(entry)])
+        ),
+        entries.length
+      );
+    }
+    return listed(entries, ([key, entry]) => [inner(key), inner(entry)]);
   }
   if (value instanceof Set) {
-    return [...value].slice(0, maxItems).map(inner);
+    return listed([...value], inner);
   }
   if (Array.isArray(value)) {
-    const items = value.slice(0, maxItems).map(inner);
-    return value.length > maxItems
-      ? [...items, `… ${value.length - maxItems} more`]
-      : items;
+    return listed(value, inner);
   }
   if (hasToJSON(value)) {
-    const json = value.toJSON();
-    if (json !== value) {
-      return inner(json);
+    const data = value.toJSON();
+    if (data !== value) {
+      return inner(data);
     }
   }
-  return Object.fromEntries(
-    Object.entries(value)
-      .slice(0, maxItems)
-      .map(([key, entry]) => [key, inner(entry)])
+  const entries = Object.entries(value);
+  return withMore(
+    Object.fromEntries(
+      entries.slice(0, maxItems).map(([key, entry]) => [key, inner(entry)])
+    ),
+    entries.length
   );
 };
 
@@ -116,6 +215,12 @@ export const plain = (
     }
     case "symbol": {
       return value.toString();
+    }
+    case "number": {
+      return Number.isFinite(value) ? value : bare(String(value));
+    }
+    case "undefined": {
+      return depth === 0 ? value : bare("undefined");
     }
     case "object": {
       break;
@@ -143,66 +248,8 @@ export const plain = (
   }
 };
 
-const json = (data: unknown, indent?: number): string =>
-  typeof data === "string"
-    ? JSON.stringify(data)
-    : (JSON.stringify(data, undefined, indent) ?? String(data));
-
 /** The value written out in full, for its sheet. */
 export const detail = (value: unknown): string => json(plain(value), 2);
-
-/** An error's name: a tagged error's `_tag`, an `Error`'s `name`, or the value as a string. */
-const errorName = (error: unknown): string => {
-  if (typeof error === "object" && error !== null) {
-    if ("_tag" in error && typeof error._tag === "string") {
-      return error._tag;
-    }
-    if (error instanceof Error) {
-      return error.name;
-    }
-  }
-  return String(error);
-};
-
-/** An error with its fields, as `CityNotFound { city: "Atlantis" }`, or its message if it has one. */
-const errorText = (error: unknown): string => {
-  const name = errorName(error);
-  if (typeof error !== "object" || error === null) {
-    return name;
-  }
-  if (
-    "message" in error &&
-    typeof error.message === "string" &&
-    error.message !== ""
-  ) {
-    return `${name}: ${error.message}`;
-  }
-  const fields = Object.entries(error).filter(([key]) => key !== "_tag");
-  const body = fields.map(([key, field]) => `${key}: ${json(plain(field))}`);
-  return body.length > 0 ? `${name} { ${body.join(", ")} }` : name;
-};
-
-/**
- * What a failure failed with, from its first reason: a typed error by its name (`CityNotFound`),
- * or with its fields when `full`; a defect as `defect: TypeError`; an interruption as
- * `interrupted`.
- */
-export const failureText = (
-  cause: Cause.Cause<unknown>,
-  full = false
-): string => {
-  const [reason] = cause.reasons;
-  if (reason === undefined) {
-    return "empty cause";
-  }
-  if (Cause.isFailReason(reason)) {
-    return full ? errorText(reason.error) : errorName(reason.error);
-  }
-  if (Cause.isDieReason(reason)) {
-    return `defect: ${full ? errorText(reason.defect) : errorName(reason.defect)}`;
-  }
-  return "interrupted";
-};
 
 /** An `AsyncResult` on one line: its value, through `inner`, or what it failed with. */
 const resultText = (
@@ -213,7 +260,7 @@ const resultText = (
   if (result._tag === "Success") {
     text = inner(result.value);
   } else if (result._tag === "Failure") {
-    text = failureText(result.cause, true);
+    text = failureText(result.cause, (field) => json(plain(field)));
   }
   return result.waiting ? `${text}, waiting` : text;
 };

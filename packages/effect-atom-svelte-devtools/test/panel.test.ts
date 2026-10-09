@@ -9,6 +9,10 @@ import { detail, failureText, preview } from "../src/internal/format.ts";
 import { Model } from "../src/internal/model.svelte.ts";
 import { identify, parseFrame } from "../src/internal/names.ts";
 
+class CityNotFound extends Data.TaggedError("CityNotFound")<{
+  readonly city: string;
+}> {}
+
 describe("format", () => {
   test("previews values on one line, cut short", () => {
     expect(preview(3)).toBe("3");
@@ -28,9 +32,6 @@ describe("format", () => {
   });
 
   test("says what a failure failed with", () => {
-    class CityNotFound extends Data.TaggedError("CityNotFound")<{
-      readonly city: string;
-    }> {}
     const cause = Cause.fail(new CityNotFound({ city: "Atlantis" }));
     expect(failureText(cause)).toBe("CityNotFound");
     expect(preview(AsyncResult.failure(cause))).toBe(
@@ -48,6 +49,62 @@ describe("format", () => {
     expect(detail(circular)).toContain('"self": "[circular]"');
     expect(detail(Option.some(1))).toContain('"_tag": "Some"');
     expect(detail(() => 1)).toBe('"ƒ anonymous"');
+  });
+
+  test("shows a failure's typed error with its fields on its sheet", () => {
+    const error = new CityNotFound({ city: "Atlantis" });
+    expect(detail(AsyncResult.failure(Cause.fail(error)))).toContain(
+      String.raw`"error": "CityNotFound { city: \"Atlantis\" }"`
+    );
+    expect(detail(error)).toContain("Atlantis");
+  });
+
+  test("writes out NaN, Infinity and undefined fields bare, where JSON has no words for them", () => {
+    expect(detail(Number.NaN)).toBe("NaN");
+    expect(detail(Number.POSITIVE_INFINITY)).toBe("Infinity");
+    expect(detail({ draft: undefined, saved: 1 })).toContain(
+      '"draft": undefined'
+    );
+  });
+
+  test("writes a map as an object while its keys stay distinct as strings, else as pairs", () => {
+    expect(
+      preview(
+        new Map([
+          [1, "ann"],
+          [2, "bob"],
+        ])
+      )
+    ).toBe('{"1":"ann","2":"bob"}');
+    const byUser = detail(
+      new Map([
+        [{ id: 1 }, "ann"],
+        [{ id: 2 }, "bob"],
+      ])
+    );
+    expect(byUser).toContain("ann");
+    expect(byUser).toContain("bob");
+    expect(byUser).toContain('"id": 2');
+    const colliding = new Map<unknown, string>([
+      [1, "number"],
+      ["1", "string"],
+    ]);
+    expect(preview(colliding, 100)).toBe('[[1,"number"],["1","string"]]');
+  });
+
+  test("says when a map, a set or an object is cut short, as it does for an array", () => {
+    const many = Array.from({ length: 60 }, (_, index) => index);
+    expect(detail(many)).toContain("… 10 more");
+    expect(detail(new Set(many))).toContain("… 10 more");
+    expect(detail(new Map(many.map((index) => [index, index])))).toContain(
+      '"…": "10 more"'
+    );
+    expect(detail(new Map(many.map((index) => [{ index }, index])))).toContain(
+      "… 10 more"
+    );
+    expect(
+      detail(Object.fromEntries(many.map((index) => [`k${index}`, index])))
+    ).toContain('"…": "10 more"');
   });
 });
 
@@ -148,6 +205,23 @@ describe("Model", () => {
     await sleep(5);
     expect(model.unlabelled).toBe(true);
     expect(model.atoms[0]?.plumbing).toBe(false);
+    stop();
+    registry.dispose();
+  });
+
+  test("empties the timeline when it is cleared while paused", async () => {
+    const registry = AtomRegistry.make();
+    const count = Atom.make(1).pipe(Atom.withLabel("count"));
+    const model = new Model(inspect(registry));
+    const stop = model.start();
+    registry.get(count);
+    registry.set(count, 2);
+    await sleep(5);
+    expect(model.timeline.length).toBeGreaterThan(0);
+    model.paused = true;
+    model.clearTimeline();
+    await sleep(5);
+    expect(model.timeline).toEqual([]);
     stop();
     registry.dispose();
   });
