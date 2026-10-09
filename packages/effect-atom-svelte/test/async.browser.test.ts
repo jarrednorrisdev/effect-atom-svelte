@@ -731,7 +731,7 @@ describe("serialization keys in the browser (JND-60)", () => {
     expect(mounts).toBe(3);
   });
 
-  test("two different atoms in use at once with one key warn in development", async () => {
+  test("two different atoms in use at once with one key share its value, without an error or a warning", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     onTestFinished(() => warn.mockRestore());
     const screen = await render(Harness, {
@@ -745,17 +745,8 @@ describe("serialization keys in the browser (JND-60)", () => {
       },
     });
     await expect.poll(text(screen)).toBe("first first");
-    // Not thrown in the browser, where a remount briefly has an old and a new atom holding the key:
-    // one still held by another atom a second after the update has committed, once an old
-    // branch's outro would have ended, is a second atom in use with it.
-    await expect
-      .poll(() => warn.mock.calls.map(([message]) => String(message)), {
-        timeout: 10_000,
-      })
-      .toEqual([
-        expect.stringContaining(
-          'Two different atoms share the serialization key "dup"'
-        ),
-      ]);
+    // Only the server render throws for this: in the browser a remount, as under {#key}, briefly
+    // has an old and a new atom holding one key.
+    expect(warn).not.toHaveBeenCalled();
   });
 });

@@ -960,7 +960,6 @@ const serverGet = <A>(
 
 /** One serialization key's seed in a registry, shared by every component using that key. */
 interface Seed {
-  readonly atom: Atom.Atom<unknown>;
   readonly done: Promise<void>;
   /**
    * Counts a component using the key until it calls the returned release, and whether it wants the
@@ -1142,9 +1141,6 @@ const claimServerValue = (key: string, missed: boolean): void => {
   void warnIfSent(key, store.get(key));
 };
 
-/** How long, in milliseconds, a branch leaving the page may hold a key before development builds warn that another atom shares it. */
-const duplicateKeyWarningDelay = 1000;
-
 /**
  * For the getter's first atom, if serializable, resolves it and passes the encoded result from
  * server to client with `hydratable`, so hydration seeds the registry instead of fetching again.
@@ -1178,28 +1174,11 @@ const seedFromServer = (
     seeds.set(registry, registrySeeds);
   }
   const { held, spent } = registrySeeds;
+  // The server's value belongs to the key, not to an atom: the registry keeps a serializable atom's
+  // value under its key, so every atom with the key reads it, as HydrationBoundary assumes too.
+  // A remounted branch, as under {#key}, makes a new atom with the old one's key while the old one
+  // still holds it, until Svelte destroys the old branch or its outro ends: the new atom joins it.
   let entry = held.get(key);
-  if (entry && entry.atom !== atom) {
-    // Svelte sets up a remounted branch, as under {#key}, before it destroys the old one, whose
-    // atom holds the key until then, or until its outro ends. Svelte gives no public signal that a
-    // branch is leaving, so the new atom takes no seed rather than throwing, as the server does.
-    // Development builds warn if another atom still holds the key a second after the update has
-    // committed, by when an old branch's outro has usually ended; a longer one still warns.
-    if (DEV) {
-      $effect(() => {
-        const timer = setTimeout(() => {
-          const holder = held.get(key);
-          if (holder && holder.atom !== atom) {
-            console.warn(
-              `effect-atom-svelte: Two different atoms share the serialization key "${key}". The server sends one result per key, so the browser can't tell which atom it belongs to: put what tells the atoms apart into the key. See https://atom.jarrednorris.dev/troubleshooting#two-different-atoms-share-the-serialization-key`
-            );
-          }
-        }, duplicateKeyWarningDelay);
-        return () => clearTimeout(timer);
-      });
-    }
-    return undefined;
-  }
   if (!entry && spent.has(key)) {
     return undefined;
   }
@@ -1217,7 +1196,6 @@ const seedFromServer = (
     let holders = 0;
     let revalidating = 0;
     entry = {
-      atom,
       done: (async () => {
         const value = await encoded;
         // Only the server's value is a seed, and only while someone is there to read it now: a seed
@@ -1307,7 +1285,7 @@ const pendingSeed = (
   const registrySeeds = seeds.get(registry);
   const entry = registrySeeds?.held.get(key);
   if (entry) {
-    return entry.atom === atom ? entry.done : undefined;
+    return entry.done;
   }
   if (
     registrySeeds?.spent.has(key) ||
