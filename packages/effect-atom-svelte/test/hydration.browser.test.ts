@@ -7,8 +7,10 @@ import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
+import HydratePending from "./fixtures/hydrate-pending.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
+import { providerSeedSeen } from "./fixtures/provider-seed.ts";
 import { queryFetches } from "./fixtures/reactive-query.ts";
 import {
   resetRevalidate,
@@ -20,12 +22,14 @@ import { serverValueComputed } from "./fixtures/server-value.ts";
 import { skewComputed } from "./fixtures/skew-seed.ts";
 import SsrAfterAwait from "./fixtures/ssr-after-await.svelte";
 import SsrAwaitedBoundary from "./fixtures/ssr-awaited-boundary.svelte";
+import SsrBoundaryReadAbove from "./fixtures/ssr-boundary-read-above.svelte";
 import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
+import SsrProviderSeed from "./fixtures/ssr-provider-seed.svelte";
 import SsrReactive from "./fixtures/ssr-reactive.svelte";
 import SsrRevalidate from "./fixtures/ssr-revalidate.svelte";
 import SsrScriptRead from "./fixtures/ssr-script-read.svelte";
@@ -219,6 +223,63 @@ describe("HydrationBoundary", () => {
       state,
     });
     await expect.poll(text(screen)).toBe("Success");
+  });
+});
+
+describe("HydrationBoundary destroyed before a promise-encoded value lands", () => {
+  test("doesn't hand the late value to a later reader", async () => {
+    const registry = AtomRegistry.make();
+    const late = Deferred.makeUnsafe<unknown>();
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "count",
+        resultPromise: Effect.runPromise(Deferred.await(late)),
+        value: 0,
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as Hydration.DehydratedAtom[];
+    const screen = await render(Hydrate, {
+      registry,
+      setup: () => () => "not read",
+      state,
+    });
+    // As a page navigated away from while its streamed state was still on its way.
+    await screen.unmount();
+    Deferred.doneUnsafe(late, Effect.succeed(42));
+    await sleep("20 millis");
+    // Kept, the late value would wait in the registry for whoever reads the atom next, however late.
+    expect(registry.get(countAtom)).toBe(0);
+    registry.dispose();
+  });
+
+  test("destroyed while its children are still pending, doesn't hand the late value to a later reader", async () => {
+    const registry = AtomRegistry.make();
+    const late = Deferred.makeUnsafe<unknown>();
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "count",
+        resultPromise: Effect.runPromise(Deferred.await(late)),
+        value: 0,
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as Hydration.DehydratedAtom[];
+    const screen = await render(HydratePending, {
+      registry,
+      // A child that never finishes loading, so the boundary never mounts.
+      setup: () => Effect.runPromise(Effect.never),
+      show: true,
+      state,
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    // As a page navigated away from before it had finished loading.
+    await screen.rerender({ show: false });
+    await sleep("20 millis");
+    Deferred.doneUnsafe(late, Effect.succeed(42));
+    await sleep("20 millis");
+    expect(registry.get(countAtom)).toBe(0);
+    registry.dispose();
   });
 });
 
@@ -861,4 +922,47 @@ describe("seeding after client-side navigation", () => {
     await sleep(afterSweep);
     expect(registry.getNodes().has("seeded-list-a")).toBe(false);
   });
+});
+
+describe("RegistryProvider initialValues with a HydrationBoundary", () => {
+  test("the browser's first render shows what the server rendered, the boundary's value", async () => {
+    providerSeedSeen.length = 0;
+    const { body } = await commands.renderOnServer(
+      "/test/fixtures/ssr-provider-seed.svelte"
+    );
+    // The server renders the boundary's value over the provider's default.
+    expect(
+      new DOMParser()
+        .parseFromString(body, "text/html")
+        .body.textContent?.trim()
+    ).toBe("2");
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-provider-seed.svelte",
+      SsrProviderSeed
+    );
+    await expect
+      .poll(() => target.querySelector("output")?.textContent)
+      .toBe("2");
+    // Hydration must start from the server's markup, not flash the provider's default.
+    expect(providerSeedSeen).toEqual([2]);
+  }, 120_000);
+
+  test("an atom read above the boundary: the boundary's children hydrate with what the server rendered", async () => {
+    providerSeedSeen.length = 0;
+    const { body } = await commands.renderOnServer(
+      "/test/fixtures/ssr-boundary-read-above.svelte"
+    );
+    const server = [
+      ...new DOMParser()
+        .parseFromString(body, "text/html")
+        .querySelectorAll("output"),
+    ].map((output) => output.textContent);
+    expect(server).toEqual(["above 0", "2"]);
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-boundary-read-above.svelte",
+      SsrBoundaryReadAbove
+    );
+    await expect.poll(outputs(target)).toEqual(["above 2", "2"]);
+    expect(providerSeedSeen).toEqual([2]);
+  }, 120_000);
 });
