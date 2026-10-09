@@ -2,6 +2,7 @@
 // package. The registry itself tells nobody: its nodes drop their listeners without a last
 // notification, so a promise-mode setter waiting on one would never settle.
 import type { AtomRegistry } from "effect/reactivity";
+import { BROWSER } from "esm-env";
 
 const callbacks = new WeakMap<AtomRegistry.AtomRegistry, Set<() => void>>();
 
@@ -24,10 +25,22 @@ export const onDispose = (
 /**
  * Disposes of `registry`, then runs what waited on it, even when a finalizer the disposal runs
  * throws.
+ *
+ * In the browser that error is rethrown on a microtask, so it is still reported as uncaught but
+ * stays out of Svelte's teardown: thrown from the `onDestroy` of a component being destroyed, it
+ * escapes Svelte's flush and leaves every `$derived` on the page running again on every read. On
+ * the server it is thrown here.
  */
 export const disposeRegistry = (registry: AtomRegistry.AtomRegistry): void => {
   try {
     registry.dispose();
+  } catch (error) {
+    if (!BROWSER) {
+      throw error;
+    }
+    queueMicrotask(() => {
+      throw error;
+    });
   } finally {
     const set = callbacks.get(registry);
     callbacks.delete(registry);
