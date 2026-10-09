@@ -242,8 +242,10 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 When the boundary puts its values into the registry:
 
 - **Atoms the registry doesn't have yet** get their values before the children render.
-- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render.
+- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render, and so are they in the browser while it hydrates the server's markup, so its first render matches the server's. That last part needs Svelte's `experimental.async`: without it, an atom that already exists, such as one read above the boundary, is updated after the first render.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+
+If you render on the server yourself instead of with SvelteKit, and `experimental.async` is on, `await render(...)` so the boundary's `hydratable` entry is written into the page. Without the `await`, a production build of Svelte logs `hydratable_missing_but_expected` once per boundary as the page hydrates.
 
 `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Running again after hydration](#running-again-after-hydration).
 

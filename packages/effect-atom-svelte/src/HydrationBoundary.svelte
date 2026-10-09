@@ -5,6 +5,12 @@
   hydrated before children render; in the browser, atoms that already exist are updated after
   render, so current UI does not jump to the incoming data mid-render. On the server, where nothing
   renders again, and in the browser while it hydrates the server's markup, they are updated at once.
+  That needs Svelte's `experimental.async`: without it, the browser can't tell that it is hydrating,
+  and atoms that already exist, as one read above the boundary, are updated after the first render.
+
+  With `experimental.async` on, custom server rendering must `await render(...)`, as SvelteKit does,
+  so the boundary's `hydratable` entry is written into the page. Otherwise a production build of
+  Svelte logs `hydratable_missing_but_expected` once per boundary as the page hydrates.
 
   A value for an atom nobody reads waits in the registry until something does. When the boundary
   is destroyed, as at the end of a server render, the values it brought that are still unread are
