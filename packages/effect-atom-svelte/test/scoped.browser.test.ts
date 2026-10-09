@@ -99,8 +99,19 @@ describe("ScopedAtom with server rendering", () => {
     await expect
       .poll(outputs(target))
       .toEqual(["a from the browser", "a from the browser"]);
+    // Set after the update committed, so this fires after the development build's delayed check
+    // for a duplicate key.
+    let checked = false;
+    setTimeout(() => (checked = true), 1100);
     await expect
       .poll(outputs(target), { timeout: 5000 })
       .toEqual(["a from the browser"]);
+    await expect.poll(() => checked, { timeout: 10_000 }).toBe(true);
+    // Only the old branch, fading out, held the key: no two atoms share it.
+    expect(
+      warn.mock.calls.filter(([message]) =>
+        String(message).includes("Two different atoms share")
+      )
+    ).toEqual([]);
   });
 });

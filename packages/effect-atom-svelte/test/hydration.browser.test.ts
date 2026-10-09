@@ -8,6 +8,7 @@ import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import HydratePending from "./fixtures/hydrate-pending.svelte";
+import HydrateReaderAboveToggle from "./fixtures/hydrate-reader-above-toggle.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import { providerSeedSeen } from "./fixtures/provider-seed.ts";
@@ -280,6 +281,45 @@ describe("HydrationBoundary destroyed before a promise-encoded value lands", () 
     Deferred.doneUnsafe(late, Effect.succeed(42));
     await sleep("20 millis");
     expect(registry.get(countAtom)).toBe(0);
+    registry.dispose();
+  });
+
+  test("hands the late value to a reader above it that already held the atom", async () => {
+    const schema = AsyncResult.Schema({ success: Schema.String });
+    const encode = Schema.encodeSync(schema);
+    const slowAtom = Atom.make(Effect.never as Effect.Effect<string>).pipe(
+      Atom.serializable({ key: "slow-above", schema })
+    );
+    const registry = AtomRegistry.make();
+    const late = Deferred.makeUnsafe<unknown>();
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "slow-above",
+        resultPromise: Effect.runPromise(Deferred.await(late)),
+        value: encode(AsyncResult.initial(true)),
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as Hydration.DehydratedAtom[];
+    const screen = await render(HydrateReaderAboveToggle, {
+      // As a layout's reader above the page's boundary, which takes the boundary's waiting value.
+      above: () => {
+        const result = useAtomValue(slowAtom);
+        return () => result.current._tag;
+      },
+      registry,
+      show: true,
+      state,
+    });
+    await expect.poll(text(screen)).toContain("Initial");
+    // As navigating to another page under the same layout while the streamed state is on its way.
+    await screen.rerender({ show: false });
+    Deferred.doneUnsafe(
+      late,
+      Effect.succeed(encode(AsyncResult.success("from server")))
+    );
+    // Dropped, the late value would leave the layout's reader waiting forever.
+    await expect.poll(text(screen)).toContain("Success");
     registry.dispose();
   });
 });

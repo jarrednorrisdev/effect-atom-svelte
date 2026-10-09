@@ -746,9 +746,12 @@ describe("serialization keys in the browser (JND-60)", () => {
     });
     await expect.poll(text(screen)).toBe("first first");
     // Not thrown in the browser, where a remount briefly has an old and a new atom holding the key:
-    // one still held by another atom once the update has committed is a second atom in use with it.
+    // one still held by another atom a second after the update has committed, once an old
+    // branch's outro would have ended, is a second atom in use with it.
     await expect
-      .poll(() => warn.mock.calls.map(([message]) => String(message)))
+      .poll(() => warn.mock.calls.map(([message]) => String(message)), {
+        timeout: 10_000,
+      })
       .toEqual([
         expect.stringContaining(
           'Two different atoms share the serialization key "dup"'

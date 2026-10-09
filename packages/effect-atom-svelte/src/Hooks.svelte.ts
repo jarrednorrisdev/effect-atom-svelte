@@ -1135,6 +1135,9 @@ const claimServerValue = (key: string, missed: boolean): void => {
   void warnIfSent(key, store.get(key));
 };
 
+/** How long, in milliseconds, a branch leaving the page may hold a key before development builds warn that another atom shares it. */
+const duplicateKeyWarningDelay = 1000;
+
 /**
  * For the getter's first atom, if serializable, resolves it and passes the encoded result from
  * server to client with `hydratable`, so hydration seeds the registry instead of fetching again.
@@ -1173,15 +1176,19 @@ const seedFromServer = (
     // Svelte sets up a remounted branch, as under {#key}, before it destroys the old one, whose
     // atom holds the key until then, or until its outro ends. Svelte gives no public signal that a
     // branch is leaving, so the new atom takes no seed rather than throwing, as the server does.
-    // Development builds warn if another atom still holds the key once the update has committed.
+    // Development builds warn if another atom still holds the key a second after the update has
+    // committed, by when an old branch's outro has usually ended; a longer one still warns.
     if (DEV) {
       $effect(() => {
-        const holder = held.get(key);
-        if (holder && holder.atom !== atom) {
-          console.warn(
-            `effect-atom-svelte: Two different atoms share the serialization key "${key}". The server sends one result per key, so the browser can't tell which atom it belongs to: put what tells the atoms apart into the key. See https://atom.jarrednorris.dev/troubleshooting#two-different-atoms-share-the-serialization-key`
-          );
-        }
+        const timer = setTimeout(() => {
+          const holder = held.get(key);
+          if (holder && holder.atom !== atom) {
+            console.warn(
+              `effect-atom-svelte: Two different atoms share the serialization key "${key}". The server sends one result per key, so the browser can't tell which atom it belongs to: put what tells the atoms apart into the key. See https://atom.jarrednorris.dev/troubleshooting#two-different-atoms-share-the-serialization-key`
+            );
+          }
+        }, duplicateKeyWarningDelay);
+        return () => clearTimeout(timer);
       });
     }
     return undefined;
