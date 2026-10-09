@@ -228,6 +228,8 @@ code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: non
 .tone-bad .val, .tone-bad pre b, .tone-bad .body { color: var(--bad); border-color: var(--bad); }
 .tone-ok .val, .tone-ok pre b, .tone-ok .body { color: var(--ok); border-color: var(--ok); }
 
+.big.long { font-size: 26px; }
+
 </style>
 </head>
 <body>
@@ -310,6 +312,8 @@ const Stepper = (() => {
         }
         view.className = "view " + (s.live ? "live" : "static") + (s.tone ? " " + s.tone : "");
         const next = String(s.v ?? "");
+        // Longer values drop to a size that fits the box.
+        big.classList.toggle("long", next.length > 5);
         if (big.textContent !== next) {
           if (animate && big.textContent) {
             replay(big, "flip");
@@ -537,7 +541,7 @@ const Stepper = (() => {
 Stepper.mount({
   "meta": {
     "title": "One author, two comments, on a server-rendered page",
-    "subtitle": "Why a scoped atom should provide a family's atom when its value comes from the server. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/45\">#45<\/a>.",
+    "subtitle": "How a scoped atom and a family combine: context access from one, one atom per id from the other. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/45\">#45<\/a>.",
     "kicker": "Scoped atoms · one page render, step by step",
     "beforeLabel": "Old advice",
     "afterLabel": "New advice",
@@ -571,17 +575,24 @@ Stepper.mount({
   },
   "boxes": [
     {
-      "id": "provA",
+      "id": "c1",
       "lane": "S",
       "kind": "store",
-      "label": "comment 1's UserProvider",
+      "label": "comment 1's UserProvider · Alice",
       "row": "User.provide(\"a\")"
     },
     {
-      "id": "provB",
+      "id": "c2",
       "lane": "S",
       "kind": "store",
-      "label": "comment 2's UserProvider",
+      "label": "comment 2's UserProvider · Bob",
+      "row": "User.provide(\"b\")"
+    },
+    {
+      "id": "c3",
+      "lane": "S",
+      "kind": "store",
+      "label": "comment 3's UserProvider · Alice",
       "row": "User.provide(\"a\")"
     },
     {
@@ -589,14 +600,14 @@ Stepper.mount({
       "lane": "S",
       "kind": "data",
       "label": "userAtom family · one atom per id",
-      "text": "a → atom #1"
+      "text": ""
     },
     {
       "id": "claims",
       "lane": "S",
       "kind": "data",
       "label": "values to send · by serialization key",
-      "text": "user-a → atom #1"
+      "text": ""
     },
     {
       "id": "html",
@@ -615,13 +626,14 @@ Stepper.mount({
       "lane": "B",
       "kind": "store",
       "label": "browser registry",
-      "row": "user-a"
+      "row": "user-a, user-b"
     }
   ],
   "files": {
     "page": {
       "name": "+page.svelte",
       "lines": [
+        "<!-- comments: Alice, Bob, then Alice again -->",
         "{#each comments as comment}",
         "  <UserProvider id={comment.authorId}>",
         "    <CommentCard {comment} />",
@@ -633,8 +645,8 @@ Stepper.mount({
       "name": "CommentCard.svelte · no author id passed in",
       "lines": [
         "<article>",
-        "  <Avatar />      <!-- calls User.use() -->",
-        "  <AuthorName />  <!-- calls User.use() -->",
+        "  <Avatar />      <!-- User.use() -->",
+        "  <AuthorName />  <!-- User.use() -->",
         "  <p>{comment.text}<\/p>",
         "<\/article>"
       ]
@@ -687,10 +699,11 @@ Stepper.mount({
     "hydrate": {
       "name": "what the server sends",
       "lines": [
-        "<b>Alice<\/b> … <b>Alice<\/b>",
+        "<b>Alice<\/b> … <b>Bob<\/b> … <b>Alice<\/b>",
         "",
         "<!-- plus the values, by serialization key -->",
-        "user-a: Success({ name: \"Alice\" })"
+        "user-a: Success({ name: \"Alice\" })",
+        "user-b: Success({ name: \"Bob\" })"
       ]
     }
   },
@@ -700,13 +713,13 @@ Stepper.mount({
         "side": "S",
         "file": "page",
         "hl": [
-          0,
           1,
-          2
+          2,
+          3
         ],
-        "title": "A comment thread gives each comment its author",
-        "body": "Each comment is wrapped in a <code>UserProvider<\/code> for its author. <code>User<\/code> is a <em>scoped atom<\/em> (from this library): <code>User.provide(id)<\/code> makes an atom for the component's subtree, and <code>User.use()<\/code> anywhere below reads it, like Svelte context. Alice wrote two of the comments, so two providers get the id <code>a<\/code>.",
-        "note": "Nothing unusual: any list where the same person appears twice does this."
+        "title": "Each comment provides its author",
+        "body": "<code>User<\/code> is a <em>scoped atom<\/em> (from this library): <code>User.provide(id)<\/code> in a component makes an atom for its subtree, and <code>User.use()<\/code> anywhere below reads it, like Svelte context. A provider holds one user, and a thread has many authors, so the provider sits around each comment. Alice wrote comments 1 and 3, so two providers get the id <code>a<\/code>.",
+        "note": "Any list where the same person appears twice does this."
       },
       {
         "side": "S",
@@ -715,9 +728,9 @@ Stepper.mount({
           1,
           2
         ],
-        "title": "Inside a card, nobody passes the author's id",
-        "body": "<code>CommentCard<\/code>'s parts call <code>User.use()<\/code> to get the author. Without the scoped atom, <code>authorId<\/code> would have to be passed down as a prop to every part that shows the author.",
-        "note": "That's why a scoped atom is worth keeping here."
+        "title": "Inside a card, both parts read <em>this comment's<\/em> atom",
+        "body": "<code>&lt;Avatar /&gt;<\/code> and <code>&lt;AuthorName /&gt;<\/code> each call <code>User.use()<\/code>, which returns the atom of the nearest provider above them: their own comment's. So within one comment they share one atom, and nobody passes <code>authorId<\/code> down as a prop.",
+        "note": "That convenience is why the scoped atom is worth keeping."
       }
     ],
     "before": [
@@ -730,32 +743,17 @@ Stepper.mount({
           2
         ],
         "active": [
-          "provA"
-        ],
-        "set": {
-          "provA": "atom #1"
-        },
-        "title": "Comment 1's provider makes an atom",
-        "body": "<code>User.provide(\"a\")<\/code> runs the scoped atom's recipe, which makes a brand-new atom. Its <em>serialization key<\/em> is <code>user-a<\/code>: the name its value travels under from the server to the browser.",
-        "note": "A new atom per provider is what scoped atoms promise."
-      },
-      {
-        "side": "S",
-        "file": "claim",
-        "hl": [
-          6
-        ],
-        "active": [
-          "claims",
-          "html"
+          "c1",
+          "claims"
         ],
         "frame": "Alice",
         "set": {
-          "claims": true,
-          "html": "comment 1: Alice"
+          "c1": "atom #1",
+          "claims": "user-a → atom #1",
+          "html": "Alice"
         },
-        "title": "Comment 1's <code>&lt;AuthorName /&gt;<\/code> reads it: the key is claimed for atom #1",
-        "body": "<code>useAtomSuspense<\/code> fetches the user and renders <b>Alice<\/b>. It also claims the key <code>user-a<\/code> for atom #1, so that atom's value is sent to the browser with the HTML.",
+        "title": "Comment 1: its provider makes an atom, and the key is claimed for it",
+        "body": "The provider runs the scoped atom's recipe, which makes a brand-new atom. Its <em>serialization key<\/em>, the name its value travels under from the server to the browser, is <code>user-a<\/code>. Reading it on the server renders <b>Alice<\/b> and claims <code>user-a<\/code> for atom #1.",
         "note": "The server sends one value per key, so it records which atom owns each key."
       },
       {
@@ -763,19 +761,21 @@ Stepper.mount({
         "file": "userOld",
         "hl": [
           0,
-          1,
           2
         ],
         "active": [
-          "provB"
+          "c2",
+          "claims"
         ],
-        "frame": "Alice",
+        "frame": "Alice, Bob",
         "set": {
-          "provB": "atom #2"
+          "c2": "atom #2",
+          "claims": "user-a → atom #1 · user-b → atom #2",
+          "html": "Alice · Bob"
         },
-        "title": "Comment 2's provider makes a <em>second<\/em> atom",
-        "body": "The second <code>User.provide(\"a\")<\/code> runs the recipe again and gets another brand-new atom. Same id, so the same key: <code>user-a<\/code>.",
-        "note": "Two different atoms now have one key."
+        "title": "Comment 2, by Bob: another new atom, under another key",
+        "body": "Bob's comment gets its own provider and its own new atom, with the key <code>user-b<\/code>. No conflict.",
+        "note": "So far, one atom per comment, and each author's key is unique."
       },
       {
         "side": "S",
@@ -787,17 +787,18 @@ Stepper.mount({
           4
         ],
         "active": [
+          "c3",
           "claims"
         ],
         "frame": "✕",
         "bad": true,
         "set": {
-          "provB": {
-            "v": "atom #2",
+          "c3": {
+            "v": "atom #3",
             "tone": "bad"
           },
           "claims": {
-            "text": "user-a → atom #1, but atom #2 wants it too",
+            "text": "user-a → atom #1, but atom #3 wants it too",
             "tone": "bad"
           },
           "html": {
@@ -805,9 +806,9 @@ Stepper.mount({
             "tone": "bad"
           }
         },
-        "title": "Comment 2's <code>&lt;AuthorName /&gt;<\/code> reads atom #2, and the server render throws",
-        "body": "Its <code>useAtomSuspense<\/code> finds <code>user-a<\/code> already claimed by atom #1. The server can't send two atoms' values under one key, and it can't tell whether they mean the same thing, so it throws. The error escapes every <code>&lt;svelte:boundary&gt;<\/code>, and the whole render fails.",
-        "note": "This check exists to catch two genuinely different atoms given one name by mistake. Here it fires on a page that did nothing wrong."
+        "title": "Comment 3, by Alice again: a third atom, and the server render throws",
+        "body": "Alice's second comment gets a new provider, which makes a <em>new<\/em> atom, #3, with the key <code>user-a<\/code>. That key is already claimed by atom #1. The server can't send two atoms' values under one key, and it can't tell whether they mean the same thing, so it throws. The error escapes every <code>&lt;svelte:boundary&gt;<\/code>, and the whole render fails.",
+        "note": "A thread with a repeat author can't be server-rendered at all."
       },
       {
         "side": "B",
@@ -831,8 +832,8 @@ Stepper.mount({
           }
         },
         "title": "The browser gets an error page",
-        "body": "Instead of the thread, the user gets SvelteKit's error page. Nothing reaches the browser.",
-        "note": "One author commenting twice breaks the whole page."
+        "body": "Instead of the thread, the user gets SvelteKit's error page.",
+        "note": "Only on a direct load: after client-side navigation the browser lets the atoms share the value quietly."
       }
     ],
     "after": [
@@ -841,38 +842,24 @@ Stepper.mount({
         "file": "userNew",
         "hl": [
           0,
+          6,
           7
         ],
         "active": [
+          "c1",
           "family",
-          "provA"
-        ],
-        "set": {
-          "family": true,
-          "provA": "atom #1"
-        },
-        "title": "Comment 1's provider asks the family for user <code>a<\/code>'s atom",
-        "body": "<code>User<\/code>'s recipe now calls <code>userAtom(id)<\/code>. <code>userAtom<\/code> is a <em>family<\/em> (from Effect): it makes one atom per id and remembers it. This is the first call for <code>a<\/code>, so it makes atom #1.",
-        "note": "The family, not the provider, decides which atom user a gets."
-      },
-      {
-        "side": "S",
-        "file": "claim",
-        "hl": [
-          6
-        ],
-        "active": [
-          "claims",
-          "html"
+          "claims"
         ],
         "frame": "Alice",
         "set": {
-          "claims": true,
-          "html": "comment 1: Alice"
+          "family": "a → atom #1",
+          "c1": "atom #1",
+          "claims": "user-a → atom #1",
+          "html": "Alice"
         },
-        "title": "Comment 1's <code>&lt;AuthorName /&gt;<\/code> reads it: the key is claimed for atom #1",
-        "body": "As before: <code>useAtomSuspense<\/code> fetches the user, renders <b>Alice<\/b>, and claims <code>user-a<\/code> for atom #1.",
-        "note": "Nothing different yet."
+        "title": "Comment 1: its provider asks the family for user <code>a<\/code>'s atom",
+        "body": "<code>User<\/code>'s recipe now calls <code>userAtom(id)<\/code>. <code>userAtom<\/code> is a <em>family<\/em> (from Effect): it makes one atom per id and remembers it. First call for <code>a<\/code>, so it makes atom #1. Reading it renders <b>Alice<\/b> and claims <code>user-a<\/code> for atom #1.",
+        "note": "The family, not the provider, decides which atom user a gets."
       },
       {
         "side": "S",
@@ -881,19 +868,20 @@ Stepper.mount({
           7
         ],
         "active": [
+          "c2",
           "family",
-          "provB"
+          "claims"
         ],
-        "frame": "Alice",
+        "frame": "Alice, Bob",
         "set": {
-          "provB": {
-            "v": "atom #1",
-            "tone": "ok"
-          }
+          "family": "a → atom #1 · b → atom #2",
+          "c2": "atom #2",
+          "claims": "user-a → atom #1 · user-b → atom #2",
+          "html": "Alice · Bob"
         },
-        "title": "Comment 2's provider gets the <em>same<\/em> atom",
-        "body": "The second <code>User.provide(\"a\")<\/code> calls <code>userAtom(\"a\")<\/code> again, and the family returns the atom it already made for <code>a<\/code>: atom #1.",
-        "note": "Two providers, one atom."
+        "title": "Comment 2, by Bob: the family makes Bob's atom",
+        "body": "First call for <code>b<\/code>, so the family makes atom #2, under the key <code>user-b<\/code>.",
+        "note": "So far, the same as before."
       },
       {
         "side": "S",
@@ -902,48 +890,55 @@ Stepper.mount({
           1
         ],
         "active": [
+          "c3",
+          "family",
           "claims"
         ],
-        "frame": "Alice ×2",
+        "frame": "Alice, Bob, Alice",
         "set": {
+          "c3": {
+            "v": "atom #1",
+            "tone": "ok"
+          },
           "claims": {
             "text": "user-a → atom #1, and this is atom #1",
             "tone": "ok"
           },
           "html": {
-            "v": "comment 1: Alice · comment 2: Alice",
+            "v": "Alice · Bob · Alice",
             "tone": "ok"
           }
         },
-        "title": "Comment 2's <code>&lt;AuthorName /&gt;<\/code> reads atom #1: the claim matches",
-        "body": "<code>user-a<\/code> is claimed by atom #1, and this is atom #1, so there's no conflict. Comment 2 renders <b>Alice<\/b> from the same value.",
-        "note": "The render completes, with one value for one key."
+        "title": "Comment 3, by Alice again: the family returns her atom",
+        "body": "Alice's second provider calls <code>userAtom(\"a\")<\/code>, and the family returns the atom it already made: atom #1. <code>user-a<\/code> is claimed by atom #1, and this is atom #1, so there's no conflict.",
+        "note": "Two providers for Alice, one atom, one value sent."
       },
       {
         "side": "B",
         "file": "hydrate",
         "hl": [
           0,
-          3
+          3,
+          4
         ],
         "active": [
           "screen",
           "browser"
         ],
         "packet": true,
-        "frame": "Alice ×2",
+        "frame": "Alice, Bob, Alice",
         "set": {
-          "browser": "Alice",
+          "browser": "Alice, Bob",
           "screen": {
             "v": "Alice",
-            "badge": "✓ both comments, no fetch in the browser",
+            "badge": "✓ all 3 comments, no fetch",
             "tone": "ok",
             "live": true
           }
         },
-        "title": "The browser hydrates both comments from the one value",
-        "body": "The HTML arrives with <code>user-a<\/code>'s value. In the browser, both providers again get atom #1 from the family, and it starts from the server's value instead of fetching.",
-        "note": "And inside each card, the parts still just call User.use()."
+        "title": "The browser hydrates the thread from two values",
+        "body": "The HTML arrives with one value per author. In the browser, the providers ask the family again, get the same atoms, and start from the server's values instead of fetching.",
+        "note": "Inside each card, the parts still just call User.use()."
       }
     ]
   }
