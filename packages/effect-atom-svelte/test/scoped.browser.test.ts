@@ -96,8 +96,11 @@ describe("ScopedAtom with server rendering", () => {
     await expect.poll(outputs(target)).toEqual(["a from the browser"]);
     click(target, "remount");
     // Both branches are alive while the old one fades out, then only the new one is left.
-    await expect.poll(outputs(target)).toEqual(["a from the browser"]);
-    await sleep("200 millis");
-    expect(outputs(target)()).toEqual(["a from the browser"]);
+    await expect
+      .poll(outputs(target))
+      .toEqual(["a from the browser", "a from the browser"]);
+    await expect
+      .poll(outputs(target), { timeout: 5000 })
+      .toEqual(["a from the browser"]);
   });
 });
