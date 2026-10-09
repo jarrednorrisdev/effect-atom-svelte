@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Explainer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Docs-site tokens (apps/demo/src/app.css). In T3 the host injects --background etc.; opened on
+     its own (GitHub Pages) the fallbacks apply, light or dark with the reader's system. */
+  :root {
+    --bg: var(--background, oklch(1 0 0));
+    --fg: var(--foreground, oklch(0.21 0.006 285.885));
+    --muted-fg: var(--muted-foreground, oklch(0.442 0.017 285.786));
+    --line: var(--border, oklch(0.92 0.004 286.32));
+    --soft: var(--muted, oklch(0.967 0.001 286.375));
+    --code-bg: var(--code-background, oklch(0.967 0.001 286.375 / 60%));
+    --brand: oklch(0.72 0.18 62);
+    --brand-ink: color-mix(in oklab, var(--brand) 72%, var(--fg));
+    --ok: oklch(0.68 0.15 160);
+    --bad: oklch(0.63 0.22 27);
+    --tint: color-mix(in oklab, var(--brand) 4%, var(--bg));
+    --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --serif: "Libron", ui-serif, Georgia, serif;
+    --r: 0.5rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: var(--background, oklch(0.141 0.005 285.823));
+      --fg: var(--foreground, oklch(0.985 0 0));
+      --muted-fg: var(--muted-foreground, oklch(0.705 0.015 286.067));
+      --line: var(--border, oklch(0.274 0.006 286.033));
+      --soft: var(--muted, oklch(0.274 0.006 286.033));
+      --code-bg: var(--code-background, oklch(0.21 0.006 285.885 / 60%));
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: light dark; }
+  /* Standalone (no host theme): centre the page and give it a heading. */
+  body.standalone { max-width: 800px; margin: 0 auto; padding: 32px 20px 48px; }
+  .standalone-only { display: none; }
+  body.standalone .standalone-only { display: block; }
+  .page-title { font: 600 22px/1.3 var(--sans); margin: 0 0 4px; }
+  .page-sub { color: var(--muted-fg); margin: 0 0 20px; }
+  .page-sub a { color: var(--brand-ink); }
+  .page-sub code { font: 12.5px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  code, pre, .row, .chip, .val, .packet { font-variant-ligatures: none; }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); font-size: 14px; line-height: 1.5; }
+
+  .label {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted-fg);
+  }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button {
+    font: 500 12px var(--sans); color: var(--muted-fg); background: none; border: 0;
+    padding: 5px 12px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s;
+  }
+  .seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+
+  /* rail */
+  .rail { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; margin-bottom: 6px; }
+  .rail button {
+    position: relative; height: 30px; border: 1px solid var(--line); background: var(--bg);
+    border-radius: 6px; font: 500 11px var(--mono); color: var(--muted-fg); cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  .rail button:hover { border-color: var(--brand); }
+  .rail button.done { background: color-mix(in oklab, var(--brand) 10%, var(--bg)); color: var(--fg); }
+  .rail button.now { border-color: var(--brand); background: var(--brand); color: #1a1205; }
+  .phases { display: grid; gap: 4px; margin-bottom: 16px; }
+  .phases div { border-top: 2px solid var(--line); padding-top: 4px; }
+  .phases div.on { border-color: var(--brand); }
+  .phases div.on .label { color: var(--fg); }
+
+  /* stage */
+  .stage { border: 1px solid var(--line); border-radius: var(--r) var(--r) 0 0; background: var(--tint); padding: 16px; }
+  .diagram { display: grid; grid-template-columns: 1fr 92px 1fr; gap: 0; align-items: stretch; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .colhead { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .3s, box-shadow .3s; }
+  .col.on .dot { background: var(--brand); box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand) 22%, transparent); }
+  .col.on .colhead .label { color: var(--fg); }
+
+  .node {
+    border: 1px solid var(--line); background: var(--bg); border-radius: var(--r);
+    padding: 9px 11px; transition: opacity .35s, transform .35s, border-color .3s, box-shadow .3s, filter .35s;
+  }
+  .node.hidden { opacity: 0; transform: translateY(6px) scale(.98); pointer-events: none; }
+  .node.gone { opacity: .38; filter: grayscale(1); }
+  .node.gone .nodehead::after { content: "thrown away"; font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted-fg); margin-left: auto; }
+  .node.active { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent); }
+  .nodehead { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .nodehead .label { font-size: 0.66rem; }
+  .row { display: flex; align-items: center; justify-content: space-between; font-family: var(--mono); font-size: 12.5px; }
+  .row code { color: var(--muted-fg); }
+  .val {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 26px; padding: 0 8px;
+    border-radius: 6px; border: 1px solid var(--line); font: 600 14px var(--mono);
+  }
+  .flash { animation: flash .7s ease; }
+  @keyframes flash {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.28); background: var(--brand); color: #1a1205; border-color: var(--brand); }
+    100% { transform: scale(1); }
+  }
+  .chip {
+    font: 500 11.5px var(--mono); border: 1px dashed color-mix(in oklab, var(--brand) 60%, var(--line));
+    background: color-mix(in oklab, var(--brand) 7%, var(--bg)); border-radius: 6px; padding: 6px 9px;
+    transition: opacity .35s, transform .35s;
+  }
+  .chip.hidden { opacity: 0; transform: translateY(6px); }
+  .chip .label { display: block; font-size: .62rem; margin-bottom: 2px; }
+  .queue { border-style: solid; border-color: var(--bad); background: color-mix(in oklab, var(--bad) 8%, var(--bg)); }
+  .queue.applied { border-color: var(--line); background: var(--bg); opacity: .45; text-decoration: line-through; }
+
+  .htmlbox pre { margin: 0; font: 12.5px var(--mono); color: var(--muted-fg); }
+  .htmlbox pre b { color: var(--fg); font-weight: 600; }
+
+  /* wire */
+  .wire { position: relative; display: flex; align-items: center; justify-content: center; }
+  .wire .line { position: absolute; left: 10px; right: 10px; top: 50%; border-top: 1px dashed var(--line); }
+  .wire .line::after { content: ""; position: absolute; right: -2px; top: -4px; border: 4px solid transparent; border-left: 6px solid var(--line); }
+  .wire .wl { position: absolute; top: calc(50% + 8px); width: 100%; text-align: center; font-size: .58rem; }
+  .packet {
+    position: absolute; top: calc(50% - 15px); left: 4px; height: 30px; padding: 0 8px; border-radius: 6px;
+    background: var(--brand); color: #1a1205; font: 600 11px var(--mono); display: flex; align-items: center; gap: 6px;
+    opacity: 0; white-space: nowrap;
+  }
+  .packet.go { animation: travel 1.6s cubic-bezier(.5,0,.3,1) forwards; }
+  @keyframes travel {
+    0% { left: 0; opacity: 0; transform: scale(.8); }
+    15% { opacity: 1; transform: scale(1); }
+    85% { opacity: 1; }
+    100% { left: calc(100% - 64px); opacity: 0; }
+  }
+
+  /* screen */
+  .screen { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); transition: border-color .3s, box-shadow .3s; }
+  .screen.active { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent); }
+  .chrome { display: flex; align-items: center; gap: 5px; padding: 6px 9px; border-bottom: 1px solid var(--line); }
+  .chrome i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+  .chrome span { margin-left: 8px; font: 10.5px var(--mono); color: var(--muted-fg); }
+  .view { position: relative; height: 92px; display: flex; align-items: center; justify-content: center; }
+  .big { font: 600 44px/1 var(--mono); transition: color .3s, opacity .3s; }
+  .big.flip { animation: flip .5s ease; }
+  @keyframes flip { 0% { transform: translateY(0); opacity: 1; } 40% { transform: translateY(-10px); opacity: 0; } 41% { transform: translateY(10px); } 100% { transform: translateY(0); opacity: 1; } }
+  .view.blank .big { opacity: 0; }
+  .view.static .big { color: var(--muted-fg); }
+  .badge {
+    position: absolute; left: 8px; right: 8px; bottom: 6px; text-align: center; font: 500 10.5px var(--mono);
+    letter-spacing: .03em; color: var(--muted-fg); transition: color .3s;
+  }
+  .badge.bad { color: var(--bad); }
+  .badge.ok { color: var(--ok); }
+  .view.bad { background: color-mix(in oklab, var(--bad) 7%, var(--bg)); }
+  .view.ok { background: color-mix(in oklab, var(--ok) 7%, var(--bg)); }
+  .view { transition: background .4s; }
+
+  /* code + text */
+  .lower { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--r) var(--r); }
+  .code { background: var(--code-bg); padding: 12px 0; border-right: 1px solid var(--line); min-width: 0; }
+  .code .file { padding: 0 14px 8px; }
+  .code pre { margin: 0; font: 12px/1.65 var(--mono); overflow-x: auto; }
+  .code .ln { display: block; padding: 0 14px; border-left: 2px solid transparent; color: var(--muted-fg); transition: background .3s, color .3s, border-color .3s; white-space: pre; }
+  .code .ln.hl { background: color-mix(in oklab, var(--brand) 14%, transparent); border-left-color: var(--brand); color: var(--fg); }
+  .text { padding: 14px 16px; }
+  .text h3 { margin: 0 0 6px; font: 600 15px/1.35 var(--sans); }
+  .text p { margin: 0 0 8px; color: var(--fg); opacity: .88; }
+  .text p code, .text h3 code { font: 12.5px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  .note { font-family: var(--serif); font-style: italic; color: var(--brand-ink); font-size: 15px; margin-top: 4px; }
+  .fade-in { animation: fadein .35s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* controls + strip */
+  .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 10px; }
+  .btn {
+    font: 500 13px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 16px; cursor: pointer; transition: border-color .2s, opacity .2s;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--brand); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .counter { font: 12px var(--mono); color: var(--muted-fg); }
+  .strip { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+  .frames { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .frame {
+    width: 44px; height: 40px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font: 600 17px var(--mono); color: var(--muted-fg); opacity: .3; transition: opacity .3s, border-color .3s, background .3s, color .3s;
+  }
+  .frame.seen { opacity: 1; color: var(--fg); }
+  .frame.seen.bad { border-color: var(--bad); background: color-mix(in oklab, var(--bad) 10%, var(--bg)); color: var(--bad); }
+  .arrow { color: var(--muted-fg); font-size: 12px; opacity: .5; }
+  .stripnote { margin-left: auto; font: 500 12px var(--mono); }
+  .stripnote.bad { color: var(--bad); }
+  .stripnote.ok { color: var(--ok); }
+  .kbd { font: 11px var(--mono); color: var(--muted-fg); }
+
+  @media (max-width: 600px) {
+    .diagram { grid-template-columns: 1fr; gap: 10px; }
+    .wire { height: 54px; }
+    .lower { grid-template-columns: 1fr; }
+    .code { border-right: 0; border-bottom: 1px solid var(--line); }
+    .rail { grid-template-columns: repeat(min(var(--n), 6), 1fr); }
+    .phases { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+  <div class="standalone-only">
+    <h1 class="page-title" id="pageTitle"></h1>
+    <p class="page-sub" id="pageSub"></p>
+  </div>
+  <div class="top">
+    <span class="label" id="kicker"></span>
+    <div class="seg" role="group" aria-label="Version">
+      <button id="mBefore" aria-pressed="true">Before the fix</button>
+      <button id="mAfter" aria-pressed="false">After the fix</button>
+    </div>
+  </div>
+
+  <div class="rail" id="rail"></div>
+  <div class="phases" id="phases"></div>
+
+  <div class="stage">
+    <div class="diagram">
+      <div class="col" id="colS" data-side="S">
+        <div class="colhead"><span class="dot"></span><span class="label">Server</span></div>
+        <div class="node" id="nLoad">
+          <div class="nodehead"><span class="label">load() registry · temporary</span></div>
+          <div class="row"><code>countAtom</code><span class="val" id="vLoad">·</span></div>
+        </div>
+        <div class="chip" id="cStateS"><span class="label">data.state</span>[{ key: "count", value: 2 }]</div>
+        <div class="node" id="nRender">
+          <div class="nodehead"><span class="label">render registry</span></div>
+          <div class="row"><code>countAtom</code><span class="val" id="vRender">·</span></div>
+        </div>
+        <div class="node htmlbox" id="nHtml">
+          <div class="nodehead"><span class="label">HTML being written</span></div>
+          <pre>&lt;p&gt;<b id="vHtml">2</b>&lt;/p&gt;</pre>
+        </div>
+      </div>
+
+      <div class="wire">
+        <div class="line"></div>
+        <span class="label wl">network</span>
+        <div class="packet" id="packet">HTML + data.state</div>
+      </div>
+
+      <div class="col" id="colB" data-side="B">
+        <div class="colhead"><span class="dot"></span><span class="label">Browser</span></div>
+        <div class="screen" id="screen">
+          <div class="chrome"><i></i><i></i><i></i><span>what the user sees</span></div>
+          <div class="view blank" id="view"><span class="big" id="vScreen">2</span><span class="badge" id="badge"></span></div>
+        </div>
+        <div class="chip" id="cStateB"><span class="label">data.state · from the page</span>[{ key: "count", value: 2 }]</div>
+        <div class="node" id="nBrowser">
+          <div class="nodehead"><span class="label">browser registry</span></div>
+          <div class="row"><code>countAtom</code><span class="val" id="vBrowser">·</span></div>
+        </div>
+        <div class="chip queue" id="cQueue"><span class="label">queued · write after render</span>countAtom = 2</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="code">
+      <div class="file label" id="file"></div>
+      <pre id="code"></pre>
+    </div>
+    <div class="text" id="text"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="prev">← Back</button>
+    <span class="counter" id="counter"></span>
+    <button class="btn primary" id="next">Next →</button>
+  </div>
+
+  <div class="strip" id="strip">
+    <span class="label" id="stripLabel"></span>
+    <div class="frames" id="frames"></div>
+  </div>
+  <p class="kbd">Use ← and → to step, or click a step number. Each step has its own link: the address bar follows along.</p>
+
+<script>
+/* ===== DIAGRAM DATA: everything specific to this diagram. ===== */
+
+const META = {
+  title: "Bug 2: the first render doesn't match the server's HTML",
+  subtitle: "One page load with a <code>HydrationBoundary</code>, step by step. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/38\">#38</a>.",
+  kicker: "Bug 2 · one page load, step by step",
+  stripLabel: "What the user sees, from the moment the page arrives",
+  verdict: {
+    before: { tone: "bad", text: "flicker: 2 → 1 → 2" },
+    after: { tone: "ok", text: "no flicker" },
+  },
+};
+
+// The lanes, by the `side` each step sets. Markup: <div class="col" data-side="S">.
+const SIDES = { S: "On the server", B: "In the browser" };
+
+const FILES = {
+  load: { name: "+page.server.ts · runs first, on the server", lines: [
+    "export const load = async () => {",
+    "  const registry = AtomRegistry.make();",
+    "  // …run countAtom here: it computes 2",
+    "  return {",
+    "    state: Hydration.dehydrate(registry),",
+    "  };",
+    "};" ] },
+  layout: { name: "+layout.svelte", lines: [
+    "<RegistryProvider",
+    "  initialValues={[[countAtom, 1]]}>",
+    "  {@render children()}",
+    "</RegistryProvider>" ] },
+  page: { name: "+page.svelte", lines: [
+    "<script lang=\"ts\">",
+    "  const { data } = $props();",
+    "<\/script>",
+    "",
+    "<HydrationBoundary state={data.state}>",
+    "  <Count />",
+    "</HydrationBoundary>" ] },
+  count: { name: "Count.svelte", lines: [
+    "<script lang=\"ts\">",
+    "  const count = useAtomValue(countAtom);",
+    "<\/script>",
+    "",
+    "<p>{count.current}</p>" ] },
+  boundaryBefore: { name: "inside HydrationBoundary · simplified", lines: [
+    "for (const { key, value } of state) {",
+    "  if (registry.has(key) && BROWSER) {",
+    "    queueUntilAfterRender(key, value);",
+    "  } else {",
+    "    registry.set(key, value);   // write now",
+    "  }",
+    "}" ] },
+  boundaryAfter: { name: "inside HydrationBoundary · with the fix", lines: [
+    "for (const { key, value } of state) {",
+    "  if (registry.has(key) && BROWSER",
+    "      && !hydratingServerHTML) {",
+    "    queueUntilAfterRender(key, value);",
+    "  } else {",
+    "    registry.set(key, value);   // write now",
+    "  }",
+    "}" ] },
+  send: { name: "what SvelteKit sends", lines: [
+    "<!-- the page's HTML -->",
+    "<p>2</p>",
+    "",
+    "<!-- plus the page data, embedded -->",
+    "data = { state: [{ key: \"count\", value: 2 }] }" ] },
+};
+
+// Each box's state per step. load/render/browser: [visibility, value]; vis: hidden | on | gone.
+const BASE = { load: ["hidden"], stateS: false, render: ["hidden"], html: false, stateB: false,
+  browser: ["hidden"], queue: "hidden", screen: ["blank"], active: [], packet: false, side: "S" };
+
+const SHARED = [
+  { file: "load", hl: [0, 1, 2], load: ["on", 2], active: ["nLoad"],
+    title: "SvelteKit runs <code>load</code>, before rendering anything",
+    body: "<code>load</code> makes its own temporary registry and runs <code>countAtom</code> in it. Say it fetches a count from a database: it comes back as <b>2</b>.",
+    note: "This is where the 2 comes from." },
+  { file: "load", hl: [3, 4, 5], load: ["gone", 2], stateS: true, active: ["cStateS"],
+    title: "<code>dehydrate</code> turns the registry into plain data",
+    body: "A registry is a live object and can't be sent over the network. <code>Hydration.dehydrate</code> copies its values out as a plain list, <code>[{ key: \"count\", value: 2 }]</code>, which <code>load</code> returns as <code>data.state</code>. The temporary registry is then thrown away.",
+    note: "Only the plain list survives." },
+  { file: "layout", hl: [0, 1], render: ["on", 1], active: ["nRender"],
+    title: "Rendering starts: the layout creates the render registry",
+    body: "SvelteKit now renders the page. The layout's <code>RegistryProvider</code> creates a <em>second</em> server registry for this render, and <code>initialValues</code> starts <code>countAtom</code> at <b>1</b>.",
+    note: "A starting value, before any real data." },
+  { file: "boundaryBefore", hl: [4], render: ["on", 2], active: ["nRender", "cStateS"],
+    title: "On the server, <code>HydrationBoundary</code> writes <code>data.state</code> in straight away",
+    body: "The page's <code>HydrationBoundary</code> receives <code>data.state</code>. On the server it always writes before its children render, so <code>countAtom</code> goes from 1 to <b>2</b>.",
+    note: "The server never waits. Remember this for step 9." },
+  { file: "count", hl: [1, 4], html: true, active: ["nHtml", "nRender"],
+    title: "<code>&lt;Count /&gt;</code> renders <b>2</b> into the HTML",
+    body: "<code>&lt;Count /&gt;</code> reads <code>countAtom</code> from the render registry, gets 2, and writes <code>&lt;p&gt;2&lt;/p&gt;</code> into the page's HTML.",
+    note: "The server's HTML says 2." },
+  { file: "send", hl: [1, 4], packet: true, active: ["nHtml", "cStateS"],
+    title: "The server sends the HTML <em>and</em> <code>data.state</code>",
+    body: "The response holds the HTML showing 2. SvelteKit also embeds the page data, including <code>data.state</code>, so the browser's components get the same <code>data</code> prop.",
+    note: "Both server registries are gone now. Only HTML and plain data travel." },
+  { side: "B", file: "send", hl: [1], screen: ["static", 2, "server HTML · no JavaScript yet"], stateB: true, active: ["screen"],
+    title: "The page appears, showing <b>2</b>",
+    body: "The browser displays the server's HTML straight away. No JavaScript has run yet, and the browser has no registry: what you see is just the HTML.",
+    note: "So far so good: the user sees 2.", frame: 2 },
+  { side: "B", file: "layout", hl: [0, 1], browser: ["on", 1], active: ["nBrowser"],
+    screen: ["static", 2, "hydrating…"],
+    title: "JavaScript starts: the layout runs again, in the browser",
+    body: "Svelte now <em>hydrates</em>: it runs the same components again in the browser, starting with the layout. Its <code>RegistryProvider</code> creates a fresh browser registry, and <code>initialValues</code> sets <code>countAtom</code> to <b>1</b>.",
+    note: "This is where the 1 comes from: the layout's starting value, set again.", frame: 2 },
+];
+
+const BEFORE = [
+  { side: "B", file: "boundaryBefore", hl: [1, 2], browser: ["on", 1], queue: "on", active: ["cQueue", "cStateB", "nBrowser"],
+    screen: ["static", 2, "hydrating…"],
+    title: "<code>HydrationBoundary</code> finds <code>countAtom</code> already there, so it waits",
+    body: "The boundary gets the same <code>data.state</code> (count = 2). But the layout just created <code>countAtom</code>, and the boundary's rule in the browser is: <em>don't overwrite an atom that already exists until after the children have rendered</em>. So it queues the write.",
+    note: "This rule protects client-side navigation, but it misfires here.", frame: 2 },
+  { side: "B", file: "count", hl: [1, 4], browser: ["on", 1], queue: "on", active: ["screen", "nBrowser"],
+    screen: ["live", 1, "✕ the server's HTML said 2", "bad"],
+    title: "<code>&lt;Count /&gt;</code> renders <b>1</b>, but the server's HTML said 2",
+    body: "<code>&lt;Count /&gt;</code> reads the browser registry and gets 1. Hydration expects the browser's first render to match the server's HTML exactly, and it doesn't.",
+    note: "The number on screen drops from 2 to 1.", frame: 1, bad: true },
+  { side: "B", file: "boundaryBefore", hl: [2], browser: ["on", 2], queue: "applied", active: ["nBrowser", "cQueue"],
+    screen: ["live", 1, "still showing 1", "bad"],
+    title: "Render done: the queued write finally lands",
+    body: "Now that the children have rendered, the boundary runs its queued write. <code>countAtom</code> becomes <b>2</b> in the browser registry.",
+    note: "The registry is right again, but the screen hasn't caught up yet.", frame: 1, bad: true },
+  { side: "B", file: "count", hl: [4], browser: ["on", 2], queue: "applied", active: ["screen"],
+    screen: ["live", 2, "back to 2"],
+    title: "<code>&lt;Count /&gt;</code> re-renders: <b>2</b> again",
+    body: "<code>&lt;Count /&gt;</code> sees <code>countAtom</code> change and re-renders. It shows 2, matching the server again.",
+    note: "The user saw 2 → 1 → 2: a flicker, and a first render that didn't match the server's.", frame: 2, end: true },
+];
+
+const AFTER = [
+  { side: "B", file: "boundaryAfter", hl: [1, 2, 5], browser: ["on", 2], active: ["nBrowser", "cStateB"],
+    screen: ["static", 2, "hydrating…"],
+    title: "<code>HydrationBoundary</code> sees it's hydrating the server's HTML, so it writes now",
+    body: "<code>countAtom</code> already exists, but the boundary knows the browser is hydrating the server's HTML (that's what the tiny extra flag per page tells it). Matching the server is the right thing to do, so it writes straight away, as the server did: <code>countAtom</code> becomes <b>2</b>.",
+    note: "Same order of writes as the server: 1, then 2, before the children render.", frame: 2 },
+  { side: "B", file: "count", hl: [1, 4], browser: ["on", 2], active: ["screen", "nBrowser"],
+    screen: ["live", 2, "✓ matches the server's HTML", "ok"],
+    title: "<code>&lt;Count /&gt;</code> renders <b>2</b>, matching the server",
+    body: "<code>&lt;Count /&gt;</code> reads the browser registry and gets 2, the same as the server rendered. Hydration matches.",
+    note: "The number on screen never changes.", frame: 2 },
+  { side: "B", file: "boundaryAfter", hl: [], browser: ["on", 2], active: [],
+    screen: ["live", 2, "✓ matches the server's HTML", "ok"],
+    title: "Render done: nothing was queued",
+    body: "The boundary wrote before the render, so there's nothing left to do after it.",
+    note: "Steps 11 and 12 of the old timeline simply don't happen.", frame: 2 },
+  { side: "B", file: "count", hl: [4], browser: ["on", 2], active: ["screen"],
+    screen: ["live", 2, "✓ matches the server's HTML", "ok"],
+    title: "Steady: <b>2</b> the whole time",
+    body: "No re-render was needed, because the value never changed after hydration.",
+    note: "The user saw 2 → 2 → 2: no flicker.", frame: 2, end: true },
+];
+
+// Box state that stays as the last step left it; everything else resets each step.
+const CARRY = ["load", "render", "browser", "stateS", "stateB", "html"];
+
+// Draws one step's state onto this diagram's markup.
+function renderDiagram(s) {
+  setNode("nLoad", s.load, "vLoad");
+  setNode("nRender", s.render, "vRender");
+  setNode("nBrowser", s.browser, "vBrowser");
+  $("cStateS").classList.toggle("hidden", !s.stateS);
+  $("nHtml").classList.toggle("hidden", !s.html);
+  $("cStateB").classList.toggle("hidden", !s.stateB);
+
+  const q = $("cQueue");
+  q.classList.toggle("hidden", s.queue === "hidden");
+  q.classList.toggle("applied", s.queue === "applied");
+
+  ["nLoad", "nRender", "nHtml", "nBrowser", "cStateS", "cStateB", "cQueue"].forEach((id) => $(id).classList.toggle("active", s.active.includes(id)));
+  $("screen").classList.toggle("active", s.active.includes("screen"));
+
+  const p = $("packet");
+  p.classList.remove("go");
+  if (s.packet) { void p.offsetWidth; p.classList.add("go"); }
+
+  const [sv, val, badge, tone] = s.screen;
+  const view = $("view"), big = $("vScreen");
+  view.className = "view " + sv + (tone ? " " + tone : "");
+  const nv = val === undefined ? big.textContent : String(val);
+  if (big.textContent !== nv) { big.classList.remove("flip"); void big.offsetWidth; big.classList.add("flip"); setTimeout(() => (big.textContent = nv), 180); }
+  $("badge").textContent = badge || "";
+  $("badge").className = "badge" + (tone ? " " + tone : "");
+}
+
+/* ===== ENGINE: reusable as is. Edit only the DIAGRAM DATA section above. ===== */
+const $ = (id) => document.getElementById(id);
+const hasAfter = AFTER.length > 0;
+let mode = "before", i = 0, prev = null;
+const steps = () => {
+  let carry = {};
+  return SHARED.concat(mode === "before" ? BEFORE : AFTER).map((s) => {
+    const step = { ...BASE, ...carry, ...s };
+    carry = Object.fromEntries(CARRY.map((k) => [k, step[k]]));
+    return step;
+  });
+};
+const N = () => steps().length;
+
+// Standalone (GitHub Pages): no host theme variables, so centre the page and show the title.
+// Checked again after load, in case a host injects its theme late.
+const checkHost = () => document.body.classList.toggle("standalone",
+  !getComputedStyle(document.documentElement).getPropertyValue("--background").trim());
+checkHost();
+addEventListener("load", checkHost);
+setTimeout(checkHost, 500);
+document.title = META.title;
+$("pageTitle").textContent = META.title;
+$("pageSub").innerHTML = META.subtitle;
+$("kicker").textContent = META.kicker;
+$("stripLabel").textContent = META.stripLabel || "";
+$("mBefore").textContent = META.beforeLabel || "Before the fix";
+$("mAfter").textContent = META.afterLabel || "After the fix";
+if (!hasAfter) $("mBefore").parentElement.style.display = "none";
+
+function buildRail() {
+  const rail = $("rail"), all = steps();
+  rail.style.setProperty("--n", all.length);
+  rail.innerHTML = "";
+  all.forEach((_, n) => {
+    const b = document.createElement("button");
+    b.textContent = n + 1;
+    b.title = `Step ${n + 1}`;
+    b.onclick = () => go(n);
+    rail.append(b);
+  });
+  // One phase per run of steps on the same side.
+  const ph = $("phases");
+  ph.innerHTML = "";
+  const runs = [];
+  all.forEach((s, n) => {
+    const last = runs[runs.length - 1];
+    if (last && last.side === s.side) last.end = n;
+    else runs.push({ side: s.side, start: n, end: n });
+  });
+  ph.style.gridTemplateColumns = runs.map((r) => `${r.end - r.start + 1}fr`).join(" ");
+  runs.forEach((r) => {
+    const d = document.createElement("div");
+    d.dataset.start = r.start;
+    d.dataset.end = r.end;
+    d.innerHTML = `<span class="label">${SIDES[r.side]} · ${r.start === r.end ? "step " + (r.start + 1) : "steps " + (r.start + 1) + "–" + (r.end + 1)}</span>`;
+    ph.append(d);
+  });
+}
+
+function setNode(id, [vis, v], valId) {
+  const el = $(id);
+  el.classList.toggle("hidden", vis === "hidden");
+  el.classList.toggle("gone", vis === "gone");
+  const val = $(valId);
+  const next = v === undefined ? "·" : String(v);
+  if (val.textContent !== next) {
+    val.textContent = next;
+    if (vis !== "hidden" && prev !== null) { val.classList.remove("flash"); void val.offsetWidth; val.classList.add("flash"); }
+  }
+}
+
+function render() {
+  const all = steps(), s = all[i], last = all.length - 1;
+  [...$("rail").children].forEach((b, n) => { b.className = n === i ? "now" : n < i ? "done" : ""; });
+  [...$("phases").children].forEach((d) => d.classList.toggle("on", i >= +d.dataset.start && i <= +d.dataset.end));
+  document.querySelectorAll("[data-side]").forEach((c) => c.classList.toggle("on", c.dataset.side === s.side));
+
+  renderDiagram(s);
+
+  const f = FILES[s.file];
+  $("file").textContent = f.name;
+  $("code").innerHTML = f.lines.map((l, n) => `<span class="ln${s.hl.includes(n) ? " hl" : ""}">${esc(l) || " "}</span>`).join("");
+
+  const t = $("text");
+  t.innerHTML = `<span class="label">Step ${i + 1} of ${all.length}</span><h3>${s.title}</h3><p>${s.body}</p>${s.note ? `<p class="note">${s.note}</p>` : ""}`;
+  t.classList.remove("fade-in"); void t.offsetWidth; t.classList.add("fade-in");
+
+  // The strip: one frame per step that sets `frame`.
+  const framed = all.map((st, n) => ({ st, n })).filter(({ st }) => st.frame !== undefined);
+  $("strip").style.display = framed.length ? "" : "none";
+  const frames = $("frames");
+  frames.innerHTML = "";
+  framed.forEach(({ st, n }, k) => {
+    if (k) { const a = document.createElement("span"); a.className = "arrow"; a.textContent = "→"; frames.append(a); }
+    const d = document.createElement("div");
+    const seen = i >= n;
+    d.className = "frame" + (seen ? " seen" : "") + (seen && st.bad ? " bad" : "");
+    d.textContent = st.frame;
+    d.title = `Step ${n + 1}`;
+    frames.append(d);
+  });
+  const sn = document.createElement("span");
+  sn.className = "stripnote";
+  if (i === last && META.verdict) {
+    const v = META.verdict[mode];
+    sn.className += " " + v.tone;
+    sn.textContent = v.text;
+  }
+  frames.append(sn);
+
+  $("counter").textContent = `${i + 1} / ${all.length} · ${SIDES[s.side].toLowerCase()}`;
+  $("prev").disabled = i === 0;
+  $("next").textContent = i === last
+    ? (hasAfter && mode === "before" ? "See it with the fix →" : "Start over ↺")
+    : "Next →";
+  history.replaceState(null, "", `#${mode}-${i + 1}`);
+  prev = i;
+}
+
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function go(n) { i = Math.max(0, Math.min(N() - 1, n)); render(); }
+function setMode(m) {
+  mode = hasAfter ? m : "before";
+  $("mBefore").setAttribute("aria-pressed", mode === "before");
+  $("mAfter").setAttribute("aria-pressed", mode === "after");
+  buildRail();
+  i = Math.min(i, N() - 1);
+  render();
+}
+$("prev").onclick = () => go(i - 1);
+$("next").onclick = () => {
+  if (i === N() - 1) {
+    if (hasAfter && mode === "before") { setMode("after"); go(SHARED.length); }
+    else { setMode("before"); go(0); }
+  } else go(i + 1);
+};
+$("mBefore").onclick = () => setMode("before");
+$("mAfter").onclick = () => setMode("after");
+addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") $("next").click();
+  if (e.key === "ArrowLeft") go(i - 1);
+});
+
+// Links such as #before-10 or #after-9 open on that step.
+const linked = /^#(before|after)-(\d+)$/.exec(location.hash);
+if (linked) { mode = linked[1]; i = +linked[2] - 1; }
+setMode(mode);
+</script>
+</body>
+</html>
