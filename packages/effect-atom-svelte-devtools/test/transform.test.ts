@@ -293,6 +293,121 @@ describe("labelAtoms", () => {
     // One instance script, not a second one added for the component's name.
     expect(out?.match(/<script/gu)?.length).toBe(1);
   });
+
+  test("labels the instance script of a component with a JSON-LD script in its markup", () => {
+    const component = [
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<article>",
+      '  <script type="application/ld+json">{ "@context": "https://schema.org" }</script>',
+      "</article>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
+
+  test("names the component in its instance script, not in a script in its markup before it", () => {
+    const component = [
+      "{#if analytics}",
+      "  <script>window.dataLayer = window.dataLayer || [];</script>",
+      "{/if}",
+      '<script lang="ts">',
+      "  let { analytics } = $props();",
+      "</script>",
+    ].join("\n");
+    const out = transform(component, "/app/src/lib/counter.svelte") ?? "";
+    // The markup's script is page HTML: an import there is a SyntaxError when the page loads.
+    expect(out).toContain(
+      "<script>window.dataLayer = window.dataLayer || [];</script>"
+    );
+    expect(out).toContain(
+      `<script lang="ts">${naming("Counter", "/src/lib/counter.svelte")}`
+    );
+  });
+
+  test("labels the instance script after a module script whose code mentions <svelte:head>", () => {
+    const component = [
+      "<script module>",
+      "  // Page titles go in <svelte:head>, below.",
+      '  export const titleAtom = Atom.make("Counter");',
+      "</script>",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<svelte:head><title>Counter</title></svelte:head>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
+
+  test("leaves the calls of a script in a component's markup alone", () => {
+    const component = [
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<div>",
+      "  <script>const theme = localStorage.getItem('theme');</script>",
+      "</div>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "<script>const theme = localStorage.getItem('theme');</script>"
+    );
+  });
+
+  test("labels the instance script after a style with an emoji in it", () => {
+    const component = [
+      "<style>",
+      '  .done::after { content: "😀"; }',
+      "</style>",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
+
+  test("tells a component's scripts from its markup's after a module script with an emoji in it", () => {
+    const component = [
+      "<script module>",
+      '  export const moodAtom = Atom.make("😀");',
+      "</script>",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<div>",
+      "  <script>const theme = localStorage.getItem('theme');</script>",
+      "</div>",
+    ].join("\n");
+    const out = transform(component, "/app/src/lib/counter.svelte");
+    expect(out).toContain('__effectAtomSvelteLabel(Atom.make("😀")');
+    expect(out).toContain("__effectAtomSvelteLabel(Atom.make(0)");
+    expect(out).toContain(
+      "<script>const theme = localStorage.getItem('theme');</script>"
+    );
+  });
+
+  test("labels the instance script after a module script mentioning <svelte:head> when the markup doesn't parse", () => {
+    const component = [
+      "<script module>",
+      "  // Page titles go in <svelte:head>, below.",
+      '  export const titleAtom = Atom.make("Counter");',
+      "</script>",
+      '<script lang="ts">',
+      "  const countAtom = Atom.make(0);",
+      "</script>",
+      "<svelte:head><title>Counter</title></svelte:head>",
+      // Unclosed, so Svelte's parser throws and the transform falls back to finding scripts by regex.
+      "<div>",
+    ].join("\n");
+    expect(transform(component, "/app/src/lib/counter.svelte")).toContain(
+      "__effectAtomSvelteLabel(Atom.make(0)"
+    );
+  });
 });
 
 describe("keeping state across hot reloads, through a pipe", () => {

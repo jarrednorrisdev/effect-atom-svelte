@@ -12,6 +12,7 @@ import path from "node:path";
 import { tsPlugin } from "@sveltejs/acorn-typescript";
 import { Parser } from "acorn";
 import MagicString from "magic-string";
+import { parse as parseComponent } from "svelte/compiler";
 
 /** The id the transformed code imports `label` from; the plugin resolves it to ./label.ts. */
 export const labelModule = "virtual:effect-atom-svelte-devtools/label";
@@ -340,21 +341,73 @@ const parse = (code: string): Node =>
 const scriptPattern =
   /<!--[^]*?-->|<script(?<attributes>(?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:\/>|>(?<code>[\S\s]*?)<\/script>)/gu;
 
+/** Text blanked out, keeping its offsets (an astral character is two UTF-16 units) and lines. */
+const blank = (text: string): string =>
+  text.replaceAll(/[^\n]/gu, (character) => " ".repeat(character.length));
+
+/** The component with each script and style's content blanked out, so only its markup is left. */
+const markupOf = (
+  source: string,
+  matches: readonly RegExpExecArray[]
+): string => {
+  let markup = source;
+  for (const match of matches) {
+    const { code } = match.groups ?? {};
+    if (code !== undefined) {
+      const from =
+        match.index + match[0].length - "</script>".length - code.length;
+      markup =
+        markup.slice(0, from) + blank(code) + markup.slice(from + code.length);
+    }
+  }
+  return markup.replaceAll(
+    /(?<open><style(?:\s[^>]*)?>)(?<css>[^]*?)<\/style>/gu,
+    (_, open: string, css: string) => `${open}${blank(css)}</style>`
+  );
+};
+
+/**
+ * Where the component's own scripts (its instance and module scripts) start, as Svelte's parser
+ * sees them: a script nested in the markup (in an element, a block or <svelte:head>) is page HTML.
+ * Takes the blanked markup, so a script or style that needs a preprocessor doesn't matter.
+ * `undefined` if the markup doesn't parse either.
+ */
+const topLevel = (markup: string): Set<number> | undefined => {
+  try {
+    const ast = parseComponent(markup, { modern: true });
+    return new Set(
+      [ast.instance?.start, ast.module?.start].filter(
+        (start) => start !== undefined
+      )
+    );
+  } catch {
+    return undefined;
+  }
+};
+
 /** The scripts of a component: where each one's code starts, the code, and if it is the module script. */
 const scripts = (source: string) => {
   const found: { start: number; code: string; module: boolean }[] = [];
-  // Comments are matched too, so one that mentions <svelte:head> doesn't start a head.
+  const matches = [...source.matchAll(scriptPattern)];
+  const markup = markupOf(source, matches);
+  const top = topLevel(markup);
+  // The fallback when the markup doesn't parse. HTML comments are matched too, and scripts and
+  // styles are blanked, so neither kind of comment that mentions <svelte:head> starts a head.
   const heads = [
-    ...source.matchAll(/<!--[^]*?-->|<svelte:head\b[^]*?<\/svelte:head>/gu),
+    ...markup.matchAll(/<!--[^]*?-->|<svelte:head\b[^]*?<\/svelte:head>/gu),
   ]
     .filter((m) => m[0].startsWith("<svelte:head"))
     .map((m) => [m.index, m.index + m[0].length] as const);
-  for (const match of source.matchAll(scriptPattern)) {
+  for (const match of matches) {
     const { attributes, code } = match.groups ?? {};
     if (attributes === undefined || code === undefined) {
       continue;
     }
-    if (heads.some(([from, to]) => match.index > from && match.index < to)) {
+    if (
+      top
+        ? !top.has(match.index)
+        : heads.some(([from, to]) => match.index > from && match.index < to)
+    ) {
       continue;
     }
     found.push({
