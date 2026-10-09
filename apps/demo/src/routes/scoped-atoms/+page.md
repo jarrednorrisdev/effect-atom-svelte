@@ -80,4 +80,4 @@ Both give you more than one atom from one definition. Choose by where the atom b
 
 Either way, the atom's value lives in the registry, and the usual [lifetimes](/lifetimes) apply.
 
-A scoped atom can't take a fixed serialization key. Every provider makes its own atom, so two providers on one page would share the key, and the async hooks throw `Two different atoms share the serialization key`. If you need one, put the input in the key. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).
+If the value comes from the server, use a family, not a scoped atom. The server sends one value per serialization key, and every atom with that key shares it, so a serializable scoped atom loses what makes it scoped: remounting its provider with `{#key}` doesn't reset it, and two of its providers on one page with the same key make the server render throw `Two different atoms share the serialization key`. Without a key, a scoped atom's value isn't sent from the server to the browser: see [Hydration](/hydration).

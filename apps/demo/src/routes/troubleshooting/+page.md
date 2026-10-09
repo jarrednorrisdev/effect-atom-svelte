@@ -48,7 +48,7 @@ It happens when a hook's getter picks a different serializable atom in the brows
 
 ### "Two different atoms share the serialization key"
 
-Two atoms with the same serialization key were rendered at the same time. The server sends one result per key, so the browser couldn't tell which atom it belongs to.
+The server rendered two atoms with the same serialization key. It sends one result per key, so it couldn't tell which atom the result belongs to. Only the server render throws this: in the browser, atoms with one key share its value, as they share it in the registry, because a remount, as with `{#key}`, briefly has both the old and the new copy of an atom alive.
 
 It usually means a fixed key on an atom that has more than one copy: `Atom.serializable({ key: "todo" })` inside a family, or on an atom created in a component. Put what tells the copies apart into the key, such as the todo's id, and define atoms at module level. For an `AtomRpc` or `AtomHttpApi` query, give each `serializationKey` to only one set of arguments.
 

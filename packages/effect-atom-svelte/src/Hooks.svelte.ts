@@ -938,7 +938,6 @@ const serverGet = <A>(
 
 /** One serialization key's seed in a registry, shared by every component using that key. */
 interface Seed {
-  readonly atom: Atom.Atom<unknown>;
   readonly done: Promise<void>;
   /**
    * Counts a component using the key until it calls the returned release, and whether it wants the
@@ -1152,10 +1151,11 @@ const seedFromServer = (
     seeds.set(registry, registrySeeds);
   }
   const { held, spent } = registrySeeds;
+  // The server's value belongs to the key, not to an atom: the registry keeps a serializable atom's
+  // value under its key, so every atom with the key reads it, as HydrationBoundary assumes too.
+  // A remounted branch, as under {#key}, makes a new atom with the old one's key while the old one
+  // still holds it, until Svelte destroys the old branch or its outro ends: the new atom joins it.
   let entry = held.get(key);
-  if (entry && entry.atom !== atom) {
-    throw new Error(`Two different atoms share the serialization key "${key}"`);
-  }
   if (!entry && spent.has(key)) {
     return undefined;
   }
@@ -1173,7 +1173,6 @@ const seedFromServer = (
     let holders = 0;
     let revalidating = 0;
     entry = {
-      atom,
       done: (async () => {
         const value = await encoded;
         // Only the server's value is a seed, and only while someone is there to read it now: a seed
