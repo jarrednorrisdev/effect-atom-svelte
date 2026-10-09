@@ -2,7 +2,7 @@
 // the panel is tested here, in a real browser.
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { tick } from "svelte";
-import type { Component } from "svelte";
+import type { Component, Snippet } from "svelte";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -28,6 +28,24 @@ if (!loaded) {
   throw new Error("The devtools panel's source wasn't found");
 }
 const AtomDevtools = loaded.default;
+
+// The built package, which the panel's own imports resolve to: one list of registries for both.
+const [loadBuilt] = Object.values(
+  (
+    import.meta as ImportMeta & {
+      glob: <M>(pattern: string) => Record<string, () => Promise<M>>;
+    }
+  ).glob<{
+    RegistryProvider: Component<{
+      registry: AtomRegistry.AtomRegistry;
+      children: Snippet;
+    }>;
+  }>("../dist/index.js")
+);
+const built = await loadBuilt?.();
+if (!built) {
+  throw new Error("The built package wasn't found: build it first");
+}
 
 const press = (init: KeyboardEventInit) => {
   window.dispatchEvent(
@@ -135,6 +153,7 @@ describe("AtomDevtools", () => {
     );
     const screen = await render(TwoRegistries, {
       Panel: AtomDevtools,
+      Provider: built.RegistryProvider,
       mine,
       other,
     });
