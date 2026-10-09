@@ -1309,6 +1309,17 @@ const pendingSeed = (
   ) {
     return undefined;
   }
+  // Svelte keeps the server's values after hydration, so a key can still be there for a component
+  // rendered after client-side navigation: hydratable calls back only when Svelte isn't hydrating,
+  // and the reader then reads as it always has.
+  let hydrating = true;
+  hydratable(key, (): unknown => {
+    hydrating = false;
+    return undefined;
+  });
+  if (!hydrating) {
+    return undefined;
+  }
   const wait = seedFromServer(
     registry,
     getAtom as () => ResultAtom<unknown, unknown>,

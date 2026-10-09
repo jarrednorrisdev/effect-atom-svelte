@@ -10,7 +10,7 @@
   is destroyed, as at the end of a server render, the values it brought that are still unread are
   dropped, as is a promise-encoded value that lands afterwards, so a registry that outlives the
   boundary doesn't hand them to a later reader. In the browser, a reader that already held the atom
-  when the boundary ended, as a layout's reader above it, still gets the late value.
+  when the boundary ended and still holds it, as a layout's reader above it, gets the late value.
 
   **Example** (Hydrating the state a load function dehydrated)
 
@@ -91,10 +91,11 @@
   const skipped = Symbol.for("effect/reactivity/Hydration/Skipped");
   // The keys of the promise-encoded values the boundary is waiting for.
   const waiting = new Set<string>();
-  // In the browser, those whose key no node held when the boundary ended. A node that already held
-  // one, as a layout's reader above the boundary that took its waiting value, still needs the
-  // result, or it waits forever; one a later reader creates doesn't get it.
-  const unheldAtEnd = new Set<string>();
+  // In the browser, the node that held each of those keys when the boundary ended. That node, as a
+  // layout's reader above the boundary that took its waiting value, still needs the result, or it
+  // waits forever. A node a later reader creates doesn't get it, nor does one that replaced a node
+  // swept since, as a reader inside the boundary's is just after it ends.
+  const nodesAtEnd = new Map<string, AtomRegistry.Node<unknown>>();
   /** A promise-encoded value as the boundary waits for it; one landing after the boundary ends is skipped. */
   const lateDropped = async (
     key: string,
@@ -102,14 +103,20 @@
   ): Promise<unknown> => {
     waiting.add(key);
     const value = await late;
-    return ended && (!BROWSER || unheldAtEnd.has(key)) ? skipped : value;
+    if (!ended) {
+      return value;
+    }
+    const held = BROWSER ? nodesAtEnd.get(key) : undefined;
+    return held !== undefined && registry.getNodes().get(key) === held
+      ? value
+      : skipped;
   };
 
   const queue = (atoms: readonly Hydration.DehydratedAtomValue[]): void => {
     // A promise-encoded value landing after the boundary has ended, after the server render or once
     // the browser has navigated away, would stay queued in a registry that outlives it for a later
-    // reader, however late: it is ignored once the boundary ends, unless, in the browser, a node
-    // already held its key then.
+    // reader, however late: it is ignored once the boundary ends, unless, in the browser, the node
+    // that held its key then still does.
     Hydration.hydrate(
       registry,
       atoms.map((atom) =>
@@ -218,8 +225,9 @@
     if (BROWSER) {
       const nodes = registry.getNodes();
       for (const key of waiting) {
-        if (!nodes.has(key)) {
-          unheldAtEnd.add(key);
+        const node = nodes.get(key);
+        if (node) {
+          nodesAtEnd.set(key, node);
         }
       }
     }

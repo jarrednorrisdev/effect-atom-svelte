@@ -7,6 +7,7 @@ import { render } from "vitest-browser-svelte";
 import { commands } from "vitest/browser";
 
 import { useAtomSuspense, useAtomValue } from "../src/index.ts";
+import Harness from "./fixtures/harness.svelte";
 import HydratePending from "./fixtures/hydrate-pending.svelte";
 import HydrateReaderAboveToggle from "./fixtures/hydrate-reader-above-toggle.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
@@ -278,6 +279,30 @@ describe("HydrationBoundary destroyed before a promise-encoded value lands", () 
     // As a page navigated away from before it had finished loading.
     await screen.rerender({ show: false });
     await sleep("20 millis");
+    Deferred.doneUnsafe(late, Effect.succeed(42));
+    await sleep("20 millis");
+    expect(registry.get(countAtom)).toBe(0);
+    registry.dispose();
+  });
+
+  test("doesn't hand the late value to a later reader once the reader inside it is gone", async () => {
+    const registry = AtomRegistry.make();
+    const late = Deferred.makeUnsafe<unknown>();
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "count",
+        resultPromise: Effect.runPromise(Deferred.await(late)),
+        value: 0,
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as Hydration.DehydratedAtom[];
+    const screen = await render(Hydrate, { registry, setup: readCount, state });
+    await expect.poll(text(screen)).toBe("0");
+    // As a page that read its streamed atom, navigated away from while the value was on its way:
+    // its reader's node still exists when the boundary ends, and is swept just after.
+    await screen.unmount();
+    await expect.poll(() => registry.getNodes().has("count")).toBe(false);
     Deferred.doneUnsafe(late, Effect.succeed(42));
     await sleep("20 millis");
     expect(registry.get(countAtom)).toBe(0);
@@ -939,6 +964,22 @@ const renderCounted = (registry: AtomRegistry.AtomRegistry, read: boolean) => {
   return { options, screen };
 };
 
+/** Leaves a value in the head script's store, as the first page load does, for this test only. */
+const leaveServerValue = (key: string, value: unknown) => {
+  const global = window as unknown as {
+    __svelte?: { h?: Map<string, unknown> };
+  };
+  const before = global.__svelte;
+  global.__svelte = { h: new Map([[key, value]]) };
+  onTestFinished(() => {
+    if (before === undefined) {
+      Reflect.deleteProperty(window, "__svelte");
+    } else {
+      global.__svelte = before;
+    }
+  });
+};
+
 describe("seeding after client-side navigation", () => {
   // Nothing is hydrating, so hydratable fetches in the browser; that value is no seed (JND-37).
   test("coming back after the node is disposed fetches again", async () => {
@@ -964,6 +1005,50 @@ describe("seeding after client-side navigation", () => {
     options.read = true;
     await screen.rerender({ show: true });
     await expect.poll(text(screen)).toBe("1");
+  });
+
+  test("a key the first page load left doesn't hold back a reader of a fresh registry", async () => {
+    const syncAtom = Atom.make(Effect.succeed("now")).pipe(
+      Atom.serializable({
+        key: "leftover-sync",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    // As the head script of the first page load left it; Svelte never removes these.
+    leaveServerValue("leftover-sync", undefined);
+    const seen: string[] = [];
+    const screen = await render(Harness, {
+      registry: AtomRegistry.make(),
+      setup: () => {
+        const result = useAtomValue(syncAtom);
+        return () => {
+          seen.push(result.current._tag);
+          return result.current._tag;
+        };
+      },
+    });
+    await expect.poll(text(screen)).toBe("Success");
+    expect(seen).toEqual(["Success"]);
+  });
+
+  test("a key the first page load left doesn't reach a non-result atom's transform as a result", async () => {
+    const numberAtom = Atom.make(5).pipe(
+      Atom.serializable({ key: "leftover-number", schema: Schema.Number })
+    );
+    leaveServerValue("leftover-number", 5);
+    const seen: unknown[] = [];
+    const screen = await render(Harness, {
+      registry: AtomRegistry.make(),
+      setup: () => {
+        const plusOne = useAtomValue(numberAtom, (n) => n + 1);
+        return () => {
+          seen.push(plusOne.current);
+          return plusOne.current;
+        };
+      },
+    });
+    await expect.poll(text(screen)).toBe("6");
+    expect(seen.every((value) => value === 6)).toBe(true);
   });
 
   test("a useAtomSuspense read in the script lets go of its atom once the getter moves on", async () => {
