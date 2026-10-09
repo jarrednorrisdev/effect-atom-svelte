@@ -176,6 +176,7 @@ test.describe("RPC page", () => {
   });
 
   test("add, typed error, toggle and the query family", async ({ page }) => {
+    const { errors } = watch(page);
     await page.goto("/rpc");
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("rpc-todos");
@@ -212,6 +213,8 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-selected")).toContainText(
       "TodoNotFound { id: 99 }"
     );
+    // CauseView's rows must keep their keys when a batch commits (async Svelte re-reads them).
+    expect(await errors()).toEqual([]);
   });
 
   test("a streaming RPC pulls to the end", async ({ page }) => {
