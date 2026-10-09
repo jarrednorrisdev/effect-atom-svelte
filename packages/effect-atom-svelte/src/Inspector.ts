@@ -730,6 +730,7 @@ class Scope implements InspectorScope {
     if (this.#listeners.size === 0) {
       // Kept from before the scope last stopped following, and the graph may have changed since.
       this.#members = undefined;
+      this.#previous = new Set();
     }
     this.#listeners.add(listener);
     for (const read of this.#reads.values()) {

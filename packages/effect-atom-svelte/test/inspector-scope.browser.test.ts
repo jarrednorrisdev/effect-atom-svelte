@@ -13,6 +13,7 @@ import type {
 } from "../src/Inspector.ts";
 import Harness from "./fixtures/harness.svelte";
 import ScopeHost from "./fixtures/scope-host.svelte";
+import { sleep } from "./helpers.ts";
 
 const mount = async (shown = true) => {
   let scope: InspectorScope | undefined;
@@ -192,6 +193,39 @@ describe("provideInspectorScope", () => {
     const stop = scope.subscribe(() => undefined);
     expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
     stop();
+    await screen.unmount();
+  });
+
+  test("a listener that comes back doesn't hear an atom that left the scope while nobody listened", async () => {
+    const flag = Atom.make(true).pipe(Atom.keepAlive, Atom.withLabel("flag"));
+    const a = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("a"));
+    const b = Atom.make(2).pipe(Atom.keepAlive, Atom.withLabel("b"));
+    const other = Atom.make(0).pipe(Atom.withLabel("other"));
+    const child = Atom.make((get) => (get(flag) ? get(a) : get(b))).pipe(
+      Atom.withLabel("child")
+    );
+    const { registry, scope, screen } = await mountReading(child, "1");
+    // While listening, any change to the graph makes the scope work its nodes out again.
+    const first = scope.subscribe(() => undefined);
+    const release = registry.mount(other);
+    await sleep("10 millis");
+    first();
+    registry.set(flag, false);
+    await expect.poll(() => screen.container.textContent).toContain("2");
+    const events: ScopeEvent[] = [];
+    const stop = scope.subscribe((event) => events.push(event));
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    registry.set(a, 5);
+    await sleep("10 millis");
+    const ids = new Set(
+      scope.snapshot({ plumbing: true }).nodes.map((node) => node.id)
+    );
+    // `a` was written, but the scope no longer reads it.
+    expect(
+      events.filter((event) => "id" in event && !ids.has(event.id))
+    ).toEqual([]);
+    stop();
+    release();
     await screen.unmount();
   });
 });
