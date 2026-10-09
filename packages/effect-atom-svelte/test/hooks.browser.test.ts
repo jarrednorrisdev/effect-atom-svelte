@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit, Stream } from "effect";
-import { Atom, AtomRef, AtomRegistry } from "effect/reactivity";
+import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { onDestroy, onMount } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
@@ -457,6 +457,63 @@ describe("useAtomSet", () => {
     await expect(second).resolves.toBe("second");
   });
 
+  test("a call resolves with a stream's last value, not one it emits on the way", async () => {
+    const registry = AtomRegistry.make();
+    const count = Atom.fn((to: number) =>
+      Stream.range(1, to).pipe(Stream.tap(() => Effect.sleep("10 millis")))
+    );
+    let run!: (to: number) => Promise<number>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(count, { mode: "promise" });
+        return () => "";
+      },
+    });
+    await expect(run(3)).resolves.toBe(3);
+  });
+
+  test("a call whose result lands within the same millisecond resolves with it", async () => {
+    const registry = AtomRegistry.make();
+    // Settles a microtask after the call, well inside the millisecond the call started in.
+    const save = Atom.fn((value: string) =>
+      Effect.promise(() => Promise.resolve(value))
+    );
+    let run!: (value: string) => Promise<string>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promise" });
+        return () => "";
+      },
+    });
+    for (let index = 0; index < 20; index += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- one call at a time, each its own millisecond race
+      await expect(run(`draft ${index}`)).resolves.toBe(`draft ${index}`);
+    }
+  });
+
+  test("a writable result atom that writes an idle Initial before its result waits for the result", async () => {
+    const registry = AtomRegistry.make();
+    // A queue: the write leaves the result idle until the job is picked up, a moment later.
+    const queued = Atom.writable(
+      () => AsyncResult.initial() as AsyncResult.AsyncResult<string>,
+      (ctx, job: string) => {
+        ctx.setSelf(AsyncResult.initial());
+        setTimeout(() => ctx.setSelf(AsyncResult.success(`done ${job}`)), 20);
+      }
+    );
+    let run!: (job: string) => Promise<string>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(queued, { mode: "promise" });
+        return () => "";
+      },
+    });
+    await expect(run("a")).resolves.toBe("done a");
+  });
+
   test("value mode stores a function wrapped in an updater", async () => {
     const registry = AtomRegistry.make();
     // Atom.make would take a function as the atom's read, not its value.
@@ -899,6 +956,58 @@ describe("mutations and unmounting", () => {
     expect(log).toEqual(["saved draft"]);
   });
 
+  test("a settled call stops holding its atom once its component is gone", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    const save = Atom.fn((value: string, get) => {
+      get.addFinalizer(() => log.push("released"));
+      return Effect.succeed(value).pipe(Effect.delay("20 millis"));
+    });
+    let run!: (value: string) => Promise<string>;
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promise" });
+        return () => "";
+      },
+      show: true,
+    });
+    await expect(run("draft")).resolves.toBe("draft");
+    await screen.rerender({ show: false });
+    await expect.poll(() => log).toEqual(["released"]);
+  });
+
+  test("a call whose wait is aborted stops holding its atom, so leaving the page interrupts it", async () => {
+    const registry = AtomRegistry.make();
+    const log: string[] = [];
+    // Long enough that only an interruption, never the save itself, can end it while the test runs.
+    const save = Atom.fn((value: string) =>
+      Effect.sync(() => log.push(`saved ${value}`)).pipe(
+        Effect.delay("2 seconds"),
+        Effect.as(value),
+        Effect.onInterrupt(() => Effect.sync(() => log.push("interrupted")))
+      )
+    );
+    let run!: (
+      value: string,
+      options?: { signal?: AbortSignal }
+    ) => Promise<Exit.Exit<string>>;
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promiseExit" });
+        return () => "";
+      },
+      show: true,
+    });
+    const controller = new AbortController();
+    const saved = run("draft", { signal: controller.signal });
+    controller.abort();
+    await saved;
+    await screen.rerender({ show: false });
+    await expect.poll(() => log).toEqual(["interrupted"]);
+  });
+
   test.each(["promise", "promiseExit"] as const)(
     "a %s call in flight settles as interrupted when the provider's own registry is disposed of",
     async (mode) => {
@@ -940,6 +1049,48 @@ describe("mutations and unmounting", () => {
       }
     }
   );
+
+  test("a call in flight settles as interrupted when disposing of the provider's registry runs a finalizer that throws", async () => {
+    const broken = Atom.make((get) => {
+      get.addFinalizer(() => {
+        throw new Error("finalizer failed");
+      });
+      return 0;
+    });
+    const save = Atom.fn((value: string) =>
+      Effect.succeed(value).pipe(Effect.delay("2 seconds"))
+    );
+    let run!: (value: string) => Promise<Exit.Exit<string>>;
+    const screen = await render(Toggle, {
+      registry: undefined as never,
+      setup: () => {
+        useAtomMount(broken);
+        run = useAtomSet(save, { mode: "promiseExit" });
+        return () => "";
+      },
+      show: true,
+    });
+    let exit: Exit.Exit<string> | undefined;
+    void run("draft").then((settled) => {
+      exit = settled;
+    });
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      event.preventDefault();
+      errors.push(event.error);
+    };
+    window.addEventListener("error", onError);
+    onTestFinished(() => window.removeEventListener("error", onError));
+    await screen.rerender({ show: false }).catch((error: unknown) => {
+      errors.push(error);
+    });
+    await expect.poll(() => exit).toBeDefined();
+    expect(
+      exit !== undefined &&
+        Exit.isFailure(exit) &&
+        Cause.hasInterruptsOnly(exit.cause)
+    ).toBe(true);
+  });
 });
 
 describe("registries", () => {
