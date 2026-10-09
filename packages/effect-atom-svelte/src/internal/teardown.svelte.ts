@@ -23,11 +23,14 @@ export const onTeardown = (f: () => void): void => {
  * As `onTeardown`, but for a mounted component `f` runs after its children are destroyed, as with
  * `onDestroy`: a pre effect is torn down before the children, whose own teardown may still use what
  * `f` ends, such as a provider's registry. The pre effect only covers a component destroyed before
- * it mounted.
+ * it mounted. On the server `f` runs through `onRenderEnd`, so `provideRegistry` disposes its
+ * registry even when a failed boundary dropped the provider. A successful render keeps the
+ * children-first order through `onDestroy`; when the render ends without it, `f` may run before
+ * the children's releases, which are then no-ops on the disposed registry.
  */
 export const onTeardownAfterChildren = (f: () => void): void => {
   if (!BROWSER) {
-    onDestroy(f);
+    onRenderEnd(f);
     return;
   }
   let mounted = false;
