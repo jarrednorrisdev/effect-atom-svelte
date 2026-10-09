@@ -39,6 +39,7 @@ import SsrSkewSeed from "./fixtures/ssr-skew-seed.svelte";
 import SsrStreamSeed from "./fixtures/ssr-stream-seed.svelte";
 import SsrUnsentAfterAwait from "./fixtures/ssr-unsent-after-await.svelte";
 import SsrUnsentSeed from "./fixtures/ssr-unsent-seed.svelte";
+import SsrValueAndSuspense from "./fixtures/ssr-value-and-suspense.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import TwoBoundaries from "./fixtures/two-boundaries.svelte";
 import {
@@ -460,6 +461,20 @@ describe("hydrating server output", () => {
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
     expect(computed).toEqual(["b"]);
+  });
+
+  test("an atom also read with useAtomValue takes the server's result without computing again", async () => {
+    computed.length = 0;
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-value-and-suspense.svelte",
+      SsrValueAndSuspense
+    );
+
+    await expect
+      .poll(outputs(target))
+      .toEqual(["Success", "a from the server"]);
+    await sleep(afterSweep);
+    expect(computed).toEqual([]);
   });
 
   test("useAtomResult destroyed before its seed lands computes nothing", async () => {

@@ -101,7 +101,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 What that means in practice:
 
-- **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
+- **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser. Once either hook sends an atom's result, every reader of that atom in the browser waits for it, `useAtomValue` included: until it lands, a `useAtomValue` reader shows `Initial`, waiting, as the server rendered it before the result was in.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
