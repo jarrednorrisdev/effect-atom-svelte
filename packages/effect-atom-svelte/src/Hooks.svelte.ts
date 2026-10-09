@@ -151,6 +151,7 @@ interface RegistryNode {
   readonly setValue: (value: unknown) => void;
   readonly setInitialValue: (value: unknown) => void;
   readonly currentState: () => string;
+  readonly failed: boolean;
   readonly subscribe: (listener: () => void) => () => void;
 }
 
@@ -369,11 +370,10 @@ const subscribedReader = <A>(
       }
       try {
         // After mount, only a first build is dropped: a stale node rebuilt here, as after a failed
-        // rebuild, announces a change other reads of this reader have not seen.
-        if (
-          internals(registry).ensureNode(current).currentState() ===
-          "uninitialized"
-        ) {
+        // rebuild, announces a change other reads of this reader have not seen. A node whose first
+        // build failed is still uninitialized, but the page has shown that failure, so it counts too.
+        const node = internals(registry).ensureNode(current);
+        if (node.currentState() === "uninitialized" && !node.failed) {
           reading = current;
         }
         return registry.get(current);

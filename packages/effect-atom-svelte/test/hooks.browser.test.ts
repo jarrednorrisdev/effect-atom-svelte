@@ -999,6 +999,46 @@ describe("getter switches (JND-60)", () => {
 });
 
 describe("a reader's own first build after mount", () => {
+  test("a failed first build that a later read recovers reaches the page", async () => {
+    const registry = AtomRegistry.make();
+    const flag = { ok: false };
+    const pick = Atom.make("a");
+    const broken = Atom.make(() => {
+      if (!flag.ok) {
+        throw new Error("broken");
+      }
+      return "b";
+    });
+    const atoms = new Map<string, Atom.Atom<string>>([
+      ["a", Atom.make("a")],
+      ["b", broken],
+    ]);
+    let cell: { readonly current: string } | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const picked = useAtomValue(pick);
+        const value = useAtomValue(() => atoms.get(picked.current) ?? broken);
+        cell = value;
+        return () => {
+          try {
+            return value.current;
+          } catch {
+            return "error";
+          }
+        };
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("a");
+    // After mount, the getter switches to an atom whose first build throws.
+    registry.set(pick, "b");
+    await expect.element(output(screen)).toHaveTextContent("error");
+    flag.ok = true;
+    // An imperative read, as from an event handler, builds the node its failure left uninitialized.
+    expect(cell?.current).toBe("b");
+    await expect.element(output(screen)).toHaveTextContent("b");
+  });
+
   test("a failed rebuild that a later read recovers reaches the page", async () => {
     const registry = AtomRegistry.make();
     const flag = { n: 1, ok: true };
