@@ -132,3 +132,7 @@ The function isn't called for the value the atom already has, only for changes. 
 The function may write `$state`. Svelte forbids writing state while it renders, so a change that arrives while a hook is reading an atom, as during a render, reaches the function on the next microtask instead.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
+
+## Outside a component
+
+The hooks only work while a component initializes. To read or write atoms from a plain function, such as a module's `save()` that an event handler calls, call `getRegistry()` while the component initializes and pass the registry along. It has `get`, `set` and `refresh`, among others. See [Write atoms from a plain function](/cookbook#write-atoms-from-a-plain-function).
