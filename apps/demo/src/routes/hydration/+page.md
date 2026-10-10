@@ -164,7 +164,7 @@ Call every `useAtomResult` and `useAtomSuspense` before the script's first `awai
 
 A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. On a page rendered for the request, the result is milliseconds old, so running the effect again would be wasted work. On a prerendered page, it is as old as the build.
 
-To run it again in the browser, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
+To run it again in the browser, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom a hook hydrates, and on a hook it applies to that atom and overrides the provider. It doesn't apply to values a [`HydrationBoundary`](#hydrationboundary) brings in:
 
 ```svelte
 <RegistryProvider revalidateOnHydrate>{@render children()}</RegistryProvider>
@@ -266,9 +266,10 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 
 When the boundary puts its values into the registry:
 
-- **Atoms the registry doesn't have yet** get their values before the children render.
+- **Atoms the registry doesn't have yet** get their values before the children render. So does an atom that only holds a starting value from `initialValues` or `useAtomInitialValues`, if nothing has read it yet.
 - **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render, and so are they in the browser while it hydrates the server's markup, so its first render matches the server's. That last part needs Svelte's `experimental.async`: without it, an atom that already exists, such as one read above the boundary, is updated after the first render.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+- **A new `state`** is put into the registry the same way, so when a `load` function runs again, the boundary passes its new results to the atoms.
 
 If you render on the server yourself instead of with SvelteKit, and `experimental.async` is on, `await render(...)` so the boundary's `hydratable` entry is written into the page. Without the `await`, a production build of Svelte logs `hydratable_missing_but_expected` once per boundary as the page hydrates.
 
