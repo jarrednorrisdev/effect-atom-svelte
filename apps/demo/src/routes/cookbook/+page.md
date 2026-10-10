@@ -88,6 +88,41 @@ const todoDetailsAtom = Atom.family((id: number) =>
 
 Until `todoAtom(id)` has its first result, `todoDetailsAtom(id)` holds the fallback's result, marked `waiting`. Once the query answers, it holds the query's result instead, so a reader shows the rough answer at once and the full one when it arrives.
 
+### Prefetching on hover
+
+To start a page's query before the visitor clicks, hold its atom while the pointer is over the link. Give the atoms an [idle TTL](/lifetimes#keeping-atoms-alive), so the result outlives the hover until the page reads it:
+
+```ts
+// todos.ts
+export const todoAtom = Atom.family((id: number) =>
+  Atom.make(fetchTodo(id)).pipe(Atom.setIdleTTL("30 seconds"))
+);
+```
+
+```svelte
+<!-- todo-link.svelte -->
+<script lang="ts">
+  import { getRegistry } from "effect-atom-svelte";
+
+  const { id }: { id: number } = $props();
+  const registry = getRegistry();
+  let release: (() => void) | undefined;
+</script>
+
+<a
+  href="/todos/{id}"
+  onpointerenter={() => (release ??= registry.mount(todoAtom(id)))}
+  onpointerleave={() => {
+    release?.();
+    release = undefined;
+  }}
+>
+  Todo {id}
+</a>
+```
+
+`registry.mount` holds the atom, which starts its effect, until you call what it returns. Without the TTL, letting go disposes of the atom, and the page fetches again. SvelteKit's `data-sveltekit-preload-data` doesn't help here: it runs `load` functions, not the components that await atoms.
+
 ### Polling
 
 To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
