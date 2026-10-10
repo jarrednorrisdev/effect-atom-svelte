@@ -169,6 +169,11 @@ export const uploadAtom = Atom.fn((file: File) =>
             Queue.failCauseUnsafe(queue, Cause.fail(error));
           }
         };
+        // A network or CORS failure has no response, so no status.
+        xhr.onerror = () => {
+          const error = new UploadFailed({ status: 0 });
+          Queue.failCauseUnsafe(queue, Cause.fail(error));
+        };
         xhr.open("POST", "/api/upload");
         xhr.send(file);
         return xhr;

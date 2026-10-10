@@ -102,20 +102,25 @@ export const todoAtom = Atom.family((id: number) =>
 ```svelte
 <!-- todo-link.svelte -->
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { getRegistry } from "effect-atom-svelte";
+  import { todoAtom } from "./todos";
 
   const { id }: { id: number } = $props();
   const registry = getRegistry();
   let release: (() => void) | undefined;
+  const letGo = () => {
+    release?.();
+    release = undefined;
+  };
+  // A click navigates away without a pointerleave, so let go when the link goes too.
+  onDestroy(letGo);
 </script>
 
 <a
   href="/todos/{id}"
   onpointerenter={() => (release ??= registry.mount(todoAtom(id)))}
-  onpointerleave={() => {
-    release?.();
-    release = undefined;
-  }}
+  onpointerleave={letGo}
 >
   Todo {id}
 </a>

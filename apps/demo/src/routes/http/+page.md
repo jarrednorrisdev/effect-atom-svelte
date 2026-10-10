@@ -46,7 +46,7 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 
 Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else.
 
-The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint under its group's name, such as `client.todos.get(...)`, so `runtime.fn` can call it directly: see [Customizing requests](#customizing-requests).
+The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint under its group's name, such as `client.todos.get(...)` (a group made with `topLevel: true` puts its methods on the client itself), so `runtime.fn` can call it directly: see [Customizing requests](#customizing-requests).
 
 ## Queries
 

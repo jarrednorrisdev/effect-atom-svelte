@@ -231,6 +231,6 @@ Read more in [Introduction to Streams](https://effect.website/docs/v4/stream/int
 
 <Aside type="note" title="Importing">
 
-Everything on this page comes from the `effect` package. Atoms come from `effect/reactivity`, which is part of the same package. `effect-atom-svelte` also re-exports its modules (`Atom`, `AsyncResult`, `AtomRef`, `AtomRegistry`, `AtomRpc`, `AtomHttpApi` and `Hydration`), so `import { Atom, useAtom } from "effect-atom-svelte"` works too. These docs import them from `effect/reactivity`.
+Everything on this page comes from the `effect` package. Atoms come from `effect/reactivity`, which is part of the same package. `effect-atom-svelte` also re-exports its modules (`Atom`, `AsyncResult`, `AtomRef`, `AtomRegistry`, `AtomRpc`, `AtomHttpApi`, `Hydration` and `Reactivity`), so `import { Atom, useAtom } from "effect-atom-svelte"` works too. These docs import them from `effect/reactivity`.
 
 </Aside>
