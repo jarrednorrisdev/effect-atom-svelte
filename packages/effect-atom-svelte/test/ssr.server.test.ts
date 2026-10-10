@@ -51,8 +51,16 @@ afterEach(async () => {
 
 const renderSetup = (
   setup: () => unknown,
-  registry?: AtomRegistry.AtomRegistry
-) => render(SsrHarness, { props: registry ? { registry, setup } : { setup } });
+  registry?: AtomRegistry.AtomRegistry,
+  markup = false
+) =>
+  render(SsrHarness, {
+    props: registry ? { markup, registry, setup } : { markup, setup },
+  });
+
+/** A result as text: its value, or its tag when it has none. */
+const show = (result: AsyncResult.AsyncResult<string>) =>
+  result._tag === "Success" ? result.value : result._tag;
 
 /**
  * Renders a RegistryProvider inside a boundary that fails when `fail` is set, and counts how often
@@ -854,6 +862,81 @@ describe("server rendering", () => {
         const value = useAtomSuspense(user);
         return () => value.current;
       });
+      expect(body).toContain("<output>initial</output>");
+      expect(fetched).toBe(0);
+    }
+  );
+
+  test.each([false, true])(
+    "useAtomSuspense (serializable: %s) awaited in the markup at once renders an initial value without computing the atom on the server",
+    async (serializable) => {
+      let fetched = 0;
+      const plain = Atom.make(
+        Effect.sync(() => {
+          fetched += 1;
+          return "fetched";
+        })
+      );
+      const user = serializable
+        ? plain.pipe(
+            Atom.serializable({
+              key: "initial-markup",
+              schema: AsyncResult.Schema({ success: Schema.String }),
+            })
+          )
+        : plain;
+      const { body } = await renderSetup(
+        () => {
+          useAtomInitialValues([[user, AsyncResult.success("initial")]]);
+          const value = useAtomSuspense(user);
+          return () => value.current;
+        },
+        undefined,
+        true
+      );
+      expect(body).toContain("<output>initial</output>");
+      expect(fetched).toBe(0);
+    }
+  );
+
+  // A wrapper such as withRefresh passes the value to its source and reads as it; the reactivity
+  // keys of an AtomRpc or AtomHttpApi query wrap it the same way.
+  test.each([
+    ["useAtomValue", false],
+    ["useAtomResult", false],
+    ["useAtomSuspense", false],
+    ["useAtomSuspense", true],
+  ])(
+    "%s (in the markup at once: %s) renders an initial value given to a wrapped atom without computing its source on the server",
+    async (hook, markup) => {
+      let fetched = 0;
+      const source = Atom.make(
+        Effect.sync(() => {
+          fetched += 1;
+          return "fetched";
+        })
+      );
+      const user = source.pipe(Atom.withRefresh("1 hour"));
+      const { body } = await renderSetup(
+        () => {
+          useAtomInitialValues([[user, AsyncResult.success("initial")]]);
+          if (hook === "useAtomValue") {
+            const value = useAtomValue(user);
+            return () => show(value.current);
+          }
+          if (hook === "useAtomResult") {
+            const result = useAtomResult(user);
+            return (async () => {
+              const live = await result;
+              return () => show(live.current);
+            })();
+          }
+          const value = useAtomSuspense(user);
+          return () => value.current;
+        },
+        undefined,
+        markup
+      );
       expect(body).toContain("<output>initial</output>");
       expect(fetched).toBe(0);
     }
