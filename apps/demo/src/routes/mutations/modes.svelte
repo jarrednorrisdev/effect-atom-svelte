@@ -66,8 +66,8 @@
       }
     },
     value: (n: number) => {
-      saveValue(n);
-      results.value.push(`#${n}: returned undefined`);
+      const returned: unknown = saveValue(n);
+      results.value.push(`#${n}: returned ${String(returned)}`);
     },
   };
 
