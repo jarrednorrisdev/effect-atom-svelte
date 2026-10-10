@@ -77,6 +77,31 @@ The prefix doesn't name the client. Two RPC clients with a procedure of the same
 
 </Aside>
 
+### Scoped atoms
+
+A [scoped atom](/scoped-atoms) makes a new atom for each component that provides it, so if that atom is serializable, every copy with the same input gets the same key. That's an easy way to break the rule above. Say each comment in a thread provides its author with `User.provide(comment.authorId)`, and Alice writes two comments:
+
+1. The first comment's provider makes an atom with the key `app/user-a`, and the server records that atom's value under it.
+2. The second comment's provider makes another atom, with the same key.
+3. The server has two atoms for one key and can't tell whether they mean the same thing, so the render throws `Two different atoms share the serialization key`.
+
+A user's data belongs to the user, not to the comment showing it, so make it a family, and let the scoped atom provide the family's atom, as in [Using both](/scoped-atoms#using-both):
+
+```ts
+export const userAtom = Atom.family((id: string) =>
+  Atom.make(fetchUser(id)).pipe(
+    Atom.serializable({ key: `app/user-${id}`, schema: UserResult })
+  )
+);
+
+// A comment calls User.provide(comment.authorId); the parts inside it call User.use().
+export const User = ScopedAtom.make((id: string) => userAtom(id), {
+  name: "User",
+});
+```
+
+Both comments now hold the same atom, so the server sends Alice's data once. A scoped atom whose atom has no serialization key isn't sent to the browser at all: the browser computes it again.
+
 ## Which atoms to serialize
 
 Make an atom serializable when its value is plain data and the server's result is the one the browser wants: a todo list, a user's profile, the prices on a product page. A schema can encode it, and the browser is spared a second request and a loading state.

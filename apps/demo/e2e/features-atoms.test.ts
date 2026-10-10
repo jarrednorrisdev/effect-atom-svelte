@@ -224,32 +224,26 @@ test.describe("Atoms pages: an example for every feature", () => {
   test("scoped atoms: use finds the nearest provider", async ({ page }) => {
     await page.goto("/scoped-atoms");
     await page.waitForLoadState("networkidle");
-    const post = page.getByRole("group", { exact: true, name: "Post" });
-    const reply = page.getByRole("group", { exact: true, name: "Reply" });
-    // The reply is inside the post, so the post's own input is its first.
-    const postDraft = post.getByLabel("Draft", { exact: true }).first();
-    const replyDraft = reply.getByLabel("Draft", { exact: true });
+    const example = page.locator("[data-example]").nth(1);
+    const orders = example.getByRole("group", { exact: true, name: "Orders" });
+    const items = example.getByRole("group", {
+      exact: true,
+      name: "Line items",
+    });
 
-    await postDraft.fill("A post");
-    await expect(postDraft).toHaveValue("A post");
-    await expect(replyDraft).toHaveValue("");
-    await expect(reply).toContainText("0 words");
-    await expect(reply).toContainText("Nothing written yet.");
+    // The line items' table sits inside the orders' and has state of its own.
+    await items.getByLabel("Select keyboard").check();
+    await expect(items).toContainText("1 selected");
+    await expect(orders.getByLabel("Select #1042")).not.toBeChecked();
+    await items.getByRole("button", { name: /^Price/u }).click();
+    await expect(items.locator("tbody tr td").nth(1)).toHaveText("Cable");
+    await expect(orders).toContainText("9 orders · page 1 of 3");
 
-    await replyDraft.fill("A short reply");
-    await expect(reply).toContainText("3 words");
-    await expect(postDraft).toHaveValue("A post");
-    // Each part names the editor whose draft Draft.use() found: the nearest.
-    const found = (group: typeof post) =>
-      group.getByTitle("The editor whose draft Draft.use() found");
-    await expect(found(reply)).toHaveText(["Reply", "Reply", "Reply"]);
-    await expect(found(post)).toHaveText([
-      "Post",
-      "Post",
-      "Post",
-      "Reply",
-      "Reply",
-      "Reply",
-    ]);
+    // Collapsing the order unmounts its table; expanding it again starts afresh.
+    await orders.getByRole("button", { name: "Hide #1042" }).click();
+    await expect(items).toHaveCount(0);
+    await orders.getByRole("button", { name: "Show #1042" }).click();
+    await expect(items.getByLabel("Select keyboard")).not.toBeChecked();
+    await expect(items).not.toContainText("selected");
   });
 });
