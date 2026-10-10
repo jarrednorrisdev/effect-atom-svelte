@@ -93,6 +93,7 @@
     font-family: var(--font-mono);
     font-size: 0.75rem;
     gap: 0.35rem;
+    max-width: 100%;
     padding: 0.15rem 0.5rem;
     white-space: nowrap;
   }
@@ -104,11 +105,14 @@
     text-transform: uppercase;
     white-space: nowrap;
   }
+  /* A long value, such as a list, wraps inside the box rather than widening the page on phones. */
   .server-html output {
     background: none;
     color: var(--foreground);
     font-size: inherit;
+    min-width: 0;
     padding: 0;
+    white-space: normal;
   }
   .server-html :global(.icon) {
     flex: none;
