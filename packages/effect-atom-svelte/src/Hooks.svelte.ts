@@ -164,7 +164,9 @@ interface RegistryInternals {
 }
 
 // SAFETY: ensureNode and scheduleNodeRemoval are on the registry implementation, not the interface
-// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way.
+// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way. Of the node's parts,
+// preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
+// are on its implementation too; the rest, currentState included, are on Effect's Node interface.
 const internals = (registry: AtomRegistry.AtomRegistry): RegistryInternals =>
   registry as unknown as RegistryInternals;
 
