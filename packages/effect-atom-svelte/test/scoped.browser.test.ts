@@ -113,6 +113,15 @@ describe("ScopedAtom with server rendering", () => {
       .toEqual(["a from the browser"]);
     expect(warn).not.toHaveBeenCalled();
   });
+
+  test("two providers of one input make two different atoms with one key, which fails the server render", async () => {
+    // Thrown during the render, past any boundary: the whole render fails.
+    await expect(
+      commands.renderOnServer("/test/fixtures/ssr-scoped-same-input.svelte")
+    ).rejects.toThrow(
+      'Two different atoms share the serialization key "scoped-user-a"'
+    );
+  });
 });
 
 /** The text of each <output> in server-rendered HTML. */
@@ -153,15 +162,6 @@ describe("ScopedAtom providing a family's atom", () => {
   beforeAll(async () => {
     await commands.renderOnServer("/test/fixtures/ssr-scoped-family.svelte");
   }, 120_000);
-
-  test("two providers of one input make two different atoms with one key, which fails the server render", async () => {
-    // Thrown during the render, past any boundary: the whole render fails.
-    await expect(
-      commands.renderOnServer("/test/fixtures/ssr-scoped-same-input.svelte")
-    ).rejects.toThrow(
-      'Two different atoms share the serialization key "scoped-user-a"'
-    );
-  });
 
   test("two providers of one input share the family's atom: the server renders both, and the browser hydrates without computing", async () => {
     familyComputed.length = 0;
