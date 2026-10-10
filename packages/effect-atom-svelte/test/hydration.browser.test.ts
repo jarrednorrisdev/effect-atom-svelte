@@ -10,6 +10,8 @@ import { useAtomSuspense, useAtomValue } from "../src/index.ts";
 import HydratePending from "./fixtures/hydrate-pending.svelte";
 import HydrateReaderAboveToggle from "./fixtures/hydrate-reader-above-toggle.svelte";
 import Hydrate from "./fixtures/hydrate.svelte";
+import InitialSeedBoundary from "./fixtures/initial-seed-boundary.svelte";
+import InitialSeedWrappedBoundary from "./fixtures/initial-seed-wrapped-boundary.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import ProviderSeedReadAbove from "./fixtures/provider-seed-read-above.svelte";
 import { providerSeedSeen } from "./fixtures/provider-seed.ts";
@@ -29,6 +31,7 @@ import SsrBrowserChoice from "./fixtures/ssr-browser-choice.svelte";
 import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
+import SsrInitialSeed from "./fixtures/ssr-initial-seed.svelte";
 import SsrMixedRevalidate from "./fixtures/ssr-mixed-revalidate.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
@@ -1094,6 +1097,33 @@ describe("RegistryProvider initialValues with a HydrationBoundary", () => {
       .toEqual(["above 2", "2"]);
     // What is on the page already doesn't jump to the incoming value mid-render.
     expect(providerSeedSeen[0]).toBe(1);
+  });
+
+  // Effect's setValue leaves a node's initial value marked to be kept by its next build, so the
+  // refresh's build kept the old value and dropped its own.
+  test("a refresh after the server's result lands on an atom with an initial value shows the browser's result", async () => {
+    const target = await hydrateFromServer(
+      "/test/fixtures/ssr-initial-seed.svelte",
+      SsrInitialSeed
+    );
+    const output = () => target.querySelector("output")?.textContent;
+    await expect.poll(output).toBe("initial");
+    target.querySelector("button")?.click();
+    await expect.poll(output).toMatch(/^browser/u);
+  }, 120_000);
+
+  test("a refresh after the boundary's value replaces an initial value shows the browser's result", async () => {
+    const screen = await render(InitialSeedBoundary);
+    await expect.poll(text(screen)).toBe("Refresh from the boundary");
+    await screen.getByRole("button").click();
+    await expect.poll(text(screen)).toMatch(/^Refresh browser/u);
+  });
+
+  test("a refresh of a wrapper whose source took the boundary's value over an initial value shows the browser's result", async () => {
+    const screen = await render(InitialSeedWrappedBoundary);
+    await expect.poll(text(screen)).toBe("Refresh from the boundary");
+    await screen.getByRole("button").click();
+    await expect.poll(text(screen)).toMatch(/^Refresh browser/u);
   });
 
   test("an atom read above the boundary: the boundary's children hydrate with what the server rendered", async () => {

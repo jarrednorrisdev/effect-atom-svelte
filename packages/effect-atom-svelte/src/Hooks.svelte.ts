@@ -148,7 +148,7 @@ const hasServerValue = (atom: Atom.Atom<unknown>): boolean =>
 interface RegistryNode {
   readonly canBeRemoved: boolean;
   /** Whether the node holds an initial value its first build will keep. */
-  readonly preserveInitialValueOnBuild: boolean;
+  preserveInitialValueOnBuild: boolean;
   readonly _value: unknown;
   readonly setValue: (value: unknown) => void;
   readonly setInitialValue: (value: unknown) => void;
@@ -196,6 +196,31 @@ const holdNode = (
       registry.scheduleNodeRemoval(node);
     }
   };
+};
+
+/**
+ * Lets a node that has taken a value since it was given an initial one compute as usual again.
+ * Effect's `setValue` (4.0.1) leaves the mark that tells a node's next build to keep its initial
+ * value, so a node given a seed or a `HydrationBoundary` value over one would keep that through its
+ * next build, a refresh's, and drop the build's result. Call it once the node holds a value of its
+ * own: after `setValue`, or after subscribing, which builds a node still waiting for its first build
+ * (using the mark up) and, as a lookup, applies a value a `HydrationBoundary` queued. Only a valid
+ * node loses the mark: a stale one still keeps its initial value through its first build. The atoms
+ * a wrapper such as `withRefresh` passes an initial value to are cleared too, as subscribing to the
+ * wrapper builds them.
+ */
+const dropInitialValueMark = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): void => {
+  let current: Atom.Atom<unknown> | undefined = atom;
+  while (current) {
+    const node = internals(registry).ensureNode(current);
+    if (node.currentState() === "valid") {
+      node.preserveInitialValueOnBuild = false;
+    }
+    current = current.initialValueTarget;
+  }
 };
 
 /**
@@ -408,12 +433,15 @@ const subscribedReader = <A>(
   // value the reader's other reads haven't seen.
   let mounted = false;
   let reading: Atom.Atom<A> | undefined;
-  const listen = (current: Atom.Atom<A>, update: () => void) =>
-    registry.subscribe(current, () => {
+  const listen = (current: Atom.Atom<A>, update: () => void) => {
+    const unsubscribe = registry.subscribe(current, () => {
       if (reading !== current) {
         update();
       }
     });
+    dropInitialValueMark(registry, current);
+    return unsubscribe;
+  };
   const follow = (current: Atom.Atom<A>) => {
     if (kept?.atom === current) {
       const { cancel: keptCancel } = kept;
@@ -579,7 +607,12 @@ const mountWhileAlive = (
   const registry = getRegistry();
   const getAtom = toGetter(input);
   reportReads(registry, getAtom, kind);
-  $effect(() => registry.mount(getAtom()));
+  $effect(() => {
+    const atom = getAtom();
+    const release = registry.mount(atom);
+    dropInitialValueMark(registry, atom);
+    return release;
+  });
 };
 
 /**
@@ -835,6 +868,7 @@ export const useAtomSubscribe = <A>(
       }
       const deliver = orderedDelivery(f);
       const cancel = registry.subscribe(atom, deliver);
+      dropInitialValueMark(registry, atom);
       return () => {
         deliver.stop();
         cancel();
@@ -853,6 +887,7 @@ const setNodeValue = (
   value: unknown
 ): void => {
   internals(registry).ensureNode(atom).setValue(value);
+  dropInitialValueMark(registry, atom);
 };
 
 // The nodes given a value by useAtomInitialValues. A node belongs to one registry, and a node the
