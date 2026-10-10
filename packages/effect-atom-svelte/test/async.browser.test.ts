@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
-import { describe, expect, test } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import {
@@ -731,18 +731,22 @@ describe("serialization keys in the browser (JND-60)", () => {
     expect(mounts).toBe(3);
   });
 
-  test("two different atoms in use at once with one key are rejected", async () => {
+  test("two different atoms in use at once with one key share its value, without an error or a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
     const screen = await render(Harness, {
+      async: true,
       registry: AtomRegistry.make(),
       setup: () => {
         const first = useAtomSuspense(keyed("dup", "first"));
         const second = useAtomSuspense(keyed("dup", "second"));
-        // The second hook throws during init, so this never renders.
-        return () => `${String(first)} ${String(second)}`;
+        // The registry keys a serializable atom's node by its key, so both read the first's node.
+        return async () => `${await first.current} ${await second.current}`;
       },
     });
-    await expect
-      .poll(text(screen))
-      .toBe('failed: Two different atoms share the serialization key "dup"');
+    await expect.poll(text(screen)).toBe("first first");
+    // Only the server render throws for this: in the browser a remount, as under {#key}, briefly
+    // has an old and a new atom holding one key.
+    expect(warn).not.toHaveBeenCalled();
   });
 });

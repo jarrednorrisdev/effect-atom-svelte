@@ -77,6 +77,31 @@ The prefix doesn't name the client. Two RPC clients with a procedure of the same
 
 </Aside>
 
+### Scoped atoms
+
+A [scoped atom](/scoped-atoms) makes a new atom for each component that provides it, so if that atom is serializable, every copy with the same input gets the same key. That's an easy way to break the rule above. Say each comment in a thread provides its author with `User.provide(comment.authorId)`, and Alice writes two comments:
+
+1. The first comment's provider makes an atom with the key `app/user-a`, and the server records that atom's value under it.
+2. The second comment's provider makes another atom, with the same key.
+3. The server has two atoms for one key and can't tell whether they mean the same thing, so the render throws `Two different atoms share the serialization key`.
+
+A user's data belongs to the user, not to the comment showing it, so make it a family, and let the scoped atom provide the family's atom, as in [Using both](/scoped-atoms#using-both):
+
+```ts
+export const userAtom = Atom.family((id: string) =>
+  Atom.make(fetchUser(id)).pipe(
+    Atom.serializable({ key: `app/user-${id}`, schema: UserResult })
+  )
+);
+
+// A comment calls User.provide(comment.authorId); the parts inside it call User.use().
+export const User = ScopedAtom.make((id: string) => userAtom(id), {
+  name: "User",
+});
+```
+
+Both comments now hold the same atom, so the server sends Alice's data once. A scoped atom whose atom has no serialization key isn't sent to the browser at all: the browser computes it again.
+
 ## Which atoms to serialize
 
 Make an atom serializable when its value is plain data and the server's result is the one the browser wants: a todo list, a user's profile, the prices on a product page. A schema can encode it, and the browser is spared a second request and a loading state.
@@ -101,7 +126,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 What that means in practice:
 
-- **During a render, only those two hooks carry results.** An atom read only with `useAtomValue` is computed again in the browser.
+- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration: an atom read only with it is computed again in the browser, and a `useAtomValue` read of an atom another component reads with one of the two hooks can start it in the browser before the server's result lands, so it is fetched twice. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
@@ -242,8 +267,10 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 When the boundary puts its values into the registry:
 
 - **Atoms the registry doesn't have yet** get their values before the children render.
-- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render.
+- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render, and so are they in the browser while it hydrates the server's markup, so its first render matches the server's. That last part needs Svelte's `experimental.async`: without it, an atom that already exists, such as one read above the boundary, is updated after the first render.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+
+If you render on the server yourself instead of with SvelteKit, and `experimental.async` is on, `await render(...)` so the boundary's `hydratable` entry is written into the page. Without the `await`, a production build of Svelte logs `hydratable_missing_but_expected` once per boundary as the page hydrates.
 
 `HydrationBoundary` uses Effect's `Hydration.hydrate`, so unlike the hooks, it runs atoms wrapped by `Atom.withReactivity` and similar again after hydrating: see [Running again after hydration](#running-again-after-hydration).
 

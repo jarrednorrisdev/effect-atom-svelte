@@ -7,6 +7,7 @@ import { AtomRegistry } from "effect/reactivity";
 import { BROWSER, DEV } from "esm-env";
 import { createContext } from "svelte";
 
+import { disposeRegistry } from "./internal/disposal.ts";
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 import { track } from "./internal/registries.ts";
 import { onTeardownAfterChildren } from "./internal/teardown.svelte.ts";
@@ -138,6 +139,8 @@ export type ProvideRegistryOptions =
  *
  * A registry created here is owned by the component and disposed of with it, which on the server
  * means at the end of the request. A registry passed in is left for the caller to dispose of.
+ * In the browser, a finalizer that throws while the provider disposes of its registry is reported
+ * as an uncaught error after teardown, rather than thrown into Svelte's teardown.
  *
  * **Example** (Giving the app a registry from the root layout)
  *
@@ -187,7 +190,7 @@ export const provideRegistry = (
   }
   // Not onDestroy: in the browser it never runs for a component destroyed while its script awaits.
   if (!provided) {
-    onTeardownAfterChildren(() => registry.dispose());
+    onTeardownAfterChildren(() => disposeRegistry(registry));
   }
   if (DEV && BROWSER) {
     // For developer tools to find (effect-atom-svelte/inspector).

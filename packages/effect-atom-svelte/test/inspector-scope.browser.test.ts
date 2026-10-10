@@ -1,9 +1,10 @@
 import { Schema } from "effect";
 import { Atom } from "effect/reactivity";
+import type { AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import { useAtomValue } from "../src/index.ts";
+import { getRegistry, useAtomValue } from "../src/index.ts";
 import { provideInspectorScope } from "../src/Inspector.ts";
 import type {
   InspectorScope,
@@ -12,6 +13,7 @@ import type {
 } from "../src/Inspector.ts";
 import Harness from "./fixtures/harness.svelte";
 import ScopeHost from "./fixtures/scope-host.svelte";
+import { sleep } from "./helpers.ts";
 
 const mount = async (shown = true) => {
   let scope: InspectorScope | undefined;
@@ -39,6 +41,30 @@ const sharedAtom = () =>
 
 const names = (snapshot: ScopeSnapshot) =>
   new Set(snapshot.nodes.map((node) => node.label ?? "?"));
+
+/** Renders a scope that reads `atom`, with `prepare` run in the scope's registry first. */
+const mountReading = async (
+  atom: Atom.Atom<number>,
+  shown: string,
+  prepare: (registry: AtomRegistry.AtomRegistry) => void = () => undefined
+) => {
+  let scope: InspectorScope | undefined;
+  let registry: AtomRegistry.AtomRegistry | undefined;
+  const screen = await render(Harness, {
+    setup: () => {
+      scope = provideInspectorScope();
+      registry = getRegistry();
+      prepare(registry);
+      const value = useAtomValue(atom);
+      return () => value.current;
+    },
+  });
+  await expect.poll(() => screen.container.textContent).toContain(shown);
+  if (scope === undefined || registry === undefined) {
+    throw new Error("No scope");
+  }
+  return { registry, scope, screen };
+};
 
 describe("provideInspectorScope", () => {
   test("shows the atoms read below it and those upstream, linked through plumbing", async () => {
@@ -120,6 +146,86 @@ describe("provideInspectorScope", () => {
     for (const reader of snapshot?.readers ?? []) {
       expect(ids.has(reader.atom)).toBe(true);
     }
+    await screen.unmount();
+  });
+
+  test("says its atoms changed when an atom that mounts another switches dependencies", async () => {
+    const flag = Atom.make(true).pipe(Atom.keepAlive, Atom.withLabel("flag"));
+    const a = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("a"));
+    const b = Atom.make(2).pipe(Atom.keepAlive, Atom.withLabel("b"));
+    const ticker = Atom.make(0).pipe(Atom.keepAlive, Atom.withLabel("ticker"));
+    const child = Atom.make((get) => {
+      get.mount(ticker);
+      return get(flag) ? get(a) : get(b);
+    }).pipe(Atom.withLabel("child"));
+    const { registry, scope, screen } = await mountReading(child, "1", (r) =>
+      r.get(b)
+    );
+    const events: ScopeEvent[] = [];
+    const stop = scope.subscribe((event) => events.push(event));
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    registry.set(flag, false);
+    await expect.poll(() => screen.container.textContent).toContain("2");
+    await expect
+      .poll(() => events.some((event) => event._tag === "ScopeChanged"))
+      .toBe(true);
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    stop();
+    await screen.unmount();
+  });
+
+  test("snapshot follows a dependency switch while nothing listens to the scope", async () => {
+    const flag = Atom.make(true).pipe(Atom.keepAlive, Atom.withLabel("flag"));
+    const a = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("a"));
+    const b = Atom.make(2).pipe(Atom.keepAlive, Atom.withLabel("b"));
+    const child = Atom.make((get) => (get(flag) ? get(a) : get(b))).pipe(
+      Atom.withLabel("child")
+    );
+    const { registry, scope, screen } = await mountReading(child, "1");
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    registry.set(flag, false);
+    await expect.poll(() => screen.container.textContent).toContain("2");
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    // A listener that comes and goes, then a switch back while nobody listens.
+    scope.subscribe(() => undefined)();
+    registry.set(flag, true);
+    await expect.poll(() => screen.container.textContent).toContain("1");
+    const stop = scope.subscribe(() => undefined);
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    stop();
+    await screen.unmount();
+  });
+
+  test("a listener that comes back doesn't hear an atom that left the scope while nobody listened", async () => {
+    const flag = Atom.make(true).pipe(Atom.keepAlive, Atom.withLabel("flag"));
+    const a = Atom.make(1).pipe(Atom.keepAlive, Atom.withLabel("a"));
+    const b = Atom.make(2).pipe(Atom.keepAlive, Atom.withLabel("b"));
+    const other = Atom.make(0).pipe(Atom.withLabel("other"));
+    const child = Atom.make((get) => (get(flag) ? get(a) : get(b))).pipe(
+      Atom.withLabel("child")
+    );
+    const { registry, scope, screen } = await mountReading(child, "1");
+    // While listening, any change to the graph makes the scope work its nodes out again.
+    const first = scope.subscribe(() => undefined);
+    const release = registry.mount(other);
+    await sleep("10 millis");
+    first();
+    registry.set(flag, false);
+    await expect.poll(() => screen.container.textContent).toContain("2");
+    const events: ScopeEvent[] = [];
+    const stop = scope.subscribe((event) => events.push(event));
+    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    registry.set(a, 5);
+    await sleep("10 millis");
+    const ids = new Set(
+      scope.snapshot({ plumbing: true }).nodes.map((node) => node.id)
+    );
+    // `a` was written, but the scope no longer reads it.
+    expect(
+      events.filter((event) => "id" in event && !ids.has(event.id))
+    ).toEqual([]);
+    stop();
+    release();
     await screen.unmount();
   });
 });

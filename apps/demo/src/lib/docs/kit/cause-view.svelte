@@ -67,40 +67,37 @@
     })
   );
 
-  // A new cause gets new keys, so its rows slide in.
-  let generation = 0;
-  const keyed = $derived.by(() => {
-    generation += 1;
-    return rows.map((row, index) => ({ ...row, key: `${generation}-${index}` }));
-  });
   const id = $props.id();
 </script>
 
 <div class="cause not-prose" {...rest}>
   <p class={["caption", code && "code"]} id="{id}-label">{label}</p>
-  {#if keyed.length === 0}
+  {#if rows.length === 0}
     <p class="empty">No failure, so no cause.</p>
   {:else}
-    <ul aria-labelledby="{id}-label">
-      {#each keyed as row (row.key)}
-        <li data-reason={row.reason} {@attach enter({ opacity: [0, 1], x: [-8, 0] })}>
-          <span class="tag">
-            {#if row.reason === "Fail"}
-              <AlertIcon aria-hidden="true" class="icon" />
-            {:else if row.reason === "Die"}
-              <BugIcon aria-hidden="true" class="icon" />
-            {:else}
-              <StopIcon aria-hidden="true" class="icon" />
-            {/if}
-            {row.reason}
-          </span>
-          <span class="text">{row.text}</span>
-          <span class="kind">
-            {row.kind}, {row.reason === "Fail" ? "in the error type" : "not in the type"}
-          </span>
-        </li>
-      {/each}
-    </ul>
+    <!-- A new cause remounts the list, so its rows slide in. -->
+    {#key cause}
+      <ul aria-labelledby="{id}-label">
+        {#each rows as row}
+          <li data-reason={row.reason} {@attach enter({ opacity: [0, 1], x: [-8, 0] })}>
+            <span class="tag">
+              {#if row.reason === "Fail"}
+                <AlertIcon aria-hidden="true" class="icon" />
+              {:else if row.reason === "Die"}
+                <BugIcon aria-hidden="true" class="icon" />
+              {:else}
+                <StopIcon aria-hidden="true" class="icon" />
+              {/if}
+              {row.reason}
+            </span>
+            <span class="text">{row.text}</span>
+            <span class="kind">
+              {row.kind}, {row.reason === "Fail" ? "in the error type" : "not in the type"}
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {/key}
   {/if}
 </div>
 

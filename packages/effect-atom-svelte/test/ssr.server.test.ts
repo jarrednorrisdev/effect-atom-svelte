@@ -19,6 +19,8 @@ import {
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
 import BoundaryInitial from "./fixtures/boundary-initial.svelte";
+import BoundaryLateInitial from "./fixtures/boundary-late-initial.svelte";
+import BoundaryProvider from "./fixtures/boundary-provider.svelte";
 import HydrateAbove from "./fixtures/hydrate-above.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
@@ -49,6 +51,33 @@ const renderSetup = (
   setup: () => unknown,
   registry?: AtomRegistry.AtomRegistry
 ) => render(SsrHarness, { props: registry ? { registry, setup } : { setup } });
+
+/**
+ * Renders a RegistryProvider inside a boundary that fails when `fail` is set, and counts how often
+ * a keepAlive atom read under the provider is finalized.
+ */
+const renderBoundaryProvider = async (fail: boolean) => {
+  let finalized = 0;
+  const atom = Atom.make((get) => {
+    get.addFinalizer(() => {
+      finalized += 1;
+    });
+    return "kept";
+  }).pipe(Atom.keepAlive);
+  const page = await render(BoundaryProvider, {
+    props: {
+      fail,
+      setup: () => {
+        const read = useAtomValue(atom);
+        return () => read.current;
+      },
+    },
+    transformError: (error: unknown) => ({ message: String(error) }),
+  });
+  expect(page.body).toContain(fail ? "failed" : "<output>kept</output>");
+  await sleep(20);
+  return { fail, finalized };
+};
 
 /** A serializable async atom that fails the test if anything computes it. */
 const failsIfComputed = (key: string) =>
@@ -658,6 +687,65 @@ describe("server rendering", () => {
       props: { atom, fail: false, registry, value: "third visitor" },
     });
     expect(third.body).toContain("<output>third visitor</output>");
+    registry.dispose();
+  });
+
+  test("a failed boundary's component that awaits before its hooks still releases them", async () => {
+    // The boundary drops the awaiting component, so the render ends before its script resumes and
+    // registers its release on a signal that has already aborted.
+    const atom = Atom.make("default");
+    const registry = AtomRegistry.make();
+    const first = await render(BoundaryLateInitial, {
+      props: { atom, delay: 20, fail: true, registry, value: "first visitor" },
+      transformError: (error: unknown) => ({ message: String(error) }),
+    });
+    expect(first.body).toContain("failed");
+    await sleep(60);
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const second = await render(BoundaryLateInitial, {
+      props: { atom, delay: 0, fail: false, registry, value: "second visitor" },
+    });
+    expect(second.body).toContain("<output>second visitor</output>");
+    registry.dispose();
+  });
+
+  test("a provider inside a boundary that fails during setup still disposes its registry", async () => {
+    // The provider's registry is the request's own; dropped with the boundary, it would keep
+    // its keepAlive atoms, and whatever they run, for good.
+    expect(
+      await Promise.all([
+        renderBoundaryProvider(false),
+        renderBoundaryProvider(true),
+      ])
+    ).toEqual([
+      { fail: false, finalized: 1 },
+      { fail: true, finalized: 1 },
+    ]);
+  });
+
+  test("a reader kept past the render takes no mount on a caller-owned registry when its atom switches", async () => {
+    const stopped: string[] = [];
+    const tracked = (name: string) =>
+      Atom.make((get) => {
+        get.addFinalizer(() => stopped.push(name));
+        return name;
+      });
+    const first = tracked("first");
+    const next = tracked("next");
+    let atom = first;
+    let read: { readonly current: string } | undefined;
+    const registry = AtomRegistry.make();
+    const output = await renderSetup(() => {
+      const value = useAtomValue(() => atom);
+      read = value;
+      return () => value.current;
+    }, registry);
+    expect(output.body).toContain("<output>first</output>");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    atom = next;
+    expect(read?.current).toBe("next");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    expect(stopped).toEqual(["first", "next"]);
     registry.dispose();
   });
 
