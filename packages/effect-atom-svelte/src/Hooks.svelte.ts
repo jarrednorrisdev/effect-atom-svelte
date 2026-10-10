@@ -22,6 +22,7 @@ import { onRenderEnd } from "./internal/renderEnd.ts";
 import { reportReads } from "./internal/scope.svelte.ts";
 import type { ReadKind } from "./internal/scope.svelte.ts";
 import { onTeardown } from "./internal/teardown.svelte.ts";
+import { troubleshooting } from "./internal/troubleshooting.ts";
 import { getRegistry } from "./RegistryContext.ts";
 
 /**
@@ -127,7 +128,9 @@ class AtomCell<R, W> {
 }
 
 const readOnly = (): never => {
-  throw new Error("This atom value is read-only");
+  throw new Error(
+    `This atom value is read-only: useAtomValue, useAtomSuspense, useAtomRef and useAtomRefPropValue only read. Write an atom with useAtom or useAtomSet, and one property of a ref with useAtomRefProp and its set. ${troubleshooting("this-atom-value-is-read-only")}`
+  );
 };
 
 const valueOrThrow = <A, E>(exit: Exit.Exit<A, E>): A => {
@@ -1118,7 +1121,9 @@ const seedOnServer = (
   }
   const claimed = serverSeeds.get(encoded);
   if (claimed && claimed !== atom) {
-    throw new Error(`Two different atoms share the serialization key "${key}"`);
+    throw new Error(
+      `Two different atoms share the serialization key "${key}", so the server can't tell whose result to send. Put what tells the copies apart into the key, such as an id, and define atoms at module level. ${troubleshooting("two-different-atoms-share-the-serialization-key")}`
+    );
   }
   serverSeeds.set(encoded, atom);
   return (async () => {
@@ -1491,7 +1496,7 @@ const fromServerValue = <A, E>(
   if (isPending(current, options)) {
     return Promise.reject(
       new Error(
-        "useAtomSuspense read an atom whose server value is pending, so the server has nothing to render. Read it inside a <svelte:boundary> with a pending snippet, which the server renders instead, or use useAtomResult."
+        `useAtomSuspense read an atom whose server value is pending, so the server has nothing to render. Read it inside a <svelte:boundary> with a pending snippet, which the server renders instead, or use useAtomResult. ${troubleshooting("useatomsuspense-read-an-atom-whose-server-value-is-pending")}`
       )
     );
   }
