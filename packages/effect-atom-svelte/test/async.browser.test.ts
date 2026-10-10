@@ -16,6 +16,7 @@ import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
 import SuspenseInEffect from "./fixtures/suspense-in-effect.svelte";
 import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
+import SuspenseUnreadDerived from "./fixtures/suspense-unread-derived-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { repeat, sleep } from "./helpers.ts";
@@ -575,6 +576,43 @@ describe("useAtomSuspense", () => {
     click("Reload");
     await expect.poll(shown).toBe("failed: no weather for Paris");
   });
+});
+
+describe("useAtomSuspense read outside the markup", () => {
+  // Svelte aborts a derived's signal when it runs again or loses its last reader, and doesn't
+  // destroy deriveds with their component, so a derived only the script or a handler reads never
+  // aborts it. A read after the component is destroyed gets its already aborted lifetime.
+  test.each(["script", "handler", "destroy"] as const)(
+    "a read in the %s doesn't hold a pending atom once the component is destroyed",
+    async (mode) => {
+      const registry = AtomRegistry.make();
+      onTestFinished(() => registry.dispose());
+      const log: string[] = [];
+      const atom = Atom.make((get) => {
+        log.push("start");
+        get.addFinalizer(() => log.push("stop"));
+        return Effect.never;
+      });
+      const screen = await render(SuspenseUnreadDerived, {
+        atom,
+        mode,
+        registry,
+        show: true,
+      });
+      if (mode === "handler") {
+        await screen.getByRole("button").click();
+      }
+      if (mode !== "destroy") {
+        await expect.poll(() => log).toEqual(["start"]);
+      }
+      await screen.rerender({ show: false });
+      // Read once it is destroyed, the atom isn't started at all.
+      const after = mode === "destroy" ? [] : ["start", "stop"];
+      await expect.poll(() => log).toEqual(after);
+      await sleep("100 millis");
+      expect(log).toEqual(after);
+    }
+  );
 });
 
 describe("useAtomResult", () => {

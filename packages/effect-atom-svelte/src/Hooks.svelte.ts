@@ -1753,7 +1753,43 @@ export function useAtomSuspense<A, E>(
   // Holds waits read outside any derived or effect (a top-level await in the script, an event
   // handler), which cannot say when they are done with them, until the component is destroyed.
   const lifetime = new AbortController();
-  onTeardown(() => lifetime.abort());
+  // Each reaction's signal, also aborted when the component is destroyed. Svelte aborts a derived's
+  // signal when it runs again or loses its last reader, and doesn't destroy deriveds with their
+  // component, so a derived only the script or an event handler reads would never abort it, and
+  // the wait it holds would keep the atom after the component is gone. Kept per signal, so a signal
+  // still holds a wait once (see sharedWait); those still live are aborted at teardown.
+  const bounded = new WeakMap<AbortSignal, AbortSignal>();
+  const liveAborts = new Set<() => void>();
+  onTeardown(() => {
+    lifetime.abort();
+    // Each abort deletes itself, which a Set's iteration allows.
+    for (const abort of liveAborts) {
+      abort();
+    }
+  });
+  const untilDestroyed = (signal: AbortSignal): AbortSignal => {
+    let combined = bounded.get(signal);
+    if (!combined) {
+      const controller = new AbortController();
+      combined = controller.signal;
+      bounded.set(signal, combined);
+      // The reaction's reason, such as Svelte's STALE_REACTION, which it ignores (JND-22).
+      const reason = () =>
+        signal.aborted ? signal.reason : lifetime.signal.reason;
+      if (signal.aborted || lifetime.signal.aborted) {
+        controller.abort(reason());
+      } else {
+        const abort = () => {
+          liveAborts.delete(abort);
+          signal.removeEventListener("abort", abort);
+          controller.abort(reason());
+        };
+        liveAborts.add(abort);
+        signal.addEventListener("abort", abort, { once: true });
+      }
+    }
+    return combined;
+  };
 
   // Keyed by atom, then result: atoms can share a result object, as a derived atom returning its
   // source's result does, and a wait holds and waits for one atom.
@@ -1800,6 +1836,21 @@ export function useAtomSuspense<A, E>(
       return promise;
     }
     const signal = readerSignal();
+    const holder = signal ? untilDestroyed(signal) : lifetime.signal;
+    if (holder.aborted) {
+      // Read once the reader is gone, as in onDestroy or a handler that resumes after the component
+      // is destroyed: nothing could let go of a wait started now, which would hold the atom until it
+      // settles. Handled here, so a read nobody awaits isn't reported as unhandled.
+      const gone = Promise.reject(holder.reason);
+      void (async () => {
+        try {
+          await gone;
+        } catch {
+          // Belongs to whoever awaits it.
+        }
+      })();
+      return gone;
+    }
     if (!seeded && seed) {
       // Reading the atom before the seed lands would fetch what hydration is about to provide.
       const atom = getAtom();
@@ -1833,14 +1884,10 @@ export function useAtomSuspense<A, E>(
         pending = { promise, readers };
         afterSeed.set(atom, pending);
       }
-      pending.readers.add(signal ?? lifetime.signal);
+      pending.readers.add(holder);
       return pending.promise;
     }
-    const promise = settle(
-      getAtom(),
-      result.current,
-      signal ?? lifetime.signal
-    );
+    const promise = settle(getAtom(), result.current, holder);
     if (signal) {
       // A reaction read it, so the reader's subscription holds the atom from here.
       seed?.letGo();
