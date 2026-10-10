@@ -10,6 +10,7 @@ import { BROWSER, DEV } from "esm-env";
 import { getAbortSignal, hydratable, untrack } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 
+import { queuedByBoundary } from "./internal/boundaries.ts";
 import { onDispose } from "./internal/disposal.ts";
 import {
   decodeSeed,
@@ -141,6 +142,14 @@ const valueOrThrow = <A, E>(exit: Exit.Exit<A, E>): A => {
 };
 
 /**
+ * Whether a result is `Initial` with nothing running to settle it, as an `Atom.fn` nothing has
+ * called. On the server nothing will start it during the render, so waiting would hang it.
+ */
+const notStarted = (
+  result: AsyncResult.AsyncResult<unknown, unknown>
+): boolean => result._tag === "Initial" && !result.waiting;
+
+/**
  * Whether the atom has a `withServerValue` override. The server reads that instead and never
  * computes the atom, as its real read is often browser-only.
  */
@@ -255,9 +264,46 @@ interface KeptSubscription<A> {
   readonly cancel: () => void;
 }
 
+// The keys of the atoms useAtomValue has warned about, so the server warns once per key, not per
+// request.
+const warnedUnsent = new Set<string>();
+
+/**
+ * In development, warns once per key that a plain read of a serializable async atom on the server
+ * sends nothing to the browser: only useAtomResult and useAtomSuspense do, so the browser runs the
+ * atom again, and the page can show a loading state over what the server rendered. A value a
+ * HydrationBoundary brought is sent by the boundary.
+ */
+const warnUnsent = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>,
+  value: unknown
+): void => {
+  // An atom nothing has started, as an Atom.fn nothing has called, has nothing to send or run again.
+  if (
+    !(DEV && Atom.isSerializable(atom) && AsyncResult.isAsyncResult(value)) ||
+    notStarted(value)
+  ) {
+    return;
+  }
+  const { key } = atom[Atom.SerializableTypeId];
+  if (warnedUnsent.has(key) || queuedByBoundary(registry, key)) {
+    return;
+  }
+  warnedUnsent.add(key);
+  console.warn(
+    `effect-atom-svelte: useAtomValue read the serializable atom "${key}" on the server, but only useAtomResult and useAtomSuspense send an atom's result to the browser, so it runs again there. Read it with one of them. See https://atom.jarrednorris.dev/hydration#how-the-result-travels`
+  );
+};
+
+/**
+ * Reads the getter's atom and follows it. `warnIfUnsent` is for the plain reads, `useAtomValue` and
+ * `useAtom`: the async hooks send their atom's result themselves.
+ */
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
-  getAtom: () => Atom.Atom<A>
+  getAtom: () => Atom.Atom<A>,
+  warnIfUnsent = false
 ): (() => A) => {
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
@@ -297,13 +343,19 @@ const subscribedReader = <A>(
       if (atom !== mounted) {
         mounted = mount(atom);
       }
-      if (!hasServerValue(atom)) {
-        const node = nodes.ensureNode(atom);
-        if (node.preserveInitialValueOnBuild) {
-          return node._value as A;
-        }
+      if (hasServerValue(atom)) {
+        return Atom.getServerValue(atom, registry);
       }
-      return Atom.getServerValue(atom, registry);
+      // An initial value is what the browser starts from too.
+      const node = nodes.ensureNode(atom);
+      if (node.preserveInitialValueOnBuild) {
+        return node._value as A;
+      }
+      const value = registry.get(atom);
+      if (warnIfUnsent) {
+        warnUnsent(registry, atom, value);
+      }
+      return value;
     };
   }
   reportReads(registry, getAtom, "read");
@@ -461,7 +513,7 @@ export function useAtomValue<A, B>(
   input: AtomInput<Atom.Atom<A>>,
   f?: (value: A) => B
 ): AtomValue<A | B> {
-  const read = subscribedReader(getRegistry(), toGetter(input));
+  const read = subscribedReader(getRegistry(), toGetter(input), true);
   if (!f) {
     return new AtomCell<A, never>(read, readOnly);
   }
@@ -497,8 +549,9 @@ export const useAtom = <R, W>(
 ): AtomState<R, W> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  return new AtomCell<R, W>(subscribedReader(registry, getAtom), (value) =>
-    registry.set(getAtom(), value)
+  return new AtomCell<R, W>(
+    subscribedReader(registry, getAtom, true),
+    (value) => registry.set(getAtom(), value)
   );
 };
 
@@ -969,14 +1022,6 @@ export const useAtomRefPropValue = <A, K extends keyof A>(
 // Internal shorthand; exported signatures spell the type out so the API reference shows it.
 type ResultAtom<A, E> = Atom.Atom<AsyncResult.AsyncResult<A, E>>;
 
-/**
- * Whether a result is `Initial` with nothing running to settle it, as an `Atom.fn` nothing has
- * called. On the server nothing will start it during the render, so waiting would hang it.
- */
-const notStarted = (
-  result: AsyncResult.AsyncResult<unknown, unknown>
-): boolean => result._tag === "Initial" && !result.waiting;
-
 const notStartedError = (hook: string): Error =>
   new Error(
     `${hook} read an atom that has not started on the server: its result is Initial and nothing is running it, as for an Atom.fn that has not been called, so the render would wait for it forever. Read it with useAtomValue, which renders Initial, or inside a <svelte:boundary> with a pending snippet, which the server renders instead.`
@@ -1381,7 +1426,10 @@ export const useAtomResult = async <A, E>(
 ): Promise<AtomValue<AsyncResult.AsyncResult<A, E>>> => {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const value = useAtomValue(getAtom);
+  const value = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
+    subscribedReader(registry, getAtom),
+    readOnly
+  );
   const atom = getAtom();
   let release: (() => void) | undefined;
   // Aborted when the component is destroyed, which interrupts the wait below so the atom is not held.
@@ -1682,7 +1730,10 @@ export function useAtomSuspense<A, E>(
 ): AtomValue<Promise<unknown>> {
   const registry = getRegistry();
   const getAtom = toGetter(input);
-  const result = useAtomValue(getAtom);
+  const result = new AtomCell<AsyncResult.AsyncResult<A, E>, never>(
+    subscribedReader(registry, getAtom),
+    readOnly
+  );
   const seed = seedFromServer(
     registry,
     getAtom,

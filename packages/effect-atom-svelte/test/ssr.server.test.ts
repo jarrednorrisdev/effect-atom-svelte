@@ -22,6 +22,7 @@ import BoundaryInitial from "./fixtures/boundary-initial.svelte";
 import BoundaryLateInitial from "./fixtures/boundary-late-initial.svelte";
 import BoundaryProvider from "./fixtures/boundary-provider.svelte";
 import HydrateAbove from "./fixtures/hydrate-above.svelte";
+import Hydrate from "./fixtures/hydrate.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
@@ -804,6 +805,101 @@ describe("server rendering", () => {
       expect(fetched).toBe(0);
     }
   );
+
+  test("useAtomValue reading a serializable async atom warns once, in development, that its result isn't sent", async () => {
+    const warned = allWarnings();
+    const atom = Atom.make(Effect.succeed("todos")).pipe(
+      Atom.serializable({
+        key: "unsent-value-read",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const read = () => {
+      const value = useAtomValue(atom);
+      return () => value.current._tag;
+    };
+    await renderSetup(read);
+    await renderSetup(read);
+    expect(
+      warned().filter((message) => message.includes("unsent-value-read"))
+    ).toEqual([
+      expect.stringContaining(
+        'useAtomValue read the serializable atom "unsent-value-read" on the server'
+      ),
+    ]);
+  });
+
+  test("the async hooks, and reads the browser repeats anyway, don't warn that a result isn't sent", async () => {
+    const warned = allWarnings();
+    const schema = AsyncResult.Schema({ success: Schema.String });
+    const awaited = Atom.make(Effect.succeed("a")).pipe(
+      Atom.serializable({ key: "sent-by-hook", schema })
+    );
+    const serverValue = Atom.make(Effect.succeed("b")).pipe(
+      Atom.serializable({ key: "unsent-server-value", schema }),
+      Atom.withServerValueInitial
+    );
+    const initial = Atom.make(Effect.succeed("c")).pipe(
+      Atom.serializable({ key: "unsent-initial", schema })
+    );
+    const plain = Atom.make(Effect.succeed("d"));
+    const mutation = Atom.fn((title: string) => Effect.succeed(title)).pipe(
+      Atom.serializable({ key: "unsent-mutation", schema })
+    );
+    await renderSetup(() => {
+      useAtomInitialValues([[initial, AsyncResult.success("c")]]);
+      const values = [serverValue, initial, plain, mutation].map((atom) =>
+        useAtomValue(atom)
+      );
+      const suspended = useAtomSuspense(awaited);
+      const result = useAtomResult(awaited);
+      return (async () => {
+        await result;
+        await suspended.current;
+        return () => values.map((value) => value.current._tag).join(" ");
+      })();
+    });
+    expect(
+      warned().filter((message) => message.includes("on the server"))
+    ).toEqual([]);
+  });
+
+  test("useAtomValue reading a value a HydrationBoundary brought doesn't warn: the boundary sends it", async () => {
+    const warned = allWarnings();
+    const atom = Atom.make(Effect.succeed("fetched")).pipe(
+      Atom.serializable({
+        key: "boundary-value-read",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "boundary-value-read",
+        value: atom[Atom.SerializableTypeId].encode(
+          AsyncResult.success("from the load")
+        ),
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as readonly Hydration.DehydratedAtom[];
+    const { body } = await render(Hydrate, {
+      props: {
+        registry,
+        setup: () => {
+          const value = useAtomValue(atom);
+          return () =>
+            value.current._tag === "Success" ? value.current.value : "";
+        },
+        state,
+      },
+    });
+    expect(body).toContain("from the load");
+    expect(
+      warned().filter((message) => message.includes("boundary-value-read"))
+    ).toEqual([]);
+  });
 
   test("an initial value nothing reads leaves its async atom unstarted on the server", async () => {
     let fetched = 0;
