@@ -96,3 +96,51 @@ describe("concurrent requests on a caller-owned registry", () => {
     registry.dispose();
   });
 });
+
+// On a registry shared between requests, an entry still held would be the next request's value.
+const nextRequestRendersItsOwnValue = async (
+  initialValues: Iterable<readonly [Atom.Atom<unknown>, unknown]>,
+  count: Atom.Writable<number>
+) => {
+  const registry = AtomRegistry.make();
+  await expect(
+    Promise.resolve(
+      renderSetup(() => {
+        useAtomInitialValues(initialValues);
+        return () => "unreachable";
+      }, registry)
+    )
+  ).rejects.toThrow();
+  const { body } = await renderSetup(() => {
+    useAtomInitialValues([[count, 2]]);
+    const value = useAtomValue(count);
+    return () => value.current;
+  }, registry);
+  expect(body).toContain("<output>2</output>");
+  registry.dispose();
+};
+
+describe("initial values that throw midway", () => {
+  test("a list with a missing atom lets go of the entries before it", async () => {
+    const count = Atom.make(0);
+    await nextRequestRendersItsOwnValue(
+      [
+        [count, 1],
+        [undefined as never, 2],
+      ],
+      count
+    );
+  });
+
+  test("a generator that throws lets go of the entries before it", async () => {
+    const count = Atom.make(0);
+    const other = Atom.make(0);
+    const broken = function* broken(): Generator<
+      readonly [Atom.Atom<unknown>, unknown]
+    > {
+      yield [count, 1];
+      yield [other, JSON.parse("{not json")];
+    };
+    await nextRequestRendersItsOwnValue(broken(), count);
+  });
+});

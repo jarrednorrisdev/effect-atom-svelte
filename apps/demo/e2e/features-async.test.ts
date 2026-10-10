@@ -324,7 +324,9 @@ test.describe("Suspense page", () => {
       observer.observe(document.body, { childList: true, subtree: true });
       return seen;
     });
-    await mount.click();
+    // On CI this click has several times left the button off and nothing mounted, though the
+    // page was hydrated and settled; setPressed presses again until the toggle is on.
+    await setPressed(mount, true);
     await expect(notes).toHaveText("Loaded 1 time");
     expect(await sawPending.evaluate((seen) => seen.pending)).toBe(true);
     await expect(notDone).toHaveCount(0);
@@ -341,9 +343,9 @@ test.describe("Suspense page", () => {
     // The script didn't run again.
     expect(await steps.allTextContents()).toEqual(ran);
     // A new component waits again; nothing kept the atom, so it loads again.
-    await mount.click();
+    await setPressed(mount, false);
     await expect(notes).toHaveCount(0);
-    await mount.click();
+    await setPressed(mount, true);
     await expect(steps.nth(1)).toHaveText(/waiting for the first result…$/u);
     await expect(notes).toHaveText("Loaded 3 times");
     await expect(notDone).toHaveCount(0);

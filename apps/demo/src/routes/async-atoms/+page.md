@@ -90,7 +90,7 @@ To say why it failed, find the typed error in the `cause` with `Cause.findErrorO
 
 <Aside type="tip" title="Await instead of checking tags">
 
-With Svelte's experimental async turned on, you can `await` an async atom in markup and let `<svelte:boundary>` handle loading and failure. See [Suspense](/suspense).
+With Svelte's experimental async turned on, you can `await` an async atom in markup and let `<svelte:boundary>` handle loading and failure. See [Suspense](/suspense). If the page is rendered on the server, read async atoms that way, with `useAtomSuspense` or `useAtomResult`: only those two send the server's result to the browser, so an atom read with `useAtomValue` is fetched again there. See [Hydration](/hydration).
 
 </Aside>
 

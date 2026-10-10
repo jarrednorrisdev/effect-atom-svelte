@@ -78,7 +78,9 @@ export type UpdateSource = "build" | "write" | "async";
  * - `ReadersChanged`: a listener was added or removed; `readers` is how many it has now. Hooks,
  *   `registry.subscribe` and `mount`, and atoms that subscribe to others all count.
  * - `Interrupted`: its effect hadn't finished when what its computation started was torn down, so
- *   the fiber was interrupted. Followed by `Finalized`.
+ *   the fiber was interrupted. Followed by `Finalized`. Not reported for an `Atom.runtime` atom,
+ *   whose layer build isn't interrupted. An effect atom made with `{ uninterruptible: true }` is
+ *   reported all the same, though its fiber keeps running: the inspector can't tell it apart.
  * - `Finalized`: what its last computation started was torn down, before it computes again or as
  *   it is removed; `finalizers` ran.
  * - `NodeRemoved`: the registry disposed of the node, as nothing read it any more.
@@ -162,9 +164,21 @@ interface NodeRecord {
 const nodeKey = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> | string =>
   Atom.isSerializable(atom) ? atom[Atom.SerializableTypeId].key : atom;
 
+/**
+ * An `Atom.runtime` atom, by the `layer` and `factory` it carries. It builds its layer with
+ * `uninterruptible: true`, so a build torn down midway keeps running.
+ */
+const isRuntime = (atom: Atom.Atom<unknown>): boolean =>
+  "layer" in atom &&
+  Atom.isAtom(atom.layer) &&
+  "factory" in atom &&
+  typeof atom.factory === "function";
+
 const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
   const listeners = new Set<(event: Event) => void>();
   const records = new WeakMap<AtomRegistry.Node<unknown>, NodeRecord>();
+  // The node that held each result first: the one whose computation or effect made it.
+  const origins = new WeakMap<object, AtomRegistry.Node<unknown>>();
   let writing = 0;
   let complete = true;
 
@@ -222,7 +236,14 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
         }
         // An effect atom's computation leaves a waiting result until its fiber is done, and a
         // finalizer that interrupts the fiber.
-        if (AsyncResult.isAsyncResult(value) && value.waiting) {
+        // A wrapper that passes on another atom's result (debounce, makeRefreshOnSignal) holds a
+        // value that atom made, and has no fiber of its own. A runtime's fiber isn't interrupted.
+        if (
+          AsyncResult.isAsyncResult(value) &&
+          value.waiting &&
+          (origins.get(value) ?? node) === node &&
+          !isRuntime(node.atom)
+        ) {
           emit({ _tag: "Interrupted", node, time: performance.now() });
         }
         emit({ _tag: "Finalized", finalizers, node, time: performance.now() });
@@ -244,6 +265,9 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
       },
       value: (previous, value) => {
         const self = record(node);
+        if (AsyncResult.isAsyncResult(value) && !origins.has(value)) {
+          origins.set(value, node);
+        }
         const first = self.values === 0;
         self.values += 1;
         if (!first) {
@@ -336,7 +360,8 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
       return complete;
     },
     idleTTL: (atom) => {
-      if (atom.keepAlive) {
+      // An idle TTL of 0 is none: the registry removes the atom as soon as nothing reads it.
+      if (atom.keepAlive || atom.idleTTL === 0) {
         return undefined;
       }
       return atom.idleTTL ?? defaultIdleTTL(registry);
@@ -607,9 +632,18 @@ class Scope implements InspectorScope {
 
   /** Every node the scope's hooks use, and every node upstream of them. */
   #nodes(): Set<AtomRegistry.Node<unknown>> {
-    if (this.#members !== undefined) {
-      return this.#members;
+    // Without a listener the scope follows no inspector, so nothing would say the graph changed.
+    if (this.#listeners.size === 0) {
+      return this.#walk();
     }
+    if (this.#members === undefined) {
+      this.#members = this.#walk();
+    }
+    return this.#members;
+  }
+
+  /** Works out the scope's nodes from the graph as it is now, without keeping them. */
+  #walk(): Set<AtomRegistry.Node<unknown>> {
     const members = new Set<AtomRegistry.Node<unknown>>();
     const add = (node: AtomRegistry.Node<unknown>) => {
       if (!members.has(node)) {
@@ -625,7 +659,6 @@ class Scope implements InspectorScope {
         add(node);
       }
     }
-    this.#members = members;
     return members;
   }
 
@@ -694,6 +727,11 @@ class Scope implements InspectorScope {
   }
 
   subscribe(listener: (event: ScopeEvent) => void): () => void {
+    if (this.#listeners.size === 0) {
+      // Kept from before the scope last stopped following, and the graph may have changed since.
+      this.#members = undefined;
+      this.#previous = new Set();
+    }
     this.#listeners.add(listener);
     for (const read of this.#reads.values()) {
       this.#follow(read.registry);
@@ -721,8 +759,11 @@ class Scope implements InspectorScope {
   }
 
   #receive(event: Event): void {
+    // Events arrive in the middle of the registry's work, while a computation is still changing
+    // the edges it reads through: what is worked out now isn't kept for the snapshot.
     const inScope =
-      this.#previous.has(event.node) || this.#nodes().has(event.node);
+      this.#previous.has(event.node) ||
+      (this.#members ?? this.#walk()).has(event.node);
     if (
       event._tag === "NodeAdded" ||
       event._tag === "NodeRemoved" ||

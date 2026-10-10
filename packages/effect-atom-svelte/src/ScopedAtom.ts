@@ -62,10 +62,11 @@ export interface MakeOptions {
 /**
  * Creates a scoped atom from a factory, which runs once per providing component.
  *
- * Each provider gets its own atom, so a factory that adds `Atom.serializable` with a fixed key
- * gives every copy the same key: once two providers are on a page, reading them with
- * `useAtomResult` or `useAtomSuspense` throws, as two different atoms share the serialization
- * key. Put the input in the key, or leave scoped atoms unserialized.
+ * Each provider gets its own atom, so a factory that makes a serializable atom gives every copy of
+ * one input the same key, and two such providers on a server-rendered page make the render throw:
+ * two different atoms share the serialization key. For a value from the server, return a family's
+ * atom instead, `ScopedAtom.make((id: string) => userAtom(id))`, so every provider of one input
+ * holds the same atom.
  *
  * **Example** (A counter per subtree, started from an input)
  *

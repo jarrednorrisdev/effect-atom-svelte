@@ -176,6 +176,7 @@ test.describe("RPC page", () => {
   });
 
   test("add, typed error, toggle and the query family", async ({ page }) => {
+    const { errors } = watch(page);
     await page.goto("/rpc");
     await page.waitForLoadState("networkidle");
     const list = page.getByTestId("rpc-todos");
@@ -212,6 +213,8 @@ test.describe("RPC page", () => {
     await expect(page.getByTestId("rpc-selected")).toContainText(
       "TodoNotFound { id: 99 }"
     );
+    // CauseView's rows must keep their keys when a batch commits (async Svelte re-reads them).
+    expect(await errors()).toEqual([]);
   });
 
   test("a streaming RPC pulls to the end", async ({ page }) => {
@@ -1123,34 +1126,38 @@ test("AtomRef: an autosave stops when the server's copy equals the draft", async
   await expect(requests).toHaveCount(3);
 });
 
-test("scoped atoms: each provider has its own atom", async ({ page }) => {
+test("scoped atoms: each table provides its own state", async ({ page }) => {
   await page.goto("/scoped-atoms");
   await page.waitForLoadState("networkidle");
-  const note = (name: string) => page.getByRole("group", { exact: true, name });
-  const draft = (name: string) =>
-    note(name).getByLabel("Draft", { exact: true });
+  const example = page.locator("[data-example]").first();
+  const table = (name: string) =>
+    example.getByRole("group", { exact: true, name });
+  const firstCell = (name: string, column: number) =>
+    table(name).locator("tbody tr").first().locator("td").nth(column);
 
-  // Each editor provides a draft of its own: its parts follow it, the other stays empty.
-  await draft("Note A").fill("Some *new* words");
-  await expect(note("Note A")).toContainText("3 words");
-  await expect(note("Note A").locator("em")).toHaveText("new");
-  await expect(note("Note B")).toContainText("0 words");
-  await expect(note("Note B")).toContainText("Nothing written yet.");
-  await expect(draft("Note B")).toHaveValue("");
+  // Sorting, searching and selecting in one table leaves the other alone.
+  await table("Orders")
+    .getByRole("button", { name: /^Total/u })
+    .click();
+  await expect(firstCell("Orders", 4)).toHaveText("$23");
+  await table("Orders").getByLabel("Search orders").fill("ada");
+  await expect(table("Orders")).toContainText("2 orders · page 1 of 1");
+  await table("Orders").getByLabel("Select #1042").check();
+  await expect(table("Orders")).toContainText("1 selected");
 
-  // One draft provided above both: a change in either shows in both.
-  await page.getByRole("button", { name: "One draft for both" }).click();
-  await draft("Note B").fill("Shared **draft**");
-  await expect(draft("Note A")).toHaveValue("Shared **draft**");
-  await expect(note("Note A")).toContainText("2 words");
-  await expect(note("Note A").locator("strong")).toHaveText("draft");
-  await note("Note A").getByRole("button", { name: "Clear" }).click();
-  await expect(draft("Note B")).toHaveValue("");
+  await expect(table("Customers")).not.toContainText("selected");
+  await expect(table("Customers")).toContainText("7 customers · page 1 of 2");
+  await expect(firstCell("Customers", 1)).toHaveText("Ada Lovelace");
 
-  // Back to a draft per editor: each starts empty again.
-  await page.getByRole("button", { name: "A draft per editor" }).click();
-  await expect(draft("Note A")).toHaveValue("");
-  await expect(draft("Note B")).toHaveValue("");
+  // Paging the customers leaves the orders' search and page alone.
+  await table("Customers").getByRole("button", { name: "Next" }).click();
+  await expect(table("Customers")).toContainText("page 2 of 2");
+  await expect(table("Orders")).toContainText("2 orders · page 1 of 1");
+
+  // The X-ray outlines each table that provides its own state.
+  await example.getByRole("button", { exact: true, name: "X-ray" }).click();
+  await expect(table("Orders")).toContainText("Orders: Table.provide()");
+  await expect(table("Customers")).toContainText("Customers: Table.provide()");
 });
 
 test("browser atoms: localStorage kvs survives a reload, the server renders its default", async ({

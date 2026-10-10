@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
@@ -164,6 +164,75 @@ describe("inspect", () => {
     registry.dispose();
   });
 
+  test("reports only the effect, not a debounced wrapper passing its result on, when both go mid-load", async () => {
+    const registry = AtomRegistry.make();
+    const slow = Atom.make(Effect.never).pipe(Atom.withLabel("slow"));
+    const debounced = slow.pipe(Atom.debounce(10), Atom.withLabel("debounced"));
+    // Watching before the results are made, so the inspector knows which atom made each.
+    const log = record(registry);
+    const release = registry.mount(debounced);
+    release();
+    await expect.poll(() => log).toContain("NodeRemoved debounced");
+    await expect.poll(() => log).toContain("NodeRemoved slow");
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+      "Interrupted slow",
+    ]);
+    registry.dispose();
+  });
+
+  test("reports only the effect, not a refresh-on-signal wrapper passing its result on, when both go mid-load", async () => {
+    const registry = AtomRegistry.make();
+    const signal = Atom.make(0).pipe(Atom.withLabel("signal"));
+    const slow = Atom.make(Effect.never).pipe(Atom.withLabel("slow"));
+    const wrapped = slow.pipe(
+      Atom.makeRefreshOnSignal(signal),
+      Atom.withLabel("wrapped")
+    );
+    // Watching before the results are made, so the inspector knows which atom made each.
+    const log = record(registry);
+    const release = registry.mount(wrapped);
+    release();
+    await expect.poll(() => log).toContain("NodeRemoved wrapped");
+    await expect.poll(() => log).toContain("NodeRemoved slow");
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+      "Interrupted slow",
+    ]);
+    registry.dispose();
+  });
+
+  test("still reports an effect interrupted by a refresh while a child passes its result on", () => {
+    const registry = AtomRegistry.make();
+    const slow = Atom.make(Effect.never).pipe(Atom.withLabel("slow"));
+    const same = Atom.make((get) => get(slow)).pipe(Atom.withLabel("same"));
+    const release = registry.mount(same);
+    const log = record(registry);
+    registry.refresh(slow);
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+      "Interrupted slow",
+    ]);
+    release();
+    registry.dispose();
+  });
+
+  test("doesn't report a runtime released while its layer builds as interrupted, as its build goes on", async () => {
+    const registry = AtomRegistry.make();
+    const runtime = Atom.runtime(Layer.effectDiscard(Effect.sleep(50)));
+    const query = runtime.atom(Effect.succeed(1));
+    const release = registry.mount(query);
+    const events: Event[] = [];
+    inspect(registry).subscribe((event) => events.push(event));
+    release();
+    await expect
+      .poll(() =>
+        events.some(
+          (event) => event._tag === "NodeRemoved" && event.node.atom === runtime
+        )
+      )
+      .toBe(true);
+    expect(events.filter((event) => event._tag === "Interrupted")).toEqual([]);
+    registry.dispose();
+  });
+
   test("reports a node removed after its idle TTL once its teardown is reported", async () => {
     const registry = AtomRegistry.make();
     const forever = Atom.make(Effect.never).pipe(
@@ -246,6 +315,13 @@ describe("inspect", () => {
       inspector.idleTTL(Atom.make(0).pipe(Atom.keepAlive))
     ).toBeUndefined();
     expect(inspect(AtomRegistry.make()).idleTTL(Atom.make(0))).toBeUndefined();
+    registry.dispose();
+  });
+
+  test("gives no idle TTL for an atom removed as soon as its last reader goes", () => {
+    const registry = AtomRegistry.make({ defaultIdleTTL: 400 });
+    const removedAtOnce = Atom.make(0).pipe(Atom.setIdleTTL(0));
+    expect(inspect(registry).idleTTL(removedAtOnce)).toBeUndefined();
     registry.dispose();
   });
 
