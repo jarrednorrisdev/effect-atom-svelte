@@ -1,5 +1,6 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
+import { onDestroy } from "svelte";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -16,6 +17,7 @@ import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
 import SuspenseInEffect from "./fixtures/suspense-in-effect.svelte";
 import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
+import SuspenseUnreadDerived from "./fixtures/suspense-unread-derived-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { repeat, sleep } from "./helpers.ts";
@@ -131,6 +133,45 @@ describe("useAtomSuspense", () => {
       },
     });
     await expect.poll(text(screen)).toBe("Failure");
+  });
+
+  // A Failure after a success keeps it as previousSuccess; a result rebuilt from the Exit would not.
+  test("includeFailure resolves with the atom's own result after waiting for it", async () => {
+    let runs = 0;
+    const atom = Atom.make(
+      Effect.suspend(() =>
+        (runs += 1) === 1 ? Effect.succeed(1) : Effect.fail("nope" as const)
+      ).pipe(Effect.delay("20 millis"))
+    );
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const release = registry.mount(atom);
+    onTestFinished(release);
+    await expect.poll(() => registry.get(atom)._tag).toBe("Success");
+    let value:
+      | AtomValue<
+          Promise<
+            | AsyncResult.Success<number, "nope">
+            | AsyncResult.Failure<number, "nope">
+          >
+        >
+      | undefined;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        value = useAtomSuspense(atom, {
+          includeFailure: true,
+          suspendOnWaiting: true,
+        });
+        return () => "";
+      },
+    });
+    registry.refresh(atom);
+    const resolved = await value?.current;
+    expect(resolved).toBe(registry.get(atom));
+    expect(
+      resolved?._tag === "Failure" && Option.isSome(resolved.previousSuccess)
+    ).toBe(true);
   });
 
   test("returns the same promise while the result is unchanged", async () => {
@@ -594,6 +635,65 @@ describe("useAtomSuspense", () => {
     failNext = true;
     click("Reload");
     await expect.poll(shown).toBe("failed: no weather for Paris");
+  });
+});
+
+describe("useAtomSuspense read outside the markup", () => {
+  // Svelte aborts a derived's signal when it runs again or loses its last reader, and doesn't
+  // destroy deriveds with their component, so a derived only the script or a handler reads never
+  // aborts it. A read after the component is destroyed gets its already aborted lifetime.
+  test.each(["script", "handler", "destroy"] as const)(
+    "a read in the %s doesn't hold a pending atom once the component is destroyed",
+    async (mode) => {
+      const registry = AtomRegistry.make();
+      onTestFinished(() => registry.dispose());
+      const log: string[] = [];
+      const atom = Atom.make((get) => {
+        log.push("start");
+        get.addFinalizer(() => log.push("stop"));
+        return Effect.never;
+      });
+      const screen = await render(SuspenseUnreadDerived, {
+        atom,
+        mode,
+        registry,
+        show: true,
+      });
+      if (mode === "handler") {
+        await screen.getByRole("button").click();
+      }
+      if (mode !== "destroy") {
+        await expect.poll(() => log).toEqual(["start"]);
+      }
+      await screen.rerender({ show: false });
+      // Read once it is destroyed, the atom isn't started at all.
+      const after = mode === "destroy" ? [] : ["start", "stop"];
+      await expect.poll(() => log).toEqual(after);
+      await sleep("100 millis");
+      expect(log).toEqual(after);
+    }
+  );
+
+  test("a read after the component is destroyed still gets a result it had settled", async () => {
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const atom = Atom.make(Effect.succeed("x").pipe(Effect.delay("20 millis")));
+    let late: Promise<unknown> | undefined;
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        onDestroy(() => {
+          late = value.current;
+        });
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.poll(text(screen)).toBe("x");
+    await screen.rerender({ show: false });
+    await expect(late).resolves.toBe("x");
   });
 });
 
