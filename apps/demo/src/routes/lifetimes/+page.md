@@ -110,6 +110,6 @@ Finalizers run when the atom is disposed, and also before it computes again beca
 
 In the live example, `tickCountAtom` starts a timer each time it computes, and its finalizer stops it. It reads `tickIntervalAtom`, so changing the interval makes it compute again, and hiding the clock disposes of it. Every timer it has started is listed beside the clock. Turn the finalizer off to see what it prevents:
 
-<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock, click 0.25 s, then hide the clock: each time, the finalizer stops the old timer. Turn off Clear in a finalizer and do it again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
+<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Turn on Show the clock, click 0.25 s, then turn Show the clock off: each time, the finalizer stops the old timer. Turn off Clear in a finalizer and do it again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
 
 An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).
