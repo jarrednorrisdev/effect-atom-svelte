@@ -115,7 +115,7 @@ Every hook that takes one atom also accepts a **getter**: a function that return
 
 <Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then click savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
-When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The example keeps both with `Atom.keepAlive`. See [Lifetimes](/lifetimes).
+When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. In the example, the two readers beside the input hold both atoms, so neither loses its text. See [Lifetimes](/lifetimes).
 
 Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
