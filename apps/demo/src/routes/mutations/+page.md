@@ -75,7 +75,7 @@ The example under [Waiting for the result](#waiting-for-the-result) reads its **
 <button disabled={saving.current.waiting} onclick={() => save(todo)}>Save</button>
 ```
 
-`useAtomSet` keeps the mutation mounted for as long as the component lives, so its result is still there when you read it.
+`useAtomSet` [holds](/lifetimes#held-atoms) the mutation for as long as the component lives, so its result is still there when you read it.
 
 ## Waiting for the result
 
@@ -130,7 +130,7 @@ Reset with a `"value"` setter. After a reset the state is `Initial`, which a pro
 
 After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again.
 
-`Atom.withReactivity` tags the query, as in `todos.ts` below. The `reactivityKeys` option belongs to mutations made by a [runtime](/services), so create one with `Atom.runtime`, even if its layer is empty. A failed call invalidates nothing. A mutation can return a `Stream` instead of an effect, and a stream invalidates its keys however it ends, even when it fails or is interrupted.
+`Atom.withReactivity` tags the query, as in `todos.ts` below. The `reactivityKeys` option belongs to mutations made by a [runtime](/services), so create one with `Atom.runtime`, even if its layer is empty, as in `Atom.runtime(Layer.empty)`. A failed call invalidates nothing. A mutation can return a `Stream` instead of an effect, and a stream invalidates its keys however it ends, even when it fails or is interrupted.
 
 The diagram under this example follows one request: the mutation runs, succeeds and invalidates the `"todos"` key, and the list, tagged with that key, runs again and brings the new todo. Its requests go to a pretend server in `api.ts`, which takes a moment to answer.
 
