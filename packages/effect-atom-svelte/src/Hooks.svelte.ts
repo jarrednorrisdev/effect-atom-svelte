@@ -15,6 +15,7 @@ import {
   decodeSeed,
   encodeSeed,
   isWaiting,
+  noSeed,
   revalidatesOnHydrate,
 } from "./internal/hydration.ts";
 import { onRenderEnd } from "./internal/renderEnd.ts";
@@ -1054,7 +1055,13 @@ const seedOnServer = (
 ): Promise<void> => {
   // Mounted until the render ends, so the settled node is what the render reads.
   const release = serverMount(registry, atom);
-  onRenderEnd(release);
+  // A render ends before its seeds settle only when it fails, as when a later reader throws during
+  // setup. The provider has disposed of the registry by then, so the seed reads nothing from it.
+  let ended = false;
+  onRenderEnd(() => {
+    ended = true;
+    release();
+  });
   // hydratable hands every later reader of a key the first reader's value, but Svelte's dev build
   // also runs each later reader's callback and throws hydratable_clobbering if what it encodes
   // differs. Reading the atom again there would encode whatever it holds by then, so a later
@@ -1064,6 +1071,9 @@ const seedOnServer = (
   const encoded = hydratable(key, () => {
     claim.own = (async () => {
       await undefined;
+      if (ended) {
+        return noSeed;
+      }
       if (claim.first !== claim.own) {
         return await claim.first;
       }
@@ -1078,6 +1088,9 @@ const seedOnServer = (
           settled = true;
           await awaitResult(registry, atom, { suspendOnWaiting: settled });
         }
+      }
+      if (ended) {
+        return noSeed;
       }
       return encodeSeed(key, encode, serverGet(registry, atom));
     })();

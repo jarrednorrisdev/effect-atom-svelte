@@ -24,7 +24,7 @@ export const revalidatesOnHydrate = (option: boolean | undefined): boolean =>
  * What the server sends for a result it doesn't pass on, so the browser computes the atom itself.
  * An encoded `AsyncResult` is an object, never `null`.
  */
-const noSeed = null;
+export const noSeed = null;
 
 /**
  * Encodes the server's result for the page, or returns the no-seed marker for a result that must
