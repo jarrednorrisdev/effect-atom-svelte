@@ -132,7 +132,9 @@ export const userAtom = Atom.make(currentUser);
 
 The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both. When neither is on the page, the registry disposes of the atom, and interrupts the effect if it is still running. The next piece of shared state is one more atom, and the layout doesn't change.
 
-The server awaits the atom too, so the page renders with the user and sends the result along for hydration. Values live in a **registry**, not in the atom. The provider gives each request on the server its own registry, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
+The server awaits the atom too, so the page renders with the user. Make the atom [serializable](/hydration#serializable-atoms) and the server sends its result with the page, so the browser doesn't run the effect again.
+
+Values live in a **registry**, not in the atom. The provider gives each request on the server its own registry, so the server renders each visitor's page with their own data. A `$state` object exported from a module can't do that: see [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors).
 
 **What it costs:** atoms go in a module or a component's `<script module>`. One made in a component's script is a new atom for each instance. Awaiting them also needs Svelte's experimental async mode: see [Turn on async mode](/installation#turn-on-async-mode).
 
