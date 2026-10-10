@@ -61,6 +61,8 @@ The example creates a promise and an effect when it loads, each rolling a die. T
 
 Read more in [The Effect Type](https://effect.website/docs/v4/getting-started/the-effect-type) and [Using Generators](https://effect.website/docs/v4/getting-started/using-generators).
 
+Most Effect values, atoms included, have a `pipe` method that passes the value through functions in turn: `x.pipe(f, g)` is `g(f(x))`. These docs use it to add behavior, as in `Effect.succeed(2).pipe(Effect.delay("1 second"))`, or `Atom.make(0).pipe(Atom.keepAlive)`. See [Building Pipelines](https://effect.website/docs/v4/getting-started/building-pipelines).
+
 ## Wrapping a promise
 
 Most code you already have returns promises: `fetch`, an SDK, a database driver. `Effect.tryPromise` turns a function that returns a promise into an effect. `try` is called each time the effect runs, and `catch` turns a rejection into the effect's error:
@@ -130,7 +132,7 @@ An effect can fail in three ways, and only the first is in its type:
 - **A defect**, an exception nobody expected, such as a bug that throws inside `Effect.gen` or `Effect.sync`, or an `Effect.die`.
 - **An interruption**, when something stops the effect before it finishes.
 
-A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`, as in the failures above. `Cause.findErrorOption(cause)` gives the typed error, as an `Option`, and `Cause.pretty(cause)` renders the whole cause as text for logs. [Errors](/errors#what-a-failure-holds) covers the rest, and how to handle each kind in a component.
+A `Cause` records which of these happened. When an async atom fails, its `AsyncResult` is a `Failure` whose `cause` is a `Cause`, as in the failures above. `Cause.findErrorOption(cause)` gives the typed error, as an [`Option`](https://effect.website/docs/v4/data-types/option): `Option.isSome(error)` says whether there is one, and `error.value` is the error. `Cause.pretty(cause)` renders the whole cause as text for logs. [Errors](/errors#what-a-failure-holds) covers the rest, and how to handle each kind in a component.
 
 Once an effect has finished, an `Exit` says how it ended: `Exit.Success` with its value, or `Exit.Failure` with its `Cause`. It plays the part of the `{ status, value }` or `{ status, reason }` objects `Promise.allSettled` gives, but typed: an `Exit<A, E>` keeps the effect's success and error types, and never throws. You get one from `Effect.runPromiseExit`, and from a mutation's setter with `mode: "promiseExit"`, as [Mutations](/mutations#waiting-for-the-result) shows.
 
