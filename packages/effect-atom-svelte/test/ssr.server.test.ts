@@ -186,6 +186,10 @@ const stateWith = (atom: Atom.Atom<number>, value: number) => {
   return state;
 };
 
+// Still running when read, as the unsent-result warning only fires for a result that is waiting.
+const stillRunning = (value: string) =>
+  Effect.succeed(value).pipe(Effect.delay("10 millis"));
+
 describe("server rendering", () => {
   test("awaits an RPC query and embeds its encoded result for hydration", async () => {
     clients = makeClients();
@@ -897,20 +901,17 @@ describe("server rendering", () => {
   test("the async hooks, and reads the browser repeats anyway, don't warn that a result isn't sent", async () => {
     const warned = allWarnings();
     const schema = AsyncResult.Schema({ success: Schema.String });
-    // Still running when read, as the warning only fires for a result that is waiting.
-    const slow = (value: string) =>
-      Effect.succeed(value).pipe(Effect.delay("10 millis"));
-    const awaited = Atom.make(slow("a")).pipe(
+    const awaited = Atom.make(stillRunning("a")).pipe(
       Atom.serializable({ key: "sent-by-hook", schema })
     );
-    const serverValue = Atom.make(slow("b")).pipe(
+    const serverValue = Atom.make(stillRunning("b")).pipe(
       Atom.serializable({ key: "unsent-server-value", schema }),
       Atom.withServerValueInitial
     );
-    const initial = Atom.make(slow("c")).pipe(
+    const initial = Atom.make(stillRunning("c")).pipe(
       Atom.serializable({ key: "unsent-initial", schema })
     );
-    const plain = Atom.make(slow("d"));
+    const plain = Atom.make(stillRunning("d"));
     const mutation = Atom.fn((title: string) => Effect.succeed(title)).pipe(
       Atom.serializable({ key: "unsent-mutation", schema })
     );
