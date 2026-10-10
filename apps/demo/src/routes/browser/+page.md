@@ -92,7 +92,7 @@ A page rendered from cookies differs from one visitor to the next, so keep it ou
 
 <Example files={[{ html: searchParamSource, name: "search-param.svelte" }]} hint="Type a word and watch the timeline: the atom changes on every key, the URL once, half a second after you stop. Then clear the box: the parameter goes away."> <SearchParam /> </Example>
 
-Writes to the URL are batched, and land half a second after the last change, with `history.pushState`, so each pause in typing adds a history entry. An empty value removes the parameter. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
+Writes to the URL are batched, and land half a second after the last change, with `history.pushState`, so each pause in typing adds a history entry. Changes to several parameters within that half second make one entry. An empty value removes the parameter. The new address keeps the path and the other parameters, but drops any `#hash`. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
 
 <Aside type="caution" title="The server reads an empty string">
 
