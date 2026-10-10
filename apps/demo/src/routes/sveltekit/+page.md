@@ -71,7 +71,7 @@ The two hooks differ in one way:
 - **The client hook** keeps the error's message too.
 - **The server hook** keeps SvelteKit's `"Internal Error"` as the message, because a message from the server can reveal details of it. This applies to `failed` snippets rendered on the server.
 
-Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are.
+Both log the error with `console.error`. They leave errors from `error(...)` and SvelteKit's own errors, such as 404s, as they are. To give an `error(...)` a tag, put it in the body yourself, as in `error(404, { message: "No such todo", tag: "TodoNotFound" })`.
 
 They tell those apart by the `kind` field SvelteKit 3 passes to `handleError`. SvelteKit 2 doesn't pass it, so there the hooks treat every error, SvelteKit's own included, as one your code threw: both keep its tag, and the client hook keeps its message too.
 
