@@ -1,5 +1,6 @@
 import { Effect, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
+import { onDestroy } from "svelte";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -613,6 +614,28 @@ describe("useAtomSuspense read outside the markup", () => {
       expect(log).toEqual(after);
     }
   );
+
+  test("a read after the component is destroyed still gets a result it had settled", async () => {
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const atom = Atom.make(Effect.succeed("x").pipe(Effect.delay("20 millis")));
+    let late: Promise<unknown> | undefined;
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        onDestroy(() => {
+          late = value.current;
+        });
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.poll(text(screen)).toBe("x");
+    await screen.rerender({ show: false });
+    await expect(late).resolves.toBe("x");
+  });
 });
 
 describe("useAtomResult", () => {

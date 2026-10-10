@@ -1608,6 +1608,8 @@ const holdWhileRead = (
 interface SharedWait {
   readonly promise: Promise<unknown>;
   readonly hold: (signal: AbortSignal) => void;
+  /** Whether the promise has resolved or rejected. */
+  readonly settled: () => boolean;
 }
 
 /**
@@ -1665,6 +1667,7 @@ const sharedWait = (
       listeners.push([signal, listener]);
     },
     promise,
+    settled: () => settled,
   };
 };
 
@@ -1797,6 +1800,8 @@ export function useAtomSuspense<A, E>(
     ResultAtom<A, E>,
     WeakMap<AsyncResult.AsyncResult<A, E>, SharedWait>
   >();
+  // Per atom, the wait the last read got, for a read after the component is destroyed.
+  const lastWaits = new WeakMap<ResultAtom<A, E>, SharedWait>();
   const settle = (
     atom: ResultAtom<A, E>,
     current: AsyncResult.AsyncResult<A, E>,
@@ -1817,6 +1822,7 @@ export function useAtomSuspense<A, E>(
       atomWaits.set(current, wait);
     }
     wait.hold(signal);
+    lastWaits.set(atom, wait);
     return wait.promise;
   };
 
@@ -1839,8 +1845,13 @@ export function useAtomSuspense<A, E>(
     const holder = signal ? untilDestroyed(signal) : lifetime.signal;
     if (holder.aborted) {
       // Read once the reader is gone, as in onDestroy or a handler that resumes after the component
-      // is destroyed: nothing could let go of a wait started now, which would hold the atom until it
-      // settles. Handled here, so a read nobody awaits isn't reported as unhandled.
+      // is destroyed. A result it had settled is still there; a new wait would hold the atom until it
+      // settles, as nothing could let go of it. Handled here, so a read nobody awaits isn't reported
+      // as unhandled.
+      const last = lastWaits.get(getAtom());
+      if (last?.settled()) {
+        return last.promise;
+      }
       const gone = Promise.reject(holder.reason);
       void (async () => {
         try {
