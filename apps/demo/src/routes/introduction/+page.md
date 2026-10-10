@@ -42,7 +42,7 @@ Three pieces work together:
 | Piece | What it is |
 | --- | --- |
 | **Atom** | A description of a value: a starting value, how to derive it from other atoms, or an `Effect` or `Stream` that produces it. An atom holds no value itself, so it is safe to define once in a module. |
-| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing holds it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the session. |
+| **Registry** | Where the values live. It computes an atom when something first reads it, computes it again when its inputs change, and disposes of it when nothing holds it any more, unless the atom is [kept alive](/lifetimes). On the server each request gets its own registry; in the browser one lasts for the visit. |
 | **Hook** | Connects a component to an atom in the nearest registry. It [holds](/reading-and-writing#reading) the atom while something reactive, such as markup or `$derived`, reads `current`, and lets go when nothing does. |
 
 Because values live in the registry rather than in the atom, the same `countAtom` can hold a different number for each visitor the server renders for at the same time. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) explains why that matters.
@@ -50,9 +50,9 @@ Because values live in the registry rather than in the atom, the same `countAtom
 ## What you get
 
 - **Hooks with a reactive `current`**, Svelte's convention for reactive values. Read it in markup, assign to it, or `bind:` to it.
-- **Async atoms you can `await`**: `useAtomSuspense` and `useAtomResult` build on Svelte's experimental async support, so pending and failed states go through `<svelte:boundary>`.
-- **Server rendering and hydration**: each request gets its own registry, and the results of serializable async atoms awaited on the server travel to the browser, which uses them instead of running the effects again.
-- **Effect services and remote APIs in components**: atoms run effects with services from a `Layer`, and `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
+- **Async atoms you can `await`**: [`useAtomSuspense` and `useAtomResult`](/suspense) build on Svelte's experimental async support, so pending and failed states go through `<svelte:boundary>`.
+- **[Server rendering](/server-rendering) and [hydration](/hydration)**: each request gets its own registry, and the results of serializable async atoms awaited on the server travel to the browser, which uses them instead of running the effects again.
+- **Effect services and remote APIs in components**: atoms run effects with [services](/services) from a `Layer`, and [`AtomRpc`](/rpc) and [`AtomHttpApi`](/http) turn an Effect RPC group or `HttpApi` into atoms for queries and mutations.
 
 ## Requirements
 
