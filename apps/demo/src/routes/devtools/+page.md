@@ -64,7 +64,9 @@ The plugin only runs in the dev server. Pass `builds: true` to label production 
 
 ### State across hot reloads
 
-A hot reload runs a module again, which makes new atoms, so the state written to the old ones would be lost. With the plugin, a state atom a module declares (`Atom.make` of a plain value) takes the value of the atom it replaces. Edit a component and its counters keep their counts.
+A hot reload runs a module again, which makes new atoms, so the state written to the old ones would be lost. With the plugin, a state atom a module declares takes the value of the atom it replaces, so when you edit a component, its counters keep their counts.
+
+A state atom is `Atom.make` of a plain value, alone or piped only through options that keep what is written to it, such as `Atom.keepAlive`, `Atom.setIdleTTL`, `Atom.withLabel` or `Atom.serializable`. An atom piped through `Atom.map` writes through to its source instead, so it isn't kept.
 
 Edit the atom's own declaration and it starts from its new value instead: the old one no longer applies. Atoms declared in a component's `<script>` aren't kept: there is one per instance, so there is no telling which old one a new one replaces.
 
@@ -153,4 +155,4 @@ The graph above each example on this site is the panel's graph, drawn for one pa
 - `provideInspectorScope()` from `effect-atom-svelte/inspector` makes the component that calls it, and everything below it, a scope. The hooks below it report the atoms they use, and the scope gives you those atoms, everything upstream of them and the components that read them, with events for just those atoms. See [Inspector](/reference/Inspector) for its API.
 - `<AtomGraph>` from `effect-atom-svelte-devtools/graph` lays out and draws those atoms. Call its `pulse(id, tone)` when an atom's value changes and `interrupt(id)` when its effect is interrupted.
 
-The graph has no dependencies beyond Svelte, and inspector scopes work in production, so the graph can go in production pages. It reads your page's design tokens (`--foreground`, `--border`, `--brand`) where it has them.
+The graph has no dependencies beyond Svelte, and inspector scopes work in production, so the graph can go in production pages. It reads your page's design tokens (`--background`, `--foreground`, `--brand`) where it has them.
