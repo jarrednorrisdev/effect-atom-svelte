@@ -198,6 +198,52 @@ const holdNode = (
   };
 };
 
+/**
+ * On the server, the node holding a value from `useAtomInitialValues` for an atom: its own, or its
+ * source's for a wrapper such as `withRefresh`, which passes the value on and reads as its source.
+ * The server renders that value: mounting, reading or waiting for the atom would build it, and a
+ * build runs the atom's read, the source's included, even when it keeps the value. That read may be
+ * browser-only or start a request the value was there to save.
+ *
+ * For a wrapper, this assumes it reads as its source, as every wrapper Effect makes with
+ * `initialValueTarget` does. A user's `Atom.transform` given `initialValueTarget` that changes the
+ * value would render its source's value on the server, where Effect computes the transform.
+ */
+const initialNodeOnServer = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): RegistryNode | undefined => {
+  if (BROWSER) {
+    return undefined;
+  }
+  const node = internals(registry).ensureNode(initialValueTarget(atom));
+  return node.preserveInitialValueOnBuild ? node : undefined;
+};
+
+/** Whether, on the server, an atom renders a value from `useAtomInitialValues`. */
+const initialOnServer = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): boolean => initialNodeOnServer(registry, atom) !== undefined;
+
+/** Keeps an atom for the server render: a node with an initial value is held, not mounted. */
+const serverMount = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<unknown>
+): (() => void) => {
+  const node = initialNodeOnServer(registry, atom);
+  return node ? holdNode(internals(registry), node) : registry.mount(atom);
+};
+
+/** Reads an atom without building it on the server while it renders an initial value. */
+const serverGet = <A>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<A>
+): A => {
+  const node = initialNodeOnServer(registry, atom);
+  return node ? (node._value as A) : registry.get(atom);
+};
+
 const awaitResult = <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
@@ -262,9 +308,8 @@ const subscribedReader = <A>(
     // await, keeps it for the request. The mounts are released when the server render ends,
     // because a registry passed in by the caller outlives the request (JND-17).
     // An atom with a withServerValue override is never computed on the server, so it is not mounted:
-    // mounting would run its real read, which is often browser-only. Nor is one that holds a value
-    // from useAtomInitialValues: the server renders that value, which is what the atom's first build
-    // would keep, without running a read that may be browser-only or start a request.
+    // mounting would run its real read, which is often browser-only. One with a value from
+    // useAtomInitialValues is held and read without building it (see initialNodeOnServer).
     // Once the render has ended, a read that switches atoms, as from a reader kept past the render,
     // takes no mount: nothing would release it.
     let ended = false;
@@ -275,17 +320,10 @@ const subscribedReader = <A>(
         release();
       }
     });
-    const nodes = internals(registry);
     const mount = (atom: Atom.Atom<A>) => {
-      if (ended || hasServerValue(atom)) {
-        return atom;
+      if (!ended && !hasServerValue(atom)) {
+        releases.push(serverMount(registry, atom));
       }
-      const node = nodes.ensureNode(atom);
-      releases.push(
-        node.preserveInitialValueOnBuild
-          ? holdNode(nodes, node)
-          : registry.mount(atom)
-      );
       return atom;
     };
     let mounted = mount(getAtom());
@@ -294,13 +332,9 @@ const subscribedReader = <A>(
       if (atom !== mounted) {
         mounted = mount(atom);
       }
-      if (!hasServerValue(atom)) {
-        const node = nodes.ensureNode(atom);
-        if (node.preserveInitialValueOnBuild) {
-          return node._value as A;
-        }
-      }
-      return Atom.getServerValue(atom, registry);
+      return hasServerValue(atom)
+        ? Atom.getServerValue(atom, registry)
+        : serverGet(registry, atom);
     };
   }
   reportReads(registry, getAtom, "read");
@@ -978,33 +1012,6 @@ const notStartedError = (hook: string): Error =>
   new Error(
     `${hook} read an atom that has not started on the server: its result is Initial and nothing is running it, as for an Atom.fn that has not been called, so the render would wait for it forever. Read it with useAtomValue, which renders Initial, or inside a <svelte:boundary> with a pending snippet, which the server renders instead.`
   );
-
-/**
- * Whether, on the server, an atom's node holds a value from `useAtomInitialValues`. The server
- * renders that value, as `subscribedReader` does: mounting, reading or waiting for the atom would
- * run its read, which may be browser-only or start a request the value was there to save.
- */
-const initialOnServer = (
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<unknown>
-): boolean =>
-  !BROWSER && internals(registry).ensureNode(atom).preserveInitialValueOnBuild;
-/** Keeps an atom for the server render: a node with an initial value is held, not mounted. */
-const serverMount = (
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<unknown>
-): (() => void) =>
-  initialOnServer(registry, atom)
-    ? holdNode(internals(registry), internals(registry).ensureNode(atom))
-    : registry.mount(atom);
-/** Reads an atom on the server, without building a node that has an initial value. */
-const serverGet = <A>(
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<A>
-): A =>
-  initialOnServer(registry, atom)
-    ? (internals(registry).ensureNode(atom)._value as A)
-    : registry.get(atom);
 
 /** One serialization key's seed in a registry, shared by every component using that key. */
 interface Seed {
@@ -1786,7 +1793,8 @@ export function useAtomSuspense<A, E>(
             holdWhileRead(registry, atom, reactions);
           }
           seed.letGo();
-          const current = registry.get(atom);
+          // On the server, an initial value is read without building the atom.
+          const current = serverGet(registry, atom);
           let waited: Promise<unknown> | undefined;
           for (const reader of live) {
             waited = settle(atom, current, reader);
