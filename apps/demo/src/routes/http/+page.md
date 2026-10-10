@@ -21,7 +21,7 @@ If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your com
 
 The examples on this page call the [demo API](/introduction#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Click Open, then Done: each filter is its own query atom with its own request, and the requests count goes up. Go back to All: that atom already has its list."> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Click Open, then Done: each filter is its own query atom with its own request, and the requests count goes up. Go back to All: nothing read its atom meanwhile, so the registry disposed of it, and it fetches again. A timeToLive on the query would keep each list for a while."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -68,7 +68,7 @@ The request also takes options:
 | --- | --- |
 | `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. See [Refreshing what changed](/mutations#refreshing-what-changed). |
 | `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored with a `responseMode` other than the default. |
-| `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
+| `timeToLive` | Keep the result for this long after the last reader goes away, as an [idle TTL](/lifetimes#keeping-atoms-alive) does. An infinite duration keeps it for good. |
 | `headers` | The endpoint's own headers, typed by its headers schema. Only endpoints that declare one take it. |
 | `responseMode` | What the query succeeds with: the decoded body by default. See the tip under [Mutations](#mutations). |
 

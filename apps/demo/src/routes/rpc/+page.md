@@ -63,9 +63,9 @@ A third argument takes options:
 
 | Option | Does |
 | --- | --- |
-| `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. |
+| `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. See [Refreshing what changed](/mutations#refreshing-what-changed). |
 | `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored for [streaming procedures](#streaming-procedures). |
-| `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
+| `timeToLive` | Keep the result for this long after the last reader goes away, as an [idle TTL](/lifetimes#keeping-atoms-alive) does. An infinite duration keeps it for good. |
 | `headers` | Extra headers for the request. |
 
 ### Following arguments
