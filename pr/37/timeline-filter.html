@@ -280,7 +280,7 @@ code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: non
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .legend { margin-top: 6px; font: 10.5px var(--mono); color: var(--muted-fg); }
 .graph.windowed .legend { margin: 0 11px 8px; }
-.gn, .gl, .gv, .legend, .primer code, .tip code, .text code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+.gn, .gl, .gv, .legend, .primer code, .tip code, .text code, .text p code, .text h3 code, .primer dt code, .primer dd code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 
 /* A box with lane "*": the full width, above the lanes. */
 .diagram > .span { grid-column: 1 / -1; }
@@ -734,7 +734,7 @@ const Stepper = (() => {
 Stepper.mount({
   "meta": {
     "title": "Fix E: the timeline's filter picks the wrong atom after a registry switch",
-    "subtitle": "Filtering the devtools timeline, then switching registries, step by step. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/37\">#37<\/a>.",
+    "subtitle": "Filtering the devtools timeline on the docs site's Server rendering page, then switching registries, step by step. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/37\">#37<\/a>.",
     "kicker": "Fix E · one filter, two registries",
     "stripLabel": "Whose rows the timeline shows",
     "verdict": {
@@ -749,24 +749,25 @@ Stepper.mount({
     }
   },
   "primer": {
-    "title": "Before you start: the app, and the pieces involved",
+    "title": "Before you start: the page, and the pieces involved",
     "intro": [
-      "Picture a shop built with this library. The page layout holds the shopper's atoms, <code>userAtom<\/code> and <code>cartAtom<\/code>. In the corner sits a support chat widget that wraps itself in its own <code>RegistryProvider<\/code>, so its atoms, <code>chatAtom<\/code> and <code>draftAtom<\/code>, live apart from the page's. That's a common way to keep a self-contained widget from sharing state with the app around it.",
-      "The developer has the devtools panel open on its Timeline tab, which lists what happened to each atom. They click <code>cartAtom<\/code> to see only its rows, then use the panel's picker to look at the chat widget's registry instead.",
-      "<b>The bug:<\/b> after the switch, the timeline says it's showing only <code>draftAtom<\/code>, an atom the developer never picked. The filter had remembered a number, and in the new registry that number belongs to someone else."
+      "This happens on the docs site itself. The site's root layout has one {{provider|RegistryProvider}}, holding every atom the site and its examples use. The first is <code>preferenceCookiesAtom<\/code>, which the layout seeds with the visitor's preference cookies.",
+      "The <a href=\"https://jarrednorrisdev.github.io/effect-atom-svelte/server-rendering\">Server rendering<\/a> page's first example shows that each request on the server gets its own registry. It stands each request in with a provider of its own: <em>Request 1<\/em> and <em>Request 2<\/em> each wrap a component that reads <code>cartAtom<\/code>, so each has its own cart. With them mounted, the page has three registries, and the devtools panel's {{picker|picker}} lists all three.",
+      "A visitor opens the panel on its Timeline tab, picks Request 1's registry, clicks <b>Add to cart<\/b>, and clicks <code>cartAtom<\/code> to see only its rows. Then they switch the picker back to the site's registry.",
+      "<b>The bug:<\/b> the timeline now says it's showing only <code>preferenceCookiesAtom<\/code>, an atom the visitor never picked, and shows no rows at all. The filter had remembered a number, and in the site's registry that number belongs to a different atom."
     ],
     "terms": [
       {
-        "id": "registry",
-        "term": "Registry",
+        "id": "node",
+        "term": "Registry and node",
         "from": "Effect",
-        "html": "Effect's store of atom values: it holds each atom in use and runs derived atoms when what they read changes. An app can have more than one."
+        "html": "The registry (<code>AtomRegistry<\/code>) stores the app's atoms while they're in use; an app can have more than one. For each atom it keeps a <em>node<\/em>: the atom's current value, its <em>listeners<\/em> (the callbacks to run when that value changes) and its <em>parents<\/em> (the atoms its function read the last time it ran; when one changes, the node runs again). A node stays while something holds it, a subscriber or a mount. Once nothing does, the registry <em>sweeps<\/em> it: the node and its value are gone, and the next use starts afresh."
       },
       {
         "id": "provider",
         "term": "<code>RegistryProvider<\/code>",
         "from": "this library",
-        "html": "A Svelte component that makes a registry for the components inside it. Two providers, side by side or nested, mean two separate registries."
+        "html": "A Svelte component that gives the components inside it a registry, through Svelte context. With no <code>registry<\/code> prop it creates one, per request on the server and per mount in the browser, and disposes of it when it is destroyed. Passing a <code>registry<\/code> shares that one instead. Two providers, side by side or nested, mean two separate registries."
       },
       {
         "id": "picker",
@@ -796,21 +797,21 @@ Stepper.mount({
         "id": "derived",
         "term": "<code>$derived<\/code>",
         "from": "Svelte",
-        "html": "A value worked out from others, and worked out again whenever they change, like a spreadsheet formula. It holds nothing of its own."
+        "html": "A value worked out from other reactive values, and worked out again whenever one of them changes, like a spreadsheet formula. It holds nothing of its own. Svelte runs it again whenever something it read signals a change, even if the new result is the same."
       },
       {
         "id": "effect",
         "term": "<code>$effect<\/code>",
         "from": "Svelte",
-        "html": "Runs a function after the component renders, and again whenever a value it read changes. Here it reads the picker's choice, so it runs on each switch."
+        "html": "Runs a function after the component renders, and again whenever a value it read changes. A new object counts as a change, even with the same contents. Here it reads the picker's choice, so it runs on each switch."
       }
     ]
   },
   "lanes": [
     {
       "id": "A",
-      "label": "The app",
-      "phase": "In the app"
+      "label": "The page",
+      "phase": "On the page"
     },
     {
       "id": "P",
@@ -823,15 +824,15 @@ Stepper.mount({
       "id": "reg1",
       "lane": "A",
       "kind": "data",
-      "label": "registry 1 · the layout's",
-      "text": "userAtom, cartAtom"
+      "label": "registry 1 · the site's (this one)",
+      "text": "preferenceCookiesAtom, then every example's atoms"
     },
     {
       "id": "reg2",
       "lane": "A",
       "kind": "data",
-      "label": "registry 2 · the chat widget's",
-      "text": "chatAtom, draftAtom"
+      "label": "registry 2 · Request 1's",
+      "text": "cartAtom"
     },
     {
       "id": "points",
@@ -843,35 +844,29 @@ Stepper.mount({
         {
           "id": "filter",
           "label": "filter",
-          "x": 0.5,
+          "x": 0.47,
           "y": 0.5
         },
         {
-          "id": "user1",
-          "label": "userAtom",
-          "x": 0.17,
-          "y": 0.18
-        },
-        {
-          "id": "cart1",
+          "id": "cart",
           "label": "cartAtom",
-          "x": 0.17,
-          "y": 0.82
+          "x": 0.13,
+          "y": 0.5
         },
         {
-          "id": "chat2",
-          "label": "chatAtom",
-          "x": 0.83,
+          "id": "prefs",
+          "label": "preferenceCookiesAtom",
+          "x": 0.78,
           "y": 0.18
         },
         {
-          "id": "draft2",
-          "label": "draftAtom",
-          "x": 0.83,
+          "id": "rest",
+          "label": "the other atoms",
+          "x": 0.78,
           "y": 0.82
         }
       ],
-      "legend": "left: model 1 · right: model 2 · arrow: the atom the filter shows"
+      "legend": "left: Request 1's model · right: the site's · arrow: the atom the filter shows"
     },
     {
       "id": "screen",
@@ -882,17 +877,22 @@ Stepper.mount({
   ],
   "files": {
     "app": {
-      "name": "the app · two RegistryProviders",
+      "name": "the docs site · three RegistryProviders · simplified",
       "lines": [
-        "<!-- +layout.svelte -->",
-        "<RegistryProvider>",
+        "<!-- +layout.svelte: the site's registry -->",
+        "<RegistryProvider",
+        "  initialValues={[[preferenceCookiesAtom, c]]}>",
         "  {@render children()}",
+        "  <AtomDevtools />",
         "<\/RegistryProvider>",
         "",
-        "<!-- ChatWidget.svelte: its own registry -->",
-        "<RegistryProvider>",
-        "  <ChatBox />",
-        "<\/RegistryProvider>"
+        "<!-- requests.svelte: one per request -->",
+        "{#each requests as request (request.id)}",
+        "  <RegistryProvider>",
+        "    <!-- reads cartAtom -->",
+        "    <Request id={request.id} />",
+        "  <\/RegistryProvider>",
+        "{/each}"
       ]
     },
     "model": {
@@ -960,7 +960,12 @@ Stepper.mount({
         "file": "app",
         "hl": [
           1,
-          6
+          2,
+          9,
+          10,
+          11,
+          12,
+          13
         ],
         "active": [
           "reg1",
@@ -970,12 +975,12 @@ Stepper.mount({
           "reg1": true,
           "reg2": true
         },
-        "title": "The app has two registries",
+        "title": "The page has three registries",
         "body": [
-          "The layout's {{provider}} makes a {{registry}} for the page, holding <code>userAtom<\/code> and <code>cartAtom<\/code>. The chat widget wraps itself in a provider of its own, so <code>chatAtom<\/code> and <code>draftAtom<\/code> live in a second registry.",
-          "Nothing unusual is going on: any app with a self-contained widget ends up with two registries, and the panel's {{picker|picker}} lists both."
+          "The root layout's {{provider}} makes the site's {{node}}. Its first atom is <code>preferenceCookiesAtom<\/code>, made the moment the registry is, from <code>initialValues<\/code>; every atom the site's examples read follows it.",
+          "The Server rendering page's example adds a provider for each pretend request. Request 1's registry holds just <code>cartAtom<\/code>, and so does Request 2's. The panel's {{picker|picker}} lists all three: <em>registry 1 (this one)<\/em>, <em>registry 2<\/em> and <em>registry 3<\/em>."
         ],
-        "note": "Two registries, each with its own atoms and nothing shared."
+        "note": "Three registries, each with its own atoms. Request 2's plays no part, so it isn't drawn."
       },
       {
         "side": "P",
@@ -995,17 +1000,15 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1"
+              "cart"
             ],
             "edges": [],
             "mark": {},
             "values": {
               "filter": "none: all rows",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           },
           "screen": {
@@ -1014,10 +1017,10 @@ Stepper.mount({
             "live": true
           }
         },
-        "title": "The panel shows registry 1 through a {{model|model}} that numbers its atoms",
+        "title": "You pick registry 2: the panel shows it through a {{model|model}} that numbers its atoms",
         "body": [
-          "The panel builds a <code>Model<\/code> for the registry it's showing. The model numbers each atom the first time it sees it, counting from 0: <code>userAtom<\/code> is <b>#0<\/b>, <code>cartAtom<\/code> is <b>#1<\/b>. The {{timeline}}'s rows name their atom by this number.",
-          "Nothing is filtered yet, so the timeline shows every atom's rows."
+          "The panel builds a <code>Model<\/code> for the registry it's showing. The model numbers each atom the first time it sees it, counting from 0. Request 1's registry has one atom, so <code>cartAtom<\/code> is <b>#0<\/b>. The {{timeline}}'s rows name their atom by this number.",
+          "You click <b>Add to cart<\/b> in Request 1, and the timeline gets <code>cartAtom<\/code>'s rows. Nothing is filtered yet."
         ],
         "note": "The numbers belong to the model, not the atom. Step 6 turns on this."
       }
@@ -1039,25 +1042,23 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1"
+              "cart"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "read"
               ]
             ],
             "mark": {
-              "cart1": "hl"
+              "cart": "hl"
             },
             "values": {
-              "filter": "only = 1",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "only = 0",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           },
           "screen": {
@@ -1068,10 +1069,10 @@ Stepper.mount({
         },
         "title": "You click <code>cartAtom<\/code> in a row: the timeline shows only its rows",
         "body": [
-          "The click stores <code>cartAtom<\/code>'s number, <b>1<\/b>, in the timeline's own {{state|$state}}, <code>only<\/code>. The rows narrow to <code>cartAtom<\/code>'s and a chip reads <code>only cartAtom ✕<\/code>.",
+          "The click stores <code>cartAtom<\/code>'s number, <b>0<\/b>, in the timeline's own {{state|$state}}, <code>only<\/code>. The rows narrow to <code>cartAtom<\/code>'s and a chip reads <code>only cartAtom ✕<\/code>.",
           "The filter keeps just the number. Which model the number came from isn't recorded anywhere."
         ],
-        "note": "A bare number means cartAtom only while model 1 is the one reading it."
+        "note": "A bare 0 means cartAtom only while Request 1's model is the one reading it."
       },
       {
         "side": "P",
@@ -1087,43 +1088,40 @@ Stepper.mount({
         ],
         "frame": "only cartAtom",
         "set": {
-          "reg2": {
-            "text": "chatAtom, draftAtom · now shown"
+          "reg1": {
+            "text": "preferenceCookiesAtom, then every example's atoms · now shown"
           },
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "read"
               ]
             ],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim"
+              "cart": "dim"
             },
             "values": {
-              "filter": "only = 1",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "only = 0",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           }
         },
-        "title": "You switch the picker to registry 2: the panel builds a new model",
+        "title": "You switch the picker back to registry 1: the panel builds a new model",
         "body": [
-          "The picker's choice changed, so the panel's {{effect|$effect}} runs again. It drops model 1 and builds model 2 for the chat registry.",
-          "Model 2 counts from 0 again: <code>chatAtom<\/code> is <b>#0<\/b>, <code>draftAtom<\/code> is <b>#1<\/b>. Model 1's atoms are greyed out: nothing shows them any more."
+          "The picker's choice changed, so the panel's {{effect|$effect}} runs again. It drops Request 1's model and builds one for the site's registry.",
+          "The new model counts from 0 again, in the order the registry holds its atoms: <code>preferenceCookiesAtom<\/code> is <b>#0<\/b>, and the examples' atoms take #1 and up. Request 1's model is greyed out: nothing shows it any more."
         ],
-        "note": "Number 1 now means draftAtom."
+        "note": "Number 0 now means preferenceCookiesAtom."
       },
       {
         "side": "P",
@@ -1140,36 +1138,33 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "read"
               ]
             ],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim",
+              "cart": "dim",
               "filter": "bad"
             },
             "values": {
-              "filter": "only = 1 · kept",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "only = 0 · kept",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           }
         },
         "title": "The timeline stays on screen, and so does its filter",
         "body": [
-          "The Timeline tab is still open, so Svelte keeps the same <code>TimelineView<\/code> and only hands it model 2 as its new <code>model<\/code> prop.",
-          "A changed prop doesn't reset a component's own {{state|$state}}, so <code>only<\/code> still holds <b>1<\/b>."
+          "The Timeline tab is still open, so Svelte keeps the same <code>TimelineView<\/code> and only hands it the new model as its <code>model<\/code> prop.",
+          "A changed prop doesn't reset a component's own {{state|$state}}, so <code>only<\/code> still holds <b>0<\/b>."
         ],
         "note": "The number survived the switch; what it meant didn't."
       },
@@ -1184,51 +1179,48 @@ Stepper.mount({
           "points",
           "screen"
         ],
-        "frame": "only draftAtom",
+        "frame": "only preferenceCookiesAtom",
         "bad": true,
         "set": {
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [
               [
                 "filter",
-                "draft2",
+                "prefs",
                 "bad"
               ]
             ],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim",
+              "cart": "dim",
               "filter": "bad",
-              "draft2": "bad"
+              "prefs": "bad"
             },
             "values": {
-              "filter": "only = 1 · kept",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "only = 0 · kept",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           },
           "screen": {
-            "v": "draftAtom",
-            "badge": "✕ only draftAtom: never picked",
+            "v": "preferenceCookiesAtom",
+            "badge": "✕ only preferenceCookiesAtom: never picked, no rows",
             "tone": "bad",
             "live": true
           }
         },
-        "title": "The timeline now filters to <code>draftAtom<\/code>",
+        "title": "The timeline now filters to <code>preferenceCookiesAtom<\/code>",
         "body": [
-          "The rows and the chip look the number up in model 2, where <b>1<\/b> is <code>draftAtom<\/code>. The chip says <code>only draftAtom ✕<\/code> and the rows are that atom's.",
-          "Switching back to registry 1 doesn't undo it: that builds a third model, and whichever of its atoms gets number 1 is shown instead."
+          "The rows and the chip look the number up in the site's model, where <b>0<\/b> is <code>preferenceCookiesAtom<\/code>. The chip says <code>only preferenceCookiesAtom ✕<\/code>, and the timeline is empty: a new model starts with no rows, and that atom rarely changes, so the site's registry looks idle while its examples run.",
+          "You don't even need the picker. Click <b>Send another request<\/b>: a moment later Request 1 ends, its provider unmounts, and the panel falls back to the site's registry by itself, with the same result."
         ],
-        "note": "You picked cartAtom and got an atom you never clicked, from a registry that has no cartAtom."
+        "note": "You picked cartAtom and got an atom you never clicked, from a registry where it means nothing to you."
       }
     ],
     "after": [
@@ -1249,25 +1241,23 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1"
+              "cart"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "read"
               ]
             ],
             "mark": {
-              "cart1": "hl"
+              "cart": "hl"
             },
             "values": {
-              "filter": "{ model 1, 1 }",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "{ Request 1's model, 0 }",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           },
           "screen": {
@@ -1278,8 +1268,8 @@ Stepper.mount({
         },
         "title": "You click <code>cartAtom<\/code> in a row: the timeline shows only its rows",
         "body": [
-          "With the fix, the click stores <code>cartAtom<\/code>'s number <em>and the model it came from<\/em>, as <code>picked = { model: model 1, id: 1 }<\/code>.",
-          "<code>only<\/code> is now {{derived|$derived}} from <code>picked<\/code>: the id, if <code>picked<\/code>'s model is the one being shown. It is, so <code>only<\/code> is 1 and the rows narrow to <code>cartAtom<\/code>'s, as before."
+          "With the fix, the click stores <code>cartAtom<\/code>'s number <em>and the model it came from<\/em>, as <code>picked = { model: Request 1's model, id: 0 }<\/code>.",
+          "<code>only<\/code> is now {{derived|$derived}} from <code>picked<\/code>: the id, if <code>picked<\/code>'s model is the one being shown. It is, so <code>only<\/code> is 0 and the rows narrow to <code>cartAtom<\/code>'s, as before."
         ],
         "note": "The pick remembers which model its number belongs to."
       },
@@ -1297,43 +1287,40 @@ Stepper.mount({
         ],
         "frame": "only cartAtom",
         "set": {
-          "reg2": {
-            "text": "chatAtom, draftAtom · now shown"
+          "reg1": {
+            "text": "preferenceCookiesAtom, then every example's atoms · now shown"
           },
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "read"
               ]
             ],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim"
+              "cart": "dim"
             },
             "values": {
-              "filter": "{ model 1, 1 }",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "filter": "{ Request 1's model, 0 }",
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           }
         },
-        "title": "You switch the picker to registry 2: the panel builds a new model",
+        "title": "You switch the picker back to registry 1: the panel builds a new model",
         "body": [
-          "The picker's choice changed, so the panel's {{effect|$effect}} runs again. It drops model 1 and builds model 2 for the chat registry.",
-          "Model 2 counts from 0 again: <code>chatAtom<\/code> is <b>#0<\/b>, <code>draftAtom<\/code> is <b>#1<\/b>, exactly as before the fix."
+          "The picker's choice changed, so the panel's {{effect|$effect}} runs again. It drops Request 1's model and builds one for the site's registry.",
+          "The new model counts from 0 again: <code>preferenceCookiesAtom<\/code> is <b>#0<\/b>, exactly as before the fix."
         ],
-        "note": "Number 1 now means draftAtom here too. The fix doesn't change the numbering."
+        "note": "Number 0 now means preferenceCookiesAtom here too. The fix doesn't change the numbering."
       },
       {
         "side": "P",
@@ -1351,36 +1338,33 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [
               [
                 "filter",
-                "cart1",
+                "cart",
                 "gone"
               ]
             ],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim",
+              "cart": "dim",
               "filter": "ok"
             },
             "values": {
               "filter": "only = none",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           }
         },
         "title": "The timeline stays on screen, but its filter no longer applies",
         "body": [
-          "Svelte keeps the same <code>TimelineView<\/code> and hands it model 2. <code>picked<\/code> is {{state|$state}}, so it survives, still saying <code>{ model 1, 1 }<\/code>.",
-          "But <code>only<\/code> is worked out again: <code>picked<\/code>'s model is model 1, the one shown is model 2, so <code>only<\/code> is <code>undefined<\/code>. The arrow to <code>cartAtom<\/code> is cut, and none is drawn to <code>draftAtom<\/code>."
+          "Svelte keeps the same <code>TimelineView<\/code> and hands it the site's model. <code>picked<\/code> is {{state|$state}}, so it survives, still naming Request 1's model.",
+          "But <code>only<\/code> is worked out again: <code>picked<\/code>'s model isn't the one shown, so <code>only<\/code> is <code>undefined<\/code>. The arrow to <code>cartAtom<\/code> is cut, and none is drawn to <code>preferenceCookiesAtom<\/code>."
         ],
         "note": "A pick counts only under the model it was made in."
       },
@@ -1398,23 +1382,20 @@ Stepper.mount({
           "points": {
             "show": [
               "filter",
-              "user1",
-              "cart1",
-              "chat2",
-              "draft2"
+              "cart",
+              "prefs",
+              "rest"
             ],
             "edges": [],
             "mark": {
-              "user1": "dim",
-              "cart1": "dim",
+              "cart": "dim",
               "filter": "ok"
             },
             "values": {
               "filter": "only = none",
-              "user1": "model 1 · #0",
-              "cart1": "model 1 · #1",
-              "chat2": "model 2 · #0",
-              "draft2": "model 2 · #1"
+              "cart": "Request 1 · #0",
+              "prefs": "site · #0",
+              "rest": "site · #1, #2…"
             }
           },
           "screen": {
@@ -1424,10 +1405,10 @@ Stepper.mount({
             "live": true
           }
         },
-        "title": "The timeline shows registry 2's rows, unfiltered",
+        "title": "The timeline shows the site's rows, unfiltered",
         "body": [
-          "With no filter there's no chip, and the rows are every atom's in the chat registry.",
-          "Switching back to registry 1 builds yet another model, so the old pick stays ignored there too: the filter is dropped, not restored."
+          "With no filter there's no chip, and the rows are every atom's in the site's registry. The same happens when Request 1 ends and the panel falls back by itself.",
+          "Picking registry 2 again builds yet another model, so the old pick stays ignored there too: the filter is dropped, not restored."
         ],
         "note": "No atom you didn't pick is ever shown as your pick."
       }
