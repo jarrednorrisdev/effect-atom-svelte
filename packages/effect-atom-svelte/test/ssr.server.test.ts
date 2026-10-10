@@ -14,10 +14,12 @@ import {
   useAtomRef,
   useAtomResult,
   useAtomSet,
+  useAtomSubscribe,
   useAtomSuspense,
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import BoundaryFailHooks from "./fixtures/boundary-fail-hooks.svelte";
 import BoundaryInitial from "./fixtures/boundary-initial.svelte";
 import BoundaryLateInitial from "./fixtures/boundary-late-initial.svelte";
 import BoundaryProvider from "./fixtures/boundary-provider.svelte";
@@ -39,7 +41,7 @@ import {
   streamAtom,
   unencodableAtom,
 } from "./fixtures/unsent-seed.ts";
-import { repeat, sleep } from "./helpers.ts";
+import { repeat, sleep, tracked as trackedAtom } from "./helpers.ts";
 
 let clients: ReturnType<typeof makeClients> | undefined;
 afterEach(async () => {
@@ -86,6 +88,15 @@ const failsIfComputed = (key: string) =>
       throw new Error("computed on the server");
     })
   ).pipe(
+    Atom.serializable({
+      key,
+      schema: AsyncResult.Schema({ success: Schema.String }),
+    })
+  );
+
+/** A serializable async atom whose value is its key. */
+const keyAtom = (key: string) =>
+  Atom.make(Effect.succeed(key)).pipe(
     Atom.serializable({
       key,
       schema: AsyncResult.Schema({ success: Schema.String }),
@@ -747,6 +758,49 @@ describe("server rendering", () => {
     await expect.poll(() => registry.getNodes().size).toBe(0);
     expect(stopped).toEqual(["first", "next"]);
     registry.dispose();
+  });
+
+  test("a boundary that fails during setup still releases the async hooks' atoms and drops its HydrationBoundary's values", async () => {
+    // The async hooks and HydrationBoundary release on a caller-owned registry when the render ends,
+    // not in onDestroy, which a failed boundary drops along with its content.
+    const result = keyAtom("boundary-fail-result");
+    const suspense = keyAtom("boundary-fail-suspense");
+    // Nobody reads it, so its value stays queued until the boundary drops it.
+    const unread = numberAtom("boundary-fail-unread");
+    const registry = AtomRegistry.make();
+    const output = await render(BoundaryFailHooks, {
+      props: {
+        registry,
+        setup: () => {
+          void useAtomResult(result);
+          useAtomSuspense(suspense);
+          return () => "set up";
+        },
+        state: stateWith(unread, 7),
+      },
+      transformError: (error: unknown) => ({ message: String(error) }),
+    });
+    expect(output.body).toContain("failed");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const { preloadedSerializable } = registry as unknown as {
+      readonly preloadedSerializable: ReadonlyMap<string, unknown>;
+    };
+    expect([...preloadedSerializable.keys()]).toEqual([]);
+    registry.dispose();
+  });
+
+  test("useAtomSubscribe never computes its atom on the server, even with immediate", async () => {
+    const log: string[] = [];
+    const seen: unknown[] = [];
+    const output = await renderSetup(() => {
+      useAtomSubscribe(trackedAtom(log), (value) => seen.push(value), {
+        immediate: true,
+      });
+      return () => "subscribed";
+    });
+    expect(output.body).toContain("subscribed");
+    expect(seen).toEqual([]);
+    expect(log).toEqual([]);
   });
 
   test("an initial value starts a browser-only atom on the server without computing it", async () => {
