@@ -49,12 +49,12 @@ An [async atom](/async-atoms)'s value is an `AsyncResult`: `Initial` while it lo
 **Example** (Counting the open todos of a query)
 
 ```ts
-const openCountAtom = todosAtom.pipe(
+const openCountAtom = todosQueryAtom.pipe(
   Atom.mapResult((todos) => todos.filter((todo) => !todo.done).length)
 );
 ```
 
-While `todosAtom` refreshes, `openCountAtom` keeps its last count, with `waiting` set. Inside a function, `get(todosAtom)` returns the `AsyncResult` itself, and `AsyncResult.map` maps it the same way.
+While `todosQueryAtom` refreshes, `openCountAtom` keeps its last count, with [`waiting`](/async-atoms#asyncresult) set. Inside a function, `get(todosQueryAtom)` returns the `AsyncResult` itself, and `AsyncResult.map` maps it the same way.
 
 ## Derived atom or transform?
 
