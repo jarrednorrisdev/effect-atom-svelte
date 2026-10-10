@@ -10,6 +10,7 @@ import { render } from "svelte/server";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
 import {
+  useAtom,
   useAtomInitialValues,
   useAtomRef,
   useAtomResult,
@@ -808,7 +809,9 @@ describe("server rendering", () => {
 
   test("useAtomValue reading a serializable async atom warns once, in development, that its result isn't sent", async () => {
     const warned = allWarnings();
-    const atom = Atom.make(Effect.succeed("todos")).pipe(
+    const atom = Atom.make(
+      Effect.succeed("todos").pipe(Effect.delay("10 millis"))
+    ).pipe(
       Atom.serializable({
         key: "unsent-value-read",
         schema: AsyncResult.Schema({ success: Schema.String }),
@@ -824,7 +827,7 @@ describe("server rendering", () => {
       warned().filter((message) => message.includes("unsent-value-read"))
     ).toEqual([
       expect.stringContaining(
-        'useAtomValue read the serializable atom "unsent-value-read" on the server'
+        'useAtomValue read the serializable atom "unsent-value-read" on the server while it was still running'
       ),
     ]);
   });
@@ -862,6 +865,49 @@ describe("server rendering", () => {
     expect(
       warned().filter((message) => message.includes("on the server"))
     ).toEqual([]);
+  });
+
+  test("a plain read of a key the same render seeds doesn't warn, and useAtom's read is named", async () => {
+    const warned = allWarnings();
+    const schema = AsyncResult.Schema({ success: Schema.String });
+    const slow = (key: string) =>
+      Atom.make(Effect.succeed(key).pipe(Effect.delay("10 millis"))).pipe(
+        Atom.serializable({ key, schema })
+      );
+    const seeded = slow("seeded-and-read");
+    const source = Atom.make(
+      Effect.succeed("bound").pipe(Effect.delay("10 millis"))
+    );
+    const bound = Atom.writable(
+      (get) => get(source),
+      (ctx, value: AsyncResult.AsyncResult<string>) => ctx.setSelf(value)
+    ).pipe(Atom.serializable({ key: "unsent-use-atom", schema }));
+    const constant = Atom.make<AsyncResult.AsyncResult<string>>(
+      AsyncResult.success("kept")
+    ).pipe(Atom.serializable({ key: "unsent-constant", schema }));
+    await renderSetup(() => {
+      const result = useAtomResult(seeded);
+      const badge = useAtomValue(seeded);
+      // Read while the atom still runs, as a badge rendered beside the awaiting component would.
+      void badge.current;
+      const field = useAtom(bound);
+      const fixed = useAtom(constant);
+      return (async () => {
+        await result;
+        return () =>
+          [badge.current, field.current, fixed.current]
+            .map((value) => value._tag)
+            .join(" ");
+      })();
+    });
+    const ours = warned().filter((message) =>
+      message.includes("on the server")
+    );
+    expect(ours).toEqual([
+      expect.stringContaining(
+        'useAtom read the serializable atom "unsent-use-atom" on the server'
+      ),
+    ]);
   });
 
   test("useAtomValue reading a value a HydrationBoundary brought doesn't warn: the boundary sends it", async () => {

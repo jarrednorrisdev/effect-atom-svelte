@@ -264,46 +264,87 @@ interface KeptSubscription<A> {
   readonly cancel: () => void;
 }
 
+// On the server, per registry, how many renders' seeds carry each key, until those renders end.
+const seededKeys = new WeakMap<
+  AtomRegistry.AtomRegistry,
+  Map<string, number>
+>();
+
+/** Whether a render using the registry sends the key's result to the browser with a seed. */
+const seededOnServer = (
+  registry: AtomRegistry.AtomRegistry,
+  key: string
+): boolean => (seededKeys.get(registry)?.get(key) ?? 0) > 0;
+
+/** Counts the key as seeded until the render ends. */
+const countSeeded = (
+  registry: AtomRegistry.AtomRegistry,
+  key: string
+): void => {
+  let keys = seededKeys.get(registry);
+  if (!keys) {
+    keys = new Map();
+    seededKeys.set(registry, keys);
+  }
+  keys.set(key, (keys.get(key) ?? 0) + 1);
+  onRenderEnd(() => {
+    const count = (keys.get(key) ?? 1) - 1;
+    if (count > 0) {
+      keys.set(key, count);
+    } else {
+      keys.delete(key);
+    }
+  });
+};
+
 // The keys of the atoms useAtomValue has warned about, so the server warns once per key, not per
 // request.
 const warnedUnsent = new Set<string>();
 
+/** The hooks that read an atom plainly, without sending its result to the browser. */
+type PlainRead = "useAtomValue" | "useAtom";
+
 /**
- * In development, warns once per key that a plain read of a serializable async atom on the server
- * sends nothing to the browser: only useAtomResult and useAtomSuspense do, so the browser runs the
- * atom again, and the page can show a loading state over what the server rendered. A value a
- * HydrationBoundary brought is sent by the boundary.
+ * In development, warns once per key that a plain read on the server met a serializable async atom
+ * still running: only useAtomResult and useAtomSuspense send an atom's result to the browser, so
+ * the browser runs it again, and the page can show a loading state over what the server rendered.
+ * Not for a key the page sends anyway, with a seed or a HydrationBoundary's value, nor for a result
+ * nothing is computing, such as an Atom.fn nobody called or a value written to the atom.
  */
 const warnUnsent = (
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<unknown>,
-  value: unknown
+  value: unknown,
+  hook: PlainRead
 ): void => {
-  // An atom nothing has started, as an Atom.fn nothing has called, has nothing to send or run again.
   if (
     !(DEV && Atom.isSerializable(atom) && AsyncResult.isAsyncResult(value)) ||
-    notStarted(value)
+    !value.waiting
   ) {
     return;
   }
   const { key } = atom[Atom.SerializableTypeId];
-  if (warnedUnsent.has(key) || queuedByBoundary(registry, key)) {
+  if (
+    warnedUnsent.has(key) ||
+    queuedByBoundary(registry, key) ||
+    seededOnServer(registry, key)
+  ) {
     return;
   }
   warnedUnsent.add(key);
   console.warn(
-    `effect-atom-svelte: useAtomValue read the serializable atom "${key}" on the server, but only useAtomResult and useAtomSuspense send an atom's result to the browser, so it runs again there. Read it with one of them. See https://atom.jarrednorris.dev/hydration#how-the-result-travels`
+    `effect-atom-svelte: ${hook} read the serializable atom "${key}" on the server while it was still running, but only useAtomResult and useAtomSuspense send an atom's result to the browser, so it runs again there. Read it with one of them. See https://atom.jarrednorris.dev/hydration#how-the-result-travels`
   );
 };
 
 /**
- * Reads the getter's atom and follows it. `warnIfUnsent` is for the plain reads, `useAtomValue` and
- * `useAtom`: the async hooks send their atom's result themselves.
+ * Reads the getter's atom and follows it. `plainRead` names the plain read, `useAtomValue` or
+ * `useAtom`, for `warnUnsent`; the async hooks send their atom's result themselves.
  */
 const subscribedReader = <A>(
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => Atom.Atom<A>,
-  warnIfUnsent = false
+  plainRead?: PlainRead
 ): (() => A) => {
   if (!BROWSER) {
     // Nothing subscribes during SSR, so without a mount the registry would sweep the node while the
@@ -352,8 +393,8 @@ const subscribedReader = <A>(
         return node._value as A;
       }
       const value = registry.get(atom);
-      if (warnIfUnsent) {
-        warnUnsent(registry, atom, value);
+      if (plainRead) {
+        warnUnsent(registry, atom, value, plainRead);
       }
       return value;
     };
@@ -513,7 +554,7 @@ export function useAtomValue<A, B>(
   input: AtomInput<Atom.Atom<A>>,
   f?: (value: A) => B
 ): AtomValue<A | B> {
-  const read = subscribedReader(getRegistry(), toGetter(input), true);
+  const read = subscribedReader(getRegistry(), toGetter(input), "useAtomValue");
   if (!f) {
     return new AtomCell<A, never>(read, readOnly);
   }
@@ -550,7 +591,7 @@ export const useAtom = <R, W>(
   const registry = getRegistry();
   const getAtom = toGetter(input);
   return new AtomCell<R, W>(
-    subscribedReader(registry, getAtom, true),
+    subscribedReader(registry, getAtom, "useAtom"),
     (value) => registry.set(getAtom(), value)
   );
 };
@@ -1126,6 +1167,7 @@ const seedOnServer = (
     ended = true;
     release();
   });
+  countSeeded(registry, key);
   // hydratable hands every later reader of a key the first reader's value, but Svelte's dev build
   // also runs each later reader's callback and throws hydratable_clobbering if what it encodes
   // differs. Reading the atom again there would encode whatever it holds by then, so a later
