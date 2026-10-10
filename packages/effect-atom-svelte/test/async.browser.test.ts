@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
@@ -131,6 +131,45 @@ describe("useAtomSuspense", () => {
       },
     });
     await expect.poll(text(screen)).toBe("Failure");
+  });
+
+  // A Failure after a success keeps it as previousSuccess; a result rebuilt from the Exit would not.
+  test("includeFailure resolves with the atom's own result after waiting for it", async () => {
+    let runs = 0;
+    const atom = Atom.make(
+      Effect.suspend(() =>
+        (runs += 1) === 1 ? Effect.succeed(1) : Effect.fail("nope" as const)
+      ).pipe(Effect.delay("20 millis"))
+    );
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const release = registry.mount(atom);
+    onTestFinished(release);
+    await expect.poll(() => registry.get(atom)._tag).toBe("Success");
+    let value:
+      | AtomValue<
+          Promise<
+            | AsyncResult.Success<number, "nope">
+            | AsyncResult.Failure<number, "nope">
+          >
+        >
+      | undefined;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        value = useAtomSuspense(atom, {
+          includeFailure: true,
+          suspendOnWaiting: true,
+        });
+        return () => "";
+      },
+    });
+    registry.refresh(atom);
+    const resolved = await value?.current;
+    expect(resolved).toBe(registry.get(atom));
+    expect(
+      resolved?._tag === "Failure" && Option.isSome(resolved.previousSuccess)
+    ).toBe(true);
   });
 
   test("returns the same promise while the result is unchanged", async () => {

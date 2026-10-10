@@ -208,6 +208,44 @@ const awaitResult = <A, E>(
     signal,
   });
 
+/** Whether a hook stops waiting at a result: it has left `Initial`, and isn't refreshing if asked. */
+const settles = (
+  result: AsyncResult.AsyncResult<unknown, unknown>,
+  suspendOnWaiting: boolean
+): boolean =>
+  result._tag !== "Initial" && !(suspendOnWaiting && result.waiting);
+
+/**
+ * Waits for an async atom to settle, as `awaitResult` does, but resolves with the atom's own result
+ * rather than an `Exit` rebuilt from it, which would drop a `Failure`'s `previousSuccess`.
+ * Interrupted, with a failed `Exit`, once `signal` aborts.
+ */
+const awaitSettled = <A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+  options: { readonly suspendOnWaiting?: boolean | undefined },
+  signal: AbortSignal
+): Promise<Exit.Exit<AsyncResult.AsyncResult<A, E>>> => {
+  const suspendOnWaiting = options.suspendOnWaiting ?? false;
+  return Effect.runPromiseExit(
+    Effect.callback<AsyncResult.AsyncResult<A, E>>((resume) => {
+      const current = registry.get(atom);
+      if (settles(current, suspendOnWaiting)) {
+        resume(Effect.succeed(current));
+        return;
+      }
+      const cancel = registry.subscribe(atom, (value) => {
+        if (settles(value, suspendOnWaiting)) {
+          resume(Effect.succeed(value));
+          cancel();
+        }
+      });
+      return Effect.sync(cancel);
+    }),
+    { signal }
+  );
+};
+
 /**
  * A promise-mode setter's wait: as `awaitResult` with `suspendOnWaiting`, but a change to a result
  * from before the call, which is what `Atom.Reset` from another setter leaves (an idle `Initial`,
@@ -1513,7 +1551,7 @@ const suspend = async <A, E>(
     if (!BROWSER && notStarted(current)) {
       throw notStartedError("useAtomSuspense");
     }
-    const exit = await awaitResult(
+    const exit = await awaitSettled(
       registry,
       atom,
       { suspendOnWaiting: options.suspendOnWaiting },
@@ -1523,12 +1561,11 @@ const suspend = async <A, E>(
     // that is Svelte's STALE_REACTION, which it ignores, so a pending render that still awaits this
     // wait keeps waiting for its next run instead of showing the interruption (JND-22).
     signal.throwIfAborted();
-    if (options.includeFailure) {
-      return Exit.isSuccess(exit)
-        ? AsyncResult.success(exit.value)
-        : AsyncResult.failure(exit.cause);
+    // Only an abort, handled above, ends the wait without a result.
+    if (Exit.isFailure(exit)) {
+      throw Cause.squash(exit.cause);
     }
-    return valueOrThrow(exit);
+    return fromSettled(exit.value, options);
   }
   return fromSettled(current, options);
 };
