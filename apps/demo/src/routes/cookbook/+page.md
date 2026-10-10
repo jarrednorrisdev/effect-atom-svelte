@@ -230,6 +230,30 @@ Add the token to each request in the client's `transformClient`, as on [HTTP API
 
 The example keeps the token in module state, which is safe only in the browser: a module-level client serves every request on the server. To send each visitor's token from the server, see [On the server](/rpc#on-the-server).
 
+### Sign in again after a 401
+
+To send the visitor to a sign-in page whenever any request comes back `401 Unauthorized`, look at every response in the same `transformClient`. `HttpClient.tap` sees each response before the client decodes it:
+
+```ts
+import { Effect } from "effect";
+import { HttpClient } from "effect/http";
+
+import { browser } from "$app/env";
+import { goto } from "$app/navigation";
+
+const signInOn401 = HttpClient.tap((response) =>
+  Effect.sync(() => {
+    if (browser && response.status === 401) {
+      void goto("/sign-in");
+    }
+  })
+);
+```
+
+Pass it as `transformClient` to `AtomHttpApi.Service`, or to `RpcClient.layerProtocolHttp` for RPC. Combine it with the token's `mapRequest` with `pipe`: `transformClient: (client) => client.pipe(addToken, signInOn401)`. The query still fails as it would have, so its component shows the failure until the navigation happens. Only the browser navigates: on the server, check the session in the `handle` hook of `hooks.server.ts`, which can redirect before the page renders. To clear what the previous visitor's atoms hold, see [Reset state when the user changes](#reset-state-when-the-user-changes).
+
+Declare the 401 as an error on the endpoint or its middleware, as `GET /api/me` does with `Unauthorized`. An `AtomHttpApi` query turns a response it can't decode into a defect, not a typed error: see [Typed errors](/http#typed-errors).
+
 ## Structuring an app
 
 ### Share form logic in a class
