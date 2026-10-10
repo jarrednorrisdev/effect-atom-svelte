@@ -42,6 +42,12 @@ Writing an argument to the atom runs the effect. Reading the atom gives its `Asy
 
 If you write again while a call is still running, the new call interrupts the old one.
 
+The argument's type comes from the function's parameter. A mutation without one takes no argument, so its setter is called as `save()`. To give the type up front instead of on the parameter, pass it to `Atom.fn` first:
+
+```ts
+const saveAtom = Atom.fn<Todo>()((todo) => saveTodo(todo));
+```
+
 The function also receives `get`, as its second argument. In a mutation, `get(atom)` reads an atom's current value without subscribing to it, so a change to that atom doesn't run the mutation again. `get.set(atom, value)` writes to an atom, and `get.result(atom)` is an effect that gives an async atom's value once it has one, or fails with its error:
 
 **Example** (Reading another atom when the call starts)
