@@ -221,15 +221,19 @@ const subscribedReader = <A>(
     // mounting would run its real read, which is often browser-only. Nor is one that holds a value
     // from useAtomInitialValues: the server renders that value, which is what the atom's first build
     // would keep, without running a read that may be browser-only or start a request.
+    // Once the render has ended, a read that switches atoms, as from a reader kept past the render,
+    // takes no mount: nothing would release it.
+    let ended = false;
     const releases: (() => void)[] = [];
     onRenderEnd(() => {
+      ended = true;
       for (const release of releases) {
         release();
       }
     });
     const nodes = internals(registry);
     const mount = (atom: Atom.Atom<A>) => {
-      if (hasServerValue(atom)) {
+      if (ended || hasServerValue(atom)) {
         return atom;
       }
       const node = nodes.ensureNode(atom);
