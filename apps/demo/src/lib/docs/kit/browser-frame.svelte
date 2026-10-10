@@ -11,27 +11,36 @@
   ```
 
   `bar` renders a strip between the links and the page, for what the layout itself shows.
+
+  For a single page, leave out `pages` and pass the `address` to show: there are then no links.
+
+  ```svelte
+  <BrowserFrame address="example.app/feed">…</BrowserFrame>
+  ```
 -->
 <script lang="ts" generics="Page extends string">
   import type { Snippet } from "svelte";
 
   interface Props {
+    /** The address bar's text, for a frame with no `pages`. */
+    readonly address?: string;
     /** Shown between the page links and the page: the layout's own content. */
     readonly bar?: Snippet;
     readonly children: Snippet;
     /** The current page, one of `pages`. */
-    page: Page;
-    readonly pages: readonly Page[];
+    page?: Page;
+    readonly pages?: readonly Page[];
   }
 
-  let { bar, children, page = $bindable(), pages }: Props = $props();
+  let { address, bar, children, page = $bindable(), pages }: Props = $props();
 </script>
 
 <div class="frame not-prose">
   <div class="chrome">
     <span aria-hidden="true" class="dots"><span></span><span></span><span></span></span>
-    <span class="address" data-testid="frame-address">example.app/{page}</span>
+    <span class="address" data-testid="frame-address">{address ?? `example.app/${page}`}</span>
   </div>
+  {#if pages}
   <nav aria-label="Pages" class="links">
     {#each pages as name (name)}
       <button
@@ -44,6 +53,7 @@
       </button>
     {/each}
   </nav>
+  {/if}
   {#if bar}<div class="bar">{@render bar()}</div>{/if}
   <div class="page">{@render children()}</div>
 </div>
