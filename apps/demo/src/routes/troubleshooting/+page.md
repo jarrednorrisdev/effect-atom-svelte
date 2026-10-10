@@ -86,7 +86,7 @@ In development, a `RegistryProvider` warns when its `registry` or `revalidateOnH
 
 ### "This atom value is read-only"
 
-Something assigned `current` on what `useAtomValue`, `useAtomRef` or `useAtomRefPropValue` returned, for example with `bind:value`. Those only read. Use `useAtom` to read and write an atom, and `useAtomRefProp` and its `set` to write one property of a ref.
+Something assigned `current` on what `useAtomValue` or `useAtomSuspense` returned, or on what `useAtomRef` returned for a read-only ref, such as one from `map`, for example with `bind:value`. Those only read. Use `useAtom` to read and write an atom. For a ref, `useAtomRef` and `useAtomRefPropValue` read and write a writable ref or one of its properties.
 
 ### "cannot wait for Atom.Reset"
 

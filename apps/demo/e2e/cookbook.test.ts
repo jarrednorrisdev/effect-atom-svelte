@@ -83,11 +83,16 @@ test.describe("Cookbook page", () => {
   test("debounced search: quick key presses run one search", async ({
     page,
   }) => {
+    // A loaded machine has taken over a second to type these three keys, so the 400 ms debounce
+    // fired between them. The page's clock is paused while typing, then let run.
+    await page.clock.install();
     await page.goto("/cookbook");
     await page.waitForLoadState("networkidle");
-    // Well under the 400 ms debounce between keys.
+    // The page's clock follows the real one until paused, so a second ahead is never in its past.
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.getByTestId("search").pressSequentially("sch", { delay: 50 });
     await expect(page.getByTestId("search-keys")).toHaveText("3");
+    await page.clock.resume();
     await expect(page.getByTestId("search-results").locator("li")).toHaveText([
       "Schema",
     ]);

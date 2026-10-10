@@ -82,6 +82,9 @@
   };
 
   $effect(() => {
+    // Again after each new layout: a node whose kind or side changes has its classes written over,
+    // and a node drawn later has none.
+    void layout;
     for (const element of host?.querySelectorAll("[data-node].selected") ?? []) {
       element.classList.remove("selected");
     }

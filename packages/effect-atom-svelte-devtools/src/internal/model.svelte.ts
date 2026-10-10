@@ -190,6 +190,8 @@ export class Model {
 
   clearTimeline(): void {
     this.#log = [];
+    // Paused too: clearing is asked of the timeline on screen.
+    this.timeline = [];
     this.#schedule();
   }
 

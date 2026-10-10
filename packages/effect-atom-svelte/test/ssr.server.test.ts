@@ -14,11 +14,15 @@ import {
   useAtomRef,
   useAtomResult,
   useAtomSet,
+  useAtomSubscribe,
   useAtomSuspense,
   useAtomValue,
 } from "../src/index.ts";
 import { makeClients } from "./clients.ts";
+import BoundaryFailHooks from "./fixtures/boundary-fail-hooks.svelte";
 import BoundaryInitial from "./fixtures/boundary-initial.svelte";
+import BoundaryLateInitial from "./fixtures/boundary-late-initial.svelte";
+import BoundaryProvider from "./fixtures/boundary-provider.svelte";
 import HydrateAbove from "./fixtures/hydrate-above.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
@@ -37,7 +41,7 @@ import {
   streamAtom,
   unencodableAtom,
 } from "./fixtures/unsent-seed.ts";
-import { repeat, sleep } from "./helpers.ts";
+import { repeat, sleep, tracked as trackedAtom } from "./helpers.ts";
 
 let clients: ReturnType<typeof makeClients> | undefined;
 afterEach(async () => {
@@ -47,8 +51,43 @@ afterEach(async () => {
 
 const renderSetup = (
   setup: () => unknown,
-  registry?: AtomRegistry.AtomRegistry
-) => render(SsrHarness, { props: registry ? { registry, setup } : { setup } });
+  registry?: AtomRegistry.AtomRegistry,
+  markup = false
+) =>
+  render(SsrHarness, {
+    props: registry ? { markup, registry, setup } : { markup, setup },
+  });
+
+/** A result as text: its value, or its tag when it has none. */
+const show = (result: AsyncResult.AsyncResult<string>) =>
+  result._tag === "Success" ? result.value : result._tag;
+
+/**
+ * Renders a RegistryProvider inside a boundary that fails when `fail` is set, and counts how often
+ * a keepAlive atom read under the provider is finalized.
+ */
+const renderBoundaryProvider = async (fail: boolean) => {
+  let finalized = 0;
+  const atom = Atom.make((get) => {
+    get.addFinalizer(() => {
+      finalized += 1;
+    });
+    return "kept";
+  }).pipe(Atom.keepAlive);
+  const page = await render(BoundaryProvider, {
+    props: {
+      fail,
+      setup: () => {
+        const read = useAtomValue(atom);
+        return () => read.current;
+      },
+    },
+    transformError: (error: unknown) => ({ message: String(error) }),
+  });
+  expect(page.body).toContain(fail ? "failed" : "<output>kept</output>");
+  await sleep(20);
+  return { fail, finalized };
+};
 
 /** A serializable async atom that fails the test if anything computes it. */
 const failsIfComputed = (key: string) =>
@@ -57,6 +96,15 @@ const failsIfComputed = (key: string) =>
       throw new Error("computed on the server");
     })
   ).pipe(
+    Atom.serializable({
+      key,
+      schema: AsyncResult.Schema({ success: Schema.String }),
+    })
+  );
+
+/** A serializable async atom whose value is its key. */
+const keyAtom = (key: string) =>
+  Atom.make(Effect.succeed(key)).pipe(
     Atom.serializable({
       key,
       schema: AsyncResult.Schema({ success: Schema.String }),
@@ -661,6 +709,108 @@ describe("server rendering", () => {
     registry.dispose();
   });
 
+  test("a failed boundary's component that awaits before its hooks still releases them", async () => {
+    // The boundary drops the awaiting component, so the render ends before its script resumes and
+    // registers its release on a signal that has already aborted.
+    const atom = Atom.make("default");
+    const registry = AtomRegistry.make();
+    const first = await render(BoundaryLateInitial, {
+      props: { atom, delay: 20, fail: true, registry, value: "first visitor" },
+      transformError: (error: unknown) => ({ message: String(error) }),
+    });
+    expect(first.body).toContain("failed");
+    await sleep(60);
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const second = await render(BoundaryLateInitial, {
+      props: { atom, delay: 0, fail: false, registry, value: "second visitor" },
+    });
+    expect(second.body).toContain("<output>second visitor</output>");
+    registry.dispose();
+  });
+
+  test("a provider inside a boundary that fails during setup still disposes its registry", async () => {
+    // The provider's registry is the request's own; dropped with the boundary, it would keep
+    // its keepAlive atoms, and whatever they run, for good.
+    expect(
+      await Promise.all([
+        renderBoundaryProvider(false),
+        renderBoundaryProvider(true),
+      ])
+    ).toEqual([
+      { fail: false, finalized: 1 },
+      { fail: true, finalized: 1 },
+    ]);
+  });
+
+  test("a reader kept past the render takes no mount on a caller-owned registry when its atom switches", async () => {
+    const stopped: string[] = [];
+    const tracked = (name: string) =>
+      Atom.make((get) => {
+        get.addFinalizer(() => stopped.push(name));
+        return name;
+      });
+    const first = tracked("first");
+    const next = tracked("next");
+    let atom = first;
+    let read: { readonly current: string } | undefined;
+    const registry = AtomRegistry.make();
+    const output = await renderSetup(() => {
+      const value = useAtomValue(() => atom);
+      read = value;
+      return () => value.current;
+    }, registry);
+    expect(output.body).toContain("<output>first</output>");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    atom = next;
+    expect(read?.current).toBe("next");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    expect(stopped).toEqual(["first", "next"]);
+    registry.dispose();
+  });
+
+  test("a boundary that fails during setup still releases the async hooks' atoms and drops its HydrationBoundary's values", async () => {
+    // The async hooks and HydrationBoundary release on a caller-owned registry when the render ends,
+    // not in onDestroy, which a failed boundary drops along with its content.
+    const result = keyAtom("boundary-fail-result");
+    const suspense = keyAtom("boundary-fail-suspense");
+    // Nobody reads it, so its value stays queued until the boundary drops it.
+    const unread = numberAtom("boundary-fail-unread");
+    const registry = AtomRegistry.make();
+    const output = await render(BoundaryFailHooks, {
+      props: {
+        registry,
+        setup: () => {
+          void useAtomResult(result);
+          useAtomSuspense(suspense);
+          return () => "set up";
+        },
+        state: stateWith(unread, 7),
+      },
+      transformError: (error: unknown) => ({ message: String(error) }),
+    });
+    expect(output.body).toContain("failed");
+    await expect.poll(() => registry.getNodes().size).toBe(0);
+    const { preloadedSerializable } = registry as unknown as {
+      readonly preloadedSerializable: ReadonlyMap<string, unknown>;
+    };
+    expect([...preloadedSerializable.keys()]).toEqual([]);
+    registry.dispose();
+  });
+
+  test("useAtomSubscribe never computes its atom on the server, even with immediate", async () => {
+    const log: string[] = [];
+    const seen: unknown[] = [];
+    const output = await renderSetup(() => {
+      useAtomSubscribe(trackedAtom(log), (value) => seen.push(value), {
+        immediate: true,
+      });
+      return () => "subscribed";
+    });
+    expect(output.body).toContain("subscribed");
+    expect(seen).toEqual([]);
+    expect(log).toEqual([]);
+  });
+
   test("an initial value starts a browser-only atom on the server without computing it", async () => {
     let computed = 0;
     const theme = Atom.make((): string => {
@@ -712,6 +862,81 @@ describe("server rendering", () => {
         const value = useAtomSuspense(user);
         return () => value.current;
       });
+      expect(body).toContain("<output>initial</output>");
+      expect(fetched).toBe(0);
+    }
+  );
+
+  test.each([false, true])(
+    "useAtomSuspense (serializable: %s) awaited in the markup at once renders an initial value without computing the atom on the server",
+    async (serializable) => {
+      let fetched = 0;
+      const plain = Atom.make(
+        Effect.sync(() => {
+          fetched += 1;
+          return "fetched";
+        })
+      );
+      const user = serializable
+        ? plain.pipe(
+            Atom.serializable({
+              key: "initial-markup",
+              schema: AsyncResult.Schema({ success: Schema.String }),
+            })
+          )
+        : plain;
+      const { body } = await renderSetup(
+        () => {
+          useAtomInitialValues([[user, AsyncResult.success("initial")]]);
+          const value = useAtomSuspense(user);
+          return () => value.current;
+        },
+        undefined,
+        true
+      );
+      expect(body).toContain("<output>initial</output>");
+      expect(fetched).toBe(0);
+    }
+  );
+
+  // A wrapper such as withRefresh passes the value to its source and reads as it; the reactivity
+  // keys of an AtomRpc or AtomHttpApi query wrap it the same way.
+  test.each([
+    ["useAtomValue", false],
+    ["useAtomResult", false],
+    ["useAtomSuspense", false],
+    ["useAtomSuspense", true],
+  ])(
+    "%s (in the markup at once: %s) renders an initial value given to a wrapped atom without computing its source on the server",
+    async (hook, markup) => {
+      let fetched = 0;
+      const source = Atom.make(
+        Effect.sync(() => {
+          fetched += 1;
+          return "fetched";
+        })
+      );
+      const user = source.pipe(Atom.withRefresh("1 hour"));
+      const { body } = await renderSetup(
+        () => {
+          useAtomInitialValues([[user, AsyncResult.success("initial")]]);
+          if (hook === "useAtomValue") {
+            const value = useAtomValue(user);
+            return () => show(value.current);
+          }
+          if (hook === "useAtomResult") {
+            const result = useAtomResult(user);
+            return (async () => {
+              const live = await result;
+              return () => show(live.current);
+            })();
+          }
+          const value = useAtomSuspense(user);
+          return () => value.current;
+        },
+        undefined,
+        markup
+      );
       expect(body).toContain("<output>initial</output>");
       expect(fetched).toBe(0);
     }

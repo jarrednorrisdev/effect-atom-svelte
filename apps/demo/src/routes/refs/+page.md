@@ -79,7 +79,7 @@ const badge = profile.map(({ name, role }) => `${name} · ${role}`);
 | `useAtomRefPropValue(ref, "name")` | One property's value as `current`. It updates only when that property changes. |
 | `useAtomRefProp(ref, "name")` | The property's own ref, to pass to a child or to `set`. It is `ref.prop("name")`, so it takes a ref, not a getter. |
 
-Like the atom hooks, `useAtomRef` and `useAtomRefPropValue` also take a getter, `() => ref`, to follow a different ref when state changes. To write, call `set` or `update` on the ref.
+Like the atom hooks, `useAtomRef` and `useAtomRefPropValue` also take a getter, `() => ref`, to follow a different ref when state changes. To write, call `set` or `update` on the ref, or assign `current`, which sets it: `bind:value={name.current}` works for a writable ref, as it does with `useAtom`. A ref from `map` is read-only.
 
 ## Lists of refs
 

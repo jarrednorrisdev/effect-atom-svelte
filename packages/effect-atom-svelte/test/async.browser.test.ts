@@ -1,5 +1,6 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
+import { onDestroy } from "svelte";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -14,7 +15,9 @@ import CityWeather from "./fixtures/city-weather.svelte";
 import Harness from "./fixtures/harness.svelte";
 import SequentialAwaits from "./fixtures/sequential-awaits.svelte";
 import StateGetter from "./fixtures/state-getter.svelte";
+import SuspenseInEffect from "./fixtures/suspense-in-effect.svelte";
 import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
+import SuspenseUnreadDerived from "./fixtures/suspense-unread-derived-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
 import { repeat, sleep } from "./helpers.ts";
@@ -104,6 +107,19 @@ describe("useAtomSuspense", () => {
     await expect.poll(text(screen)).toBe("failed: boom");
   });
 
+  test("a synchronously resolving atom awaited in an $effect runs the code after the await once", async () => {
+    const registry = AtomRegistry.make();
+    const seen: unknown[] = [];
+    await render(SuspenseInEffect, {
+      atom: Atom.make(Effect.succeed(7)),
+      registry,
+      seen,
+    });
+    await expect.poll(() => seen.length).toBeGreaterThan(0);
+    await sleep("50 millis");
+    expect(seen).toEqual([7]);
+  });
+
   test("includeFailure resolves with the Failure instead of rejecting", async () => {
     const atom = Atom.make(Effect.fail("nope" as const));
     const screen = await render(Harness, {
@@ -117,6 +133,45 @@ describe("useAtomSuspense", () => {
       },
     });
     await expect.poll(text(screen)).toBe("Failure");
+  });
+
+  // A Failure after a success keeps it as previousSuccess; a result rebuilt from the Exit would not.
+  test("includeFailure resolves with the atom's own result after waiting for it", async () => {
+    let runs = 0;
+    const atom = Atom.make(
+      Effect.suspend(() =>
+        (runs += 1) === 1 ? Effect.succeed(1) : Effect.fail("nope" as const)
+      ).pipe(Effect.delay("20 millis"))
+    );
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const release = registry.mount(atom);
+    onTestFinished(release);
+    await expect.poll(() => registry.get(atom)._tag).toBe("Success");
+    let value:
+      | AtomValue<
+          Promise<
+            | AsyncResult.Success<number, "nope">
+            | AsyncResult.Failure<number, "nope">
+          >
+        >
+      | undefined;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        value = useAtomSuspense(atom, {
+          includeFailure: true,
+          suspendOnWaiting: true,
+        });
+        return () => "";
+      },
+    });
+    registry.refresh(atom);
+    const resolved = await value?.current;
+    expect(resolved).toBe(registry.get(atom));
+    expect(
+      resolved?._tag === "Failure" && Option.isSome(resolved.previousSuccess)
+    ).toBe(true);
   });
 
   test("returns the same promise while the result is unchanged", async () => {
@@ -135,6 +190,65 @@ describe("useAtomSuspense", () => {
     await expect.poll(text(screen)).toBe("a");
     const [first, second] = promises.slice(-2);
     expect(first).toBe(second);
+  });
+
+  // "A refresh issues a new promise even if its value is equal."
+  test("a refresh issues a new promise even when the value is equal", async () => {
+    const registry = AtomRegistry.make();
+    let calls = 0;
+    const atom = Atom.make(
+      Effect.sync(() => {
+        calls += 1;
+        return "same";
+      }).pipe(Effect.delay("20 millis"))
+    );
+    // The promises read while the result was settled, not Initial or refreshing.
+    const settled: Promise<string>[] = [];
+    let refresh!: () => void;
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        refresh = useAtomRefresh(atom);
+        return () => {
+          const promise = value.current;
+          const result = registry.get(atom);
+          if (result._tag === "Success" && !result.waiting) {
+            settled.push(promise);
+          }
+          return promise;
+        };
+      },
+    });
+    await expect.poll(text(screen)).toBe("same");
+    await expect.poll(() => settled.length).toBeGreaterThan(0);
+    const [before] = settled;
+    refresh();
+    await expect.poll(() => calls).toBe(2);
+    // Compared in the callback: expect.poll would await a promise it returned.
+    await expect.poll(() => settled.at(-1) === before).toBe(false);
+    await expect(settled.at(-1)).resolves.toBe("same");
+    expect(text(screen)()).toBe("same");
+  });
+
+  // "An atom that has not started ... stays pending in the browser until something writes it."
+  test("an Atom.fn nobody has called stays pending until something writes it", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(double);
+        return () => value.current;
+      },
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    await sleep("20 millis");
+    expect(text(screen)()).toBe("pending");
+    registry.set(double, 21);
+    await expect.poll(text(screen)).toBe("42");
   });
 
   test("a refresh re-runs the await and shows the new value", async () => {
@@ -524,6 +638,65 @@ describe("useAtomSuspense", () => {
   });
 });
 
+describe("useAtomSuspense read outside the markup", () => {
+  // Svelte aborts a derived's signal when it runs again or loses its last reader, and doesn't
+  // destroy deriveds with their component, so a derived only the script or a handler reads never
+  // aborts it. A read after the component is destroyed gets its already aborted lifetime.
+  test.each(["script", "handler", "destroy"] as const)(
+    "a read in the %s doesn't hold a pending atom once the component is destroyed",
+    async (mode) => {
+      const registry = AtomRegistry.make();
+      onTestFinished(() => registry.dispose());
+      const log: string[] = [];
+      const atom = Atom.make((get) => {
+        log.push("start");
+        get.addFinalizer(() => log.push("stop"));
+        return Effect.never;
+      });
+      const screen = await render(SuspenseUnreadDerived, {
+        atom,
+        mode,
+        registry,
+        show: true,
+      });
+      if (mode === "handler") {
+        await screen.getByRole("button").click();
+      }
+      if (mode !== "destroy") {
+        await expect.poll(() => log).toEqual(["start"]);
+      }
+      await screen.rerender({ show: false });
+      // Read once it is destroyed, the atom isn't started at all.
+      const after = mode === "destroy" ? [] : ["start", "stop"];
+      await expect.poll(() => log).toEqual(after);
+      await sleep("100 millis");
+      expect(log).toEqual(after);
+    }
+  );
+
+  test("a read after the component is destroyed still gets a result it had settled", async () => {
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const atom = Atom.make(Effect.succeed("x").pipe(Effect.delay("20 millis")));
+    let late: Promise<unknown> | undefined;
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        onDestroy(() => {
+          late = value.current;
+        });
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.poll(text(screen)).toBe("x");
+    await screen.rerender({ show: false });
+    await expect(late).resolves.toBe("x");
+  });
+});
+
 describe("useAtomResult", () => {
   test("suspendOnWaiting makes the first await wait for a refresh in progress (JND-57)", async () => {
     const registry = AtomRegistry.make();
@@ -587,6 +760,28 @@ describe("useAtomResult", () => {
     await expect.poll(text(screen)).toBe("Success:1 10");
     registry.set(writable, 5);
     await expect.poll(text(screen)).toBe("Success:1 15");
+  });
+
+  // "An atom that has not started ... keeps the await pending in the browser until something writes it."
+  test("an Atom.fn nobody has called keeps the await pending until something writes it", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: async () => {
+        const result = await useAtomResult(double);
+        return () =>
+          result.current._tag === "Success"
+            ? result.current.value
+            : result.current._tag;
+      },
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    await sleep("20 millis");
+    expect(text(screen)()).toBe("pending");
+    registry.set(double, 21);
+    await expect.poll(text(screen)).toBe("42");
   });
 
   test("a getter follows the new atom without re-running the top-level await", async () => {

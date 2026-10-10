@@ -61,4 +61,5 @@ export {
   AtomRegistry,
   AtomRpc,
   Hydration,
+  Reactivity,
 } from "effect/reactivity";

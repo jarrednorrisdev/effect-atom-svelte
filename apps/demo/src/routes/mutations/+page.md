@@ -116,7 +116,7 @@ To stop the call itself, write `Atom.Interrupt`, below.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 
-With `"promise"` or `"promiseExit"`, a mutation still running when its component is destroyed runs to the end, because the promise keeps the atom alive. With the default mode nothing does, so the registry disposes of the atom and interrupts the call. Navigating away mid-save then abandons the save.
+With `"promise"` or `"promiseExit"`, a mutation still running when its component is destroyed runs to the end, because the promise keeps the atom alive, as long as its registry lives on. If the RegistryProvider that created the registry is destroyed, the call is interrupted and the promise settles as interrupted. A registry you pass in yourself is yours to dispose of; disposing of it leaves pending promises waiting. With the default mode nothing keeps the atom alive, so the registry disposes of the atom and interrupts the call. Navigating away mid-save then abandons the save.
 
 To keep a mutation whatever the mode, make it with `Atom.keepAlive`, as in `Atom.fn(saveTodo).pipe(Atom.keepAlive)`. The registry then never disposes of it, so its calls finish and its last result stays.
 
@@ -135,7 +135,7 @@ setSave(Atom.Reset);
 
 After **Cancel**, the mutation's state is a `Failure` whose cause is an interruption, so every promise waiting on it settles as interrupted: `"promise"` rejects, and `"promiseExit"` resolves with a failed `Exit`. Try it in the example above, during a save.
 
-Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: TypeScript rejects it, and if a call gets past the types, its promise rejects.
+Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: TypeScript rejects it, and if a call gets past the types, its promise rejects. A reset written while a promise-mode call is pending settles that promise as interrupted. To cancel a call, write `Atom.Interrupt`, as above.
 
 ## Reporting progress
 
