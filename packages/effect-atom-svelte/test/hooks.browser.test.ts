@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Stream } from "effect";
 import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { onDestroy, onMount } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
@@ -308,6 +308,37 @@ describe("useAtomSet", () => {
     const exit = run(undefined, { signal: controller.signal });
     controller.abort();
     await expect(exit).resolves.toMatchObject({ _tag: "Failure" });
+  });
+
+  test("an abort signal cancels only the wait: the call keeps running", async () => {
+    const registry = AtomRegistry.make();
+    const gate = Deferred.makeUnsafe<undefined>();
+    const save = Atom.fn((value: string) =>
+      Deferred.await(gate).pipe(Effect.as(value))
+    );
+    let run!: (
+      value: string,
+      options?: { signal?: AbortSignal }
+    ) => Promise<Exit.Exit<string>>;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        run = useAtomSet(save, { mode: "promiseExit" });
+        return () => "";
+      },
+    });
+    const controller = new AbortController();
+    const exit = run("draft", { signal: controller.signal });
+    controller.abort();
+    const settled = await exit;
+    expect(
+      Exit.isFailure(settled) && Cause.hasInterruptsOnly(settled.cause)
+    ).toBe(true);
+    // The component still holds the fn, which finishes once let through.
+    Deferred.doneUnsafe(gate, Effect.succeed(undefined));
+    await expect
+      .poll(() => registry.get(save))
+      .toMatchObject({ _tag: "Success", value: "draft" });
   });
 
   describe.each(["promise", "promiseExit"] as const)(
@@ -796,6 +827,49 @@ describe("mounting and lifecycle", () => {
     readThenWrite?.();
     await sleep("20 millis");
     expect(seen).toEqual([1, 2]);
+  });
+
+  // "Still queued only if `f` threw: the rest goes out on the next microtask."
+  test("useAtomSubscribe still delivers the changes queued behind one whose callback threw", async () => {
+    const errors: unknown[] = [];
+    // The throw surfaces from the microtask that delivered it.
+    const onError = (event: ErrorEvent) => {
+      event.preventDefault();
+      errors.push(event.error);
+    };
+    window.addEventListener("error", onError);
+    onTestFinished(() => window.removeEventListener("error", onError));
+    const registry = AtomRegistry.make();
+    const watched = Atom.make(0);
+    const read = Atom.make((get) => {
+      get.set(watched, 1);
+      return "read";
+    });
+    const seen: number[] = [];
+    let readThenWrite: (() => void) | undefined;
+    await render(Harness, {
+      registry,
+      setup: () => {
+        useAtomSubscribe(watched, (value) => {
+          seen.push(value);
+          if (value === 1) {
+            throw new Error("callback failed");
+          }
+        });
+        const value = useAtomValue(read);
+        // The read's change is deferred, and the writes after it queue behind it.
+        readThenWrite = () => {
+          void value.current;
+          registry.set(watched, 2);
+          registry.set(watched, 3);
+        };
+        return () => "";
+      },
+    });
+    readThenWrite?.();
+    await sleep("20 millis");
+    expect(seen).toEqual([1, 2, 3]);
+    expect(errors).toEqual([new Error("callback failed")]);
   });
 
   test("useAtomSubscribe drops a deferred change once the component is destroyed", async () => {

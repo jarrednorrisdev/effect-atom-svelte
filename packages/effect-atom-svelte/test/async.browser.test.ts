@@ -151,6 +151,65 @@ describe("useAtomSuspense", () => {
     expect(first).toBe(second);
   });
 
+  // "A refresh issues a new promise even if its value is equal."
+  test("a refresh issues a new promise even when the value is equal", async () => {
+    const registry = AtomRegistry.make();
+    let calls = 0;
+    const atom = Atom.make(
+      Effect.sync(() => {
+        calls += 1;
+        return "same";
+      }).pipe(Effect.delay("20 millis"))
+    );
+    // The promises read while the result was settled, not Initial or refreshing.
+    const settled: Promise<string>[] = [];
+    let refresh!: () => void;
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        refresh = useAtomRefresh(atom);
+        return () => {
+          const promise = value.current;
+          const result = registry.get(atom);
+          if (result._tag === "Success" && !result.waiting) {
+            settled.push(promise);
+          }
+          return promise;
+        };
+      },
+    });
+    await expect.poll(text(screen)).toBe("same");
+    await expect.poll(() => settled.length).toBeGreaterThan(0);
+    const [before] = settled;
+    refresh();
+    await expect.poll(() => calls).toBe(2);
+    // Compared in the callback: expect.poll would await a promise it returned.
+    await expect.poll(() => settled.at(-1) === before).toBe(false);
+    await expect(settled.at(-1)).resolves.toBe("same");
+    expect(text(screen)()).toBe("same");
+  });
+
+  // "An atom that has not started ... stays pending in the browser until something writes it."
+  test("an Atom.fn nobody has called stays pending until something writes it", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(double);
+        return () => value.current;
+      },
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    await sleep("20 millis");
+    expect(text(screen)()).toBe("pending");
+    registry.set(double, 21);
+    await expect.poll(text(screen)).toBe("42");
+  });
+
   test("a refresh re-runs the await and shows the new value", async () => {
     let calls = 0;
     const atom = Atom.make(
@@ -601,6 +660,28 @@ describe("useAtomResult", () => {
     await expect.poll(text(screen)).toBe("Success:1 10");
     registry.set(writable, 5);
     await expect.poll(text(screen)).toBe("Success:1 15");
+  });
+
+  // "An atom that has not started ... keeps the await pending in the browser until something writes it."
+  test("an Atom.fn nobody has called keeps the await pending until something writes it", async () => {
+    const registry = AtomRegistry.make();
+    const double = Atom.fn((n: number) => Effect.succeed(n * 2));
+    const screen = await render(Harness, {
+      async: true,
+      registry,
+      setup: async () => {
+        const result = await useAtomResult(double);
+        return () =>
+          result.current._tag === "Success"
+            ? result.current.value
+            : result.current._tag;
+      },
+    });
+    await expect.poll(text(screen)).toBe("pending");
+    await sleep("20 millis");
+    expect(text(screen)()).toBe("pending");
+    registry.set(double, 21);
+    await expect.poll(text(screen)).toBe("42");
   });
 
   test("a getter follows the new atom without re-running the top-level await", async () => {
