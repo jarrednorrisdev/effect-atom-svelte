@@ -76,6 +76,14 @@ Something assigned `current` on what `useAtomValue`, `useAtomRef` or `useAtomRef
 
 An atom from a runtime failed with a defect such as `Service not found: app/Weather`. The runtime's layer doesn't provide a service the effect uses. This often happens in tests, where a layer given through `initialValues` replaces the runtime's whole layer and isn't type-checked. Add the missing service to the layer. See [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
 
+### "Avoid calling fetch eagerly during server-side rendering"
+
+In development, SvelteKit 3 prints this warning, `ssr_fetch_eager`, when something calls `fetch` while a page renders on the server. An async atom that calls an API does that, so the server's terminal shows the warning once for each render of a page that awaits one. Production builds don't warn, and neither does a `fetch` inside a remote function.
+
+The warning suggests moving the `fetch` into `onMount` or a `load` function, but atoms don't need that. The hooks wait for the atom on the server, and send a serializable atom's result with the page, as `load` would (see [Hydration](/hydration)).
+
+It does point at one real difference: unlike SvelteKit's `fetch` in `load`, this `fetch` doesn't send the visitor's cookies. See [Sending the visitor's credentials](/sveltekit#sending-the-visitors-credentials).
+
 ### Relative URLs on the server
 
 When a page renders on the server, its queries run there too. A client built with a relative URL, such as `/api/rpc`, works in the browser, where the page's origin fills in the rest, but on the server the request fails with an `InvalidUrlError`.
