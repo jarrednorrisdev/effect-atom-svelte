@@ -280,14 +280,13 @@ code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: non
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .legend { margin-top: 6px; font: 10.5px var(--mono); color: var(--muted-fg); }
 .graph.windowed .legend { margin: 0 11px 8px; }
-.gn, .gl, .gv, .legend, .primer code, .tip code, .text code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+.gn, .gl, .gv, .legend, .primer code, .tip code, .text code, .text p code, .text h3 code, .primer dt code, .primer dd code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 
 /* A box with lane "*": the full width, above the lanes. */
 .diagram > .span { grid-column: 1 / -1; }
 
 /* This diagram's own styles. */
 
-  code { font-variant-ligatures: none; }
   .gate .ann { font: 500 11.5px var(--mono); color: var(--brand-ink); min-height: 1.4em; margin: 4px 0 6px; }
   .gate .ann.idle { color: var(--muted-fg); font-style: italic; }
   .gate .expr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
