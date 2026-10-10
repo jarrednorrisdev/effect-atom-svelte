@@ -183,7 +183,10 @@ Awaiting atoms one after another runs their effects one after another. When they
 
 Svelte restores the component's context after each top-level `await`, so you can call hooks after one. But Svelte stops hydrating at the first `await`, so a serializable atom read after it runs again in the browser instead of starting from the server's result: one more reason to start them together. See [Call hooks before the first await](/hydration#call-hooks-before-the-first-await).
 
-Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. `Effect.all` also stops at the first failure and interrupts the rest, while `useAtomResult` resolves with a `Failure` rather than rejecting, so `Promise.all` and the one-by-one awaits wait for every load:
+Below, each component loads todos and a user, which take a second and a half each. The timelines show when each load starts and ends. The three also differ when a load fails:
+
+- **One by one** and **`Promise.all`** wait for every load, because `useAtomResult` resolves with a `Failure` rather than rejecting.
+- **`Effect.all`** stops at the first failure and interrupts the other loads.
 
 <Example files={[{ html: oneByOneSource, name: "one-by-one.svelte" }, { html: togetherSource, name: "together.svelte" }, { html: combinedSource, name: "combined.svelte" }, { html: awaitsSource, name: "awaits.svelte" }]} hint="Turn on Mount all three: one by one is ready after three seconds, the other two after one and a half. Then turn on Todos fails, which unmounts them, and turn on Mount all three again: only Effect.all interrupts the user's load."> <Awaits /> </Example>
 
