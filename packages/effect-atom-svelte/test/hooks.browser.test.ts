@@ -1650,7 +1650,7 @@ describe("RegistryProvider", () => {
     await expect
       .element(output(screen))
       .toHaveTextContent(
-        "failed: provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself."
+        "failed: provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself. See https://atom.jarrednorris.dev/troubleshooting#provideregistry-takes-an-existing-registry-or-options-for-a-new-one-not-both"
       );
   });
 

@@ -35,13 +35,6 @@
   </HydrationBoundary>
   ```
 -->
-<script module lang="ts">
-  // Per registry, key and queued value, how many live boundaries queued it. Boundaries given the
-  // same state, as a layout and its page might be, queue the same values, and one destroyed first
-  // must leave them for the other's children.
-  const queuedBy = new WeakMap<object, Map<string, Map<unknown, number>>>();
-</script>
-
 <script lang="ts">
   import { Hydration } from "effect/reactivity";
   import type { AtomRegistry } from "effect/reactivity";
@@ -49,6 +42,7 @@
   import { hydratable } from "svelte";
   import type { Snippet } from "svelte";
 
+  import { queuedBy } from "./internal/boundaries.ts";
   import { holdsInitialValue } from "./internal/nodeInternals.ts";
   import { onRenderEnd } from "./internal/renderEnd.ts";
   import { onTeardownAfterChildren } from "./internal/teardown.svelte.ts";

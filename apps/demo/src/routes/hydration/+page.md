@@ -126,7 +126,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 What that means in practice:
 
-- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration, so an atom read only with it is computed again in the browser. It can also cost a second fetch when another component reads the same atom with one of the two hooks: the `useAtomValue` read can start the atom in the browser before the server's result arrives. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
+- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration, so an atom read only with it is computed again in the browser. It can also cost a second fetch when another component reads the same atom with one of the two hooks: the `useAtomValue` read can start the atom in the browser before the server's result arrives. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge. In development, the server warns once per serialization key when `useAtomValue` or `useAtom` reads a serializable async atom that is still running and that the page doesn't send.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.

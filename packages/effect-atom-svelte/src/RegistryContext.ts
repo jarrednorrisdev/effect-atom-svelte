@@ -11,6 +11,7 @@ import { disposeRegistry } from "./internal/disposal.ts";
 import { setRevalidateOnHydrate } from "./internal/hydration.ts";
 import { track } from "./internal/registries.ts";
 import { onTeardownAfterChildren } from "./internal/teardown.svelte.ts";
+import { troubleshooting } from "./internal/troubleshooting.ts";
 
 /**
  * Options for a registry created by `provideRegistry` or `RegistryProvider`: the options of
@@ -64,7 +65,7 @@ export const getRegistry = (): AtomRegistry.AtomRegistry => {
   }
   if (!BROWSER) {
     throw new Error(
-      "No AtomRegistry in context. Wrap the app in <RegistryProvider> so each server request gets its own registry."
+      `No AtomRegistry in context. Wrap the app in <RegistryProvider> so each server request gets its own registry. ${troubleshooting("no-atomregistry-in-context")}`
     );
   }
   if (browserRegistry === undefined) {
@@ -180,7 +181,7 @@ export const provideRegistry = (
   ) {
     // The types rule this out; a caller without them would otherwise lose the options silently.
     throw new Error(
-      "provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself."
+      `provideRegistry takes an existing registry or options for a new one, not both. Apply initialValues to the existing registry yourself. ${troubleshooting("provideregistry-takes-an-existing-registry-or-options-for-a-new-one-not-both")}`
     );
   }
   const registry = provided ?? AtomRegistry.make(registryOptions);

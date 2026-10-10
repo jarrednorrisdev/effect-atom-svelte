@@ -10,6 +10,7 @@ import { render } from "svelte/server";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
 import {
+  useAtom,
   useAtomInitialValues,
   useAtomRef,
   useAtomResult,
@@ -24,6 +25,7 @@ import BoundaryInitial from "./fixtures/boundary-initial.svelte";
 import BoundaryLateInitial from "./fixtures/boundary-late-initial.svelte";
 import BoundaryProvider from "./fixtures/boundary-provider.svelte";
 import HydrateAbove from "./fixtures/hydrate-above.svelte";
+import Hydrate from "./fixtures/hydrate.svelte";
 import { pendingBoundaryComputed } from "./fixtures/pending-boundary.ts";
 import Run from "./fixtures/run.svelte";
 import ServerValueBoundary from "./fixtures/server-value-boundary.svelte";
@@ -183,6 +185,10 @@ const stateWith = (atom: Atom.Atom<number>, value: number) => {
   registry.dispose();
   return state;
 };
+
+// Still running when read, as the unsent-result warning only fires for a result that is waiting.
+const stillRunning = (value: string) =>
+  Effect.succeed(value).pipe(Effect.delay("10 millis"));
 
 describe("server rendering", () => {
   test("awaits an RPC query and embeds its encoded result for hydration", async () => {
@@ -866,6 +872,146 @@ describe("server rendering", () => {
       expect(fetched).toBe(0);
     }
   );
+
+  test("useAtomValue reading a serializable async atom warns once, in development, that its result isn't sent", async () => {
+    const warned = allWarnings();
+    const atom = Atom.make(
+      Effect.succeed("todos").pipe(Effect.delay("10 millis"))
+    ).pipe(
+      Atom.serializable({
+        key: "unsent-value-read",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const read = () => {
+      const value = useAtomValue(atom);
+      return () => value.current._tag;
+    };
+    await renderSetup(read);
+    await renderSetup(read);
+    expect(
+      warned().filter((message) => message.includes("unsent-value-read"))
+    ).toEqual([
+      expect.stringContaining(
+        'useAtomValue read the serializable atom "unsent-value-read" on the server while it was still running'
+      ),
+    ]);
+  });
+
+  test("the async hooks, and reads the browser repeats anyway, don't warn that a result isn't sent", async () => {
+    const warned = allWarnings();
+    const schema = AsyncResult.Schema({ success: Schema.String });
+    const awaited = Atom.make(stillRunning("a")).pipe(
+      Atom.serializable({ key: "sent-by-hook", schema })
+    );
+    const serverValue = Atom.make(stillRunning("b")).pipe(
+      Atom.serializable({ key: "unsent-server-value", schema }),
+      Atom.withServerValueInitial
+    );
+    const initial = Atom.make(stillRunning("c")).pipe(
+      Atom.serializable({ key: "unsent-initial", schema })
+    );
+    const plain = Atom.make(stillRunning("d"));
+    const mutation = Atom.fn((title: string) => Effect.succeed(title)).pipe(
+      Atom.serializable({ key: "unsent-mutation", schema })
+    );
+    await renderSetup(() => {
+      useAtomInitialValues([[initial, AsyncResult.success("c")]]);
+      const values = [serverValue, initial, plain, mutation].map((atom) =>
+        useAtomValue(atom)
+      );
+      const suspended = useAtomSuspense(awaited);
+      const result = useAtomResult(awaited);
+      return (async () => {
+        await result;
+        await suspended.current;
+        return () => values.map((value) => value.current._tag).join(" ");
+      })();
+    });
+    expect(
+      warned().filter((message) => message.includes("on the server"))
+    ).toEqual([]);
+  });
+
+  test("a plain read of a key the same render seeds doesn't warn, and useAtom's read is named", async () => {
+    const warned = allWarnings();
+    const schema = AsyncResult.Schema({ success: Schema.String });
+    const slow = (key: string) =>
+      Atom.make(Effect.succeed(key).pipe(Effect.delay("10 millis"))).pipe(
+        Atom.serializable({ key, schema })
+      );
+    const seeded = slow("seeded-and-read");
+    const source = Atom.make(
+      Effect.succeed("bound").pipe(Effect.delay("10 millis"))
+    );
+    const bound = Atom.writable(
+      (get) => get(source),
+      (ctx, value: AsyncResult.AsyncResult<string>) => ctx.setSelf(value)
+    ).pipe(Atom.serializable({ key: "unsent-use-atom", schema }));
+    const constant = Atom.make<AsyncResult.AsyncResult<string>>(
+      AsyncResult.success("kept")
+    ).pipe(Atom.serializable({ key: "unsent-constant", schema }));
+    await renderSetup(() => {
+      const result = useAtomResult(seeded);
+      const badge = useAtomValue(seeded);
+      // Read while the atom still runs, as a badge rendered beside the awaiting component would.
+      void badge.current;
+      const field = useAtom(bound);
+      const fixed = useAtom(constant);
+      return (async () => {
+        await result;
+        return () =>
+          [badge.current, field.current, fixed.current]
+            .map((value) => value._tag)
+            .join(" ");
+      })();
+    });
+    const ours = warned().filter((message) =>
+      message.includes("on the server")
+    );
+    expect(ours).toEqual([
+      expect.stringContaining(
+        'useAtom read the serializable atom "unsent-use-atom" on the server'
+      ),
+    ]);
+  });
+
+  test("useAtomValue reading a value a HydrationBoundary brought doesn't warn: the boundary sends it", async () => {
+    const warned = allWarnings();
+    const atom = Atom.make(Effect.succeed("fetched")).pipe(
+      Atom.serializable({
+        key: "boundary-value-read",
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
+    );
+    const registry = AtomRegistry.make();
+    onTestFinished(() => registry.dispose());
+    const state = [
+      {
+        dehydratedAt: 0,
+        key: "boundary-value-read",
+        value: atom[Atom.SerializableTypeId].encode(
+          AsyncResult.success("from the load")
+        ),
+        "~effect/reactivity/Hydration/DehydratedAtom": true,
+      },
+    ] as unknown as readonly Hydration.DehydratedAtom[];
+    const { body } = await render(Hydrate, {
+      props: {
+        registry,
+        setup: () => {
+          const value = useAtomValue(atom);
+          return () =>
+            value.current._tag === "Success" ? value.current.value : "";
+        },
+        state,
+      },
+    });
+    expect(body).toContain("from the load");
+    expect(
+      warned().filter((message) => message.includes("boundary-value-read"))
+    ).toEqual([]);
+  });
 
   test.each([false, true])(
     "useAtomSuspense (serializable: %s) awaited in the markup at once renders an initial value without computing the atom on the server",
