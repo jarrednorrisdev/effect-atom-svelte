@@ -67,7 +67,7 @@ The request also takes options:
 | Option | Does |
 | --- | --- |
 | `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. See [Refreshing what changed](/mutations#refreshing-what-changed). |
-| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). |
+| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored with a `responseMode` other than the default. |
 | `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
 | `headers` | The endpoint's own headers, typed by its headers schema. Only endpoints that declare one take it. |
 | `responseMode` | What the query succeeds with: the decoded body by default. See the tip under [Mutations](#mutations). |
@@ -102,7 +102,7 @@ await create({
 
 <Aside type="tip" title="Reading the response itself">
 
-Queries and mutations succeed with the decoded body. Set `responseMode` in a query's request, or in `mutation`'s third argument, to change that. `"decoded-and-response"` gives a `[body, response]` pair, so you can read the status or headers. `"response-only"` gives the `HttpClientResponse` without decoding it.
+Queries and mutations succeed with the decoded body. Set `responseMode` in a query's request, or in `mutation`'s third argument, to change that. `"decoded-and-response"` gives a `[body, response]` pair, so you can read the status or headers. `"response-only"` gives the `HttpClientResponse` without decoding it, whatever its status, so the endpoint's [typed errors](#typed-errors) never fail the query: check `response.status` yourself.
 
 A response can't be sent to the browser, so a query's `serializationKey` only applies with the default, `"decoded-only"`, and is ignored with the other two.
 

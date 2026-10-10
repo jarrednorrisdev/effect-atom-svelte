@@ -59,7 +59,7 @@ const todosAtom = Atom.make(fetchTodos).pipe(
 );
 ```
 
-For `AtomRpc` and `AtomHttpApi` queries, pass a `serializationKey` instead. The client builds the schema from the procedure or endpoint:
+For `AtomRpc` and `AtomHttpApi` queries, pass a `serializationKey` instead. The client builds the schema from the procedure or endpoint. It ignores the key for a [streaming procedure](/rpc#streaming-procedures), and for an [HTTP API](/http) query with a `responseMode` other than the default:
 
 ```ts
 const todosAtom = TodosRpc.query("listTodos", undefined, {
