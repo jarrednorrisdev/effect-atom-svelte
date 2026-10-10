@@ -1,9 +1,8 @@
 <script module lang="ts">
   import { Atom } from "effect/reactivity";
 
-  // Kept alive, so each keeps its text while the hook follows the other.
-  const draftAtom = Atom.make("Half a thought").pipe(Atom.keepAlive);
-  const savedAtom = Atom.make("Published post").pipe(Atom.keepAlive);
+  const draftAtom = Atom.make("Half a thought");
+  const savedAtom = Atom.make("Published post");
 </script>
 
 <script lang="ts">
@@ -17,6 +16,7 @@
   // A getter: the hook follows whichever atom the function returns.
   const text = useAtom(() => (followed === "saved" ? savedAtom : draftAtom));
 
+  // These read both atoms all the time, so each keeps its text while the hook follows the other.
   const draft = useAtomValue(draftAtom);
   const saved = useAtomValue(savedAtom);
 </script>

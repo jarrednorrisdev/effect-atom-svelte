@@ -92,7 +92,7 @@ A page rendered from cookies differs from one visitor to the next, so keep it ou
 
 <Example files={[{ html: searchParamSource, name: "search-param.svelte" }]} hint="Type a word and watch the timeline: the atom changes on every key, the URL once, half a second after you stop. Then clear the box: the parameter goes away."> <SearchParam /> </Example>
 
-Writes to the URL are batched, and land half a second after the last change, with `history.pushState`, so each pause in typing adds a history entry. An empty value removes the parameter. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
+Writes to the URL are batched, and land half a second after the last change, with `history.pushState`, so each pause in typing adds a history entry. Changes to several parameters within that half second make one entry. An empty value removes the parameter. The new address keeps the path and the other parameters, but drops any `#hash`. Going back in the browser's history moves the atom to the URL's value again. The [debounced search](/cookbook#debounced-search) recipe in the Cookbook uses `Atom.searchParam` in a live search box.
 
 <Aside type="caution" title="The server reads an empty string">
 
@@ -102,7 +102,7 @@ Writes to the URL are batched, and land half a second after the last change, wit
 
 <Aside type="caution" title="SvelteKit's router doesn't see the change">
 
-`Atom.searchParam` calls `history.pushState` itself, not through SvelteKit. Its history entries carry none of SvelteKit's own state, so SvelteKit doesn't treat them as navigations: `page.url` can keep the old query string, and `load` functions that read it don't run again. In a SvelteKit app, when anything else reads the parameter, keep it in `page.url` instead: read `page.url.searchParams`, and change it with `goto` from `$app/navigation`. Pass `reset: false` so the focus and scroll position stay where they are, and `replace: true` if a change shouldn't add a history entry.
+`Atom.searchParam` calls `history.pushState` itself, not through SvelteKit. Its history entries carry none of SvelteKit's own state, so SvelteKit doesn't treat them as navigations: `page.url` can keep the old query string, and `load` functions that read it don't run again. In a SvelteKit app, when anything else reads the parameter, keep it in `page.url` instead: read `page.url.searchParams`, and change it with `goto` from `$app/navigation`. Pass `reset: false` so the focus and scroll position stay where they are, and `replace: true` if a change shouldn't add a history entry. On SvelteKit 2, those are `keepFocus: true, noScroll: true` and `replaceState: true`.
 
 </Aside>
 

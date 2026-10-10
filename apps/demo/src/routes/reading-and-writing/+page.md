@@ -23,7 +23,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
-The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense), `useAtomMount` in [Lifetimes](/lifetimes), and `useAtomInitialValues` in [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). [Hooks](/reference/Hooks) in the API reference lists them all.
+The other hooks belong to later topics, such as `useAtomSuspense` and `useAtomResult` in [Suspense](/suspense), `useAtomRefresh` in [Async atoms](/async-atoms#running-it-again), `useAtomMount` in [Lifetimes](/lifetimes), and `useAtomInitialValues` in [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). [Hooks](/reference/Hooks) in the API reference lists them all.
 
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click +, − or Reset and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
@@ -54,7 +54,7 @@ Pass a function as the second argument to read a value computed from the atom:
 const parity = useAtomValue(countAtom, (n) => (n % 2 === 0 ? "even" : "odd"));
 ```
 
-The transform runs for this hook only, and runs again only when the atom, or state the transform reads, changes, so a transform that builds an object returns the same object until then. A read outside markup or `$derived`, such as in an event handler, runs it again. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
+The transform runs for this hook only, and runs again only when the atom, or state the transform reads, changes, so a transform that builds an object returns the same object until then. A read where Svelte doesn't track reactivity, such as in an event handler, runs it again. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
 
 ## Reading and writing
 
@@ -101,9 +101,20 @@ A write from an event handler updates every reader at once: the handler's next l
 
 </Aside>
 
+### Writing several atoms at once
+
+Because each write notifies readers at once, two writes in a row pass through a state in between. Write `firstAtom` and then `lastAtom`, and an atom derived from both holds `"Grace Lovelace"` before `"Grace Hopper"`. The page itself shows only the end result, as Svelte updates it once after the handler, but a [`useAtomSubscribe`](#running-code-on-every-change) callback sees both. `Atom.batch` makes the writes one update, and readers are notified once, after the last:
+
+```ts
+Atom.batch(() => {
+  setFirst("Grace");
+  setLast("Hopper");
+});
+```
+
 ## Following a different atom
 
-Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
+Every hook that takes one atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
 
 ```svelte
 <script lang="ts">
@@ -115,7 +126,7 @@ Every hook that takes an atom also accepts a **getter**: a function that returns
 
 <Example files={[{ html: followSource, name: "follow.svelte" }]} hint="Type in the box: it writes draftAtom. Then click savedAtom and type again: the same hook now reads and writes savedAtom, and draftAtom keeps what you typed."> <Follow /> </Example>
 
-When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. The example keeps both with `Atom.keepAlive`. See [Lifetimes](/lifetimes).
+When the hook moves to another atom, it lets go of the old one, and the registry disposes of it if nothing else holds it. In the example, the two readers beside the input hold both atoms, so neither loses its text. See [Lifetimes](/lifetimes).
 
 Passing `followed === "saved" ? savedAtom : draftAtom` directly, without the function, would pick an atom once, when the component is created. [Families](/families) build on getters to give each key its own atom.
 
@@ -132,3 +143,7 @@ The function isn't called for the value the atom already has, only for changes. 
 The function may write `$state`. Svelte forbids writing state while it renders, so a change that arrives while a hook is reading an atom, as during a render, reaches the function on the next microtask instead.
 
 <Example files={[{ html: autosaveSource, name: "autosave.svelte" }]} hint="Type a note: every keystroke is a change, so every keystroke is saved. The first entry came from immediate, when the example mounted."> <Autosave /> </Example>
+
+## Outside a component
+
+The hooks only work while a component initializes. To read or write atoms from a plain function, such as a module's `save()` that an event handler calls, call `getRegistry()` while the component initializes and pass the registry along. It has `get`, `set` and `refresh`, among others. See [Write atoms from a plain function](/cookbook#write-atoms-from-a-plain-function).

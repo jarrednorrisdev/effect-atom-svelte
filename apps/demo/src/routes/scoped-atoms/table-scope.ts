@@ -44,8 +44,8 @@ export const Table = ScopedAtom.make(
     }
   ) => {
     const initial: TableState = {
-      descending: false,
       ...options,
+      descending: options.descending ?? false,
       page: 0,
       pageSize: 4,
       query: "",

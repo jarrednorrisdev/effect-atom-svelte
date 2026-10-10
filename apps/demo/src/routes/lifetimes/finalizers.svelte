@@ -28,6 +28,7 @@
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
+  import { onDestroy } from "svelte";
 
   import Reader from "./reader.svelte";
   import TimersPanel from "./timers-panel.svelte";
@@ -35,7 +36,8 @@
 
   const tickInterval = useAtom(tickIntervalAtom);
   let shown = $state(false);
-  let finalizer = $state(true);
+  // Starts from the module's switch, which outlives the component.
+  let finalizer = $state(withFinalizer);
 
   // Applies from the next computation: the current one already chose.
   const toggleFinalizer = () => {
@@ -46,6 +48,8 @@
     shown = false;
     resetTimers();
   };
+  // Timers left running on purpose stop when you leave the page.
+  onDestroy(resetTimers);
 </script>
 
 <div class="flex flex-wrap items-center gap-2">

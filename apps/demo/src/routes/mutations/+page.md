@@ -42,6 +42,12 @@ Writing an argument to the atom runs the effect. Reading the atom gives its `Asy
 
 If you write again while a call is still running, the new call interrupts the old one.
 
+The argument's type comes from the function's parameter. A mutation without one takes no argument, so its setter is called as `save()`. To give the type up front instead of on the parameter, pass it to `Atom.fn` first:
+
+```ts
+const saveAtom = Atom.fn<Todo>()((todo) => saveTodo(todo));
+```
+
 The function also receives `get`, as its second argument. In a mutation, `get(atom)` reads an atom's current value without subscribing to it, so a change to that atom doesn't run the mutation again. `get.set(atom, value)` writes to an atom, and `get.result(atom)` is an effect that gives an async atom's value once it has one, or fails with its error:
 
 **Example** (Reading another atom when the call starts)
@@ -69,7 +75,7 @@ The example under [Waiting for the result](#waiting-for-the-result) reads its **
 <button disabled={saving.current.waiting} onclick={() => save(todo)}>Save</button>
 ```
 
-`useAtomSet` keeps the mutation mounted for as long as the component lives, so its result is still there when you read it.
+`useAtomSet` [holds](/lifetimes#held-atoms) the mutation for as long as the component lives, so its result is still there when you read it.
 
 ## Waiting for the result
 
@@ -91,11 +97,22 @@ Pass `{ concurrent: true }` as `Atom.fn`'s second argument, and a new call doesn
 
 <Aside type="caution" title="Concurrent calls share one result">
 
-A concurrent mutation still has one result. Each call starts straight away, but the result after it waits until every call still running has finished, and is the result of the oldest of them. So when two calls overlap, both promises settle with the first call's result, and the second call's own result is never seen. A call made once the others have finished gets its own.
+A concurrent mutation still has one result, and it changes only once no call is running. Say call A starts, then call B starts before A has finished:
+
+1. B finishes first. The result stays `waiting`, because A is still running.
+2. A finishes. The result becomes A's, and both promises settle with it. B's own result is never seen.
+
+A call made once the others have finished gets its own result.
 
 </Aside>
 
-To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting stops the wait, not the call: the promise settles as interrupted, but the call keeps running while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call. A signal that is already aborted settles the promise the same way without starting the call, as `fetch` does. To stop the call itself, write `Atom.Interrupt`, below.
+To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting stops the wait, not the call:
+
+- The promise settles as interrupted.
+- The call keeps running while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation, which interrupts the call.
+- A signal that is already aborted settles the promise the same way without starting the call, as `fetch` does.
+
+To stop the call itself, write `Atom.Interrupt`, below.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 
@@ -120,11 +137,63 @@ After **Cancel**, the mutation's state is a `Failure` whose cause is an interrup
 
 Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: TypeScript rejects it, and if a call gets past the types, its promise rejects. A reset written while a promise-mode call is pending settles that promise as interrupted. To cancel a call, write `Atom.Interrupt`, as above.
 
+## Reporting progress
+
+A mutation's function can return a `Stream` instead of an effect. Each item the stream emits becomes the mutation's result, a `Success` that is still `waiting`, and the last item stays as the final result when the stream ends. That suits an upload that reports how much it has sent:
+
+**Example** (An upload with progress)
+
+```ts
+import { Cause, Data, Effect, Queue, Stream } from "effect";
+import { Atom } from "effect/reactivity";
+
+class UploadFailed extends Data.TaggedError("UploadFailed")<{
+  readonly status: number;
+}> {}
+
+export const uploadAtom = Atom.fn((file: File) =>
+  Stream.callback<{ sent: number; total: number }, UploadFailed>((queue) =>
+    Effect.acquireRelease(
+      Effect.sync(() => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (event) => {
+          Queue.offerUnsafe(queue, { sent: event.loaded, total: event.total });
+        };
+        xhr.onload = () => {
+          if (xhr.status < 300) {
+            // A last item, also for a file sent before any progress event.
+            Queue.offerUnsafe(queue, { sent: file.size, total: file.size });
+            Queue.endUnsafe(queue);
+          } else {
+            const error = new UploadFailed({ status: xhr.status });
+            Queue.failCauseUnsafe(queue, Cause.fail(error));
+          }
+        };
+        // A network or CORS failure has no response, so no status.
+        xhr.onerror = () => {
+          const error = new UploadFailed({ status: 0 });
+          Queue.failCauseUnsafe(queue, Cause.fail(error));
+        };
+        xhr.open("POST", "/api/upload");
+        xhr.send(file);
+        return xhr;
+      }),
+      // Runs when the stream stops, so interrupting the call aborts the upload.
+      (xhr) => Effect.sync(() => xhr.abort())
+    )
+  )
+);
+```
+
+`fetch` can't report an upload's progress, so this uses `XMLHttpRequest`. Read the mutation with `useAtomValue`: while `current` is a `Success` with `waiting` set, `current.value.sent` and `current.value.total` say how far it has got.
+
+Offer at least one item: a stream that ends without one fails with `NoSuchElementError`. Writing `Atom.Interrupt` stops the stream, and its release aborts the request. The upload listener makes a request to another origin send a CORS preflight first, so the server must answer it.
+
 ## Refreshing what changed
 
 After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again.
 
-`Atom.withReactivity` tags the query, as in `todos.ts` below. The `reactivityKeys` option belongs to mutations made by a [runtime](/services), so create one with `Atom.runtime`, even if its layer is empty. A failed call invalidates nothing.
+`Atom.withReactivity` tags the query, as in `todos.ts` below. The `reactivityKeys` option belongs to mutations made by a [runtime](/services), so create one with `Atom.runtime`, even if its layer is empty, as in `Atom.runtime(Layer.empty)`. A failed call invalidates nothing. A mutation can return a `Stream` instead of an effect, and a stream invalidates its keys however it ends, even when it fails or is interrupted.
 
 The diagram under this example follows one request: the mutation runs, succeeds and invalidates the `"todos"` key, and the list, tagged with that key, runs again and brings the new todo. Its requests go to a pretend server in `api.ts`, which takes a moment to answer.
 
@@ -138,7 +207,7 @@ A round trip to the server can make the page feel slow. An **optimistic update**
 
 `Atom.optimistic` wraps the atom to update, and `Atom.optimisticFn` wraps the mutation with a `reducer` that computes the provisional value from the current value and the mutation's argument. Read the optimistic atom instead of the original, and call the wrapped mutation instead of the original one.
 
-While the mutation runs, the optimistic atom holds the reducer's value, marked `waiting`. When the mutation succeeds, the optimistic atom refreshes the original atom, so the mutation needs no `reactivityKeys` for it. When it fails, it goes back to the original atom's value, and the wrapped mutation's state is the `Failure`, so you can say what happened.
+While the mutation runs, the optimistic atom holds the reducer's value, marked `waiting`. When the mutation succeeds, the optimistic atom refreshes the original atom, so the mutation needs no `reactivityKeys` for it. When it fails, it goes back to the original atom's value, and the wrapped mutation's state is the `Failure`, so you can say what happened. As with any mutation, a second call interrupts the first, and the first change rolls back, so the example disables its checkboxes while a save runs.
 
 The example fails on purpose without sending anything: its mutation checks a flag before it calls the pretend server. A real failure, such as a lost connection, rolls back the same way. It reads the same `todosAtom` as the example above, so a todo you added there shows up here.
 

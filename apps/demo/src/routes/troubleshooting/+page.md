@@ -23,6 +23,10 @@ In the browser, a component with no provider above it uses a shared default regi
 
 The hooks find the registry through Svelte's context, which is only available while a component initializes. Svelte throws `lifecycle_outside_component` when a hook is called later, such as from an event handler, a `setTimeout`, or after an `await` inside a function of your own. Call hooks at the top level of the script. To use the registry later, keep what the hook returns, or call [`getRegistry()`](/cookbook#write-atoms-from-a-plain-function) at the top level and keep the registry.
 
+### "used outside of the component that provides it"
+
+A [scoped atom](/scoped-atoms)'s `use()` found no `provide()` above it, so the component isn't inside one that provides the atom. The message names the scoped atom when `ScopedAtom.make` was given a `name`. Call `provide()` in a component that wraps every component calling `use()`, such as the table around its rows, and call both at the top level of the script.
+
 ### Async mode is not turned on
 
 Without async mode, Svelte reports one of two errors. The compiler rejects an `await` in markup, `$derived` or at the top level of a script:
@@ -56,9 +60,17 @@ It usually means a fixed key on an atom that has more than one copy: `Atom.seria
 
 In development, the server warns when a serializable atom's result doesn't encode with its schema, such as a value that fails one of the schema's checks, or a typed error the schema has no `error` for. The page still renders, but the result isn't sent, so the browser computes the atom again. Fix the schema, or the effect, so the two agree. See [Serializable atoms](/hydration#serializable-atoms).
 
+### "doesn't decode with its schema, so the browser computes the atom again"
+
+In development, the browser warns when a result the server sent doesn't decode with the atom's schema. The page still works, but the browser runs the atom's effect again. Either the schema's encoded form doesn't decode back, as with a transformation that only works one way, or the server and the browser use different schemas for the key, such as one picked with `import.meta.env.SSR`. Check that the schema decodes what it encodes, and that both sides define the atom the same way.
+
 ### "useAtomSuspense read an atom whose server value is pending"
 
 On the server, `useAtomSuspense` read an atom whose [server value](/server-rendering#server-values) is `Initial`, as with `Atom.withServerValueInitial`. The server never runs such an atom, so it has nothing to render. Read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead, or read it with `useAtomResult`.
+
+### "read an atom that has not started on the server"
+
+On the server, `useAtomResult` or `useAtomSuspense` read an atom whose result is `Initial` with nothing running it, such as an `Atom.fn` no one has called. Nothing would start it during the render, so instead of waiting forever, the hook rejects. Read the atom with `useAtomValue`, which renders `Initial`, or read it inside a `<svelte:boundary>` with a `pending` snippet, which the server renders instead. See [Server values](/server-rendering#server-values).
 
 ### "got no value from the server, so it runs again in the browser"
 
@@ -68,13 +80,33 @@ A `useAtomResult` or `useAtomSuspense` call came after a top-level `await` in it
 
 A `RegistryProvider` or `provideRegistry` got a `registry` along with `initialValues`, `scheduleTask`, `timeoutResolution` or `defaultIdleTTL`. Those options only apply to a registry the provider creates. Pass them to `AtomRegistry.make` when you create the registry instead.
 
+### "RegistryProvider reads its props once"
+
+In development, a `RegistryProvider` warns when its `registry` or `revalidateOnHydrate` prop changes after it has created its registry. The provider reads its props once, so the change does nothing. To switch to a new registry, remount the provider with `{#key}`, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
+
 ### "This atom value is read-only"
 
 Something assigned `current` on what `useAtomValue` or `useAtomSuspense` returned, or on what `useAtomRef` returned for a read-only ref, such as one from `map`, for example with `bind:value`. Those only read. Use `useAtom` to read and write an atom. For a ref, `useAtomRef` and `useAtomRefPropValue` read and write a writable ref or one of its properties.
 
+### "cannot wait for Atom.Reset"
+
+A setter from `useAtomSet` with `mode: "promise"` or `"promiseExit"` was given `Atom.Reset`. After a reset the result is `Initial`, which never settles, so the promise would never resolve. TypeScript rejects the call; this error is for one that gets past the types. Reset with a setter in the default `"value"` mode. See [Canceling and resetting](/mutations#canceling-and-resetting).
+
+### "registry is disposed"
+
+Something read or wrote an atom through a registry that has been disposed. A `RegistryProvider` disposes of the registry it created when it is destroyed, such as when `{#key}` remounts it. Code that kept that registry, say from [`getRegistry()`](/cookbook#write-atoms-from-a-plain-function), and uses it afterwards gets this error. Get the registry again from a component below the new provider, or stop the work when the component that started it is destroyed.
+
 ### "Service not found"
 
 An atom from a runtime failed with a defect such as `Service not found: app/Weather`. The runtime's layer doesn't provide a service the effect uses. This often happens in tests, where a layer given through `initialValues` replaces the runtime's whole layer and isn't type-checked. Add the missing service to the layer. See [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
+
+### "Avoid calling fetch eagerly during server-side rendering"
+
+In development, SvelteKit 3 prints this warning, `ssr_fetch_eager`, when something calls `fetch` while a page renders on the server. An async atom that calls an API does that, so the server's terminal shows the warning once for each render of a page that awaits one. Production builds don't warn, and neither does a `fetch` inside a remote function.
+
+The warning suggests moving the `fetch` into `onMount` or a `load` function, but atoms don't need that. The hooks wait for the atom on the server, and send a serializable atom's result with the page, as `load` would (see [Hydration](/hydration)).
+
+It does point at one real difference: unlike SvelteKit's `fetch` in `load`, this `fetch` doesn't send the visitor's cookies. See [Sending the visitor's credentials](/sveltekit#sending-the-visitors-credentials).
 
 ### Relative URLs on the server
 

@@ -19,6 +19,7 @@
       top
     >
       <button
+        aria-label="Read clockAtom in Reader {name}"
         aria-pressed={reading[name]}
         data-cue={reading[name] ? "interrupt" : "start"}
         onclick={() => (reading[name] = !reading[name])}

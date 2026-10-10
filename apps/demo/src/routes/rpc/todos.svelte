@@ -22,14 +22,16 @@
   // await settles, after hydration, and would clear text typed before then.
   let draft = $state("");
 
-  // Server rendering waits for the list.
-  const todos = await useAtomResult(todosAtom);
   // For the list's counter: each time the query fetches from the browser.
   const requests = new RequestCount(() => todosAtom);
 
   const creating = useAtomValue(createAtom);
   const create = useAtomSet(createAtom, { mode: "promiseExit" });
   const toggle = useAtomSet(toggleAtom);
+
+  // Server rendering waits for the list. The other hooks come first: a hook called after the
+  // await misses the server's results (see Hydration).
+  const todos = await useAtomResult(todosAtom);
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();

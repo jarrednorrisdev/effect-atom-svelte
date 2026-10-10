@@ -48,9 +48,15 @@ To read other atoms first, pass a function that receives `get` and returns the e
 const todoAtom = Atom.make((get) => fetchTodo(get(selectedIdAtom)));
 ```
 
-To wait for another async atom's value inside the effect, use `get.result(atom)`. It returns an `Effect` that waits for the atom's result, and fails with its error if it fails: see [Dependent queries](/cookbook#dependent-queries).
-
 The live example reads the **Drop the die** toggle this way. Turn it on, and the atom runs its effect again, which now fails.
+
+`todoAtom` is one atom that follows the selected id. For an atom per id, so that two todos can be on the page at once, each with its own result, use a [family](/families):
+
+```ts
+const todoAtom = Atom.family((id: number) => Atom.make(fetchTodo(id)));
+```
+
+To wait for another async atom's value inside the effect, use `get.result(atom)`. It returns an `Effect` that waits for the atom's result, and fails with its error if it fails: see [Dependent queries](/cookbook#dependent-queries).
 
 ## AsyncResult
 
@@ -159,11 +165,28 @@ const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
 const searchAtom = Atom.make(search).pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the settings load once per registry, which is once per session in the browser. The search result is kept for a minute after you navigate away, so going back within that minute shows it straight away.
+Here the settings load once per registry, which is once per visit in the browser. The search result is kept for a minute after you navigate away, so going back within that minute shows it straight away.
 
 The live example has these two atoms on a dashboard, with the TTL cut to 3 seconds, beside a plain `weatherAtom`. A help page reads none of them. The cards below the pages count how many times each request has run, and show what the registry holds for each atom.
 
 <Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Open the dashboard, then go to Help and back. weatherAtom loads again every time, settingsAtom never does, and searchAtom loads again only if you stayed away longer than its 3 seconds."> <Kept /> </Example>
+
+### Showing a kept result, then refreshing it
+
+Keeping a result decides how long it stays in memory, not how long it counts as fresh. `Atom.swr` adds that: when something reads the atom and its result is older than `staleTime`, it shows the result it has at once and runs the effect again in the background. Keep the source with an idle TTL or `Atom.keepAlive`, so there is a result to show:
+
+```ts
+const searchAtom = Atom.make(search).pipe(
+  Atom.setIdleTTL("10 minutes"),
+  Atom.swr({
+    staleTime: "1 minute",
+    revalidateOnFocus: true,
+    focusSignal: Atom.windowFocusSignal,
+  })
+);
+```
+
+Back within a minute, the page shows the kept result and fetches nothing. Later than that, it shows the kept result and fetches a fresh one, which replaces it when it arrives. `revalidateOnFocus` does the same check when the tab comes back, and needs a `focusSignal` to know when that is; pass `"always"` to fetch on every return. The atom `swr` returns isn't serializable, even when its source is, so its server-rendered result isn't sent with the page.
 
 ## Releasing resources
 

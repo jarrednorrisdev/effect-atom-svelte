@@ -95,7 +95,7 @@ This matters because object keys are usually built fresh: in the example below, 
 
 Try it below. Both editors keep one draft per document and language, one in a family and one in a `Map`:
 
-<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Click lang: fr, then lang: en: the family gives your draft back, while the Map shows an empty one and counts more atoms than keys."> <SameKey /> </Example>
+<Example files={[{ html: sameKeySource, name: "same-key.svelte" }]} hint="Type a draft in both editors. Switch lang to fr, then back to en: the family gives your draft back, while the Map shows an empty one and counts more atoms than keys."> <SameKey /> </Example>
 
 ## Keeping a family's atoms
 

@@ -26,7 +26,7 @@ import { Atom } from "effect/reactivity";
 const countAtom = Atom.make(0);
 ```
 
-The atom is only a description. Its value lives in the registry you set up in [Installation](/installation), so the same atom can have a different value in each registry: one per request on the server, one per session in the browser.
+The atom is only a description. Its value lives in the registry you set up in [Installation](/installation), so the same atom can have a different value in each registry: one per request on the server, one per visit in the browser.
 
 Define atoms once, outside your components. A plain `.ts` module works, and so does a component's `<script module>`, which runs once rather than once per instance. An atom created inside a component's `<script>` would be a new atom for every instance, each with its own value. That is occasionally what you want: see [Scoped atoms](/scoped-atoms).
 
@@ -50,9 +50,42 @@ Reading `count.current` in the markup subscribes to the atom, so the button upda
 
 Every component that reads `countAtom` from the same registry sees the same value. In the example above, `counters.svelte` renders `<Counter>` twice, and both instances read the atom defined in `counter.svelte`'s module script.
 
+To try it in your own app, with the `RegistryProvider` from [Installation](/installation#add-a-registry) in place, this is the counter without the example's styling:
+
+```svelte
+<!-- src/lib/counter.svelte -->
+<script module lang="ts">
+  import { Atom } from "effect/reactivity";
+
+  const countAtom = Atom.make(0);
+</script>
+
+<script lang="ts">
+  import { useAtom } from "effect-atom-svelte";
+
+  const count = useAtom(countAtom);
+</script>
+
+<button onclick={() => (count.current += 1)}>{count.current}</button>
+```
+
+Render it twice, and clicking either button updates both:
+
+```svelte
+<!-- src/routes/+page.svelte -->
+<script lang="ts">
+  import Counter from "$lib/counter.svelte";
+</script>
+
+<Counter />
+<Counter />
+```
+
 ### Compared with module state
 
-In Svelte 5 you could share the counter without atoms, as `export const counter = $state({ count: 0 })` in a `.svelte.ts` module. In the browser the two behave the same. They differ in two ways:
+In Svelte 5 you could share the counter without atoms, as `export const counter = $state({ count: 0 })` in a `.svelte.ts` module. Both update every reader at once, but they differ in two ways:
 
 - On the server, a module is shared by every request, so one visitor's count would show up in another visitor's page. Each request gets its own registry, and so its own count. [Module state is shared between visitors](/server-rendering#module-state-is-shared-between-visitors) shows this in detail.
 - When no component reads an atom any more, the registry disposes of its value once the current task ends, so it starts again from its initial value; module state keeps its value forever. Turn off **Show counters** in the example, then turn it on again: the count starts again from 0. [Lifetimes](/lifetimes) explains why, and how to keep a value with `Atom.keepAlive`.
+
+[Reading and writing](/reading-and-writing) covers the other hooks, and how to read an atom without writing it.

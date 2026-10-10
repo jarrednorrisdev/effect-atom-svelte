@@ -89,8 +89,10 @@
         {#each onScreen.current.value as todo (todo.id)}
           <li class="m-0 flex items-center justify-between gap-2">
             <label>
+              <!-- One save at a time: a new call would interrupt the one in flight. -->
               <input
                 checked={todo.done}
+                disabled={saving.current.waiting}
                 onchange={() => toggle(todo.id)}
                 type="checkbox"
               />
