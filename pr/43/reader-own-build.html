@@ -1075,6 +1075,7 @@ Stepper.mount({
         "title": "The contacts page is showing Alice",
         "body": [
           "{{useAtomValue}} reads the selected contact's {{atom|atom}} through a getter, and passes the contact to the transform, which builds object #1 for the card. The transform has run once, for Alice.",
+          "Inside the hook, the transform runs in a {{derived|$derived}}, which keeps object #1 and runs the transform again only when something it read changes: here <code>selected.current<\/code>, read by the getter, and the contact, read through the {{reader|reader}}.",
           "The {{effect|$effect}} read <code>card.current<\/code>, so it ran once too and sent \"opened Alice\"."
         ],
         "note": "The transform builds a new object each run, so the $effect fires on every run."
@@ -1142,7 +1143,7 @@ Stepper.mount({
         },
         "title": "The user clicks Bob",
         "body": [
-          "The click calls <code>setSelected(\"bob\")<\/code>, the {{setter|setter}} from <code>useAtomSet<\/code>, which sets <code>selectedAtom<\/code> to <code>\"bob\"<\/code>. <code>selected.current<\/code> changes, so Svelte re-runs the transform's {{derived|$derived}}, which reads through the reader again."
+          "The click calls <code>setSelected(\"bob\")<\/code>, the {{setter|setter}} from <code>useAtomSet<\/code>, which sets <code>selectedAtom<\/code> to <code>\"bob\"<\/code>. <code>selected.current<\/code> changes, so Svelte re-runs the {{derived|$derived}} inside <code>useAtomValue<\/code> from step 1. The getter now returns Bob's atom, and the {{derived|$derived}} reads it through the reader."
         ],
         "note": "One click, one change. Everything after this should happen once."
       },
