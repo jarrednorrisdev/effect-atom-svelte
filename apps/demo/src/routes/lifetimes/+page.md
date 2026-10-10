@@ -84,7 +84,7 @@ An idle TTL is not exact. The registry groups disposals into time buckets of `ti
 </script>
 ```
 
-The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. Holding an atom that hasn't been computed also computes it: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
+The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. `useAtomMount` also computes an atom that hasn't been computed yet: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
 
 In the live example, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`. The panel beside the app shows what holds the atom at each moment:
 
