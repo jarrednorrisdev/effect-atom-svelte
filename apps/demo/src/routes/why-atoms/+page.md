@@ -293,7 +293,7 @@ Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes 
 {/if}
 ```
 
-You can match on the result like this, or let a `<svelte:boundary>` show failures. See [Errors](/errors) and [Typed errors from RPC and HTTP APIs](/errors#typed-errors-from-rpc-and-http-apis).
+The getter calls `TodosRpc.query` on every read, which is safe because a query is a [family](/families): the same arguments give back the same atom. A getter that called `Atom.make` would make a new atom each time. You can match on the result like this, or let a `<svelte:boundary>` show failures. See [Errors](/errors) and [Typed errors from RPC and HTTP APIs](/errors#typed-errors-from-rpc-and-http-apis).
 
 ## Services, and swapping them in tests
 
@@ -311,7 +311,7 @@ const runtime = Atom.runtime(TodosLayer);
 export const countAtom = runtime.atom(Todos.use((todos) => todos.count));
 ```
 
-A test gives the runtime a different layer, such as a fake API or data held in memory. The layer goes in the provider's `initialValues`, and no module needs mocking. See [Services and runtimes](/services) and [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
+A test gives the runtime a different layer, such as a fake API or data held in memory, as the starting value of the atom `runtime.layer`: `initialValues={[[runtime.layer, FakeTodosLayer]]}` on the provider. No module needs mocking. See [Services and runtimes](/services) and [Replacing a runtime's layer](/testing#replacing-a-runtimes-layer).
 
 ## Why not TanStack Query?
 
