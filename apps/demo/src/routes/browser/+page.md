@@ -102,7 +102,7 @@ Writes to the URL are batched, and land half a second after the last change, wit
 
 <Aside type="caution" title="SvelteKit's router doesn't see the change">
 
-`Atom.searchParam` calls `history.pushState` itself, not through SvelteKit. Its history entries carry none of SvelteKit's own state, so SvelteKit doesn't treat them as navigations: `page.url` can keep the old query string, and `load` functions that read it don't run again. In a SvelteKit app, when anything else reads the parameter, keep it in `page.url` instead: read `page.url.searchParams`, and change it with `goto` from `$app/navigation`. Pass `reset: false` so the focus and scroll position stay where they are, and `replace: true` if a change shouldn't add a history entry.
+`Atom.searchParam` calls `history.pushState` itself, not through SvelteKit. Its history entries carry none of SvelteKit's own state, so SvelteKit doesn't treat them as navigations: `page.url` can keep the old query string, and `load` functions that read it don't run again. In a SvelteKit app, when anything else reads the parameter, keep it in `page.url` instead: read `page.url.searchParams`, and change it with `goto` from `$app/navigation`. Pass `reset: false` so the focus and scroll position stay where they are, and `replace: true` if a change shouldn't add a history entry. On SvelteKit 2, those are `keepFocus: true, noScroll: true` and `replaceState: true`.
 
 </Aside>
 

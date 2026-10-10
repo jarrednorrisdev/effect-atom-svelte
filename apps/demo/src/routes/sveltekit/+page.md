@@ -179,7 +179,7 @@ The provider reads `initialValues` once, when it creates the registry. That is a
 {@render children()}
 ```
 
-The layout's `data` changes when its `load` runs again, so call `refreshAll()` from `$app/navigation` after signing in or out. Other atoms still hold what the previous user saw: to start every atom over, key the provider by the user instead, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
+The layout's `data` changes when its `load` runs again, so call `refreshAll()` from `$app/navigation` after signing in or out (`invalidateAll()` on a SvelteKit 2 version without it). Other atoms still hold what the previous user saw: to start every atom over, key the provider by the user instead, as in [Reset state when the user changes](/cookbook#reset-state-when-the-user-changes).
 
 ### Sending the visitor's credentials
 
