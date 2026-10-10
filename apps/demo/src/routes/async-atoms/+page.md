@@ -171,6 +171,23 @@ The live example has these two atoms on a dashboard, with the TTL cut to 3 secon
 
 <Example files={[{ html: keptSource, name: "kept.svelte" }, { html: keptReaderSource, name: "kept-reader.svelte" }]} hint="Open the dashboard, then go to Help and back. weatherAtom loads again every time, settingsAtom never does, and searchAtom loads again only if you stayed away longer than its 3 seconds."> <Kept /> </Example>
 
+### Showing a kept result, then refreshing it
+
+Keeping a result decides how long it stays in memory, not how long it counts as fresh. `Atom.swr` adds that: when something reads the atom and its result is older than `staleTime`, it shows the result it has at once and runs the effect again in the background. Keep the source with an idle TTL or `Atom.keepAlive`, so there is a result to show:
+
+```ts
+const searchAtom = Atom.make(search).pipe(
+  Atom.setIdleTTL("10 minutes"),
+  Atom.swr({
+    staleTime: "1 minute",
+    revalidateOnFocus: true,
+    focusSignal: Atom.windowFocusSignal,
+  })
+);
+```
+
+Back within a minute, the page shows the kept result and fetches nothing. Later than that, it shows the kept result and fetches a fresh one, which replaces it when it arrives. `revalidateOnFocus` does the same check when the tab comes back, and needs a `focusSignal` to know when that is; pass `"always"` to fetch on every return. The atom `swr` returns isn't serializable, even when its source is, so its server-rendered result isn't sent with the page.
+
 ## Releasing resources
 
 An async atom's effect runs in a `Scope` that lasts as long as the atom's value. Anything the effect acquires with `Effect.acquireRelease` or `Effect.addFinalizer` is released when the atom is disposed, or before its effect runs again:
