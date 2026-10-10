@@ -42,6 +42,20 @@ Dependencies are recorded again on every run, so a `get` inside a condition coun
 
 </Aside>
 
+## Deriving from an async atom
+
+An [async atom](/async-atoms)'s value is an `AsyncResult`: `Initial` while it loads, then a `Success` or a `Failure`. `Atom.mapResult` derives from the value inside a `Success`, and passes the other states through, so the derived atom loads and fails along with its source:
+
+**Example** (Counting the open todos of a query)
+
+```ts
+const openCountAtom = todosAtom.pipe(
+  Atom.mapResult((todos) => todos.filter((todo) => !todo.done).length)
+);
+```
+
+While `todosAtom` refreshes, `openCountAtom` keeps its last count, with `waiting` set. Inside a function, `get(todosAtom)` returns the `AsyncResult` itself, and `AsyncResult.map` maps it the same way.
+
 ## Derived atom or transform?
 
 `useAtomValue` also takes a transform, `useAtomValue(countAtom, (n) => n * 2)`. The two differ in where the result lives:
