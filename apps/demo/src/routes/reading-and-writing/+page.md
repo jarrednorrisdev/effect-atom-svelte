@@ -101,6 +101,17 @@ A write from an event handler updates every reader at once: the handler's next l
 
 </Aside>
 
+### Writing several atoms at once
+
+Because each write notifies readers at once, two writes in a row pass through a state in between. Write `firstAtom` and then `lastAtom`, and an atom derived from both holds `"Grace Lovelace"` before `"Grace Hopper"`. The page itself shows only the end result, as Svelte updates it once after the handler, but a [`useAtomSubscribe`](#running-code-on-every-change) callback sees both. `Atom.batch` makes the writes one update, and readers are notified once, after the last:
+
+```ts
+Atom.batch(() => {
+  setFirst("Grace");
+  setLast("Hopper");
+});
+```
+
 ## Following a different atom
 
 Every hook that takes one atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
