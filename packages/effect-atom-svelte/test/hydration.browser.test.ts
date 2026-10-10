@@ -32,6 +32,7 @@ import SsrHydrateRefresh from "./fixtures/ssr-hydrate-refresh.svelte";
 import SsrHydrateResult from "./fixtures/ssr-hydrate-result.svelte";
 import SsrHydrate from "./fixtures/ssr-hydrate.svelte";
 import SsrInitialSeed from "./fixtures/ssr-initial-seed.svelte";
+import SsrMixedRevalidate from "./fixtures/ssr-mixed-revalidate.svelte";
 import SsrPendingBoundaryChild from "./fixtures/ssr-pending-boundary-child.svelte";
 import SsrPendingBoundary from "./fixtures/ssr-pending-boundary.svelte";
 import SsrProviderSeed from "./fixtures/ssr-provider-seed.svelte";
@@ -816,6 +817,40 @@ describe("hydrating server output", () => {
       });
       await expect.poll(outputs(second)).toEqual(["a from the browser"]);
       expect(computed).toEqual(["a"]);
+    });
+  });
+
+  describe("two components sharing a serialization key, one asking to revalidate", () => {
+    const path = "/test/fixtures/ssr-mixed-revalidate.svelte";
+    /** Longer than the list's fetch, so a second one would have landed. */
+    const afterFetch = "100 millis";
+
+    // "The atom is fetched again once seeded if any component using the key then asked to revalidate."
+    test("the atom is fetched again once, for both", async () => {
+      computed.length = 0;
+      const target = await hydrateFromServer(path, SsrMixedRevalidate);
+      await expect
+        .poll(outputs(target))
+        .toEqual(["a from the browser", "a from the browser"]);
+      await sleep(afterFetch);
+      expect(computed).toEqual(["a"]);
+    });
+
+    test("the atom isn't fetched again when the one that asked is destroyed before the seed lands", async () => {
+      computed.length = 0;
+      const seed = Deferred.makeUnsafe<unknown>();
+      let value: unknown;
+      const target = await hydrateFromServer(path, SsrMixedRevalidate, () => {
+        const store = hydratables();
+        value = store.get("seeded-list-a");
+        store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
+      });
+      click(target, "hide first");
+      Deferred.doneUnsafe(seed, Effect.succeed(value));
+      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      await sleep(afterFetch);
+      expect(outputs(target)()).toEqual(["a from the server"]);
+      expect(computed).toEqual([]);
     });
   });
 
