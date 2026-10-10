@@ -23,7 +23,7 @@ On a wide screen, the **Atoms** button at the bottom right of the window, or **A
 
 </Aside>
 
-<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="Open Atoms at the bottom right and click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
+<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="On a wide screen, open Atoms at the bottom right; or watch the graph above the example. Click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
 
 ## Installing
 
