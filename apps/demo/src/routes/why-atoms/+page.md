@@ -12,7 +12,7 @@ This page answers what to reach for, runes or atoms, in a Svelte app whose backe
 
 <AtomsGuide />
 
-Each atom row has a section below. Most show the code you'd write without atoms, then the atom, and say what it costs. Two more sections cover services and TanStack Query. Without Effect, you don't need atoms: see [When you don't need atoms](#when-you-dont-need-atoms).
+Each atom row has a section below. Most show the code you'd write without atoms, then the atom, and say what it costs. Two more sections cover services and TanStack Query. The sections preview APIs that later pages explain, and link to them. Without Effect, you don't need atoms: see [When you don't need atoms](#when-you-dont-need-atoms).
 
 ## State shared between components
 
@@ -130,7 +130,7 @@ export const userAtom = Atom.make(currentUser);
 </script>
 ```
 
-The badge and the menu share one run of the effect. `useAtomRefresh` runs it again for both. When neither is on the page, the registry disposes of the atom, and interrupts the effect if it is still running. The next piece of shared state is one more atom, and the layout doesn't change.
+The badge and the menu share one run of the effect, which [`useAtomResult`](/suspense#awaiting-in-the-script) waits for. [`useAtomRefresh`](/async-atoms#running-it-again) runs it again for both. When neither is on the page, the registry disposes of the atom, and interrupts the effect if it is still running. The next piece of shared state is one more atom, and the layout doesn't change.
 
 The server awaits the atom too, so the page renders with the user. Make the atom [serializable](/hydration#serializable-atoms) and the server sends its result with the page, so the browser doesn't run the effect again.
 
@@ -207,7 +207,7 @@ export const createAtom = TodosRpc.mutation("createTodo");
 </script>
 ```
 
-When `createTodo` succeeds, every atom tagged `"todos"` refetches: the list, the stats, a todo by its id. Atoms derived from them update too. The mutation names what changed, not who reads it, so a query added later only needs its tag.
+The `"promiseExit"` mode makes the setter return a promise of the call's result: see [Waiting for the result](/mutations#waiting-for-the-result). When `createTodo` succeeds, every atom tagged `"todos"` refetches: the list, the stats, a todo by its id. Atoms derived from them update too. The mutation names what changed, not who reads it, so a query added later only needs its tag.
 
 **What it costs:** the refetch is a second round trip, after the mutation returns. To show the change before then, apply it optimistically: see [Optimistic updates](/mutations#optimistic-updates) and [Refreshing what changed](/mutations#refreshing-what-changed).
 
@@ -261,7 +261,7 @@ A bell icon and a toast can both read `notificationsAtom`, and they share one st
 
 ## Errors as values
 
-An atom's failure arrives as a typed value, not a thrown error. `Effect.runPromise` throws, so the component gets an `unknown`. You can keep the error typed by hand with `runPromiseExit`, as `UserState` does, but then every class needs an `Exit` and a loading state.
+An atom's failure arrives as a typed value, not a thrown error. `Effect.runPromise` throws, so the component gets an `unknown`. You can keep the error typed by hand with `runPromiseExit`, as `UserState` does, but then every class needs an [`Exit`](/effect-basics#exit-and-cause) and a loading state.
 
 Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes from the procedure's error schema, so a component can tell an expected failure from a dropped connection. Here `getTodo` fails with `TodoNotFound`, or with an `RpcClientError` when the call itself fails:
 
@@ -293,7 +293,7 @@ Each async atom stores an `AsyncResult` instead. Over RPC, the error type comes 
 {/if}
 ```
 
-The getter calls `TodosRpc.query` on every read, which is safe because a query is a [family](/families): the same arguments give back the same atom. A getter that called `Atom.make` would make a new atom each time. You can match on the result like this, or let a `<svelte:boundary>` show failures. See [Errors](/errors) and [Typed errors from RPC and HTTP APIs](/errors#typed-errors-from-rpc-and-http-apis).
+The getter calls `TodosRpc.query` on every read, which is safe because a query is a [family](/families): the same arguments give back the same atom. A getter that called `Atom.make` would make a new atom each time. You can match on the result like this, including a [defect](/errors#three-kinds-of-failure) the type doesn't describe, or let a `<svelte:boundary>` show failures. See [Errors](/errors) and [Typed errors from RPC and HTTP APIs](/errors#typed-errors-from-rpc-and-http-apis).
 
 ## Services, and swapping them in tests
 
