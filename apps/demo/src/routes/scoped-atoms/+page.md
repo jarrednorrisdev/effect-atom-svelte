@@ -122,4 +122,4 @@ export const Table = ScopedAtom.make((name: string) => tableState(name), {
 
 The parts don't change. The family decides which atom a name gets and how long it lives: mount the Orders table again and it gets the same atom back, with its sort and page as the reader left them. The scoped atom decides who can reach it: only the components inside that table. Two tables provided with the same name now share their state, which is what the name means here.
 
-Server-rendered data is a common case for this combination: a scoped atom whose atom is serializable makes the server render throw as soon as two copies share an input. See [Scoped atoms](/hydration#scoped-atoms) on the Hydration page.
+Server-rendered data is a common case for this combination: if a scoped atom's atom is serializable, two providers that make atoms with the same key, such as two with the same input, make the server render throw. See [Scoped atoms](/hydration#scoped-atoms) on the Hydration page.

@@ -69,7 +69,7 @@ const todosAtom = TodosRpc.query("listTodos", undefined, {
 
 <Aside type="caution" title="One key, one atom">
 
-Two different atoms with the same key on one page make the server render throw. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
+Two different atoms with the same key make the server render throw, when both are read with `useAtomResult` or `useAtomSuspense`. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
 
 The keys go to Svelte's `hydratable`, which everything on the page shares, other libraries included. Give yours a prefix of your own, such as `app/`. `AtomRpc` and `AtomHttpApi` prefix theirs with a fixed word and the procedure or endpoint: `AtomRpc:${tag}:${serializationKey}` and `AtomHttpApi:${group}:${endpoint}:${serializationKey}`. So `serializationKey: "todos"` on `listTodos` becomes `AtomRpc:listTodos:todos`.
 
