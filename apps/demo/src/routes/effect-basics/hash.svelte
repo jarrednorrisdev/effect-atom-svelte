@@ -13,7 +13,7 @@
 
   // crypto.subtle.digest is a promise API. tryPromise runs it when the effect
   // runs, and turns a rejection into a typed error.
-  // Effect<string, UnsupportedAlgorithm>
+  // Returns an Effect<string, UnsupportedAlgorithm>.
   const digest = (algorithm: string, text: string) =>
     Effect.tryPromise({
       catch: () => new UnsupportedAlgorithm({ algorithm }),

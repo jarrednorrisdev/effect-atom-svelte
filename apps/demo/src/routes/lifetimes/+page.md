@@ -63,7 +63,7 @@ const sidebarOpenAtom = Atom.make(true).pipe(Atom.keepAlive);
 const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
+Here the sidebar keeps its state for as long as the registry lives, which is the whole visit in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
 
 An idle TTL is not exact. The registry groups disposals into time buckets of `timeoutResolution` milliseconds, a `RegistryProvider` option that defaults to 1000, or to half of `defaultIdleTTL` when that is set. An atom can stay up to about two buckets past its TTL.
 
@@ -84,7 +84,7 @@ An idle TTL is not exact. The registry groups disposals into time buckets of `ti
 </script>
 ```
 
-The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. Holding an atom that hasn't been computed also computes it: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
+The component is one holder among others. Once it unmounts, the atom is disposed as soon as nothing else holds it, just as when its last reader goes. `useAtomMount` also computes an atom that hasn't been computed yet: a derived atom runs its function, and an atom built from an `Effect` starts it, though nothing reads the result.
 
 In the live example, a tiny app has a layout and two pages, and only the chat page reads `messagesAtom`. The panel beside the app shows what holds the atom at each moment:
 
@@ -110,6 +110,6 @@ Finalizers run when the atom is disposed, and also before it computes again beca
 
 In the live example, `tickCountAtom` starts a timer each time it computes, and its finalizer stops it. It reads `tickIntervalAtom`, so changing the interval makes it compute again, and hiding the clock disposes of it. Every timer it has started is listed beside the clock. Turn the finalizer off to see what it prevents:
 
-<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Show the clock, click 0.25 s, then hide the clock: each time, the finalizer stops the old timer. Turn off Clear in a finalizer and do it again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
+<Example files={[{ html: finalizersSource, name: "finalizers.svelte" }, { html: readerSource, name: "reader.svelte" }]} hint="Turn on Show the clock, click 0.25 s, then turn Show the clock off: each time, the finalizer stops the old timer. Turn off Clear in a finalizer and do it again: the old timers keep ticking. Reset stops them."> <Finalizers /> </Example>
 
 An atom that runs an `Effect` releases what its effect acquired at the same moments. See [Releasing resources](/async-atoms#releasing-resources).

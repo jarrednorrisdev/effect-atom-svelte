@@ -59,7 +59,7 @@ const todosAtom = Atom.make(fetchTodos).pipe(
 );
 ```
 
-For `AtomRpc` and `AtomHttpApi` queries, pass a `serializationKey` instead. The client builds the schema from the procedure or endpoint:
+For `AtomRpc` and `AtomHttpApi` queries, pass a `serializationKey` instead. The client builds the schema from the procedure or endpoint. It ignores the key for a [streaming procedure](/rpc#streaming-procedures), and for an [HTTP API](/http) query with a `responseMode` other than the default:
 
 ```ts
 const todosAtom = TodosRpc.query("listTodos", undefined, {
@@ -69,7 +69,7 @@ const todosAtom = TodosRpc.query("listTodos", undefined, {
 
 <Aside type="caution" title="One key, one atom">
 
-Two different atoms with the same key on one page make the server render throw. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
+Two different atoms with the same key make the server render throw, when both are read with `useAtomResult` or `useAtomSuspense`. In a family, put the family's key into the serialization key, such as `` `todo-${id}` ``.
 
 The keys go to Svelte's `hydratable`, which everything on the page shares, other libraries included. Give yours a prefix of your own, such as `app/`. `AtomRpc` and `AtomHttpApi` prefix theirs with a fixed word and the procedure or endpoint: `AtomRpc:${tag}:${serializationKey}` and `AtomHttpApi:${group}:${endpoint}:${serializationKey}`. So `serializationKey: "todos"` on `listTodos` becomes `AtomRpc:listTodos:todos`.
 
@@ -126,7 +126,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 What that means in practice:
 
-- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration: an atom read only with it is computed again in the browser, and a `useAtomValue` read of an atom another component reads with one of the two hooks can start it in the browser before the server's result lands, so it is fetched twice. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
+- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration, so an atom read only with it is computed again in the browser. It can also cost a second fetch when another component reads the same atom with one of the two hooks: the `useAtomValue` read can start the atom in the browser before the server's result arrives. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
@@ -164,7 +164,7 @@ Call every `useAtomResult` and `useAtomSuspense` before the script's first `awai
 
 A hydrated atom keeps the server's result until something refreshes it, such as a mutation on its reactivity keys. On a page rendered for the request, the result is milliseconds old, so running the effect again would be wasted work. On a prerendered page, it is as old as the build.
 
-To run it again in the browser, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom, and on a hook it applies to that atom and overrides the provider:
+To run it again in the browser, set `revalidateOnHydrate`. On `RegistryProvider` it applies to every atom a hook hydrates, and on a hook it applies to that atom and overrides the provider. It doesn't apply to values a [`HydrationBoundary`](#hydrationboundary) brings in:
 
 ```svelte
 <RegistryProvider revalidateOnHydrate>{@render children()}</RegistryProvider>
@@ -211,7 +211,7 @@ This happens when the choice depends on state only the browser has, such as a fi
 
 The first render uses `"all"` on both sides, and hydrates from the server's result. The switch to the saved filter then runs in the browser, like any later switch.
 
-The example saves its filter with `Atom.kvs`, whose server store is in memory, so the server reads `"all"` there too.
+The example saves its filter with [`Atom.kvs`](/browser#persisting-to-localstorage), whose server store is in memory, so the server reads `"all"` there too.
 
 <Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Click done, then click Reload the page. In the HTML shows the server rendered all three todos; the list then switches to the saved filter, computed in the browser."> <SavedFilter /> </Example>
 
@@ -266,9 +266,13 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 
 When the boundary puts its values into the registry:
 
-- **Atoms the registry doesn't have yet** get their values before the children render.
-- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render, and so are they in the browser while it hydrates the server's markup, so its first render matches the server's. That last part needs Svelte's `experimental.async`: without it, an atom that already exists, such as one read above the boundary, is updated after the first render.
+- **Atoms the registry doesn't have yet** get their values before the children render. So does an atom that only holds a starting value from `initialValues` or `useAtomInitialValues`, if nothing has read it yet.
+- **Atoms it already has** are updated at a time that depends on where the boundary renders:
+  - On the server, before the children render.
+  - In the browser, while it hydrates the server's markup, also before the children render, so the first render matches the server's. This needs Svelte's `experimental.async`: without it, such an atom, for example one read above the boundary, is updated after the first render.
+  - In the browser after that, after the render, so the page doesn't change halfway through one.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
+- **A new `state`** is put into the registry the same way, so when a `load` function runs again, the boundary passes its new results to the atoms.
 
 If you render on the server yourself instead of with SvelteKit, and `experimental.async` is on, `await render(...)` so the boundary's `hydratable` entry is written into the page. Without the `await`, a production build of Svelte logs `hydratable_missing_but_expected` once per boundary as the page hydrates.
 
@@ -278,4 +282,4 @@ Remote functions need `experimental: { remoteFunctions: true }` in SvelteKit's o
 
 The example gets its state from a remote function instead. A `prerender` remote function runs on the server; on this prerendered page that means once, when the site was built, and SvelteKit puts its result in the page. `pricesWithKeysAtom` wraps its effect with `Atom.withReactivity`, so it runs again in the browser.
 
-<Example files={[{ html: hydrationBoundarySource, name: "hydration-boundary.svelte" }, { html: pricesRemoteSource, name: "prices.remote.ts" }, { html: pricesAtomsSource, name: "prices.ts" }, { html: pricesSource, name: "prices.svelte" }]} hint="Both atoms came from the remote function, computed on the server, as In the HTML shows. pricesWithKeysAtom then ran again in the browser: reload the page and watch it switch."> <HydrationBoundaryExample /> </Example>
+<Example files={[{ html: hydrationBoundarySource, name: "hydration-boundary.svelte" }, { html: pricesRemoteSource, name: "prices.remote.ts" }, { html: pricesAtomsSource, name: "prices.ts" }, { html: pricesSource, name: "prices.svelte" }]} hint="Both atoms came from the remote function, computed on the server, as In the HTML shows. pricesWithKeysAtom then ran again in the browser: reload the browser tab and watch it switch."> <HydrationBoundaryExample /> </Example>

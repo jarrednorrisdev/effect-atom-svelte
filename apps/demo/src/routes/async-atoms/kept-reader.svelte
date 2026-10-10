@@ -9,8 +9,8 @@
   }
 
   const { atom, label }: Props = $props();
-  // svelte-ignore state_referenced_locally
-  const result = useAtomValue(atom);
+  // A getter, so the hook follows the prop.
+  const result = useAtomValue(() => atom);
 </script>
 
 <p class="my-1 flex items-center gap-3">

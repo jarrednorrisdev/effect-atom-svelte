@@ -49,9 +49,9 @@
 
 <code class="effect-type not-prose" data-testid="effect-type" data-tag={result._tag}
   >{#if name}<span class="muted">{name}:&nbsp;</span>{/if}<span class="muted">Effect&lt;</span
-  ><span class="side success">{success}</span><span class="muted">,&nbsp;</span
+  ><span class="side success">{success}</span><span class="muted">{", "}</span
   >{#each members as member, index (member)}{#if index > 0}<span class="muted"
-        >&nbsp;|&nbsp;</span
+        >{" | "}</span
       >{/if}<span class={["side", member === failed && "failed"]} data-member={member}
       >{member}</span
     >{/each}<span class="muted">&gt;</span></code
@@ -61,7 +61,8 @@
   .effect-type {
     font-family: var(--font-mono);
     font-size: 0.8rem;
-    white-space: pre;
+    /* Wraps after the comma or a union's |, so a long type fits a phone. */
+    white-space: pre-wrap;
   }
   .muted {
     color: var(--muted-foreground);

@@ -3,7 +3,7 @@
   import { Atom } from "effect/reactivity";
 
   // The demo server sends a numbered message every 600 milliseconds.
-  const messages = Stream.callback<string>((queue) =>
+  const events = Stream.callback<string>((queue) =>
     Effect.acquireRelease(
       Effect.sync(() => {
         const source = new EventSource("/api/events");
@@ -16,16 +16,16 @@
     )
   );
 
-  // How many messages arrived, and the last five. Capped, so a connection
-  // left open doesn't grow the list forever. withServerValueInitial keeps
-  // the connection off the server.
+  // How many messages arrived, and the last five, each numbered in arrival
+  // order. Capped, so a connection left open doesn't grow the list forever.
+  // withServerValueInitial keeps the connection off the server.
   const messagesAtom = Atom.make(
-    messages.pipe(
+    events.pipe(
       Stream.scan(
-        () => ({ count: 0, latest: [] as string[] }),
-        ({ count, latest }, message) => ({
+        () => ({ count: 0, latest: [] as { n: number; text: string }[] }),
+        ({ count, latest }, text) => ({
           count: count + 1,
-          latest: [...latest, message].slice(-5),
+          latest: [...latest, { n: count + 1, text }].slice(-5),
         })
       )
     )
@@ -51,8 +51,9 @@
   <FlashValue data-testid="socket-count" value={received.count} /> messages
 </p>
 <ol class="flex list-none flex-wrap gap-1.5 p-0" data-testid="socket-messages">
-  {#each received.latest as message (message)}
-    <li class="m-0" {@attach enter()}><output>Message {message}</output></li>
+  <!-- Keyed by arrival: the server numbers its messages again after a reconnect. -->
+  {#each received.latest as message (message.n)}
+    <li class="m-0" {@attach enter()}><output>Message {message.text}</output></li>
   {:else}
     <li aria-busy="true">Waiting for the first message…</li>
   {/each}

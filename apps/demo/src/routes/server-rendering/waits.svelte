@@ -1,14 +1,15 @@
 <script module lang="ts">
   import { Effect, Schema } from "effect";
+  import type { Duration } from "effect";
   import { AsyncResult, Atom } from "effect/reactivity";
 
   import { browser } from "$app/env";
 
-  // Records where it ran, half a second later, as a request would.
-  const whereAtom = (key: string) =>
+  // Records where it ran, a moment later, as a request would.
+  const whereAtom = (key: string, delay: Duration.Input = "500 millis") =>
     Atom.make(
       Effect.sync((): string => (browser ? "browser" : "server")).pipe(
-        Effect.delay("500 millis")
+        Effect.delay(delay)
       )
     ).pipe(
       Atom.serializable({ key, schema: AsyncResult.Schema({ success: Schema.String }) })
@@ -17,7 +18,8 @@
   const scriptAtom = whereAtom("waits-script");
   const markupAtom = whereAtom("waits-markup");
   const laterAtom = whereAtom("waits-later");
-  const valueAtom = whereAtom("waits-value");
+  // Slower than the others, so the server's render is done before it has a result.
+  const valueAtom = whereAtom("waits-value", "2 seconds");
 </script>
 
 <script lang="ts">
@@ -30,10 +32,8 @@
   import Later from "./later.svelte";
 
   const markup = useAtomSuspense(markupAtom);
-  const script = await useAtomResult(scriptAtom);
-  // Read after the await, so the atom only starts now and the server renders it as Initial.
-  // Read before it, the atom would start with the others and could be done by then.
   const value = useAtomValue(valueAtom);
+  const script = await useAtomResult(scriptAtom);
 </script>
 
 <ServerRow id="waits-script" read="await useAtomResult">

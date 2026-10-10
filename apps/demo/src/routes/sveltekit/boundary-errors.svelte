@@ -45,7 +45,8 @@
     ["broken", "A broken response"],
   ] as const;
 
-  // The boundary's reset while it shows the failed snippet, so a new ask renders again.
+  // The buttons sit outside the boundary, so they can't reach the failed snippet's reset.
+  // onerror below keeps it here instead, and a new ask calls it to render the content again.
   let reset: (() => void) | undefined;
   const ask = (next: Ask) => {
     asked.current = next;

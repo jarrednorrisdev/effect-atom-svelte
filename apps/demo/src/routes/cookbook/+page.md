@@ -76,6 +76,58 @@ Sometimes one request needs the result of another, such as fetching a todo's det
 
 If the second request only needs a value the component already has, a getter is enough: `useAtomValue(() => TodosRpc.query("getTodo", { id: selected }))`.
 
+### Something to show while the first load runs
+
+When you already have a rough answer, such as the title a list showed for a todo, show it while the full query loads. `Atom.withFallback` reads a second async atom while the first is still `Initial`:
+
+```ts
+const todoDetailsAtom = Atom.family((id: number) =>
+  todoAtom(id).pipe(Atom.withFallback(todoFromListAtom(id)))
+);
+```
+
+Until `todoAtom(id)` has its first result, `todoDetailsAtom(id)` holds the fallback's result, marked `waiting`. Once the query answers, it holds the query's result instead, so a reader shows the rough answer at once and the full one when it arrives.
+
+### Prefetching on hover
+
+To start a page's query before the visitor clicks, hold its atom while the pointer is over the link. Give the atoms an [idle TTL](/lifetimes#keeping-atoms-alive), so the result outlives the hover until the page reads it:
+
+```ts
+// todos.ts
+export const todoAtom = Atom.family((id: number) =>
+  Atom.make(fetchTodo(id)).pipe(Atom.setIdleTTL("30 seconds"))
+);
+```
+
+```svelte
+<!-- todo-link.svelte -->
+<script lang="ts">
+  import { onDestroy } from "svelte";
+  import { getRegistry } from "effect-atom-svelte";
+  import { todoAtom } from "./todos";
+
+  const { id }: { id: number } = $props();
+  const registry = getRegistry();
+  let release: (() => void) | undefined;
+  const letGo = () => {
+    release?.();
+    release = undefined;
+  };
+  // A click navigates away without a pointerleave, so let go when the link goes too.
+  onDestroy(letGo);
+</script>
+
+<a
+  href="/todos/{id}"
+  onpointerenter={() => (release ??= registry.mount(todoAtom(id)))}
+  onpointerleave={letGo}
+>
+  Todo {id}
+</a>
+```
+
+`registry.mount` holds the atom, which starts its effect, until you call what it returns. Without the TTL, letting go disposes of the atom, and the page fetches again. SvelteKit's `data-sveltekit-preload-data` doesn't help here: it runs `load` functions, not the components that await atoms.
+
 ### Polling
 
 To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
@@ -93,6 +145,32 @@ A search box shouldn't send a request for every key press. `Atom.debounce` follo
 <Example files={[{ html: searchSource, name: "search.svelte" }]} hint="Type a few letters quickly: queryAtom changes on every key, debouncedAtom only once you pause, and only then does a search run."> <Search /> </Example>
 
 When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`. In a SvelteKit app, do that only when nothing else reads the parameter, as SvelteKit's router doesn't see its changes: see [The URL's query string](/browser#the-urls-query-string).
+
+### Pages that keep the last one on screen
+
+For numbered pages, keep the page number in an atom, and make the list one atom that reads it:
+
+```ts
+const pageAtom = Atom.make(1);
+
+const rowsAtom = Atom.make((get) => fetchPage(get(pageAtom)));
+```
+
+When the page changes, `rowsAtom` runs its effect again and keeps the last page's rows, marked `waiting`, until the new ones arrive. So the table stays on screen, and `waiting` can dim it:
+
+```svelte
+<script lang="ts">
+  const rows = useAtomValue(rowsAtom);
+  const page = useAtom(pageAtom);
+</script>
+
+<button onclick={() => (page.current += 1)}>Next</button>
+{#if rows.current._tag === "Success"}
+  <table aria-busy={rows.current.waiting}>…</table>
+{/if}
+```
+
+A [family](/families) keyed by page, read through a getter as `useAtomValue(() => pageRowsAtom(page.current))`, works the other way: each page is an atom of its own, which starts at `Initial`, so the old rows go as soon as the page changes. In exchange, each page keeps its own result, so with an [idle TTL](/lifetimes#keeping-atoms-alive), going back to a page shows it at once.
 
 ### Infinite scroll
 
@@ -157,6 +235,30 @@ Add the token to each request in the client's `transformClient`, as on [HTTP API
 
 The example keeps the token in module state, which is safe only in the browser: a module-level client serves every request on the server. To send each visitor's token from the server, see [On the server](/rpc#on-the-server).
 
+### Sign in again after a 401
+
+To send the visitor to a sign-in page whenever any request comes back `401 Unauthorized`, look at every response in the same `transformClient`. `HttpClient.tap` sees each response before the client decodes it:
+
+```ts
+import { Effect } from "effect";
+import { HttpClient } from "effect/http";
+
+import { browser } from "$app/env";
+import { goto } from "$app/navigation";
+
+const signInOn401 = HttpClient.tap((response) =>
+  Effect.sync(() => {
+    if (browser && response.status === 401) {
+      void goto("/sign-in");
+    }
+  })
+);
+```
+
+Pass it as `transformClient` to `AtomHttpApi.Service`, or to `RpcClient.layerProtocolHttp` for RPC. Combine it with the token's `mapRequest` with `pipe`: `transformClient: (client) => client.pipe(addToken, signInOn401)`. The query still fails as it would have, so its component shows the failure until the navigation happens. Only the browser navigates: on the server, check the session in the `handle` hook of `hooks.server.ts`, which can redirect before the page renders. To clear what the previous visitor's atoms hold, see [Reset state when the user changes](#reset-state-when-the-user-changes).
+
+Declare the 401 as an error on the endpoint or its middleware, as `GET /api/me` does with `Unauthorized`. An `AtomHttpApi` query turns a response it can't decode into a defect, not a typed error: see [Typed errors](/http#typed-errors).
+
 ## Structuring an app
 
 ### Share form logic in a class
@@ -179,7 +281,7 @@ It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others.
 
 A `load` function runs outside any component, so it makes a registry of its own, and disposes of it when it is done. `AtomRegistry.getResult` waits for an async atom's result as an `Effect`. This page's own `+page.server.ts` counts the todos:
 
-<Example files={[{ html: loadSource, name: "+page.server.ts" }, { html: loadCountSource, name: "load-count.svelte" }]} hint="Add a todo in one of the forms above: todosAtom's count follows, while load's stays at what it found when the page was rendered."> <LoadCount /> </Example>
+<Example files={[{ html: loadSource, name: "+page.server.ts" }, { html: loadCountSource, name: "load-count.svelte" }]} hint="Add a todo with the form in Share form logic in a class: todosAtom's count follows, while load's stays at what it found when the page was rendered."> <LoadCount /> </Example>
 
 What `load` returns is plain data, rendered once: it changes only when the page loads again. To prefetch atoms into the browser's registry instead, see [HydrationBoundary](/hydration#hydrationboundary).
 

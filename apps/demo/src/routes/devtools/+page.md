@@ -23,7 +23,7 @@ On a wide screen, the **Atoms** button at the bottom right of the window, or **A
 
 </Aside>
 
-<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="Open Atoms at the bottom right and click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
+<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="On a wide screen, open Atoms at the bottom right; or watch the graph above the example. Click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
 
 ## Installing
 
@@ -64,7 +64,9 @@ The plugin only runs in the dev server. Pass `builds: true` to label production 
 
 ### State across hot reloads
 
-A hot reload runs a module again, which makes new atoms, so the state written to the old ones would be lost. With the plugin, a state atom a module declares (`Atom.make` of a plain value) takes the value of the atom it replaces. Edit a component and its counters keep their counts.
+A hot reload runs a module again, which makes new atoms, so the state written to the old ones would be lost. With the plugin, a state atom a module declares takes the value of the atom it replaces, so when you edit a component, its counters keep their counts.
+
+A state atom is `Atom.make` of a plain value, alone or piped only through options that keep what is written to it, such as `Atom.keepAlive`, `Atom.setIdleTTL`, `Atom.withLabel` or `Atom.serializable`. An atom piped through `Atom.map` writes through to its source instead, so it isn't kept.
 
 Edit the atom's own declaration and it starts from its new value instead: the old one no longer applies. Atoms declared in a component's `<script>` aren't kept: there is one per instance, so there is no telling which old one a new one replaces.
 
@@ -123,9 +125,9 @@ Every computation, update, interruption and finalizer, newest first. A computati
 
 The panel keeps its settings in `localStorage`, with its height and the view you left it on.
 
-### Colours and fonts
+### Colors and fonts
 
-The panel takes its colours and fonts from your page's CSS variables, the ones a Tailwind or shadcn app already has: `--background`, `--foreground`, `--muted-foreground`, `--border` and `--brand` for its colours, `--font-mono` for its labels and `--font-serif` for its italic notes. Without them it's zinc and amber, in a monospace and the system serif. To give the panel its own, set them on `[data-atom-devtools]`:
+The panel takes its colors and fonts from your page's CSS variables, the ones a Tailwind or shadcn app already has: `--background`, `--foreground`, `--muted-foreground`, `--border` and `--brand` for its colors, `--font-mono` for its labels and `--font-serif` for its italic notes. Without them it's zinc and amber, in a monospace and the system serif. To give the panel its own, set them on `[data-atom-devtools]`:
 
 ```css
 [data-atom-devtools] {
@@ -153,4 +155,102 @@ The graph above each example on this site is the panel's graph, drawn for one pa
 - `provideInspectorScope()` from `effect-atom-svelte/inspector` makes the component that calls it, and everything below it, a scope. The hooks below it report the atoms they use, and the scope gives you those atoms, everything upstream of them and the components that read them, with events for just those atoms. See [Inspector](/reference/Inspector) for its API.
 - `<AtomGraph>` from `effect-atom-svelte-devtools/graph` lays out and draws those atoms. Call its `pulse(id, tone)` when an atom's value changes and `interrupt(id)` when its effect is interrupted.
 
-The graph has no dependencies beyond Svelte, and inspector scopes work in production, so the graph can go in production pages. It reads your page's design tokens (`--foreground`, `--border`, `--brand`) where it has them.
+This component draws the atoms that the components inside it use:
+
+**Example** (A graph of one part of the page)
+
+```svelte
+<!-- scoped-graph.svelte -->
+<script lang="ts">
+  import { provideInspectorScope } from "effect-atom-svelte/inspector";
+  import type { ScopeSnapshot } from "effect-atom-svelte/inspector";
+  import { AtomGraph, toneOf } from "effect-atom-svelte-devtools/graph";
+  import { onMount } from "svelte";
+  import type { Snippet } from "svelte";
+
+  const { children }: { children: Snippet } = $props();
+
+  // This component and everything below it are the scope.
+  const scope = provideInspectorScope();
+  let snapshot = $state.raw<ScopeSnapshot>();
+  let graph = $state<AtomGraph>();
+
+  onMount(() => {
+    snapshot = scope.snapshot();
+    return scope.subscribe((event) => {
+      // Events arrive mid-update: read the scope on the next frame.
+      requestAnimationFrame(() => {
+        snapshot = scope.snapshot();
+        if (event._tag === "Updated") {
+          const node = snapshot.nodes.find((n) => n.id === event.id);
+          graph?.pulse(event.id, toneOf(node?.state, node?.waiting));
+        } else if (event._tag === "Interrupted") {
+          graph?.interrupt(event.id);
+        }
+      });
+    });
+  });
+</script>
+
+{#if snapshot}
+  <AtomGraph
+    bind:this={graph}
+    graph={{
+      atoms: snapshot.nodes.map((node) => ({ id: node.id, label: node.label })),
+      links: snapshot.edges,
+      readers: snapshot.readers.map((reader) => ({
+        atom: reader.atom,
+        instance: reader.instance,
+        kind: reader.kind,
+        name: reader.component ?? "component",
+      })),
+    }}
+  />
+{/if}
+{@render children()}
+```
+
+`snapshot()` gives the atoms, the edges between them and the components that read them, and the graph takes them nearly as they are. The scope calls its listener while the registry is still updating, so the component waits for the next frame before it reads the scope again. `toneOf` turns an atom's state into the pulse's color: green for a `Success`, red for a `Failure`.
+
+The graph has no dependencies beyond Svelte, and inspector scopes work in production, so the graph can go in production pages. It reads your page's design tokens (`--background`, `--foreground`, `--brand`) where it has them.
+
+## Building your own tools
+
+The panel is built on `effect-atom-svelte/inspector`, which you can use too:
+
+- `inspect(registry)` starts watching a registry, and returns an inspector whose `subscribe` reports each event: an atom added or removed, computed and why, given a new value, interrupted or finalized. Watching costs a little on every read and write, so call it from tools, not from the app.
+- `registries()` lists the registries the app has provided, in the browser during development, and `watchRegistries(f)` calls `f` whenever that list changes. They are empty on the server and in production.
+- `nameComponent(name, file)` names the component being set up, for the scopes its hooks report to. The `atomLabels` plugin calls it for every component; without the plugin, call it yourself.
+
+Events arrive while the registry is still updating, so a listener mustn't read or write atoms, or write Svelte state. Queue them and handle them later:
+
+**Example** (Logging why each atom computed)
+
+```svelte
+<script lang="ts">
+  import { getRegistry } from "effect-atom-svelte";
+  import { inspect } from "effect-atom-svelte/inspector";
+  import type { Event } from "effect-atom-svelte/inspector";
+  import { onMount } from "svelte";
+
+  const inspector = inspect(getRegistry());
+
+  onMount(() => {
+    const queued: Event[] = [];
+    const stop = inspector.subscribe((event) => queued.push(event));
+    const timer = setInterval(() => {
+      for (const event of queued.splice(0)) {
+        if (event._tag === "Built") {
+          console.log(event.node.atom.label?.[0], event.cause._tag);
+        }
+      }
+    }, 1000);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  });
+</script>
+```
+
+[Inspector](/reference/Inspector) in the API reference lists every event and what it carries.

@@ -21,7 +21,7 @@ If your server is described by an Effect `HttpApi`, `AtomHttpApi` gives your com
 
 The examples on this page call the [demo API](/introduction#how-these-docs-work). The `http.ts` tab shows its `HttpApi`, and `todo.ts` the schemas it uses.
 
-<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Click Open, then Done: each filter is its own query atom with its own request, and the requests count goes up. Go back to All: that atom already has its list."> <Todos /> </Example>
+<Example files={[{ html: todosSource, name: "todos.svelte" }, { html: httpSource, name: "http.ts" }, { html: todoSource, name: "todo.ts" }]} hint="Click Open, then Done: each filter is its own query atom with its own request, and the requests count goes up. Go back to All: nothing read its atom meanwhile, so the registry disposed of it, and it fetches again. A timeToLive on the query would keep each list for a while."> <Todos /> </Example>
 
 ## Defining the client
 
@@ -46,7 +46,7 @@ export class TodosHttp extends AtomHttpApi.Service<TodosHttp>()(
 
 Requests go to the endpoint's path on the page's origin. Set `baseUrl` to send them somewhere else.
 
-The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint, so `runtime.fn` can call it directly: see [Customizing requests](#customizing-requests).
+The class is also an Effect service whose value is the `HttpApi` client, with a method for each endpoint under its group's name, such as `client.todos.get(...)` (a group made with `topLevel: true` puts its methods on the client itself), so `runtime.fn` can call it directly: see [Customizing requests](#customizing-requests).
 
 ## Queries
 
@@ -67,8 +67,8 @@ The request also takes options:
 | Option | Does |
 | --- | --- |
 | `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. See [Refreshing what changed](/mutations#refreshing-what-changed). |
-| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). |
-| `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
+| `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored with a `responseMode` other than the default. |
+| `timeToLive` | Keep the result for this long after the last reader goes away, as an [idle TTL](/lifetimes#keeping-atoms-alive) does. An infinite duration keeps it for good. |
 | `headers` | The endpoint's own headers, typed by its headers schema. Only endpoints that declare one take it. |
 | `responseMode` | What the query succeeds with: the decoded body by default. See the tip under [Mutations](#mutations). |
 
@@ -102,7 +102,7 @@ await create({
 
 <Aside type="tip" title="Reading the response itself">
 
-Queries and mutations succeed with the decoded body. Set `responseMode` in a query's request, or in `mutation`'s third argument, to change that. `"decoded-and-response"` gives a `[body, response]` pair, so you can read the status or headers. `"response-only"` gives the `HttpClientResponse` without decoding it.
+Queries and mutations succeed with the decoded body. Set `responseMode` in a query's request, or in `mutation`'s third argument, to change that. `"decoded-and-response"` gives a `[body, response]` pair, so you can read the status or headers. `"response-only"` gives the `HttpClientResponse` without decoding it, whatever its status, so the endpoint's [typed errors](#typed-errors) never fail the query: check `response.status` yourself.
 
 A response can't be sent to the browser, so a query's `serializationKey` only applies with the default, `"decoded-only"`, and is ignored with the other two.
 

@@ -9,8 +9,8 @@
   }
 
   const { atom, name }: Props = $props();
-  // svelte-ignore state_referenced_locally
-  const pool = useAtomValue(atom);
+  // A getter, so the hook follows the prop.
+  const pool = useAtomValue(() => atom);
 </script>
 
 <p class="mt-3">

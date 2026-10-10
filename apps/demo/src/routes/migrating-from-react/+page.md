@@ -16,6 +16,7 @@ effect-atom-svelte follows `@effect/atom-react`: the same atoms, the same regist
 | `const value = useAtomValue(atom)` | `const value = useAtomValue(atom)`, read as `value.current` |
 | `useAtomValue(atom, f)` | The same, read through `current` |
 | `const [value, setValue] = useAtom(atom)` | `const value = useAtom(atom)`, read and assign `value.current` |
+| `const [result, run] = useAtom(atom, { mode })` | `useAtomValue(atom)` for the result, and `useAtomSet(atom, { mode })` for the setter |
 | `useAtomSet(atom, { mode })` | The same, but the promise modes reject `Atom.Reset`: reset with a `"value"` setter. Promise setters also take `{ signal }` |
 | `useAtomSuspense(atom)`, which suspends | `useAtomSuspense(atom)`, whose `current` you `await` in markup |
 | None | `await useAtomResult(atom)` in the script |

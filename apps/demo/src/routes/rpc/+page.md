@@ -47,7 +47,7 @@ export class TodosRpc extends AtomRpc.Service<TodosRpc>()("app/TodosRpc", {
 }) {}
 ```
 
-The class is also an Effect service, with a `runtime` that builds the protocol layer the first time an atom needs it.
+The class is also an Effect service, with a `runtime` that builds the protocol layer the first time an atom needs it. If the protocol layer fails to build, the queries that use it fail with a defect, not a typed error.
 
 ## Queries
 
@@ -63,9 +63,9 @@ A third argument takes options:
 
 | Option | Does |
 | --- | --- |
-| `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. |
+| `reactivityKeys` | Fetch again when a mutation invalidates one of these keys. See [Refreshing what changed](/mutations#refreshing-what-changed). |
 | `serializationKey` | When the query is read with `useAtomResult` or `useAtomSuspense`, send the server's result to the browser, which uses it when it hydrates instead of fetching again. See [Hydration](/hydration). Ignored for [streaming procedures](#streaming-procedures). |
-| `timeToLive` | Keep the result for this long after the last reader goes away. An infinite duration keeps it for good. |
+| `timeToLive` | Keep the result for this long after the last reader goes away, as an [idle TTL](/lifetimes#keeping-atoms-alive) does. An infinite duration keeps it for good. |
 | `headers` | Extra headers for the request. |
 
 ### Following arguments
@@ -110,7 +110,7 @@ Over HTTP, the server doesn't wait for the client to ask: it sends items as they
 
 **Start over** refreshes the atom with `useAtomRefresh`, which calls the procedure again and starts a new stream. Until its first item arrives, the atom keeps the old items, `waiting`.
 
-[Streams](/streams) covers pull atoms in general.
+A streaming procedure can only be a query: `mutation` types the atom for one as `never`, so TypeScript rejects using it. [Streams](/streams) covers pull atoms in general.
 
 ## Calling the client yourself
 
