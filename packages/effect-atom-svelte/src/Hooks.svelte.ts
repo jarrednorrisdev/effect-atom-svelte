@@ -152,6 +152,8 @@ interface RegistryNode {
   readonly _value: unknown;
   readonly setValue: (value: unknown) => void;
   readonly setInitialValue: (value: unknown) => void;
+  readonly currentState: () => string;
+  readonly failed: boolean;
   readonly subscribe: (listener: () => void) => () => void;
 }
 
@@ -162,7 +164,9 @@ interface RegistryInternals {
 }
 
 // SAFETY: ensureNode and scheduleNodeRemoval are on the registry implementation, not the interface
-// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way.
+// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way. Of the node's parts,
+// preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
+// are on its implementation too; the rest, currentState included, are on Effect's Node interface.
 const internals = (registry: AtomRegistry.AtomRegistry): RegistryInternals =>
   registry as unknown as RegistryInternals;
 
@@ -317,21 +321,24 @@ const subscribedReader = <A>(
     kept?.cancel();
     kept = undefined;
   };
-  // Whether the component has mounted: its effects have run once.
-  let mounted = false;
   // The atom this reader's own registry.get is reading. A subscribed node is rebuilt as soon as it
   // goes stale, so the read builds it only the first time, and that build announces the very value
-  // the read returns. Before the component mounts, that announcement can only re-render its first
-  // render, which already has the value, so it is dropped. Delivered on a microtask it started a
-  // Svelte batch that, when the first render ran after an await in markup (a HydrationBoundary
-  // awaiting its state), committed before hydration's own and made Svelte's dev build throw "Batch
-  // has scheduled effects" (JND-95). After mount it is still delivered, as before. Nothing depends
-  // on the update it starts: a getter switched in onMount once did, by accident, as that update
-  // rendered before the registry swept the old atom (JND-98, fixed in the effect below).
+  // the read returns, so it is dropped: it could only re-render a read that already has the value.
+  // Before mount, delivered on a microtask it started a Svelte batch that, when the first render ran
+  // after an await in markup (a HydrationBoundary awaiting its state), committed before hydration's
+  // own and made Svelte's dev build throw "Batch has scheduled effects" (JND-95). After mount, a
+  // getter switched to an atom not built yet ran a transform twice, made a new object for an
+  // unchanged value, and re-ran an $effect that first read the atom. Only the build's own
+  // announcement is dropped: a value set during a registry batch is announced at commit, after
+  // `reading` is reset, and later changes arrive as usual. A getter switched in onMount once
+  // depended on that update, by accident (JND-98, fixed in the effect below). After mount, only a
+  // first build is dropped: a stale node the read rebuilds, as after a failed rebuild, announces a
+  // value the reader's other reads haven't seen.
+  let mounted = false;
   let reading: Atom.Atom<A> | undefined;
   const listen = (current: Atom.Atom<A>, update: () => void) =>
     registry.subscribe(current, () => {
-      if (mounted || reading !== current) {
+      if (reading !== current) {
         update();
       }
     });
@@ -404,8 +411,17 @@ const subscribedReader = <A>(
       }
       subscribe();
       const outer = reading;
-      reading = current;
+      if (!mounted) {
+        reading = current;
+      }
       try {
+        // After mount, only a first build is dropped: a stale node rebuilt here, as after a failed
+        // rebuild, announces a change other reads of this reader have not seen. A node whose first
+        // build failed is still uninitialized, but the page has shown that failure, so it counts too.
+        const node = internals(registry).ensureNode(current);
+        if (node.currentState() === "uninitialized" && !node.failed) {
+          reading = current;
+        }
         return registry.get(current);
       } finally {
         reading = outer;

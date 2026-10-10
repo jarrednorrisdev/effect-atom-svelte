@@ -21,16 +21,22 @@ import {
 } from "../src/index.ts";
 import type { AtomState, ProvideRegistryOptions } from "../src/index.ts";
 import DerivedInHandler from "./fixtures/derived-in-handler.svelte";
+import EffectTransformReader from "./fixtures/effect-transform-reader.svelte";
+import EffectValueReader from "./fixtures/effect-value-reader.svelte";
 import Harness from "./fixtures/harness.svelte";
 import Provider from "./fixtures/provider.svelte";
 import Run from "./fixtures/run.svelte";
 import SubscribeIntoState from "./fixtures/subscribe-into-state.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
-import { sleep } from "./helpers.ts";
+import { sleep, text } from "./helpers.ts";
 
 const output = (screen: Awaited<ReturnType<typeof render>>) =>
   screen.locator.getByRole("status");
+
+/** A result's value, or its tag while it has none. */
+const show = (result: AsyncResult.AsyncResult<string, unknown>) =>
+  AsyncResult.isSuccess(result) ? result.value : result._tag;
 
 describe("useAtomValue", () => {
   test("reads a simple atom", async () => {
@@ -1111,7 +1117,7 @@ describe("AtomRef", () => {
       registry,
       setup: () => {
         const value = useAtomRef(ref);
-        const shown = useAtomValue(read, (text) => text);
+        const shown = useAtomValue(read, (name) => name);
         return () => `${value.current} ${shown.current}`;
       },
     });
@@ -1249,6 +1255,237 @@ describe("getter switches (JND-60)", () => {
     first.prop("name").set("ignored");
     await sleep("20 millis");
     await expect.element(output(screen)).toHaveTextContent("renamed");
+  });
+});
+
+describe("a reader's own first build after mount", () => {
+  test("a failed first build that a later read recovers reaches the page", async () => {
+    const registry = AtomRegistry.make();
+    const flag = { ok: false };
+    const pick = Atom.make("a");
+    const broken = Atom.make(() => {
+      if (!flag.ok) {
+        throw new Error("broken");
+      }
+      return "b";
+    });
+    const atoms = new Map<string, Atom.Atom<string>>([
+      ["a", Atom.make("a")],
+      ["b", broken],
+    ]);
+    let cell: { readonly current: string } | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const picked = useAtomValue(pick);
+        const value = useAtomValue(() => atoms.get(picked.current) ?? broken);
+        cell = value;
+        return () => {
+          try {
+            return value.current;
+          } catch {
+            return "error";
+          }
+        };
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("a");
+    // After mount, the getter switches to an atom whose first build throws.
+    registry.set(pick, "b");
+    await expect.element(output(screen)).toHaveTextContent("error");
+    flag.ok = true;
+    // An imperative read, as from an event handler, builds the node its failure left uninitialized.
+    expect(cell?.current).toBe("b");
+    await expect.element(output(screen)).toHaveTextContent("b");
+  });
+
+  test("a failed rebuild that a later read recovers reaches the page", async () => {
+    const registry = AtomRegistry.make();
+    const flag = { n: 1, ok: true };
+    const atom = Atom.make(() => {
+      if (!flag.ok) {
+        throw new Error("broken");
+      }
+      return flag.n;
+    });
+    let cell: { readonly current: number } | undefined;
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const value = useAtomValue(atom);
+        cell = value;
+        return () => value.current;
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("1");
+    flag.ok = false;
+    flag.n = 2;
+    expect(() => registry.refresh(atom)).toThrow("broken");
+    flag.ok = true;
+    // An imperative read, as from an event handler, rebuilds the stale node and announces it.
+    expect(cell?.current).toBe(2);
+    await expect.element(output(screen)).toHaveTextContent("2");
+  });
+
+  test("a getter switch to an atom not built yet runs the transform once for it", async () => {
+    const registry = AtomRegistry.make();
+    const calls: string[] = [];
+    const pick = Atom.make("a");
+    const named = Atom.family((name: string) => Atom.make(name));
+    const boxes: { readonly name: string }[] = [];
+    const screen = await render(Harness, {
+      registry,
+      setup: () => {
+        const picked = useAtomValue(pick);
+        const boxed = useAtomValue(
+          () => named(picked.current),
+          (name) => {
+            calls.push(name);
+            return { name };
+          }
+        );
+        return () => {
+          boxes.push(boxed.current);
+          return boxed.current.name;
+        };
+      },
+    });
+    await expect.element(output(screen)).toHaveTextContent("a");
+    registry.set(pick, "b");
+    await expect.element(output(screen)).toHaveTextContent("b");
+    await sleep("50 millis");
+    expect(calls).toEqual(["a", "b"]);
+    expect(new Set(boxes).size).toBe(2);
+  });
+
+  test("a transform read only in an $effect runs once while the atom is unchanged", async () => {
+    const registry = AtomRegistry.make();
+    const seen: unknown[] = [];
+    const calls: number[] = [];
+    await render(EffectTransformReader, {
+      atom: Atom.make(1),
+      calls,
+      registry,
+      seen,
+    });
+    await expect.poll(() => seen.length).toBeGreaterThan(0);
+    await sleep("50 millis");
+    expect(calls).toEqual([1]);
+    expect(seen).toHaveLength(1);
+  });
+
+  test("an $effect that first builds the atom it reads runs once", async () => {
+    const registry = AtomRegistry.make();
+    const seen: unknown[] = [];
+    await render(EffectValueReader, { atom: Atom.make(1), registry, seen });
+    await expect.poll(() => seen.length).toBeGreaterThan(0);
+    await sleep("50 millis");
+    expect(seen).toEqual([1]);
+  });
+
+  describe.each([false, true])("a getter switch, async: %s", (async) => {
+    /** Renders a reader of `family(name)` whose name a test switches from "a" to "b". */
+    const switching = async <A>(
+      family: (name: string) => Atom.Atom<A>,
+      view: (value: A) => string,
+      extra?: () => () => string
+    ) => {
+      const registry = AtomRegistry.make();
+      const pick = Atom.make("a");
+      const screen = await render(Harness, {
+        async,
+        registry,
+        setup: () => {
+          const picked = useAtomValue(pick);
+          const value = useAtomValue(() => family(picked.current));
+          const more = extra?.();
+          return () => view(value.current) + (more ? `|${more()}` : "");
+        },
+      });
+      return { pick, registry, screen };
+    };
+    test("a stream's sync emissions in the first build, then an async one, all arrive", async () => {
+      const family = Atom.family((name: string) =>
+        Atom.make(
+          Stream.concat(
+            Stream.make(`${name}1`, `${name}2`),
+            Stream.fromEffect(
+              Effect.sleep("30 millis").pipe(Effect.as(`${name}3`))
+            )
+          )
+        )
+      );
+      const { pick, registry, screen } = await switching(family, show);
+      await expect.poll(text(screen)).toBe("a3");
+      registry.set(pick, "b");
+      await expect.poll(text(screen)).toBe("b3");
+    });
+
+    test("a first build that sets another atom the component reads shows the set value", async () => {
+      const other = Atom.make("none");
+      const family = Atom.family((name: string) =>
+        Atom.make((get) => {
+          get.set(other, `set-${name}`);
+          return name;
+        })
+      );
+      const { pick, registry, screen } = await switching(
+        family,
+        (name) => name,
+        () => {
+          const value = useAtomValue(other);
+          return () => value.current;
+        }
+      );
+      await expect.poll(text(screen)).toBe("a|set-a");
+      registry.set(pick, "b");
+      await expect.poll(text(screen)).toBe("b|set-b");
+    });
+
+    test("a first build that sets an atom it read, and so rebuilds, shows the rebuilt value", async () => {
+      const family = Atom.family((name: string) => {
+        const ticks = Atom.make(0);
+        return Atom.make((get) => {
+          const tick = get(ticks);
+          if (tick === 0) {
+            get.set(ticks, 1);
+          }
+          return `${name}${tick}`;
+        });
+      });
+      const { pick, registry, screen } = await switching(family, (s) => s);
+      await expect.poll(text(screen)).toBe("a1");
+      registry.set(pick, "b");
+      await expect.poll(text(screen)).toBe("b1");
+    });
+
+    test("a first build that sets itself at once and later shows the later value", async () => {
+      const family = Atom.family((name: string) =>
+        Atom.make((get) => {
+          get.setSelf(`${name}-sync`);
+          const timer = setTimeout(() => get.setSelf(`${name}-late`), 20);
+          get.addFinalizer(() => clearTimeout(timer));
+          return `${name}-returned`;
+        })
+      );
+      const { pick, registry, screen } = await switching(family, (s) => s);
+      await expect.poll(text(screen)).toBe("a-late");
+      registry.set(pick, "b");
+      await expect.poll(text(screen)).toBe("b-late");
+    });
+
+    test("later changes of the switched-to atom still arrive", async () => {
+      const family = Atom.family((name: string) => Atom.make(name));
+      const { pick, registry, screen } = await switching(family, (s) => s);
+      await expect.poll(text(screen)).toBe("a");
+      registry.set(pick, "b");
+      await expect.poll(text(screen)).toBe("b");
+      registry.set(family("b"), "b2");
+      await expect.poll(text(screen)).toBe("b2");
+      registry.refresh(family("b"));
+      registry.set(pick, "a");
+      await expect.poll(text(screen)).toBe("a");
+    });
   });
 });
 
