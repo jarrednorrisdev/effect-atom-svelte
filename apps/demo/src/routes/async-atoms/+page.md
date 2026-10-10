@@ -48,9 +48,15 @@ To read other atoms first, pass a function that receives `get` and returns the e
 const todoAtom = Atom.make((get) => fetchTodo(get(selectedIdAtom)));
 ```
 
-To wait for another async atom's value inside the effect, use `get.result(atom)`. It returns an `Effect` that waits for the atom's result, and fails with its error if it fails: see [Dependent queries](/cookbook#dependent-queries).
-
 The live example reads the **Drop the die** toggle this way. Turn it on, and the atom runs its effect again, which now fails.
+
+`todoAtom` is one atom that follows the selected id. For an atom per id, so that two todos can be on the page at once, each with its own result, use a [family](/families):
+
+```ts
+const todoAtom = Atom.family((id: number) => Atom.make(fetchTodo(id)));
+```
+
+To wait for another async atom's value inside the effect, use `get.result(atom)`. It returns an `Effect` that waits for the atom's result, and fails with its error if it fails: see [Dependent queries](/cookbook#dependent-queries).
 
 ## AsyncResult
 
