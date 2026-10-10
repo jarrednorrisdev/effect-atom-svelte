@@ -1,0 +1,1589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* Docs-site tokens (apps/demo/src/app.css). In T3 the host injects --background etc.; opened on
+     its own (GitHub Pages) the fallbacks apply, light or dark with the reader's system. */
+  :root {
+    --bg: var(--background, oklch(1 0 0));
+    --fg: var(--foreground, oklch(0.21 0.006 285.885));
+    --muted-fg: var(--muted-foreground, oklch(0.442 0.017 285.786));
+    --line: var(--border, oklch(0.92 0.004 286.32));
+    --soft: var(--muted, oklch(0.967 0.001 286.375));
+    --code-bg: var(--code-background, oklch(0.967 0.001 286.375 / 60%));
+    --brand: oklch(0.72 0.18 62);
+    --brand-ink: color-mix(in oklab, var(--brand) 72%, var(--fg));
+    --ok: oklch(0.68 0.15 160);
+    --bad: oklch(0.63 0.22 27);
+    --tint: color-mix(in oklab, var(--brand) 4%, var(--bg));
+    --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --serif: "Libron", ui-serif, Georgia, serif;
+    --r: 0.5rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: var(--background, oklch(0.141 0.005 285.823));
+      --fg: var(--foreground, oklch(0.985 0 0));
+      --muted-fg: var(--muted-foreground, oklch(0.705 0.015 286.067));
+      --line: var(--border, oklch(0.274 0.006 286.033));
+      --soft: var(--muted, oklch(0.274 0.006 286.033));
+      --code-bg: var(--code-background, oklch(0.21 0.006 285.885 / 60%));
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: light dark; }
+  /* Standalone (no host theme): centre the page and give it a heading. */
+  body.standalone { max-width: 800px; margin: 0 auto; padding: 32px 20px 48px; }
+  .standalone-only { display: none; }
+  body.standalone .standalone-only { display: block; }
+  .page-title { font: 600 22px/1.3 var(--sans); margin: 0 0 4px; }
+  .page-sub { color: var(--muted-fg); margin: 0 0 20px; }
+  .page-sub a { color: var(--brand-ink); }
+  .page-sub code { font: 12.5px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); font-size: 14px; line-height: 1.5; }
+
+  .label {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted-fg);
+  }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button {
+    font: 500 12px var(--sans); color: var(--muted-fg); background: none; border: 0;
+    padding: 5px 12px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s;
+  }
+  .seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+
+  /* rail */
+  .rail { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; margin-bottom: 6px; }
+  .rail button {
+    position: relative; height: 30px; border: 1px solid var(--line); background: var(--bg);
+    border-radius: 6px; font: 500 11px var(--mono); color: var(--muted-fg); cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  .rail button:hover { border-color: var(--brand); }
+  .rail button.done { background: color-mix(in oklab, var(--brand) 10%, var(--bg)); color: var(--fg); }
+  .rail button.now { border-color: var(--brand); background: var(--brand); color: #1a1205; }
+  .phases { display: grid; gap: 4px; margin-bottom: 16px; }
+  .phases div { border-top: 2px solid var(--line); padding-top: 4px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .phases div.on { border-color: var(--brand); color: var(--fg); }
+
+  /* stage */
+  .stage { border: 1px solid var(--line); border-radius: var(--r) var(--r) 0 0; background: var(--tint); padding: 16px; }
+  .diagram { display: grid; grid-template-columns: var(--cols); gap: 16px; align-items: stretch; }
+  .diagram.wired { gap: 0; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .colhead { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .3s, box-shadow .3s; }
+  .col.on .dot { background: var(--brand); box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand) 22%, transparent); }
+  .col.on .colhead .label { color: var(--fg); }
+
+  .node {
+    border: 1px solid var(--line); background: var(--bg); border-radius: var(--r);
+    padding: 9px 11px; transition: opacity .35s, transform .35s, border-color .3s, box-shadow .3s, filter .35s;
+  }
+  .node.hidden { opacity: 0; transform: translateY(6px) scale(.98); pointer-events: none; }
+  .node.gone { opacity: .38; filter: grayscale(1); }
+  .node.gone .nodehead::after { content: attr(data-gone); font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted-fg); margin-left: auto; }
+  .node.active { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent); }
+  .nodehead { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .nodehead .label { font-size: 0.66rem; }
+  .row { display: flex; align-items: center; justify-content: space-between; font-family: var(--mono); font-size: 12.5px; }
+  .row code { color: var(--muted-fg); }
+  .val {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 26px; padding: 0 8px;
+    border-radius: 6px; border: 1px solid var(--line); font: 600 14px var(--mono);
+  }
+  .flash { animation: flash .7s ease; }
+  @keyframes flash {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.28); background: var(--brand); color: #1a1205; border-color: var(--brand); }
+    100% { transform: scale(1); }
+  }
+  .chip {
+    font: 500 11.5px var(--mono); border: 1px dashed color-mix(in oklab, var(--brand) 60%, var(--line));
+    background: color-mix(in oklab, var(--brand) 7%, var(--bg)); border-radius: 6px; padding: 6px 9px;
+    transition: opacity .35s, transform .35s;
+  }
+  .chip.hidden { opacity: 0; transform: translateY(6px); }
+  .chip .label { display: block; font-size: .62rem; margin-bottom: 2px; }
+  .queue { border-style: solid; border-color: var(--bad); background: color-mix(in oklab, var(--bad) 8%, var(--bg)); }
+  .queue.applied { border-color: var(--line); background: var(--bg); opacity: .45; text-decoration: line-through; }
+
+  .htmlbox pre { margin: 0; font: 12.5px var(--mono); color: var(--muted-fg); }
+  .htmlbox pre b { color: var(--fg); font-weight: 600; }
+
+  /* wire */
+  .wire { position: relative; display: flex; align-items: center; justify-content: center; }
+  .wire .line { position: absolute; left: 10px; right: 10px; top: 50%; border-top: 1px dashed var(--line); }
+  .wire .line::after { content: ""; position: absolute; right: -2px; top: -4px; border: 4px solid transparent; border-left: 6px solid var(--line); }
+  .wire .wl { position: absolute; top: calc(50% + 8px); width: 100%; text-align: center; font-size: .58rem; }
+  .packet {
+    position: absolute; top: calc(50% - 15px); left: 4px; height: 30px; padding: 0 8px; border-radius: 6px;
+    background: var(--brand); color: #1a1205; font: 600 11px var(--mono); display: flex; align-items: center; gap: 6px;
+    opacity: 0; white-space: nowrap;
+  }
+  .packet.go { animation: travel 1.6s cubic-bezier(.5,0,.3,1) forwards; }
+  @keyframes travel {
+    0% { left: 0; opacity: 0; transform: scale(.8); }
+    15% { opacity: 1; transform: scale(1); }
+    85% { opacity: 1; }
+    100% { left: calc(100% - 64px); opacity: 0; }
+  }
+
+  /* screen */
+  .screen { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); transition: border-color .3s, box-shadow .3s; }
+  .screen.active { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent); }
+  .chrome { display: flex; align-items: center; gap: 5px; padding: 6px 9px; border-bottom: 1px solid var(--line); }
+  .chrome i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+  .chrome span { margin-left: 8px; font: 10.5px var(--mono); color: var(--muted-fg); }
+  .view { position: relative; height: 92px; display: flex; align-items: center; justify-content: center; }
+  .big { font: 600 44px/1 var(--mono); transition: color .3s, opacity .3s; }
+  .big.flip { animation: flip .5s ease; }
+  @keyframes flip { 0% { transform: translateY(0); opacity: 1; } 40% { transform: translateY(-10px); opacity: 0; } 41% { transform: translateY(10px); } 100% { transform: translateY(0); opacity: 1; } }
+  .view.blank .big { opacity: 0; }
+  .view.static .big { color: var(--muted-fg); }
+  .badge {
+    position: absolute; left: 8px; right: 8px; bottom: 6px; text-align: center; font: 500 10.5px var(--mono);
+    letter-spacing: .03em; color: var(--muted-fg); transition: color .3s;
+  }
+  .badge.bad { color: var(--bad); }
+  .badge.ok { color: var(--ok); }
+  .view.bad { background: color-mix(in oklab, var(--bad) 7%, var(--bg)); }
+  .view.ok { background: color-mix(in oklab, var(--ok) 7%, var(--bg)); }
+  .view { transition: background .4s; }
+
+  /* code + text */
+  .lower { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--r) var(--r); }
+  .code { background: var(--code-bg); padding: 12px 0; border-right: 1px solid var(--line); min-width: 0; }
+  .code .file { padding: 0 14px 8px; }
+  .code pre { margin: 0; font: 12px/1.65 var(--mono); overflow-x: auto; }
+  .code .ln { display: block; padding: 0 14px; border-left: 2px solid transparent; color: var(--muted-fg); transition: background .3s, color .3s, border-color .3s; white-space: pre; }
+  .code .ln.hl { background: color-mix(in oklab, var(--brand) 14%, transparent); border-left-color: var(--brand); color: var(--fg); }
+  .text { padding: 14px 16px; }
+  .text h3 { margin: 0 0 6px; font: 600 15px/1.35 var(--sans); }
+  .text p { margin: 0 0 8px; color: var(--fg); opacity: .88; }
+  .text p code, .text h3 code { font: 12.5px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  .note { font-family: var(--serif); font-style: italic; color: var(--brand-ink); font-size: 15px; margin-top: 4px; }
+  .fade-in { animation: fadein .35s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* controls + strip */
+  .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 10px; }
+  .btn { white-space: nowrap;
+    font: 500 13px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 16px; cursor: pointer; transition: border-color .2s, opacity .2s;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--brand); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .counter { font: 12px var(--mono); color: var(--muted-fg); }
+  .strip { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+  .frames { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .frame {
+    min-width: 44px; padding: 0 9px; height: 40px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font: 600 17px var(--mono); color: var(--muted-fg); opacity: .3; transition: opacity .3s, border-color .3s, background .3s, color .3s;
+  }
+  .frame.seen { opacity: 1; color: var(--fg); }
+  .frame.seen.bad { border-color: var(--bad); background: color-mix(in oklab, var(--bad) 10%, var(--bg)); color: var(--bad); }
+  .arrow { color: var(--muted-fg); font-size: 12px; opacity: .5; }
+  .stripnote { margin-left: auto; font: 500 12px var(--mono); }
+  .stripnote.bad { color: var(--bad); }
+  .stripnote.ok { color: var(--ok); }
+  .kbd { font: 11px var(--mono); color: var(--muted-fg); }
+
+  @media (max-width: 600px) {
+    .diagram { grid-template-columns: 1fr; gap: 10px; }
+    /* No room to hold a place for a box that appears later. */
+    .node.hidden, .chip.hidden { display: none; }
+    .wire { height: 54px; }
+    .lower { grid-template-columns: 1fr; }
+    .code { border-right: 0; border-bottom: 1px solid var(--line); }
+    .rail { grid-template-columns: repeat(min(var(--n), 6), 1fr); }
+    .phases { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+  /* ?capture: just the diagram, for PR screenshots. */
+  body.capture.standalone { max-width: 880px; padding: 20px; }
+  body.capture .standalone-only, body.capture .controls, body.capture .kbd, body.capture .primer { display: none; }
+  body.capture .strip { margin-bottom: 0; }
+
+/* Last, so no later `font` shorthand turns them back on: JetBrains Mono draws => and <!-- as arrows. */
+code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
+/* A box marked wrong or right. Last, so it wins over the active ring's border. */
+.node.tone-bad, .chip.tone-bad { border: 1px solid var(--bad); background: color-mix(in oklab, var(--bad) 9%, var(--bg)); }
+.node.tone-ok, .chip.tone-ok { border: 1px solid var(--ok); background: color-mix(in oklab, var(--ok) 8%, var(--bg)); }
+.tone-bad .val, .tone-bad pre b, .tone-bad .body { color: var(--bad); border-color: var(--bad); }
+.tone-ok .val, .tone-ok pre b, .tone-ok .body { color: var(--ok); border-color: var(--ok); }
+
+.big.long { font-size: 26px; }
+
+/* Primer: the scenario and the terms, above the steps. */
+.primer { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; margin-bottom: 16px; }
+.primer summary { cursor: pointer; color: var(--fg); }
+.primer[open] summary { margin-bottom: 10px; }
+.primer .intro p { margin: 0 0 8px; }
+.primer dl { margin: 12px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+.primer dt { font-weight: 600; margin-bottom: 2px; }
+.primer dd { margin: 0; color: var(--fg); opacity: .88; }
+.primer code, .tip code { font: 12.5px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+.from { font: 500 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--brand-ink);
+  border: 1px solid color-mix(in oklab, var(--brand) 40%, var(--line)); border-radius: 999px; padding: 0 6px; margin-left: 4px; vertical-align: 1px; }
+.term { text-decoration: underline dotted color-mix(in oklab, var(--brand) 70%, var(--fg)); text-underline-offset: 3px; cursor: help; }
+.term:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-radius: 2px; }
+.tip { position: fixed; z-index: 10; max-width: min(340px, calc(100vw - 16px)); padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: var(--r); background: var(--bg); font-size: 13px; line-height: 1.45; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.tip.on { opacity: 1; }
+.tip div { margin-top: 4px; opacity: .88; }
+@media (max-width: 600px) { .primer dl { grid-template-columns: 1fr; } }
+
+/* Graph: atoms as small boxes, with edges drawn between them. */
+.graph .plot { position: relative; }
+.graph .plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.graph.windowed { padding: 0; overflow: hidden; }
+.graph.windowed .plot { margin: 10px 11px; }
+.gn { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center;
+  border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 3px 7px; white-space: nowrap;
+  transition: opacity .35s, border-color .3s, background .3s, color .3s; }
+.gl { font: 500 11.5px var(--mono); }
+.gv { font: 600 11px var(--mono); color: var(--brand-ink); border-radius: 4px; padding: 0 3px; }
+.gv:empty { display: none; }
+.gn.off { opacity: 0; }
+.gn[data-mark="hl"] { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent); }
+.gn[data-mark="dim"] { opacity: .4; }
+.gn[data-mark="bad"] { border-color: var(--bad); background: color-mix(in oklab, var(--bad) 10%, var(--bg)); color: var(--bad); }
+.gn[data-mark="ok"] { border-color: var(--ok); background: color-mix(in oklab, var(--ok) 10%, var(--bg)); color: var(--ok); }
+.edge { stroke: var(--muted-fg); stroke-width: 1.5; fill: none; }
+.edge-mount { stroke-dasharray: 4 3; }
+.edge-new { stroke: var(--brand); stroke-width: 2; }
+.edge-gone { stroke: var(--bad); stroke-dasharray: 2 3; opacity: .6; }
+.edge-bad { stroke: var(--bad); stroke-width: 2; }
+.edge-ok { stroke: var(--ok); stroke-width: 2; }
+.arrow-read path, .arrow-mount path { fill: var(--muted-fg); }
+.arrow-gone path { fill: var(--bad); opacity: .6; }
+.arrow-new path { fill: var(--brand); }
+.arrow-bad path { fill: var(--bad); }
+.arrow-ok path { fill: var(--ok); }
+.edge.fresh { stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw .6s ease forwards; }
+.edge-mount.fresh { animation: none; stroke-dasharray: 4 3; stroke-dashoffset: 0; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.legend { margin-top: 6px; font: 10.5px var(--mono); color: var(--muted-fg); }
+.graph.windowed .legend { margin: 0 11px 8px; }
+.gn, .gl, .gv, .legend, .primer code, .tip code, .text code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
+/* A box with lane "*": the full width, above the lanes. */
+.diagram > .span { grid-column: 1 / -1; }
+
+/* This diagram's own styles. */
+
+.tl .axis { position: relative; height: 172px; margin: 0 4px; }
+.tl .line { position: absolute; left: 0; right: 10px; top: 50%; border-top: 2px solid var(--line); }
+.tl .line::after { content: ""; position: absolute; right: -10px; top: -6px; border: 5px solid transparent; border-left: 8px solid var(--line); }
+.tl .over { position: absolute; top: 0; bottom: 0; left: var(--at); right: 0; opacity: 0; transition: opacity .4s;
+  border-left: 2px dashed var(--muted-fg);
+  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--muted-fg) 9%, transparent) 0 6px, transparent 6px 12px); }
+.tl .over.on { opacity: 1; }
+.tl .over span { position: absolute; top: 2px; left: 8px; font: 10px var(--mono); letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted-fg); white-space: nowrap; }
+.mk { position: absolute; left: var(--at); top: 50%; width: 0; transition: opacity .35s; }
+.mk.off { opacity: 0; }
+.mk .pin { position: absolute; left: -6px; top: -7px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--muted-fg); }
+.mk .cap { position: absolute; width: 150px; transform: translateX(-50%); text-align: center;
+  font: 11.5px/1.35 var(--sans); color: var(--fg); }
+.mk.left .cap { transform: translateX(-8px); text-align: left; }
+.mk.right .cap { transform: translateX(calc(-100% + 8px)); text-align: right; }
+.mk.before .cap { transform: translateX(calc(-100% - 10px)); text-align: right; }
+.mk.up .cap { bottom: 12px; }
+.mk.down .cap { top: 12px; }
+.mk .cap code { font: 11px var(--mono); }
+.mk .nt { display: block; font: 600 11px/1.35 var(--mono); }
+.mk .nt:empty { display: none; }
+.mk[data-mark="hl"] .pin { border-color: var(--brand); background: var(--brand); box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand) 22%, transparent); }
+.mk[data-mark="hl"] .nt { color: var(--brand-ink); }
+.mk[data-mark="bad"] .pin { border-color: var(--bad); background: var(--bad); }
+.mk[data-mark="bad"] .cap, .mk[data-mark="bad"] .nt { color: var(--bad); }
+.mk[data-mark="ok"] .pin { border-color: var(--ok); background: var(--ok); }
+.mk[data-mark="ok"] .cap, .mk[data-mark="ok"] .nt { color: var(--ok); }
+.mk.pop .pin { animation: flash .7s ease; }
+.mk .cap, .mk .nt { font-variant-ligatures: none; }
+@media (max-width: 600px) {
+  .tl .axis { height: auto; display: flex; flex-direction: column; gap: 8px; padding-left: 14px; border-left: 2px solid var(--line); margin-left: 6px; }
+  .tl .line, .tl .over { display: none; }
+  .mk { position: relative; left: 0; top: 0; width: auto; }
+  .mk.off { display: none; }
+  .mk .pin { left: -21px; top: 3px; }
+  .mk .cap, .mk.left .cap, .mk.right .cap, .mk.before .cap { position: static; width: auto; transform: none; text-align: left; }
+}
+
+</style>
+</head>
+<body>
+<script>
+// The explainer engine: builds a step-through diagram page from a spec. See ../SKILL.md for the
+// spec's shape and ../examples/ for a full one. Inlined into each page by ../scripts/build.mjs.
+const Stepper = (() => {
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const el = (tag, cls, html) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  };
+  // Replays a CSS animation on every call.
+  const replay = (e, cls) => {
+    e.classList.remove(cls);
+    void e.offsetWidth;
+    e.classList.add(cls);
+  };
+  const valueOf = (s) => (s !== null && typeof s === "object" ? s.v : s);
+
+  /**
+   * Box kinds: `make` builds the element once, `paint` shows one step's state (null only for a
+   * screen). A state object's `tone` ("bad" | "ok") colours any box; render() applies it.
+   */
+  const KINDS = {
+    // A store with one named value, such as a registry holding countAtom.
+    store: {
+      make: (b) => {
+        const e = el("div", "node", `<div class="nodehead"><span class="label">${b.label}</span></div>
+          <div class="row"><code>${esc(b.row ?? "")}</code><span class="val">·</span></div>`);
+        // Read by the CSS label a gone store shows.
+        e.querySelector(".nodehead").dataset.gone = b.goneLabel ?? "gone";
+        return e;
+      },
+      paint: (e, s, b, animate) => {
+        e.classList.toggle("gone", typeof s === "object" && !!s.gone);
+        const val = e.querySelector(".val");
+        const next = String(valueOf(s) ?? "·");
+        if (val.textContent !== next) {
+          val.textContent = next;
+          if (animate) replay(val, "flash");
+        }
+      },
+    },
+    // Text with a value in it: `text` contains {v}, such as "<p>{v}</p>".
+    text: {
+      make: (b) => el("div", "node htmlbox", `<div class="nodehead"><span class="label">${b.label}</span></div><pre></pre>`),
+      paint: (e, s, b) => {
+        e.querySelector("pre").innerHTML = esc(b.text).replace("{v}", `<b>${esc(valueOf(s) ?? "")}</b>`);
+      },
+    },
+    // Plain data, such as a dehydrated list. A string state replaces the box's text.
+    data: {
+      make: (b) => el("div", "chip", `<span class="label">${b.label}</span><span class="body"></span>`),
+      paint: (e, s, b) => {
+        const text = typeof s === "string" ? s : typeof s === "object" ? s.text : undefined;
+        e.querySelector(".body").textContent = text ?? b.text;
+      },
+    },
+    // Something waiting to happen. State "applied" strikes it through.
+    queue: {
+      make: (b) => el("div", "chip queue", `<span class="label">${b.label}</span><span class="body">${esc(b.text)}</span>`),
+      paint: (e, s) => e.classList.toggle("applied", s === "applied"),
+    },
+    // What the user sees: { v, badge, tone: "bad" | "ok", live }. Never hidden; null shows it empty.
+    screen: {
+      make: (b) => el("div", "screen", `<div class="chrome"><i></i><i></i><i></i><span>${esc(b.label ?? "what the user sees")}</span></div>
+        <div class="view blank"><span class="big"></span><span class="badge"></span></div>`),
+      paint: (e, s, b, animate) => {
+        const view = e.querySelector(".view");
+        const big = e.querySelector(".big");
+        const badge = e.querySelector(".badge");
+        if (s == null) {
+          view.className = "view blank";
+          big.textContent = "";
+          badge.textContent = "";
+          return;
+        }
+        view.className = "view " + (s.live ? "live" : "static") + (s.tone ? " " + s.tone : "");
+        const next = String(s.v ?? "");
+        // Longer values drop to a size that fits the box.
+        big.classList.toggle("long", next.length > 5);
+        if (big.textContent !== next) {
+          if (animate && big.textContent) {
+            replay(big, "flip");
+            setTimeout(() => (big.textContent = next), 180);
+          } else big.textContent = next;
+        }
+        badge.textContent = s.badge ?? "";
+        badge.className = "badge" + (s.tone ? " " + s.tone : "");
+      },
+    },
+    // Atoms and the edges between them, such as a node and its parents. The box places `nodes`
+    // ({ id, label, x, y }, x and y from 0 to 1 across the plot); a step's state is
+    // { edges: [[from, to, kind]], show, mark, values }. An edge kind is "read" (solid), "mount"
+    // (dashed), "new" (amber), "gone" (fading, struck), "bad" or "ok". `show` lists the visible
+    // nodes (all by default), `mark` maps a node to "hl" | "bad" | "ok" | "dim", and `values` puts
+    // a value under a node's name. `chrome: true` draws it as a window, for what a user sees.
+    graph: {
+      make: (b) => {
+        const head = b.chrome
+          ? `<div class="chrome"><i></i><i></i><i></i><span>${esc(b.label)}</span></div>`
+          : `<div class="nodehead"><span class="label">${b.label}</span></div>`;
+        const e = el("div", "node graph" + (b.chrome ? " windowed" : ""), `${head}
+          <div class="plot" style="height:${b.height ?? 140}px"><svg aria-hidden="true"></svg></div>
+          ${b.legend ? `<div class="legend">${b.legend}</div>` : ""}`);
+        const plot = e.querySelector(".plot");
+        for (const n of b.nodes) {
+          const d = el("div", "gn", `<span class="gl">${esc(n.label ?? n.id)}</span><span class="gv"></span>`);
+          d.dataset.id = n.id;
+          d.style.left = `${n.x * 100}%`;
+          d.style.top = `${n.y * 100}%`;
+          plot.append(d);
+        }
+        e._edges = [];
+        new ResizeObserver(() => drawEdges(e, false)).observe(plot);
+        return e;
+      },
+      paint: (e, s, b, animate) => {
+        const st = s ?? {};
+        for (const d of e.querySelectorAll(".gn")) {
+          const id = d.dataset.id;
+          d.classList.toggle("off", !!st.show && !st.show.includes(id));
+          d.dataset.mark = st.mark?.[id] ?? "";
+          const gv = d.querySelector(".gv");
+          const next = st.values?.[id] == null ? "" : String(st.values[id]);
+          if (gv.textContent !== next) {
+            gv.textContent = next;
+            if (animate && next) replay(gv, "flash");
+          }
+        }
+        e._edges = st.edges ?? [];
+        drawEdges(e, animate);
+      },
+    },
+  };
+
+  // Draws a graph box's edges between its nodes as they're laid out now, from the edge of one
+  // node's box to the edge of the other's. Edges that weren't there last time draw themselves in.
+  const ARROWS = ["read", "mount", "new", "gone", "bad", "ok"];
+  function drawEdges(e, animate) {
+    const plot = e.querySelector(".plot");
+    const svg = plot.querySelector("svg");
+    const box = plot.getBoundingClientRect();
+    if (!box.width) return;
+    const at = (id) => {
+      const r = plot.querySelector(`.gn[data-id="${id}"]`)?.getBoundingClientRect();
+      return r && { x: r.left - box.left + r.width / 2, y: r.top - box.top + r.height / 2, w: r.width / 2 + 4, h: r.height / 2 + 4 };
+    };
+    // Where the line from a node's centre towards (dx, dy) leaves its box.
+    const exit = (n, dx, dy) => {
+      const t = Math.min(dx ? n.w / Math.abs(dx) : Infinity, dy ? n.h / Math.abs(dy) : Infinity);
+      return { x: n.x + dx * t, y: n.y + dy * t };
+    };
+    const before = e._drawn ?? new Set();
+    const now = new Set();
+    let html = `<defs>${ARROWS.map((k) => `<marker id="${e.dataset.uid}-${k}" class="arrow-${k}" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" /></marker>`).join("")}</defs>`;
+    for (const [from, to, kind = "read"] of e._edges) {
+      const a = at(from);
+      const b = at(to);
+      if (!a || !b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const p = exit(a, dx, dy);
+      const q = exit(b, -dx, -dy);
+      const key = `${from}>${to}>${kind}`;
+      now.add(key);
+      const fresh = animate && !before.has(key) ? " fresh" : "";
+      html += `<line class="edge edge-${kind}${fresh}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}"
+        marker-end="url(#${e.dataset.uid}-${kind})" />`;
+    }
+    svg.innerHTML = html;
+    e._drawn = now;
+  }
+
+  // Terms from the spec's primer, written {{id}} or {{id|shown text}} in any step's HTML: shown
+  // underlined, with the term's definition on hover or focus.
+  let terms = {};
+  const withTerms = (html) =>
+    String(html ?? "").replace(/\{\{(\w+)(?:\|([^}]+))?\}\}/g, (m, id, shown) =>
+      terms[id] ? `<span class="term" tabindex="0" data-term="${id}">${shown ?? terms[id].term}</span>` : shown ?? id);
+
+  function mount(spec, extraKinds = {}) {
+    // A spec's own box kinds (see scripts/build.mjs), for a picture the built-in kinds can't draw.
+    Object.assign(KINDS, extraKinds);
+    const { meta, lanes, boxes, files, steps: tracks, primer } = spec;
+    terms = Object.fromEntries((primer?.terms ?? []).map((t) => [t.id, t]));
+    const after = tracks.after ?? [];
+    const hasAfter = after.length > 0;
+    const laneById = Object.fromEntries(lanes.map((l) => [l.id, l]));
+    let mode = "before";
+    let i = 0;
+    let painted = false;
+
+    // Each step's full state: box states carry over from the step before unless the step sets
+    // them; `null` hides a box.
+    const steps = () => {
+      let state = Object.fromEntries(boxes.map((b) => [b.id, b.start ?? null]));
+      return tracks.shared.concat(mode === "before" ? tracks.before : after).map((s) => {
+        state = { ...state, ...s.set };
+        return { ...s, state };
+      });
+    };
+
+    // Page skeleton.
+    document.title = meta.title;
+    const body = document.body;
+    body.innerHTML = `
+      <div class="standalone-only"><h1 class="page-title"></h1><p class="page-sub"></p></div>
+      <details class="primer" open><summary class="label"></summary><div class="intro"></div><dl></dl></details>
+      <div class="top"><span class="label kicker"></span>
+        <div class="seg" role="group" aria-label="Version"><button data-mode="before"></button><button data-mode="after"></button></div></div>
+      <div class="rail"></div><div class="phases"></div>
+      <div class="stage"><div class="diagram"></div></div>
+      <div class="lower"><div class="code"><div class="file label"></div><pre class="src"></pre></div><div class="text"></div></div>
+      <div class="controls"><button class="btn prev">← Back</button><span class="counter"></span><button class="btn primary next">Next →</button></div>
+      <div class="strip"><span class="label strip-label"></span><div class="frames"></div></div>
+      <p class="kbd">Use ← and → to step, or click a step number. Each step has its own link: the address bar follows along.</p>`;
+    const q = (sel) => body.querySelector(sel);
+    q(".page-title").textContent = meta.title;
+    q(".page-sub").innerHTML = meta.subtitle ?? "";
+    q(".kicker").textContent = meta.kicker ?? "";
+    q(".strip-label").textContent = meta.stripLabel ?? "";
+    const [bBefore, bAfter] = body.querySelectorAll(".seg button");
+    bBefore.textContent = meta.beforeLabel ?? "Before the fix";
+    bAfter.textContent = meta.afterLabel ?? "After the fix";
+    if (!hasAfter) q(".seg").style.display = "none";
+
+    // The primer: the scenario in prose, then each term the steps use, before the first step.
+    if (primer) {
+      q(".primer summary").textContent = primer.title ?? "Before you start";
+      q(".primer .intro").innerHTML = [].concat(primer.intro ?? []).map((p) => `<p>${withTerms(p)}</p>`).join("");
+      q(".primer dl").innerHTML = (primer.terms ?? [])
+        .map((t) => `<div><dt>${t.term}${t.from ? ` <span class="from">${esc(t.from)}</span>` : ""}</dt><dd>${withTerms(t.html)}</dd></div>`)
+        .join("");
+    } else q(".primer").remove();
+    const tip = el("div", "tip");
+    tip.setAttribute("role", "tooltip");
+    body.append(tip);
+    const showTip = (ev) => {
+      const t = ev.target.closest?.(".term");
+      if (!t) return;
+      const def = terms[t.dataset.term];
+      tip.innerHTML = `<b>${def.term}</b>${def.from ? ` <span class="from">${esc(def.from)}</span>` : ""}<div>${withTerms(def.html)}</div>`;
+      tip.classList.add("on");
+      const r = t.getBoundingClientRect();
+      const w = tip.offsetWidth;
+      tip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+      const below = r.bottom + 8 + tip.offsetHeight < innerHeight;
+      tip.style.top = `${below ? r.bottom + 8 : r.top - 8 - tip.offsetHeight}px`;
+    };
+    const hideTip = (ev) => ev.target.closest?.(".term") && tip.classList.remove("on");
+    body.addEventListener("mouseover", showTip);
+    body.addEventListener("focusin", showTip);
+    body.addEventListener("mouseout", hideTip);
+    body.addEventListener("focusout", hideTip);
+    addEventListener("scroll", () => tip.classList.remove("on"), { passive: true });
+
+    // Lanes and their boxes, with a wire between exactly two lanes if the spec has one.
+    const diagram = q(".diagram");
+    const wired = spec.wire && lanes.length === 2;
+    diagram.classList.toggle("wired", !!wired);
+    diagram.style.setProperty("--cols", wired ? "1fr 92px 1fr" : `repeat(${lanes.length}, 1fr)`);
+    const boxEls = {};
+    // A box with lane "*" spans every lane, in a row above them: for a picture that needs the
+    // page's width, such as a timeline.
+    for (const b of boxes.filter((x) => x.lane === "*")) {
+      const e = KINDS[b.kind].make(b);
+      e.dataset.uid = `box-${b.id}`;
+      e.classList.add("span");
+      boxEls[b.id] = e;
+      diagram.append(e);
+    }
+    lanes.forEach((lane, n) => {
+      if (wired && n === 1) {
+        diagram.append(el("div", "wire", `<div class="line"></div><span class="label wl">${esc(spec.wire.label ?? "")}</span>
+          <div class="packet">${esc(spec.wire.packet ?? "")}</div>`));
+      }
+      const col = el("div", "col", `<div class="colhead"><span class="dot"></span><span class="label">${esc(lane.label)}</span></div>`);
+      col.dataset.side = lane.id;
+      for (const b of boxes.filter((x) => x.lane === lane.id)) {
+        const e = KINDS[b.kind].make(b);
+        e.dataset.uid = `box-${b.id}`;
+        boxEls[b.id] = e;
+        col.append(e);
+      }
+      diagram.append(col);
+    });
+
+    function buildRail() {
+      const all = steps();
+      const rail = q(".rail");
+      rail.style.setProperty("--n", all.length);
+      rail.innerHTML = "";
+      all.forEach((_, n) => {
+        const b = el("button", "", String(n + 1));
+        b.title = `Step ${n + 1}`;
+        b.onclick = () => go(n);
+        rail.append(b);
+      });
+      // One phase per run of steps in the same lane.
+      const runs = [];
+      all.forEach((s, n) => {
+        const last = runs[runs.length - 1];
+        if (last && last.side === s.side) last.end = n;
+        else runs.push({ side: s.side, start: n, end: n });
+      });
+      const ph = q(".phases");
+      ph.innerHTML = "";
+      // The same columns as the rail, so each phase sits under its own steps. A label too long for
+      // a short run is cut off, with the whole of it on hover.
+      ph.style.gridTemplateColumns = `repeat(${all.length}, minmax(0, 1fr))`;
+      for (const r of runs) {
+        const name = laneById[r.side].phase ?? laneById[r.side].label;
+        const span = r.start === r.end ? `step ${r.start + 1}` : `steps ${r.start + 1}–${r.end + 1}`;
+        const d = el("div", "label", esc(name));
+        d.title = `${name} · ${span}`;
+        d.style.gridColumn = `${r.start + 1} / span ${r.end - r.start + 1}`;
+        d.dataset.start = r.start;
+        d.dataset.end = r.end;
+        ph.append(d);
+      }
+    }
+
+    function render() {
+      const all = steps();
+      const s = all[i];
+      const last = all.length - 1;
+      [...q(".rail").children].forEach((b, n) => (b.className = n === i ? "now" : n < i ? "done" : ""));
+      [...q(".phases").children].forEach((d) => d.classList.toggle("on", i >= +d.dataset.start && i <= +d.dataset.end));
+      body.querySelectorAll(".col").forEach((c) => c.classList.toggle("on", c.dataset.side === s.side));
+
+      for (const b of boxes) {
+        const e = boxEls[b.id];
+        const st = s.state[b.id];
+        // A box this mode never shows takes no room; one that appears later keeps its place.
+        e.style.display = b.kind !== "screen" && all.every((x) => x.state[b.id] == null) ? "none" : "";
+        const hidden = st == null && b.kind !== "screen";
+        e.classList.toggle("hidden", hidden);
+        e.classList.toggle("active", (s.active ?? []).includes(b.id));
+        // Any box but the screen (which has its own) can be marked wrong or right: { …, tone }.
+        const tone = b.kind !== "screen" && st !== null && typeof st === "object" ? st.tone : undefined;
+        e.classList.toggle("tone-bad", tone === "bad");
+        e.classList.toggle("tone-ok", tone === "ok");
+        if (!hidden) KINDS[b.kind].paint(e, st, b, painted);
+      }
+      const packet = q(".packet");
+      if (packet) {
+        packet.classList.remove("go");
+        if (s.packet) replay(packet, "go");
+      }
+
+      const f = files[s.file];
+      q(".file").textContent = f.name;
+      q(".src").innerHTML = f.lines
+        .map((l, n) => `<span class="ln${(s.hl ?? []).includes(n) ? " hl" : ""}">${esc(l) || " "}</span>`)
+        .join("");
+      const t = q(".text");
+      // `body` is one paragraph or a list of them.
+      const paras = [].concat(s.body ?? []).map((p) => `<p>${withTerms(p)}</p>`).join("");
+      t.innerHTML = `<span class="label">Step ${i + 1} of ${all.length}</span><h3>${withTerms(s.title)}</h3>${paras}${s.note ? `<p class="note">${withTerms(s.note)}</p>` : ""}`;
+      replay(t, "fade-in");
+
+      // The strip: one frame per step that sets `frame`.
+      const framed = all.map((st, n) => ({ st, n })).filter(({ st }) => st.frame !== undefined);
+      q(".strip").style.display = framed.length ? "" : "none";
+      const frames = q(".frames");
+      frames.innerHTML = "";
+      framed.forEach(({ st, n }, k) => {
+        if (k) frames.append(el("span", "arrow", "→"));
+        const seen = i >= n;
+        const d = el("div", "frame" + (seen ? " seen" : "") + (seen && st.bad ? " bad" : ""), esc(st.frame));
+        d.title = `Step ${n + 1}`;
+        frames.append(d);
+      });
+      const verdict = i === last && meta.verdict?.[mode];
+      frames.append(el("span", "stripnote" + (verdict ? " " + verdict.tone : ""), verdict ? esc(verdict.text) : ""));
+
+      q(".counter").textContent = `${i + 1} / ${all.length} · ${(laneById[s.side].phase ?? laneById[s.side].label).toLowerCase()}`;
+      q(".prev").disabled = i === 0;
+      q(".next").textContent =
+        i === last ? (hasAfter && mode === "before" ? "See it with the fix →" : "Start over ↺") : "Next →";
+      history.replaceState(null, "", `${location.search}#${mode}-${i + 1}`);
+      painted = true;
+    }
+
+    const count = () => steps().length;
+    function go(n) {
+      i = Math.max(0, Math.min(count() - 1, n));
+      render();
+    }
+    function setMode(m) {
+      mode = hasAfter ? m : "before";
+      bBefore.setAttribute("aria-pressed", mode === "before");
+      bAfter.setAttribute("aria-pressed", mode === "after");
+      buildRail();
+      i = Math.min(i, count() - 1);
+      render();
+    }
+    q(".prev").onclick = () => go(i - 1);
+    q(".next").onclick = () => {
+      if (i === count() - 1) {
+        if (hasAfter && mode === "before") {
+          setMode("after");
+          go(tracks.shared.length);
+        } else {
+          setMode("before");
+          go(0);
+        }
+      } else go(i + 1);
+    };
+    bBefore.onclick = () => setMode("before");
+    bAfter.onclick = () => setMode("after");
+    addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") q(".next").click();
+      if (e.key === "ArrowLeft") go(i - 1);
+    });
+
+    // Standalone (GitHub Pages): no host theme, so centre the page and show its title. Checked
+    // again after load, in case a host injects its theme late.
+    const checkHost = () =>
+      body.classList.toggle("standalone", !getComputedStyle(document.documentElement).getPropertyValue("--background").trim());
+    checkHost();
+    addEventListener("load", checkHost);
+    setTimeout(checkHost, 500);
+    body.classList.toggle("capture", new URLSearchParams(location.search).has("capture"));
+
+    // Links such as #before-10 or #after-9 open on that step.
+    const linked = /^#(before|after)-(\d+)$/.exec(location.hash);
+    if (linked) {
+      mode = linked[1];
+      i = +linked[2] - 1;
+    }
+    setMode(mode);
+    // For scripts/shoot.mjs.
+    window.stepper = { count, hasAfter };
+  }
+
+  return { mount };
+})();
+
+</script>
+<script>
+Stepper.mount({
+  "meta": {
+    "title": "Bug 1: a dropped component hands one visitor's value to the next",
+    "subtitle": "Two requests against one shared registry, step by step. From <a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/39\">#39<\/a>.",
+    "kicker": "Bug 1 · two server renders, step by step",
+    "stripLabel": "What Ben's page says",
+    "verdict": {
+      "before": {
+        "tone": "bad",
+        "text": "Ben sees Ada's name"
+      },
+      "after": {
+        "tone": "ok",
+        "text": "Ben sees Ben's name"
+      }
+    }
+  },
+  "primer": {
+    "title": "Before you start: the app, and the pieces involved",
+    "intro": [
+      "Picture a SvelteKit app with a profile page. A <code>Profile<\/code> component fetches the visitor and greets them: <b>Hi, Ada<\/b>. Beside it, a <code>Recommendations<\/code> section sits in the same {{boundary|error boundary}}, so if it fails the page still loads, showing <i>Couldn't load this section<\/i> in their place.",
+      "The app makes one {{registry|registry}} when the server starts and passes it to {{provider|RegistryProvider}} on every request, so data that every visitor shares, like a product catalogue, is fetched once rather than per request. The page's own atoms, like <code>nameAtom<\/code>, live in that registry too, but only for the length of one request: the library's hooks {{hold|hold}} them while a render uses them and let go when the render ends.",
+      "<b>The bug:<\/b> Ada loads the page, and <code>Recommendations<\/code> throws. The boundary drops <code>Profile<\/code> while it's still waiting for <code>getUser()<\/code>. Ada's render finishes without it; then <code>getUser()<\/code> returns and <code>Profile<\/code> carries on regardless, putting <b>Ada<\/b> into the shared registry. Nothing ever lets go of it, so when Ben loads the page next, Ben is greeted as Ada."
+    ],
+    "terms": [
+      {
+        "id": "registry",
+        "term": "Registry and node",
+        "from": "Effect",
+        "html": "<code>AtomRegistry<\/code> stores atoms' values while they're in use, one <em>node<\/em> per atom. A node stays while something holds it (a subscriber or a mount). Once nothing does, the registry <em>sweeps<\/em> it: the node and its value are gone, and the next use starts afresh."
+      },
+      {
+        "id": "provider",
+        "term": "<code>RegistryProvider<\/code>",
+        "from": "this library",
+        "html": "Gives the components below it a registry. With no <code>registry<\/code> prop it makes one per request; passing one, as this app does, shares it across requests."
+      },
+      {
+        "id": "hold",
+        "term": "A hold, and its release",
+        "from": "this library",
+        "html": "On the server, each hook that uses an atom holds its node so the registry doesn't sweep it mid-render, and registers a <em>release<\/em> with {{onRenderEnd}} to let go once the render is over."
+      },
+      {
+        "id": "initial",
+        "term": "<code>useAtomInitialValues<\/code>",
+        "from": "this library",
+        "html": "Sets atoms' starting values for this render, usually from data the page loaded. It marks the node <em>applied<\/em>, so a second component setting the same atom in the same render doesn't overwrite the first, and holds it. The mark is cleared when those holds are released."
+      },
+      {
+        "id": "read",
+        "term": "<code>useAtomValue<\/code>",
+        "from": "this library",
+        "html": "Reads an atom's value in a component. On the server it holds the atom's node too."
+      },
+      {
+        "id": "boundary",
+        "term": "<code>&lt;svelte:boundary&gt;<\/code>",
+        "from": "Svelte",
+        "html": "Catches errors thrown by the components inside it. With a <code>failed<\/code> snippet, when one child throws while it sets up, Svelte drops <em>all<\/em> the boundary's children from the output and renders the snippet instead."
+      },
+      {
+        "id": "await",
+        "term": "Top-level <code>await<\/code> in a component",
+        "from": "Svelte",
+        "html": "With <code>experimental.async<\/code>, a component's script can <code>await<\/code>, and the server render waits for it. A component the boundary drops isn't cancelled: its script still resumes when the promise settles, after its render may be over."
+      },
+      {
+        "id": "onDestroy",
+        "term": "<code>onDestroy<\/code>",
+        "from": "Svelte",
+        "html": "On the server, runs for each component once the render is done. Svelte never runs it for children a failed boundary dropped: a Svelte bug the library works around with {{signal|the abort signal}}."
+      },
+      {
+        "id": "signal",
+        "term": "<code>getAbortSignal()<\/code> and <code>abort<\/code>",
+        "from": "Svelte · JavaScript",
+        "html": "Svelte gives each server render an <code>AbortSignal<\/code> and aborts it when the render ends. A signal fires its <code>abort<\/code> event once: listeners added before then run, and one added afterwards never does. <code>signal.aborted<\/code> says whether it already has."
+      },
+      {
+        "id": "onRenderEnd",
+        "term": "<code>onRenderEnd<\/code>",
+        "from": "this library",
+        "html": "Runs a cleanup once when the render ends: from {{onDestroy}} or the signal's <code>abort<\/code>, whichever comes first. Every hold's release goes through it."
+      },
+      {
+        "id": "microtask",
+        "term": "Microtask",
+        "from": "JavaScript",
+        "html": "A callback queued with <code>queueMicrotask<\/code>, run as soon as the code running now has finished: here, once <code>Profile<\/code>'s script has taken all its holds."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "A",
+      "label": "Ada's request",
+      "phase": "Ada"
+    },
+    {
+      "id": "R",
+      "label": "Shared registry",
+      "phase": "Registry"
+    },
+    {
+      "id": "B",
+      "label": "Ben's request",
+      "phase": "Ben"
+    }
+  ],
+  "boxes": [
+    {
+      "id": "time",
+      "lane": "*",
+      "kind": "timeline",
+      "label": "Ada's render on the server, over time",
+      "cut": "abort",
+      "overLabel": "after the render: abort already fired",
+      "marks": [
+        {
+          "id": "start",
+          "label": "Ada's render starts",
+          "at": 0.02,
+          "side": "up"
+        },
+        {
+          "id": "await",
+          "label": "<code>Profile<\/code> pauses at <code>await getUser()<\/code>",
+          "at": 0.17,
+          "side": "down"
+        },
+        {
+          "id": "drop",
+          "label": "<code>Recommendations<\/code> throws: the boundary drops both",
+          "at": 0.32,
+          "side": "up"
+        },
+        {
+          "id": "abort",
+          "label": "render ends: the signal aborts",
+          "at": 0.47,
+          "side": "down",
+          "align": "before"
+        },
+        {
+          "id": "resume",
+          "label": "<code>getUser()<\/code> returns: <code>Profile<\/code> sets <b>Ada<\/b> and holds it",
+          "at": 0.63,
+          "side": "up"
+        },
+        {
+          "id": "listen",
+          "label": "release registered with <code>onRenderEnd<\/code>",
+          "at": 0.79,
+          "side": "down"
+        },
+        {
+          "id": "micro",
+          "label": "microtask: the releases run",
+          "at": 0.93,
+          "side": "up"
+        }
+      ]
+    },
+    {
+      "id": "screenA",
+      "lane": "A",
+      "kind": "screen",
+      "label": "Ada's page"
+    },
+    {
+      "id": "name",
+      "lane": "R",
+      "kind": "store",
+      "label": "nameAtom's node · its value",
+      "row": "nameAtom",
+      "goneLabel": "swept"
+    },
+    {
+      "id": "applied",
+      "lane": "R",
+      "kind": "data",
+      "label": "initial value applied?",
+      "text": "no"
+    },
+    {
+      "id": "held",
+      "lane": "R",
+      "kind": "data",
+      "label": "held by",
+      "text": "nobody"
+    },
+    {
+      "id": "screenB",
+      "lane": "B",
+      "kind": "screen",
+      "label": "Ben's page"
+    }
+  ],
+  "files": {
+    "layout": {
+      "name": "+layout.svelte · simplified",
+      "lines": [
+        "<script lang=\"ts\">",
+        "  // One registry for every request,",
+        "  // made once, to share cached data.",
+        "  import { serverRegistry } from \"$lib\";",
+        "<\/script>",
+        "",
+        "<RegistryProvider registry={serverRegistry}>",
+        "  {@render children()}",
+        "<\/RegistryProvider>"
+      ]
+    },
+    "page": {
+      "name": "+page.svelte",
+      "lines": [
+        "<svelte:boundary>",
+        "  <Profile {userId} />",
+        "  <Recommendations />  <!-- throws -->",
+        "  {#snippet failed()}",
+        "    <p>Couldn't load this section<\/p>",
+        "  {/snippet}",
+        "<\/svelte:boundary>"
+      ]
+    },
+    "profile": {
+      "name": "Profile.svelte",
+      "lines": [
+        "<script lang=\"ts\">",
+        "  const { userId } = $props();",
+        "  const user = await getUser(userId);",
+        "  useAtomInitialValues([[nameAtom, user.name]]);",
+        "  const name = useAtomValue(nameAtom);",
+        "<\/script>",
+        "",
+        "<p>Hi, {name.current}<\/p>"
+      ]
+    },
+    "initial": {
+      "name": "inside useAtomInitialValues · simplified",
+      "lines": [
+        "if (!applied.has(node)) {",
+        "  applied.add(node);",
+        "  node.setInitialValue(value);",
+        "}",
+        "const release = hold(node);",
+        "onRenderEnd(() => {",
+        "  release();",
+        "  applied.delete(node);",
+        "});"
+      ]
+    },
+    "endBefore": {
+      "name": "internal/renderEnd.ts · before",
+      "lines": [
+        "export const onRenderEnd = (f) => {",
+        "  const once = runsOnce(f);",
+        "  onDestroy(once);",
+        "  getAbortSignal()",
+        "    .addEventListener(\"abort\", once);",
+        "};"
+      ]
+    },
+    "endAfter": {
+      "name": "internal/renderEnd.ts · with the fix",
+      "lines": [
+        "export const onRenderEnd = (f) => {",
+        "  const once = runsOnce(f);",
+        "  onDestroy(once);",
+        "  const signal = getAbortSignal();",
+        "  if (signal.aborted) {",
+        "    queueMicrotask(once); // render is over",
+        "  } else {",
+        "    signal.addEventListener(\"abort\", once);",
+        "  }",
+        "};"
+      ]
+    }
+  },
+  "steps": {
+    "shared": [
+      {
+        "side": "R",
+        "file": "layout",
+        "hl": [
+          1,
+          2,
+          3,
+          6
+        ],
+        "active": [
+          "name"
+        ],
+        "set": {
+          "name": "not yet used",
+          "time": {
+            "show": [
+              "start"
+            ],
+            "mark": {},
+            "notes": {}
+          }
+        },
+        "title": "The app keeps one registry for every request",
+        "body": [
+          "The layout passes the same {{registry|registry}} to {{provider|RegistryProvider}} on every request, so shared data is fetched once. The library supports this.",
+          "It means every request's atoms live side by side in one registry. Each request's hooks must let go of its atoms when that request's render ends, or the next request finds them still there."
+        ],
+        "note": "Anything a request leaves held in this registry, the next request sees."
+      },
+      {
+        "side": "A",
+        "file": "profile",
+        "hl": [
+          2
+        ],
+        "active": [
+          "time"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await"
+            ],
+            "mark": {
+              "await": "hl"
+            },
+            "notes": {}
+          }
+        },
+        "title": "Ada's request: <code>Profile<\/code> pauses at its <code>await<\/code>",
+        "body": [
+          "Svelte starts rendering Ada's page. <code>Profile<\/code> fetches the visitor with a {{await|top-level await}}, so its script pauses there, before it has called any hooks."
+        ],
+        "note": "Its hooks run only once getUser() returns."
+      },
+      {
+        "side": "A",
+        "file": "page",
+        "hl": [
+          2,
+          3,
+          4
+        ],
+        "active": [
+          "time",
+          "screenA"
+        ],
+        "set": {
+          "screenA": {
+            "v": "fallback",
+            "badge": "Couldn't load this section"
+          },
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop"
+            ],
+            "mark": {
+              "drop": "hl"
+            },
+            "notes": {}
+          }
+        },
+        "title": "A sibling throws, so the boundary drops its children",
+        "body": [
+          "<code>Recommendations<\/code> throws while it sets up. The {{boundary}} drops all its children, <code>Profile<\/code> included, and renders the <code>failed<\/code> snippet instead.",
+          "Svelte doesn't cancel <code>Profile<\/code>'s paused script, and it won't run the dropped children's {{onDestroy}}."
+        ],
+        "note": "Profile is off the page, but its script is still waiting to resume."
+      },
+      {
+        "side": "A",
+        "file": "endBefore",
+        "hl": [
+          3,
+          4
+        ],
+        "active": [
+          "time"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort"
+            ],
+            "mark": {
+              "abort": "hl"
+            },
+            "notes": {
+              "abort": "listeners added so far run now"
+            }
+          }
+        },
+        "title": "The render ends, and Svelte aborts its signal",
+        "body": [
+          "Ada's page is done, so Svelte aborts the render's {{signal|abort signal}} and sends the response with the fallback.",
+          "<a href=\"https://github.com/jarrednorrisdev/effect-atom-svelte/pull/33\">#33<\/a> made {{onRenderEnd}} listen for that abort, as a backstop for the <code>onDestroy<\/code> a dropped child never gets. Every release registered so far runs now. <code>Profile<\/code> hasn't registered any yet."
+        ],
+        "note": "Everything to the right of this line happens after the render, when the abort has already fired."
+      },
+      {
+        "side": "A",
+        "file": "profile",
+        "hl": [
+          2,
+          3
+        ],
+        "active": [
+          "time",
+          "name",
+          "applied",
+          "held"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume"
+            ],
+            "mark": {
+              "resume": "hl"
+            },
+            "notes": {}
+          },
+          "name": "Ada",
+          "applied": "yes: later values are skipped",
+          "held": "Profile (Ada's)"
+        },
+        "title": "<code>getUser()<\/code> returns. <code>Profile<\/code>'s script carries on",
+        "body": [
+          "The dropped script resumes and calls {{initial|useAtomInitialValues}}. It sets <code>nameAtom<\/code> to <b>Ada<\/b> in the shared registry, marks the value applied, and {{hold|holds}} the node so the registry won't sweep it."
+        ],
+        "note": "This is where Ada comes from. The render this hold belongs to is already over."
+      }
+    ],
+    "before": [
+      {
+        "side": "A",
+        "file": "endBefore",
+        "hl": [
+          3,
+          4
+        ],
+        "active": [
+          "time"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume",
+              "listen"
+            ],
+            "mark": {
+              "listen": "bad"
+            },
+            "notes": {
+              "listen": "✕ abort already fired: never runs"
+            }
+          }
+        },
+        "title": "Its release listens for an abort that has already happened",
+        "body": [
+          "The hook registers its release with <code>onRenderEnd<\/code>, which adds an <code>abort<\/code> listener to the signal. The signal fired its one <code>abort<\/code> back in step 4, so this listener will never be called.",
+          "The other route, <code>onDestroy<\/code>, never runs for a dropped child either."
+        ],
+        "note": "Nothing will ever call this release."
+      },
+      {
+        "side": "A",
+        "file": "profile",
+        "hl": [
+          4
+        ],
+        "active": [
+          "time",
+          "held"
+        ],
+        "set": {
+          "held": {
+            "text": "Profile (Ada's) · twice",
+            "tone": "bad"
+          },
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume",
+              "listen"
+            ],
+            "mark": {
+              "listen": "bad"
+            },
+            "notes": {
+              "listen": "✕ two now, and neither runs"
+            }
+          }
+        },
+        "title": "<code>useAtomValue<\/code> takes a second hold the same way",
+        "body": [
+          "{{read|useAtomValue}} holds <code>nameAtom<\/code> too, and registers its release on the same aborted signal."
+        ],
+        "note": "Two holds now, and neither will be released."
+      },
+      {
+        "side": "R",
+        "file": "initial",
+        "hl": [
+          5,
+          6,
+          7
+        ],
+        "active": [
+          "name",
+          "applied",
+          "held"
+        ],
+        "set": {
+          "name": {
+            "v": "Ada",
+            "tone": "bad"
+          },
+          "applied": {
+            "text": "yes: later values are skipped",
+            "tone": "bad"
+          }
+        },
+        "title": "Nothing lets go, so Ada's value stays",
+        "body": [
+          "The registry only sweeps a node nobody holds. <code>nameAtom<\/code> stays, holding <b>Ada<\/b> and still marked applied, because the mark is only cleared by the releases that never run."
+        ],
+        "note": "Ada's request is over, but Ada's value is still in the shared registry."
+      },
+      {
+        "side": "B",
+        "file": "initial",
+        "hl": [
+          0
+        ],
+        "active": [
+          "applied",
+          "screenB"
+        ],
+        "frame": "…",
+        "set": {
+          "screenB": {
+            "v": "…",
+            "badge": "rendering"
+          }
+        },
+        "title": "Ben's request: Ben's <code>Profile<\/code> sets <b>Ben<\/b>, but it's skipped",
+        "body": [
+          "Ben's page renders normally: nothing fails this time. Ben's <code>Profile<\/code> calls <code>useAtomInitialValues<\/code> with <b>Ben<\/b>, but the node is still marked applied, so the value is skipped."
+        ],
+        "note": "A mark meant to stop two components in one render clashing now spans two requests."
+      },
+      {
+        "side": "B",
+        "file": "profile",
+        "hl": [
+          7
+        ],
+        "active": [
+          "screenB",
+          "name"
+        ],
+        "frame": "Hi, Ada",
+        "bad": true,
+        "set": {
+          "screenB": {
+            "v": "Hi, Ada",
+            "badge": "✕ Ada's name, on Ben's page",
+            "tone": "bad",
+            "live": true
+          }
+        },
+        "title": "Ben's page says <b>Hi, Ada<\/b>",
+        "body": [
+          "<code>Profile<\/code> reads <code>nameAtom<\/code> and gets the previous visitor's name."
+        ],
+        "note": "One visitor's data reached another, from a section that failed on Ada's own page."
+      }
+    ],
+    "after": [
+      {
+        "side": "A",
+        "file": "endAfter",
+        "hl": [
+          3,
+          4,
+          5
+        ],
+        "active": [
+          "time"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume",
+              "listen"
+            ],
+            "mark": {
+              "listen": "ok"
+            },
+            "notes": {
+              "listen": "✓ already aborted: queued"
+            }
+          }
+        },
+        "title": "<code>onRenderEnd<\/code> sees the render is over, and queues the release",
+        "body": [
+          "The fix checks <code>signal.aborted<\/code> first. When the abort has already fired, there's no event left to wait for, so <code>onRenderEnd<\/code> queues the release as a {{microtask}} instead.",
+          "Not straight away: the hooks take their holds just after registering, and a release that ran now would come before them."
+        ],
+        "note": "Deferred just long enough for the script to take its holds."
+      },
+      {
+        "side": "A",
+        "file": "profile",
+        "hl": [
+          4
+        ],
+        "active": [
+          "time",
+          "held"
+        ],
+        "set": {
+          "held": "Profile (Ada's) · twice",
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume",
+              "listen"
+            ],
+            "mark": {
+              "listen": "ok"
+            },
+            "notes": {
+              "listen": "✓ two now, both queued"
+            }
+          }
+        },
+        "title": "<code>useAtomValue<\/code> takes its hold the same way",
+        "body": [
+          "{{read|useAtomValue}} holds <code>nameAtom<\/code> too, and its release is queued in the same way."
+        ],
+        "note": "Two holds, both with a release queued."
+      },
+      {
+        "side": "R",
+        "file": "initial",
+        "hl": [
+          5,
+          6,
+          7
+        ],
+        "active": [
+          "time",
+          "name",
+          "applied",
+          "held"
+        ],
+        "set": {
+          "time": {
+            "show": [
+              "start",
+              "await",
+              "drop",
+              "abort",
+              "resume",
+              "listen",
+              "micro"
+            ],
+            "mark": {
+              "listen": "ok",
+              "micro": "ok"
+            },
+            "notes": {}
+          },
+          "held": {
+            "text": "nobody",
+            "tone": "ok"
+          },
+          "applied": {
+            "text": "no",
+            "tone": "ok"
+          },
+          "name": {
+            "v": "Ada",
+            "gone": true,
+            "tone": "ok"
+          }
+        },
+        "title": "The microtask runs: both holds are released",
+        "body": [
+          "<code>Profile<\/code>'s script has finished, so the queued releases run. They drop both holds and clear the applied mark. Nobody holds <code>nameAtom<\/code> now, so the registry sweeps it."
+        ],
+        "note": "Ada's request leaves nothing behind."
+      },
+      {
+        "side": "B",
+        "file": "initial",
+        "hl": [
+          0,
+          1,
+          2
+        ],
+        "active": [
+          "applied",
+          "name",
+          "screenB"
+        ],
+        "frame": "…",
+        "set": {
+          "name": "Ben",
+          "applied": "yes: later values are skipped",
+          "held": "Profile (Ben's)",
+          "screenB": {
+            "v": "…",
+            "badge": "rendering"
+          }
+        },
+        "title": "Ben's request: Ben's <code>Profile<\/code> sets <b>Ben<\/b>",
+        "body": [
+          "Ben's <code>Profile<\/code> calls <code>useAtomInitialValues<\/code> with <b>Ben<\/b>. The node is new, so the value applies."
+        ],
+        "note": "Each request starts from its own value again."
+      },
+      {
+        "side": "B",
+        "file": "profile",
+        "hl": [
+          7
+        ],
+        "active": [
+          "screenB",
+          "name"
+        ],
+        "frame": "Hi, Ben",
+        "set": {
+          "screenB": {
+            "v": "Hi, Ben",
+            "badge": "✓ Ben's own name",
+            "tone": "ok",
+            "live": true
+          }
+        },
+        "title": "Ben's page says <b>Hi, Ben<\/b>",
+        "body": [
+          "<code>Profile<\/code> reads <code>nameAtom<\/code> and gets Ben's name. When Ben's render ends, those holds are released through the signal as usual."
+        ],
+        "note": "No visitor's data outlives their request."
+      }
+    ]
+  }
+}, {
+"timeline": { make(b) {
+      const e = document.createElement("div");
+      e.className = "node tl";
+      const marks = b.marks
+        .map((m) => {
+          const align = m.align ? " " + m.align : m.at < 0.1 ? " left" : m.at > 0.9 ? " right" : "";
+          return `<div class="mk ${m.side ?? "up"}${align}" data-id="${m.id}" style="--at:${m.at * 100}%">
+            <i class="pin"><\/i><div class="cap"><span class="ct">${m.label}<\/span><span class="nt"><\/span><\/div><\/div>`;
+        })
+        .join("");
+      const cut = b.marks.find((m) => m.id === b.cut);
+      e.innerHTML = `<div class="nodehead"><span class="label">${b.label}<\/span><\/div>
+        <div class="axis"><div class="over" style="--at:${cut.at * 100}%"><span>${b.overLabel ?? ""}<\/span><\/div>
+        <div class="line"><\/div>${marks}<\/div>`;
+      return e;
+    }, paint(e, s, b, animate) {
+      const st = s ?? {};
+      const show = st.show ?? [];
+      for (const d of e.querySelectorAll(".mk")) {
+        const id = d.dataset.id;
+        const was = !d.classList.contains("off");
+        d.classList.toggle("off", !show.includes(id));
+        d.dataset.mark = st.mark?.[id] ?? "";
+        d.querySelector(".nt").innerHTML = st.notes?.[id] ?? "";
+        if (animate && !was && show.includes(id)) {
+          d.classList.remove("pop");
+          void d.offsetWidth;
+          d.classList.add("pop");
+        }
+      }
+      e.querySelector(".over").classList.toggle("on", show.includes(b.cut));
+    } }
+});
+</script>
+</body>
+</html>
