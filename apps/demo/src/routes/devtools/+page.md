@@ -213,3 +213,44 @@ This component draws the atoms that the components inside it use:
 `snapshot()` gives the atoms, the edges between them and the components that read them, and the graph takes them nearly as they are. The scope calls its listener while the registry is still updating, so the component waits for the next frame before it reads the scope again. `toneOf` turns an atom's state into the pulse's color: green for a `Success`, red for a `Failure`.
 
 The graph has no dependencies beyond Svelte, and inspector scopes work in production, so the graph can go in production pages. It reads your page's design tokens (`--background`, `--foreground`, `--brand`) where it has them.
+
+## Building your own tools
+
+The panel is built on `effect-atom-svelte/inspector`, which you can use too:
+
+- `inspect(registry)` starts watching a registry, and returns an inspector whose `subscribe` reports each event: an atom added or removed, computed and why, given a new value, interrupted or finalized. Watching costs a little on every read and write, so call it from tools, not from the app.
+- `registries()` lists the registries the app has provided, in the browser during development, and `watchRegistries(f)` calls `f` whenever that list changes. They are empty on the server and in production.
+- `nameComponent(name, file)` names the component being set up, for the scopes its hooks report to. The `atomLabels` plugin calls it for every component; without the plugin, call it yourself.
+
+Events arrive while the registry is still updating, so a listener mustn't read or write atoms, or write Svelte state. Queue them and handle them later:
+
+**Example** (Logging why each atom computed)
+
+```svelte
+<script lang="ts">
+  import { getRegistry } from "effect-atom-svelte";
+  import { inspect } from "effect-atom-svelte/inspector";
+  import type { Event } from "effect-atom-svelte/inspector";
+  import { onMount } from "svelte";
+
+  const inspector = inspect(getRegistry());
+
+  onMount(() => {
+    const queued: Event[] = [];
+    const stop = inspector.subscribe((event) => queued.push(event));
+    const timer = setInterval(() => {
+      for (const event of queued.splice(0)) {
+        if (event._tag === "Built") {
+          console.log(event.node.atom.label?.[0], event.cause._tag);
+        }
+      }
+    }, 1000);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  });
+</script>
+```
+
+[Inspector](/reference/Inspector) in the API reference lists every event and what it carries.
