@@ -179,7 +179,7 @@ It has `get`, `set`, `update`, `refresh`, `subscribe` and `mount`, among others.
 
 A `load` function runs outside any component, so it makes a registry of its own, and disposes of it when it is done. `AtomRegistry.getResult` waits for an async atom's result as an `Effect`. This page's own `+page.server.ts` counts the todos:
 
-<Example files={[{ html: loadSource, name: "+page.server.ts" }, { html: loadCountSource, name: "load-count.svelte" }]} hint="Add a todo in one of the forms above: todosAtom's count follows, while load's stays at what it found when the page was rendered."> <LoadCount /> </Example>
+<Example files={[{ html: loadSource, name: "+page.server.ts" }, { html: loadCountSource, name: "load-count.svelte" }]} hint="Add a todo with the form in Share form logic in a class: todosAtom's count follows, while load's stays at what it found when the page was rendered."> <LoadCount /> </Example>
 
 What `load` returns is plain data, rendered once: it changes only when the page loads again. To prefetch atoms into the browser's registry instead, see [HydrationBoundary](/hydration#hydrationboundary).
 
