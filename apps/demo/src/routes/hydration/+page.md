@@ -126,7 +126,7 @@ The encoded results are plain text in the page's HTML, where anyone who gets the
 
 What that means in practice:
 
-- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration: an atom read only with it is computed again in the browser, and a `useAtomValue` read of an atom another component reads with one of the two hooks can start it in the browser before the server's result lands, so it is fetched twice. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
+- **During a render, only those two hooks carry results.** `useAtomValue` takes no part in hydration, so an atom read only with it is computed again in the browser. It can also cost a second fetch when another component reads the same atom with one of the two hooks: the `useAtomValue` read can start the atom in the browser before the server's result arrives. Read server-rendered data with `useAtomResult` or `useAtomSuspense` everywhere it appears, including small parts of the page such as a header's badge.
 - **Only the first page load is hydrated.** After the browser navigates to another page, atoms run their effects as usual.
 - **Only hooks called before the script's first `await` get the server's result.** See [Call hooks before the first await](#call-hooks-before-the-first-await).
 - **A result arrives only if something still uses it.** If every component that reads the atom is gone before the result lands, it is dropped.
@@ -267,7 +267,10 @@ const state = Hydration.toValues(Hydration.dehydrate(registry)).filter(
 When the boundary puts its values into the registry:
 
 - **Atoms the registry doesn't have yet** get their values before the children render. So does an atom that only holds a starting value from `initialValues` or `useAtomInitialValues`, if nothing has read it yet.
-- **Atoms it already has** are updated after the render in the browser, so the page doesn't change halfway through one. On the server, they are updated before the children render, and so are they in the browser while it hydrates the server's markup, so its first render matches the server's. That last part needs Svelte's `experimental.async`: without it, an atom that already exists, such as one read above the boundary, is updated after the first render.
+- **Atoms it already has** are updated at a time that depends on where the boundary renders:
+  - On the server, before the children render.
+  - In the browser, while it hydrates the server's markup, also before the children render, so the first render matches the server's. This needs Svelte's `experimental.async`: without it, such an atom, for example one read above the boundary, is updated after the first render.
+  - In the browser after that, after the render, so the page doesn't change halfway through one.
 - **Atoms nothing reads** keep their value in the registry until something reads them. The value is dropped when the boundary goes away.
 - **A new `state`** is put into the registry the same way, so when a `load` function runs again, the boundary passes its new results to the atoms.
 
