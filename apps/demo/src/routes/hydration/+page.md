@@ -211,7 +211,7 @@ This happens when the choice depends on state only the browser has, such as a fi
 
 The first render uses `"all"` on both sides, and hydrates from the server's result. The switch to the saved filter then runs in the browser, like any later switch.
 
-The example saves its filter with `Atom.kvs`, whose server store is in memory, so the server reads `"all"` there too.
+The example saves its filter with [`Atom.kvs`](/browser#persisting-to-localstorage), whose server store is in memory, so the server reads `"all"` there too.
 
 <Example files={[{ html: savedFilterSource, name: "saved-filter.svelte" }]} hint="Click done, then click Reload the page. In the HTML shows the server rendered all three todos; the list then switches to the saved filter, computed in the browser."> <SavedFilter /> </Example>
 
