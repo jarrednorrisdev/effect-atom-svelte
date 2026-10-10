@@ -23,7 +23,7 @@ Three hooks cover reading and writing. Choose by what the component does with th
 | `useAtom(atom)`      | Read and write a writable atom.      |
 | `useAtomSet(atom)`   | Write to an atom without reading it. |
 
-The other hooks belong to later topics, such as `useAtomResult` in [Suspense](/suspense), `useAtomMount` in [Lifetimes](/lifetimes), and `useAtomInitialValues` in [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). [Hooks](/reference/Hooks) in the API reference lists them all.
+The other hooks belong to later topics, such as `useAtomSuspense` and `useAtomResult` in [Suspense](/suspense), `useAtomRefresh` in [Async atoms](/async-atoms#running-it-again), `useAtomMount` in [Lifetimes](/lifetimes), and `useAtomInitialValues` in [Starting atoms from request data](/sveltekit#starting-atoms-from-request-data). [Hooks](/reference/Hooks) in the API reference lists them all.
 
 <Example files={[{ html: source, name: "reading-and-writing.svelte" }]} hint="Click +, − or Reset and watch both values that read countAtom change. Then type a name: bind:value writes nameAtom as you type."> <ReadingAndWriting /> </Example>
 
