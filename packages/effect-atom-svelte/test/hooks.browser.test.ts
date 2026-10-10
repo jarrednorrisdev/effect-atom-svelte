@@ -1135,6 +1135,62 @@ describe("AtomRef", () => {
     ref.prop("name").set("b");
     await expect.element(output(screen)).toHaveTextContent("b");
   });
+
+  test("assigning useAtomRef's current sets a writable ref, the one its getter picks", async () => {
+    const first = AtomRef.make("a");
+    const second = AtomRef.make("b");
+    const pick = AtomRef.make(false);
+    let cell: AtomState<string> | undefined;
+    await render(Harness, {
+      setup: () => {
+        const useSecond = useAtomRef(pick);
+        cell = useAtomRef(() => (useSecond.current ? second : first));
+        return () => cell?.current;
+      },
+    });
+    if (cell) {
+      cell.current = "a2";
+    }
+    expect(first.value).toBe("a2");
+    pick.set(true);
+    if (cell) {
+      cell.current = "b2";
+    }
+    expect([first.value, second.value]).toEqual(["a2", "b2"]);
+  });
+
+  test("assigning useAtomRefPropValue's current sets the property", async () => {
+    const ref = AtomRef.make({ done: false, title: "a" });
+    let done: AtomState<boolean> | undefined;
+    const screen = await render(Harness, {
+      setup: () => {
+        done = useAtomRefPropValue(ref, "done");
+        return () => String(done?.current);
+      },
+    });
+    if (done) {
+      done.current = true;
+    }
+    expect(ref.value).toEqual({ done: true, title: "a" });
+    await expect.element(output(screen)).toHaveTextContent("true");
+  });
+
+  test("a read-only ref's current can't be assigned", async () => {
+    const ref = AtomRef.make(1);
+    let cell: { current: number } | undefined;
+    await render(Harness, {
+      setup: () => {
+        cell = useAtomRef(ref.map((n) => n * 2)) as { current: number };
+        return () => cell?.current;
+      },
+    });
+    expect(() => {
+      if (cell) {
+        cell.current = 3;
+      }
+    }).toThrow("This atom value is read-only");
+    expect(ref.value).toBe(1);
+  });
 });
 
 describe("getter switches (JND-60)", () => {

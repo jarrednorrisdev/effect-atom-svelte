@@ -4,17 +4,19 @@
  */
 import type { Exit } from "effect";
 import { Atom } from "effect/reactivity";
-import type { AsyncResult, AtomRegistry } from "effect/reactivity";
+import type { AsyncResult, AtomRef, AtomRegistry } from "effect/reactivity";
 import { expectTypeOf } from "vitest";
 
 import {
   ScopedAtom,
   provideRegistry,
+  useAtomRef,
+  useAtomRefPropValue,
   useAtomSet,
   useAtomSubscribe,
   useAtomSuspense,
 } from "../src/index.ts";
-import type { AtomValue, WriteMode } from "../src/index.ts";
+import type { AtomState, AtomValue, WriteMode } from "../src/index.ts";
 import { handleClientError, handleServerError } from "../src/SvelteKit.ts";
 
 declare const count: Atom.Writable<number>;
@@ -108,4 +110,26 @@ export const sveltekitHooks = () => {
   expectTypeOf(handleServerError).toExtend<Kit2Hook>();
   expectTypeOf(handleClientError).toExtend<Kit3Hook>();
   expectTypeOf(handleServerError).toExtend<Kit3Hook>();
+};
+
+declare const profile: AtomRef.AtomRef<{ readonly name: string }>;
+declare const readonlyRef: AtomRef.ReadonlyRef<number>;
+
+// A writable ref can be assigned through `current`, so bind: works; a read-only ref can't.
+export const refTypes = (flag: boolean) => {
+  expectTypeOf(useAtomRef(profile)).toEqualTypeOf<
+    AtomState<{ readonly name: string }>
+  >();
+  expectTypeOf(useAtomRef(() => profile)).toEqualTypeOf<
+    AtomState<{ readonly name: string }>
+  >();
+  expectTypeOf(useAtomRef(readonlyRef)).toEqualTypeOf<AtomValue<number>>();
+  expectTypeOf(
+    useAtomRef(() => (flag ? profile.map((p) => p.name.length) : readonlyRef))
+  ).toEqualTypeOf<AtomValue<number>>();
+  expectTypeOf(useAtomRefPropValue(profile, "name")).toEqualTypeOf<
+    AtomState<string>
+  >();
+  // @ts-expect-error -- a read-only ref has no setter
+  useAtomRef(readonlyRef).current = 1;
 };
