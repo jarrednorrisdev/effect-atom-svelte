@@ -61,7 +61,7 @@ Call `provide` in the component that owns the atom. It runs the function once fo
 </script>
 ```
 
-The function runs once, so `provide` reads its input once: a later change to `rows` doesn't make a new atom. The `svelte-ignore` comment says that reading the prop once is intended.
+The function runs once, so `provide` reads its input once: a later change to `rows` doesn't make a new atom. The `svelte-ignore` comment says that reading the prop once is intended. To follow new rows, either write them into the atom, which keeps the reader's search, sort and page, or remount the table with `{#key rows}`, which starts it afresh.
 
 `provide` only puts the atom in context; it doesn't hold it. If every component below that reads the atom unmounts, the registry disposes of it, and the next reader starts from the initial value. `useAtomMount` in the providing component holds it for as long as that component lives. `Atom.keepAlive` in the function would hold it too, but for as long as the registry lives, long after the component has gone. See [Lifetimes](/lifetimes).
 
