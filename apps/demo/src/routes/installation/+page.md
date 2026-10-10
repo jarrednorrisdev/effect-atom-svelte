@@ -8,7 +8,7 @@ description: Install the package, turn on Svelte's async mode and add a registry
   import InstallCommand from "#lib/docs/install-command.svelte";
 </script>
 
-Setting up takes three steps: install the packages, turn on Svelte's experimental async support if you need it, and put a registry at the root of your app.
+Setting up takes three steps: install the packages, turn on Svelte's experimental async support for server rendering and the async hooks, and put a registry at the root of your app. [Your first atom](/first-atom) needs only the first and last.
 
 ## Install the packages
 
@@ -40,7 +40,7 @@ export default defineConfig({
 });
 ```
 
-Without SvelteKit, see [Plain Svelte](#plain-svelte-no-sveltekit). SvelteKit's `experimental: { remoteFunctions: true }` is not needed here; turn it on only if your app uses remote functions.
+SvelteKit 2 reads them from `svelte.config.js` instead: put the same `compilerOptions` in its exported config. Without SvelteKit, see [Plain Svelte](#plain-svelte-no-sveltekit). SvelteKit's `experimental: { remoteFunctions: true }` is not needed here; turn it on only if your app uses remote functions.
 
 ## Add a registry
 
@@ -59,7 +59,7 @@ An atom doesn't hold a value itself. It describes how to compute one, and an **a
 <RegistryProvider>{@render children()}</RegistryProvider>
 ```
 
-In the browser, one registry lives for the whole session. On the server, the provider creates one for each request, so visitors never see each other's state: see [One registry per request](/server-rendering#one-registry-per-request).
+In the browser, one registry lives for the whole visit. On the server, the provider creates one for each request, so visitors never see each other's state: see [One registry per request](/server-rendering#one-registry-per-request).
 
 <Aside type="danger" title="Always provide a registry when you render on the server">
 
