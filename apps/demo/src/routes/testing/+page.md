@@ -102,7 +102,7 @@ A provider takes one or the other, not both: it throws if it gets a `registry` a
 
 <Aside type="caution" title="Always render inside a provider">
 
-Without a `RegistryProvider`, the hooks use one default registry shared by the whole browser session, and in a test run that means by every test in the file. A value one test writes is still there in the next.
+Without a `RegistryProvider`, the hooks use one default registry shared by the whole page load, and in a test run that means by every test in the file. A value one test writes is still there in the next.
 
 </Aside>
 

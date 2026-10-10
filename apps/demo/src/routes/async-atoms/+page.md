@@ -165,7 +165,7 @@ const settingsAtom = Atom.make(loadSettings).pipe(Atom.keepAlive);
 const searchAtom = Atom.make(search).pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the settings load once per registry, which is once per session in the browser. The search result is kept for a minute after you navigate away, so going back within that minute shows it straight away.
+Here the settings load once per registry, which is once per visit in the browser. The search result is kept for a minute after you navigate away, so going back within that minute shows it straight away.
 
 The live example has these two atoms on a dashboard, with the TTL cut to 3 seconds, beside a plain `weatherAtom`. A help page reads none of them. The cards below the pages count how many times each request has run, and show what the registry holds for each atom.
 

@@ -63,7 +63,7 @@ const sidebarOpenAtom = Atom.make(true).pipe(Atom.keepAlive);
 const draftAtom = Atom.make("").pipe(Atom.setIdleTTL("1 minute"));
 ```
 
-Here the sidebar keeps its state for as long as the registry lives, which is the whole session in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
+Here the sidebar keeps its state for as long as the registry lives, which is the whole visit in the browser. The draft is kept for a minute after the last component that shows it goes away, so navigating away and straight back keeps what you typed. The live example at the top of the page shows both.
 
 An idle TTL is not exact. The registry groups disposals into time buckets of `timeoutResolution` milliseconds, a `RegistryProvider` option that defaults to 1000, or to half of `defaultIdleTTL` when that is set. An atom can stay up to about two buckets past its TTL.
 

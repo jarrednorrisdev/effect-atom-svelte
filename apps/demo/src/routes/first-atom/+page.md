@@ -26,7 +26,7 @@ import { Atom } from "effect/reactivity";
 const countAtom = Atom.make(0);
 ```
 
-The atom is only a description. Its value lives in the registry you set up in [Installation](/installation), so the same atom can have a different value in each registry: one per request on the server, one per session in the browser.
+The atom is only a description. Its value lives in the registry you set up in [Installation](/installation), so the same atom can have a different value in each registry: one per request on the server, one per visit in the browser.
 
 Define atoms once, outside your components. A plain `.ts` module works, and so does a component's `<script module>`, which runs once rather than once per instance. An atom created inside a component's `<script>` would be a new atom for every instance, each with its own value. That is occasionally what you want: see [Scoped atoms](/scoped-atoms).
 
