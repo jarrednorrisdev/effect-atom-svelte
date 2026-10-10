@@ -280,7 +280,7 @@ code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: non
 @keyframes draw { to { stroke-dashoffset: 0; } }
 .legend { margin-top: 6px; font: 10.5px var(--mono); color: var(--muted-fg); }
 .graph.windowed .legend { margin: 0 11px 8px; }
-.gn, .gl, .gv, .legend, .primer code, .tip code, .text code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+.gn, .gl, .gv, .legend, .primer code, .tip code, .text code, .text p code, .text h3 code, .primer dt code, .primer dd code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 
 /* A box with lane "*": the full width, above the lanes. */
 .diagram > .span { grid-column: 1 / -1; }
@@ -300,7 +300,7 @@ code, pre, .ln, .row, .chip, .val, .packet, .label { font-variant-ligatures: non
 .mk.off { opacity: 0; }
 .mk .pin { position: absolute; left: -6px; top: -7px; width: 12px; height: 12px; border-radius: 50%;
   background: var(--bg); border: 2px solid var(--muted-fg); }
-.mk .cap { position: absolute; width: 150px; transform: translateX(-50%); text-align: center;
+.mk .cap { position: absolute; width: clamp(110px, 17vw, 150px); transform: translateX(-50%); text-align: center;
   font: 11.5px/1.35 var(--sans); color: var(--fg); }
 .mk.left .cap { transform: translateX(-8px); text-align: left; }
 .mk.right .cap { transform: translateX(calc(-100% + 8px)); text-align: right; }
@@ -901,7 +901,7 @@ Stepper.mount({
         {
           "id": "await",
           "label": "<code>Profile<\/code> pauses at <code>await getUser()<\/code>",
-          "at": 0.17,
+          "at": 0.13,
           "side": "down"
         },
         {
