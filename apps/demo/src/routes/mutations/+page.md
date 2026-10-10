@@ -137,6 +137,53 @@ After **Cancel**, the mutation's state is a `Failure` whose cause is an interrup
 
 Reset with a `"value"` setter. After a reset the state is `Initial`, which a promise would wait on forever, so the promise modes don't accept `Atom.Reset`: TypeScript rejects it, and if a call gets past the types, its promise rejects.
 
+## Reporting progress
+
+A mutation's function can return a `Stream` instead of an effect. Each item the stream emits becomes the mutation's result, a `Success` that is still `waiting`, and the last item stays as the final result when the stream ends. That suits an upload that reports how much it has sent:
+
+**Example** (An upload with progress)
+
+```ts
+import { Cause, Data, Effect, Queue, Stream } from "effect";
+import { Atom } from "effect/reactivity";
+
+class UploadFailed extends Data.TaggedError("UploadFailed")<{
+  readonly status: number;
+}> {}
+
+export const uploadAtom = Atom.fn((file: File) =>
+  Stream.callback<{ sent: number; total: number }, UploadFailed>((queue) =>
+    Effect.acquireRelease(
+      Effect.sync(() => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (event) => {
+          Queue.offerUnsafe(queue, { sent: event.loaded, total: event.total });
+        };
+        xhr.onload = () => {
+          if (xhr.status < 300) {
+            // A last item, also for a file sent before any progress event.
+            Queue.offerUnsafe(queue, { sent: file.size, total: file.size });
+            Queue.endUnsafe(queue);
+          } else {
+            const error = new UploadFailed({ status: xhr.status });
+            Queue.failCauseUnsafe(queue, Cause.fail(error));
+          }
+        };
+        xhr.open("POST", "/api/upload");
+        xhr.send(file);
+        return xhr;
+      }),
+      // Runs when the stream stops, so interrupting the call aborts the upload.
+      (xhr) => Effect.sync(() => xhr.abort())
+    )
+  )
+);
+```
+
+`fetch` can't report an upload's progress, so this uses `XMLHttpRequest`. Read the mutation with `useAtomValue`: while `current` is a `Success` with `waiting` set, `current.value.sent` and `current.value.total` say how far it has got.
+
+Offer at least one item: a stream that ends without one fails with `NoSuchElementError`. Writing `Atom.Interrupt` stops the stream, and its release aborts the request. The upload listener makes a request to another origin send a CORS preflight first, so the server must answer it.
+
 ## Refreshing what changed
 
 After a mutation changes data on the server, any atom that read that data is out of date. **Reactivity keys** connect the two. Tag the query with keys, and tell the mutation which keys it invalidates. When the mutation succeeds, every atom tagged with one of those keys runs its effect again.
