@@ -892,9 +892,21 @@ export const useAtomInitialValues = (
   }
 };
 
+/** Writes a ref that has `set`; a read-only ref, as from `map`, throws as `useAtomValue` would. */
+const writeRef =
+  <A>(getRef: () => AtomRef.ReadonlyRef<A>) =>
+  (value: A): void => {
+    const ref = getRef();
+    if (!("set" in ref)) {
+      readOnly();
+    }
+    (ref as AtomRef.AtomRef<A>).set(value);
+  };
+
 /**
- * Reads an `AtomRef`, following it when the getter returns a different ref. For one property of a
- * ref, use `useAtomRefPropValue`.
+ * Reads an `AtomRef`, following it when the getter returns a different ref. For a writable ref,
+ * `current` can be assigned too, which sets the ref, so `bind:value={name.current}` works; a
+ * read-only ref, as from `map`, can't be. For one property of a ref, use `useAtomRefPropValue`.
  *
  * A ref has no registry. On the server, one created at module level is shared by every request,
  * so don't write a visitor's data to it there: see
@@ -914,12 +926,18 @@ export const useAtomInitialValues = (
  * @since 0.1.0
  * @category hooks
  */
-export const useAtomRef = <A>(
+export function useAtomRef<A>(
+  input: AtomInput<AtomRef.AtomRef<A>>
+): AtomState<A>;
+export function useAtomRef<A>(
   input: AtomInput<AtomRef.ReadonlyRef<A>>
-): AtomValue<A> => {
+): AtomValue<A>;
+export function useAtomRef<A>(
+  input: AtomInput<AtomRef.ReadonlyRef<A>>
+): AtomState<A> {
   const getRef = toGetter(input);
   if (!BROWSER) {
-    return new AtomCell<A, never>(() => getRef().value, readOnly);
+    return new AtomCell<A, A>(() => getRef().value, writeRef(getRef));
   }
   const ref = $derived(getRef());
   const subscribe = $derived.by(() => {
@@ -928,15 +946,15 @@ export const useAtomRef = <A>(
       current.subscribe(notifyAfterReads(update))
     );
   });
-  return new AtomCell<A, never>(
+  return new AtomCell<A, A>(
     () =>
       duringRead(() => {
         subscribe();
         return ref.value;
       }),
-    readOnly
+    writeRef(() => ref)
   );
-};
+}
 
 /**
  * Returns `ref.prop(prop)`, the `AtomRef` for one property of an `AtomRef`. It takes the ref
@@ -964,7 +982,8 @@ export const useAtomRefProp = <A, K extends keyof A>(
 
 /**
  * Reads one property of an `AtomRef`, following the getter to a different ref. `prop` is taken
- * once, when the component starts, and is not followed.
+ * once, when the component starts, and is not followed. Assigning `current` sets the property, so
+ * `bind:checked={done.current}` works.
  *
  * **Example** (Reading one property of a ref)
  *
@@ -983,7 +1002,7 @@ export const useAtomRefProp = <A, K extends keyof A>(
 export const useAtomRefPropValue = <A, K extends keyof A>(
   input: AtomInput<AtomRef.AtomRef<A>>,
   prop: K
-): AtomValue<A[K]> => {
+): AtomState<A[K]> => {
   const getRef = toGetter(input);
   const propRef = $derived(getRef().prop(prop));
   return useAtomRef(() => propRef);

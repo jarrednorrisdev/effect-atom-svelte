@@ -165,6 +165,7 @@ const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     Hooks: "/reading-and-writing",
     Hydration: "/hydration",
     HydrationBoundary: "/hydration#hydrationboundary",
+    Reactivity: "/mutations#refreshing-what-changed",
     RegistryContext: "/installation#add-a-registry",
     RegistryProvider: "/installation#add-a-registry",
     ScopedAtom: "/scoped-atoms",
