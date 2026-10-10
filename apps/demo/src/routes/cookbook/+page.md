@@ -106,6 +106,32 @@ A search box shouldn't send a request for every key press. `Atom.debounce` follo
 
 When the debounced query changes while a search is still running, the atom runs again and interrupts the old search, so an old result never lands over a new one. To keep the query in the URL, make `queryAtom` with `Atom.searchParam`. In a SvelteKit app, do that only when nothing else reads the parameter, as SvelteKit's router doesn't see its changes: see [The URL's query string](/browser#the-urls-query-string).
 
+### Pages that keep the last one on screen
+
+For numbered pages, keep the page number in an atom, and make the list one atom that reads it:
+
+```ts
+const pageAtom = Atom.make(1);
+
+const rowsAtom = Atom.make((get) => fetchPage(get(pageAtom)));
+```
+
+When the page changes, `rowsAtom` runs its effect again and keeps the last page's rows, marked `waiting`, until the new ones arrive. So the table stays on screen, and `waiting` can dim it:
+
+```svelte
+<script lang="ts">
+  const rows = useAtomValue(rowsAtom);
+  const page = useAtom(pageAtom);
+</script>
+
+<button onclick={() => (page.current += 1)}>Next</button>
+{#if rows.current._tag === "Success"}
+  <table aria-busy={rows.current.waiting}>…</table>
+{/if}
+```
+
+A [family](/families) keyed by page, read through a getter as `useAtomValue(() => pageRowsAtom(page.current))`, works the other way: each page is an atom of its own, which starts at `Initial`, so the old rows go as soon as the page changes. In exchange, each page keeps its own result, so with an [idle TTL](/lifetimes#keeping-atoms-alive), going back to a page shows it at once.
+
 ### Infinite scroll
 
 A [pull atom](/streams#pull-atoms) loads one page each time you write to it. Write to it when an element at the end of the list scrolls into view:
