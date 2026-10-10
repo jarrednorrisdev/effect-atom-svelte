@@ -54,7 +54,7 @@ Pass a function as the second argument to read a value computed from the atom:
 const parity = useAtomValue(countAtom, (n) => (n % 2 === 0 ? "even" : "odd"));
 ```
 
-The transform runs for this hook only, and runs again only when the atom, or state the transform reads, changes, so a transform that builds an object returns the same object until then. A read outside markup or `$derived`, such as in an event handler, runs it again. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
+The transform runs for this hook only, and runs again only when the atom, or state the transform reads, changes, so a transform that builds an object returns the same object until then. A read where Svelte doesn't track reactivity, such as in an event handler, runs it again. To share a computed value between components, make a derived atom instead: see [Derived atom or transform?](/derived-atoms#derived-atom-or-transform).
 
 ## Reading and writing
 
@@ -103,7 +103,7 @@ A write from an event handler updates every reader at once: the handler's next l
 
 ## Following a different atom
 
-Every hook that takes an atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
+Every hook that takes one atom also accepts a **getter**: a function that returns an atom. The hook follows whichever atom the function returns, and moves to another when reactive state the function reads changes:
 
 ```svelte
 <script lang="ts">
