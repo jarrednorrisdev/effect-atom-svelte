@@ -97,11 +97,22 @@ Pass `{ concurrent: true }` as `Atom.fn`'s second argument, and a new call doesn
 
 <Aside type="caution" title="Concurrent calls share one result">
 
-A concurrent mutation still has one result. Each call starts straight away, but the result after it waits until every call still running has finished, and is the result of the oldest of them. So when two calls overlap, both promises settle with the first call's result, and the second call's own result is never seen. A call made once the others have finished gets its own.
+A concurrent mutation still has one result, and it changes only once no call is running. Say call A starts, then call B starts before A has finished:
+
+1. B finishes first. The result stays `waiting`, because A is still running.
+2. A finishes. The result becomes A's, and both promises settle with it. B's own result is never seen.
+
+A call made once the others have finished gets its own result.
 
 </Aside>
 
-To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting stops the wait, not the call: the promise settles as interrupted, but the call keeps running while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation and interrupts the call. A signal that is already aborted settles the promise the same way without starting the call, as `fetch` does. To stop the call itself, write `Atom.Interrupt`, below.
+To stop waiting, pass an `AbortSignal` as the setter's second argument, `save(todo, { signal })`. Aborting stops the wait, not the call:
+
+- The promise settles as interrupted.
+- The call keeps running while something else holds the mutation, such as the component's own `useAtomSet` while it is mounted, or `Atom.keepAlive`. If nothing does, the registry disposes of the mutation, which interrupts the call.
+- A signal that is already aborted settles the promise the same way without starting the call, as `fetch` does.
+
+To stop the call itself, write `Atom.Interrupt`, below.
 
 <Aside type="caution" title="Use a promise mode for writes that must finish">
 
