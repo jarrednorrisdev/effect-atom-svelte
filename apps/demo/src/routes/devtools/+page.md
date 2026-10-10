@@ -125,9 +125,9 @@ Every computation, update, interruption and finalizer, newest first. A computati
 
 The panel keeps its settings in `localStorage`, with its height and the view you left it on.
 
-### Colours and fonts
+### Colors and fonts
 
-The panel takes its colours and fonts from your page's CSS variables, the ones a Tailwind or shadcn app already has: `--background`, `--foreground`, `--muted-foreground`, `--border` and `--brand` for its colours, `--font-mono` for its labels and `--font-serif` for its italic notes. Without them it's zinc and amber, in a monospace and the system serif. To give the panel its own, set them on `[data-atom-devtools]`:
+The panel takes its colors and fonts from your page's CSS variables, the ones a Tailwind or shadcn app already has: `--background`, `--foreground`, `--muted-foreground`, `--border` and `--brand` for its colors, `--font-mono` for its labels and `--font-serif` for its italic notes. Without them it's zinc and amber, in a monospace and the system serif. To give the panel its own, set them on `[data-atom-devtools]`:
 
 ```css
 [data-atom-devtools] {
