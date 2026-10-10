@@ -76,6 +76,18 @@ Sometimes one request needs the result of another, such as fetching a todo's det
 
 If the second request only needs a value the component already has, a getter is enough: `useAtomValue(() => TodosRpc.query("getTodo", { id: selected }))`.
 
+### Something to show while the first load runs
+
+When you already have a rough answer, such as the title a list showed for a todo, show it while the full query loads. `Atom.withFallback` reads a second async atom while the first is still `Initial`:
+
+```ts
+const todoDetailsAtom = Atom.family((id: number) =>
+  todoAtom(id).pipe(Atom.withFallback(todoFromListAtom(id)))
+);
+```
+
+Until `todoAtom(id)` has its first result, `todoDetailsAtom(id)` holds the fallback's result, marked `waiting`. Once the query answers, it holds the query's result instead, so a reader shows the rough answer at once and the full one when it arrives.
+
 ### Polling
 
 To run an atom again on a timer, refresh it whenever a signal atom changes. `Atom.makeRefreshOnSignal` does that, and the signal can be any atom:
