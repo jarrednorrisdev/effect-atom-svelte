@@ -47,11 +47,21 @@ test("getResult waits for an async atom's value", async () => {
 
 test("a mutation's result, with set and getResult", async () => {
   const registry = AtomRegistry.make();
-  registry.set(submitAtom, 4);
+  // Held, as a component's useAtomSet would hold it, so results carry over.
+  const release = registry.mount(submitAtom);
 
-  // suspendOnWaiting waits for this call's result, not an earlier one.
-  const submitted = await Effect.runPromise(
+  registry.set(submitAtom, 3);
+  const first = await Effect.runPromise(
+    AtomRegistry.getResult(registry, submitAtom)
+  );
+  expect(first).toBe("Submitted 3");
+
+  // While the second call runs, the atom still holds the first result.
+  // suspendOnWaiting waits for this call's result instead.
+  registry.set(submitAtom, 4);
+  const second = await Effect.runPromise(
     AtomRegistry.getResult(registry, submitAtom, { suspendOnWaiting: true })
   );
-  expect(submitted).toBe("Submitted 4");
+  expect(second).toBe("Submitted 4");
+  release();
 });
