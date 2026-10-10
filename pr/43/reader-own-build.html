@@ -790,7 +790,7 @@ Stepper.mount({
         "id": "atom",
         "term": "Atom",
         "from": "Effect",
-        "html": "A piece of state. <code>Atom.make(\"alice\")<\/code> holds a value that can be set; <code>Atom.make(fn)<\/code> works its value out when first read."
+        "html": "A piece of state. <code>Atom.make(value)<\/code> holds a value that can be set. <code>Atom.make((get) =&gt; …)<\/code> is <em>derived<\/em>: a function that works its value out from other atoms, like a spreadsheet cell with a formula, and runs again when they change."
       },
       {
         "id": "family",
@@ -802,13 +802,13 @@ Stepper.mount({
         "id": "node",
         "term": "Registry and node",
         "from": "Effect",
-        "html": "The registry stores the app's atoms while they're in use. For each atom it keeps a <em>node<\/em>: the atom's value and the listeners subscribed to it. A node can exist before it has a value: subscribing to an atom creates its node, and the first read <em>builds<\/em> it, running the atom's function and storing the result."
+        "html": "The registry (<code>AtomRegistry<\/code>) stores the app's atoms while they're in use; an app can have more than one. For each atom it keeps a <em>node<\/em>: the atom's current value, its <em>listeners<\/em> (the callbacks to run when that value changes) and its <em>parents<\/em> (the atoms its function read the last time it ran; when one changes, the node runs again). A node stays while something holds it, a subscriber or a mount. Once nothing does, the registry <em>sweeps<\/em> it: the node and its value are gone, and the next use starts afresh. A node can exist before it has a value: subscribing to an atom creates its node, and the first read <em>builds<\/em> it, running the atom's function and storing the result."
       },
       {
         "id": "nodestate",
         "term": "A node's state",
         "from": "Effect",
-        "html": "<code>currentState()<\/code> says where a node stands: <code>uninitialized<\/code> (never built), <code>valid<\/code> (built and current) or <code>stale<\/code> (built, but something it depends on changed, so the next read rebuilds it). <code>failed<\/code> is set when a node's first build threw."
+        "html": "<code>currentState()<\/code> says where a node stands: <code>uninitialized<\/code> (never built), <code>valid<\/code> (built and current) or <code>stale<\/code> (built, but something it depends on changed, so the next read rebuilds it). Building a node runs its atom's function and stores the result. <code>failed<\/code> is set when a node's first build threw."
       },
       {
         "id": "announce",
@@ -821,6 +821,12 @@ Stepper.mount({
         "term": "<code>useAtomValue<\/code>",
         "from": "this library",
         "html": "Reads an atom in a Svelte component and returns an object whose <code>.current<\/code> is the value. Given a getter, <code>() =&gt; atom<\/code>, the atom can change with other state. Given a transform, <code>.current<\/code> is the transform's result, worked out in a <code>$derived<\/code>."
+      },
+      {
+        "id": "setter",
+        "term": "<code>useAtomSet<\/code>",
+        "from": "this library",
+        "html": "Returns a function that writes to an atom, so a component calls <code>setCount(5)<\/code>, or <code>setCount((n) =&gt; n + 1)<\/code> to write from the current value. The component holds the atom while it lives. With <code>mode: \"promise\"<\/code>, calling it writes and returns a promise that waits for the atom's next settled value: it resolves on a <code>Success<\/code> and rejects on a <code>Failure<\/code>. <code>\"promiseExit\"<\/code> does the same, but resolves with an Effect <code>Exit<\/code> either way (success, failure or interruption) and never rejects."
       },
       {
         "id": "reader",
@@ -844,19 +850,19 @@ Stepper.mount({
         "id": "derived",
         "term": "<code>$derived<\/code>",
         "from": "Svelte",
-        "html": "A value worked out from other reactive values. Svelte re-runs it whenever something it read signals a change, even if the new result is the same."
+        "html": "A value worked out from other reactive values, and worked out again whenever one of them changes, like a spreadsheet formula. It holds nothing of its own. Svelte runs it again whenever something it read signals a change, even if the new result is the same."
       },
       {
         "id": "effect",
         "term": "<code>$effect<\/code>",
         "from": "Svelte",
-        "html": "Code that runs after the page updates, and again whenever a value it read changes. A new object counts as a change, even with the same contents."
+        "html": "Runs a function after the component renders, and again whenever a value it read changes. A new object counts as a change, even with the same contents."
       },
       {
         "id": "microtask",
         "term": "Microtask",
         "from": "JavaScript",
-        "html": "A callback queued to run as soon as the code running now has finished. The reader holds an announcement that arrives in the middle of a read and passes it on in a microtask, once the read is over."
+        "html": "A callback queued (with <code>queueMicrotask<\/code>) to run as soon as the code running now has finished. The reader holds an announcement that arrives in the middle of a read and passes it on in a microtask, once the read is over."
       }
     ]
   },
@@ -975,8 +981,11 @@ Stepper.mount({
     "click": {
       "name": "ContactList.svelte",
       "lines": [
-        "<button onclick={() =>",
-        "  registry.set(selectedAtom, \"bob\")}>",
+        "<script lang=\"ts\">",
+        "  const setSelected = useAtomSet(selectedAtom);",
+        "<\/script>",
+        "",
+        "<button onclick={() => setSelected(\"bob\")}>",
         "  Bob",
         "<\/button>"
       ]
@@ -1122,8 +1131,7 @@ Stepper.mount({
         "side": "C",
         "file": "click",
         "hl": [
-          0,
-          1
+          4
         ],
         "active": [
           "selected"
@@ -1134,7 +1142,7 @@ Stepper.mount({
         },
         "title": "The user clicks Bob",
         "body": [
-          "The click sets <code>selectedAtom<\/code> to <code>\"bob\"<\/code>. <code>selected.current<\/code> changes, so Svelte re-runs the transform's {{derived|$derived}}, which reads through the reader again."
+          "The click calls <code>setSelected(\"bob\")<\/code>, the {{setter|setter}} from <code>useAtomSet<\/code>, which sets <code>selectedAtom<\/code> to <code>\"bob\"<\/code>. <code>selected.current<\/code> changes, so Svelte re-runs the transform's {{derived|$derived}}, which reads through the reader again."
         ],
         "note": "One click, one change. Everything after this should happen once."
       },
