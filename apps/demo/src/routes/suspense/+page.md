@@ -167,6 +167,10 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 
 The script waits only once. From then on, `todos.current` updates like a `useAtomValue` read, and shows `waiting` while a refresh runs.
 
+`useAtomResult` takes two options. `suspendOnWaiting: true` makes the first `await` also wait for a refresh that is already running, instead of resolving with the result it is refreshing. `revalidateOnHydrate` runs a server-rendered atom again in the browser: see [Running again after hydration](/hydration#running-again-after-hydration). `useAtomSuspense` takes both too.
+
+An atom nothing has started, such as an `Atom.fn` no one has called, has no first result to wait for. In the browser, the `await` stays pending until something calls it. On the server, it rejects, so the render doesn't wait forever: see [Server values](/server-rendering#server-values).
+
 In the example, a `<Notes>` component awaits `useAtomResult` in its script, inside a boundary with a `pending` snippet. Under it, its script's lines show where the script has got to:
 
 <Example files={[{ html: scriptAwaitSource, name: "script-await.svelte" }, { html: notesSource, name: "notes.svelte" }]} hint="Turn on Mount the component: the script stops at the await while the boundary shows its pending snippet, and carries on once the atom has its first result. Then click Refresh: current shows waiting, and the script doesn't run again."> <ScriptAwait /> </Example>
