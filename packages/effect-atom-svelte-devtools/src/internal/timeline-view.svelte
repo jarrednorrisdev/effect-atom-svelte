@@ -50,8 +50,13 @@
     updated: true,
   });
   let search = $state("");
-  // An atom picked from the list: its rows only.
-  let only = $state<number>();
+  // An atom picked from the list: its rows only. Ids are the model's, so a pick lasts only as long
+  // as the model it was made in: another registry's model has its own.
+  let picked = $state.raw<{ readonly model: Model; readonly id: number }>();
+  const only = $derived(picked?.model === model ? picked.id : undefined);
+  const pick = (id: number | undefined) => {
+    picked = id === undefined ? undefined : { id, model };
+  };
 
   const byId = $derived(new Map(model.atoms.map((view) => [view.id, view])));
   const nameOf = (id: number) => byId.get(id)?.name ?? `atom #${id}`;
@@ -93,7 +98,7 @@
     {/each}
     <span class="spacer"></span>
     {#if only !== undefined}
-      <button class="tool" onclick={() => (only = undefined)} type="button">
+      <button class="tool" onclick={() => pick(undefined)} type="button">
         only {nameOf(only)} ✕
       </button>
     {/if}
@@ -111,14 +116,14 @@
         <li class="row {kinds[entry.tag]}" class:alert={entry.tag === "Interrupted"}>
           <span class="when">{time(entry)}</span>
           <span class="what">{verbs[entry.tag]}</span>
-          <button class="atom" class:plumbing={byId.get(entry.atom)?.plumbing} onclick={() => (only = entry.atom)} ondblclick={() => onselect(entry.atom)} title="Click: only this atom's rows. Double-click: its sheet." type="button">
+          <button class="atom" class:plumbing={byId.get(entry.atom)?.plumbing} onclick={() => pick(entry.atom)} ondblclick={() => onselect(entry.atom)} title="Click: only this atom's rows. Double-click: its sheet." type="button">
             {nameOf(entry.atom)}
           </button>
           <span class="detail">
             {#if entry.tag === "Built" && entry.related.length > 0}
               because
               {#each entry.related as id, index (id)}{#if index > 0},{/if}
-                <button class="atom inline" onclick={() => (only = id)} type="button">{nameOf(id)}</button>{/each}
+                <button class="atom inline" onclick={() => pick(id)} type="button">{nameOf(id)}</button>{/each}
               changed
             {:else if entry.tag === "Built"}
               {entry.detail === "first read" ? "first read" : `because it was ${entry.detail}`}
