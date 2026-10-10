@@ -165,7 +165,7 @@ To handle typed errors yourself rather than through the boundary, pass `includeF
 {/if}
 ```
 
-The script waits only once. From then on, `todos.current` updates like a `useAtomValue` read, and shows `waiting` while a refresh runs.
+The script waits only once. From then on, `todos.current` updates like a `useAtomValue` read, and shows `waiting` while a refresh runs. That holds for a getter too: `await useAtomResult(() => todoAtom(id))` waits for the first atom only. When `id` changes, `current` follows the new atom from the result it has, often `Initial`, and the script doesn't wait again. To wait for each atom the getter picks, use `useAtomSuspense`, whose promise follows the getter.
 
 `useAtomResult` takes two options. `suspendOnWaiting: true` makes the first `await` also wait for a refresh that is already running, instead of resolving with the result it is refreshing. `revalidateOnHydrate` runs a server-rendered atom again in the browser: see [Running again after hydration](/hydration#running-again-after-hydration). `useAtomSuspense` takes both too.
 
