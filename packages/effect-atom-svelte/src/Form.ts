@@ -652,7 +652,11 @@ export interface BaseInstanceOptions<T> {
    * values, a dirty one keeps its edits.
    */
   readonly initialValues: T | (() => T);
-  /** Storage for the values that you own, such as an `Atom.kvs` draft that survives a reload. */
+  /**
+   * Storage for the values that you own, such as an `Atom.kvs` draft that survives a reload. A
+   * write to it from code counts as a change made in code, not as typing. So does a field's write
+   * that the atom hands back changed (trimmed, say): the field loses its own timing for that change.
+   */
   readonly values?: Atom.Writable<T> | undefined;
   /**
    * After a successful submit, reset to `initialValues` rather than adopting the submitted values

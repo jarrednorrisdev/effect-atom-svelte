@@ -5,7 +5,7 @@
 // a key path (["items", 7, "qty"]) names array items by their key instead of their index. Touched
 // state and errors are stored by key path, so they move with their item. Both are arrays of
 // strings (object keys) and numbers (an index, or an item key).
-import { Array as Arr, Predicate } from "effect";
+import { Array as Arr, Equal, Predicate } from "effect";
 
 /** A path into a form's values: object keys, and numbers for array indexes. */
 export type IndexPath = readonly (string | number)[];
@@ -157,7 +157,17 @@ export const reconcileKeys = (
 export const isLive = (keys: Keys, path: KeyPath): boolean =>
   toIndexPath(keys, path) !== undefined;
 
-/** Plain-data equality for form values: arrays, records, dates, and `Object.is` for the rest. */
+/**
+ * Plain-data equality for form values: arrays, plain objects, dates, Effect's `Equal` for values
+ * that implement it, and `Object.is` for the rest. Other class instances (a `File`, a `Map`) have
+ * no own keys to compare, so two of them are equal only when they are the same instance.
+ */
+// An object literal, or one made with `Object.create(null)`: not a class instance.
+const isPlain = (value: unknown): boolean => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
 export const equals = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) {
     return true;
@@ -170,10 +180,10 @@ export const equals = (a: unknown, b: unknown): boolean => {
       a.length === b.length && a.every((item, index) => equals(item, b[index]))
     );
   }
-  if (isRecord(a) && isRecord(b)) {
-    if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) {
-      return false;
-    }
+  if (Equal.isEqual(a) && Equal.isEqual(b)) {
+    return Equal.equals(a, b);
+  }
+  if (isRecord(a) && isRecord(b) && isPlain(a) && isPlain(b)) {
     const keysA = Object.keys(a).filter((key) => a[key] !== undefined);
     const keysB = Object.keys(b).filter((key) => b[key] !== undefined);
     return (

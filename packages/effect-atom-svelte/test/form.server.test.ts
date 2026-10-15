@@ -529,6 +529,23 @@ describe("more instance options", () => {
     form.dispose();
   });
 
+  test("a server error on a file clears when a different file is picked", () => {
+    const Upload = Form.make(
+      Schema.Struct({ avatar: Schema.instanceOf(File) })
+    );
+    const form = Form.instance(Upload, {
+      id: "u",
+      initialValues: { avatar: new File(["a"], "a.png") },
+    });
+    const avatar = form.field("avatar");
+    expect(avatar.dirty).toBe(false);
+    form.setErrors({ fields: { avatar: "Too large" } });
+    avatar.value = new File(["bbb"], "b.png");
+    expect(avatar.error).toBeUndefined();
+    expect(avatar.dirty).toBe(true);
+    form.dispose();
+  });
+
   test("a manual error clears when its field changes, and a form error with it", () => {
     const form = Form.instance(Settings, {
       id: "m",
