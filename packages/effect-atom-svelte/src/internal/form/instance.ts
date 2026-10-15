@@ -33,6 +33,10 @@ export class InstanceImpl extends GroupImpl {
     return this.engine.values;
   }
 
+  get initialValues(): unknown {
+    return this.engine.state.initial;
+  }
+
   get dirty(): boolean {
     return !equals(this.engine.values, this.engine.state.initial);
   }

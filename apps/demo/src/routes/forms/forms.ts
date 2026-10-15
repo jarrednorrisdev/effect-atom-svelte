@@ -4,15 +4,29 @@ import { Form } from "effect-atom-svelte";
 
 // Each Schema's encoded side is what the inputs hold, and its decoded side what a submit sends.
 
-export const SignIn = Form.make(
+// The struct's own check compares two fields and puts its error on one. It runs once every field
+// decodes.
+export const SignUp = Form.make(
   Schema.Struct({
+    confirmPassword: Schema.String,
     email: Schema.String.check(
       Schema.isPattern(/^\S+@\S+\.\S+$/u, { message: "Enter an email address" })
     ),
     password: Schema.String.check(
-      Schema.isNonEmpty({ message: "Enter your password" })
+      Schema.isMinLength(8, { message: "At least 8 characters" })
     ),
-  })
+    terms: Schema.Boolean.check(
+      Schema.makeFilter((agreed) => agreed || "Agree to the terms to continue")
+    ),
+  }).check(
+    Schema.makeFilter(
+      ({ confirmPassword, password }) =>
+        confirmPassword === password || {
+          issue: "Passwords do not match",
+          path: ["confirmPassword"],
+        }
+    )
+  )
 );
 
 // Trim decodes "  Feed the cat " to "Feed the cat"; the checks run on the trimmed title.
@@ -49,5 +63,26 @@ export const Order = Form.make(
         quantity: Quantity,
       })
     ).check(Schema.isMinLength(1, { message: "Add at least one item" })),
+  })
+);
+
+// One address, reused for billing and delivery: AddressFields edits either.
+const Address = Schema.Struct({
+  city: Schema.String.check(Schema.isNonEmpty({ message: "Enter a city" })),
+  street: Schema.String.check(Schema.isNonEmpty({ message: "Enter a street" })),
+});
+
+// Delivery or pickup: a tagged union, so only the chosen option's fields are checked.
+export const Checkout = Form.make(
+  Schema.Struct({
+    billing: Address,
+    fulfilment: Schema.TaggedUnion({
+      Delivery: { address: Address },
+      Pickup: {
+        store: Schema.Literals(["Soho", "Camden"]).pipe(
+          Schema.annotateKey({ messageMissingKey: "Choose a store" })
+        ),
+      },
+    }),
   })
 );

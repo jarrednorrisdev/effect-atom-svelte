@@ -25,13 +25,20 @@
     {#each items.items as item (item.key)}
       {@const name = item.fields.field("name")}
       {@const quantity = item.fields.field("quantity")}
-      <li data-testid="order-item">
-        <input {...name.attrs} aria-label="Item {item.index + 1}" bind:value={name.value} />
+      <li class="flex flex-wrap items-center gap-1" data-testid="order-item">
+        <!-- The key stays with the item, and so do its errors. -->
+        <code data-testid="order-key">key {item.key}</code>
+        <input
+          {...name.attrs}
+          aria-label="Item {item.index + 1}"
+          bind:value={name.value}
+          class="min-w-0 flex-1"
+        />
         <input
           {...quantity.attrs}
           aria-label="Quantity of item {item.index + 1}"
           bind:value={quantity.value}
-          class="w-20"
+          class="w-16"
           inputmode="numeric"
         />
         <button
@@ -41,7 +48,9 @@
         >
         <button onclick={() => items.remove(item.index)} type="button">Remove</button>
         {#each [name, quantity] as field (field.id)}
-          {#if field.error}<p class="field-error" id={field.errorId}>{field.error}</p>{/if}
+          {#if field.error}
+            <p class="field-error basis-full" id={field.errorId}>{field.error}</p>
+          {/if}
         {/each}
       </li>
     {/each}

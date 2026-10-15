@@ -491,6 +491,11 @@ export interface FormAttrs {
  */
 export interface Instance<T, D, A, E, Args> extends Group<T> {
   readonly values: T;
+  /**
+   * What `dirty` compares the values with: `initialValues`, or the values of the last successful
+   * submit, which become the initial values.
+   */
+  readonly initialValues: T;
   readonly dirty: boolean;
   /** Whether the latest values decode, with no server or manual error left. */
   readonly valid: boolean;

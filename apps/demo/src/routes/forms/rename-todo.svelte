@@ -13,8 +13,8 @@
   import { useAtomResult, useForm } from "effect-atom-svelte";
   import { useUnsavedChangesGuard } from "effect-atom-svelte/sveltekit";
   import CauseView from "#lib/docs/kit/cause-view.svelte";
-  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
+  import FormState from "./form-state.svelte";
   import { RenameTodo } from "./forms.ts";
 
   const id = $props.id();
@@ -57,10 +57,14 @@
     <!-- Nothing to save until the title changes. -->
     <button disabled={!form.dirty || form.submitting}>Save</button>
     <button disabled={!form.dirty} onclick={() => form.reset()} type="button">Undo</button>
-    <StateBadge data-testid="rename-state" result={form.submitResult} />
-    <output data-testid="rename-dirty">{form.dirty ? "Unsaved changes" : "Saved"}</output>
   </p>
 </form>
+<FormState
+  dirty={form.dirty}
+  initial={form.initialValues}
+  lastSubmitted={form.lastSubmitted}
+  result={form.submitResult}
+/>
 {#if form.submitResult._tag === "Failure"}
   <CauseView cause={form.submitResult.cause} code label="renameAtom" />
 {/if}

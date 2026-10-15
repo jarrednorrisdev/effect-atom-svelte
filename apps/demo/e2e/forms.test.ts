@@ -29,33 +29,42 @@ const answerDialogs = (page: Page, accept: () => boolean) => {
 const editTitle = async (page: Page) => {
   const rename = page.getByTestId("rename");
   await rename.getByLabel("Title of todo 1").fill("Read the Atom source");
-  await expect(page.getByTestId("rename-dirty")).toHaveText("Unsaved changes");
+  await expect(page.getByTestId("state-dirty")).toHaveText("true");
 };
 
 const confirmMessage = "confirm: Leave without saving the new title?";
 
 test.describe("Forms page", () => {
-  test("sign in: an error waits for blur, and a wrong password is the form's error", async ({
+  test("sign up: a check fails at once, its error waits for blur, and the button waits for every check", async ({
     page,
   }) => {
     const errors = pageErrors(page);
     await openForms(page);
-    const form = page.getByTestId("sign-in");
+    const form = page.getByTestId("sign-up");
     const email = form.getByLabel("Email");
+    const emailRow = page.getByTestId("knows-email");
     await email.fill("ada");
+    await expect(emailRow).toContainText("Enter an email address");
+    await expect(emailRow).toContainText("hidden");
     await expect(form.getByText("Enter an email address")).toHaveCount(0);
     await email.press("Tab");
     await expect(form.getByText("Enter an email address")).toBeVisible();
     await expect(email).toHaveAttribute("aria-invalid", "true");
     await email.fill("ada@example.com");
     await expect(form.getByText("Enter an email address")).toHaveCount(0);
-    await form.getByLabel("Password").fill("nope");
-    await form.getByRole("button", { name: "Sign in" }).click();
-    await expect(form.getByRole("alert")).toHaveText("Wrong email or password");
-    await form.getByLabel("Password").fill("atom");
-    await form.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByTestId("sign-in-done")).toHaveText(
-      "Signed in as ada@example.com"
+    await form.getByLabel("Password", { exact: true }).fill("longpassword");
+    await form.getByLabel("Confirm password").fill("longpasswor");
+    await form.getByLabel("I agree to the terms").check();
+    await expect(page.getByTestId("knows-confirmPassword")).toContainText(
+      "Passwords do not match"
+    );
+    const create = form.getByRole("button", { name: "Create account" });
+    await expect(create).toBeDisabled();
+    await form.getByLabel("Confirm password").fill("longpassword");
+    await expect(page.getByTestId("knows-valid")).toHaveText("true");
+    await create.click();
+    await expect(page.getByTestId("sign-up-done")).toHaveText(
+      "Account created for ada@example.com"
     );
     expect(errors).toEqual([]);
   });
@@ -75,8 +84,11 @@ test.describe("Forms page", () => {
     await title.fill("Read the Atom source");
     await expect(form.getByText("Another todo has that title")).toHaveCount(0);
     await form.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("rename-state")).toHaveText("Success");
-    await expect(page.getByTestId("rename-dirty")).toHaveText("Saved");
+    await expect(page.getByTestId("state-result")).toHaveText("Success");
+    await expect(page.getByTestId("state-dirty")).toHaveText("false");
+    await expect(page.getByTestId("state-initial")).toHaveText(
+      '{"title":"Read the Atom source"}'
+    );
     await expect(form.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(errors).toEqual([]);
     // The query fetched the saved title, and a reload renders it on the server. Checked for errors
@@ -94,15 +106,45 @@ test.describe("Forms page", () => {
     const items = form.getByTestId("order-item");
     await form.getByRole("button", { name: "Place order" }).click();
     await expect(items.nth(1)).toContainText("Enter a quantity");
+    const inkKey =
+      (await items.nth(1).getByTestId("order-key").textContent()) ?? "";
     await expect(form.getByLabel("Quantity of item 2")).toBeFocused();
     await items.nth(1).getByRole("button", { name: "Move to top" }).click();
     await expect(form.getByLabel("Item 1", { exact: true })).toHaveValue("Ink");
+    await expect(form.getByTestId("order-key").first()).toHaveText(inkKey);
     await expect(items.nth(0)).toContainText("Enter a quantity");
     await expect(items.nth(1)).not.toContainText("Enter a quantity");
     await form.getByLabel("Quantity of item 1").fill("3");
     await form.getByRole("button", { name: "Place order" }).click();
     await expect(page.getByTestId("order-placed")).toHaveText(
       "3 × Ink, 2 × Paper, 1 × Stapler"
+    );
+    expect(errors).toEqual([]);
+  });
+
+  test("checkout: switching the union's tag keeps the other member's values, and only the chosen one is checked", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await openForms(page);
+    const form = page.getByTestId("checkout");
+    const delivery = form.getByRole("group", { name: "Delivery address" });
+    await delivery.getByLabel("Street").fill("1 High St");
+    await form.getByRole("button", { exact: true, name: "Pickup" }).click();
+    await expect(delivery).toHaveCount(0);
+    await form.getByRole("button", { exact: true, name: "Delivery" }).click();
+    await expect(delivery.getByLabel("Street")).toHaveValue("1 High St");
+    await form.getByRole("button", { exact: true, name: "Pickup" }).click();
+    await form.getByRole("button", { name: "Place order" }).click();
+    await expect(form.getByText("Choose a store")).toBeVisible();
+    await expect(form.getByText("Enter a street")).toBeVisible();
+    await form.getByRole("button", { exact: true, name: "Camden" }).click();
+    const billing = form.getByRole("group", { name: "Billing address" });
+    await billing.getByLabel("Street").fill("2 Low Rd");
+    await billing.getByLabel("City").fill("London");
+    await form.getByRole("button", { name: "Place order" }).click();
+    await expect(page.getByTestId("checkout-placed")).toHaveText(
+      "Pickup at Camden"
     );
     expect(errors).toEqual([]);
   });
@@ -155,9 +197,7 @@ test.describe("Forms page", () => {
       await page.evaluate(() => history.back());
       await expect.poll(() => dialogs).toEqual([confirmMessage]);
       await expect(page).toHaveURL(/\/forms$/u);
-      await expect(page.getByTestId("rename-dirty")).toHaveText(
-        "Unsaved changes"
-      );
+      await expect(page.getByTestId("state-dirty")).toHaveText("true");
       accept = true;
       await page.evaluate(() => history.back());
       await expect(page).toHaveURL(/\/mutations$/u);

@@ -12,15 +12,18 @@ description: Build a form from one Effect Schema, with errors that show at the r
   import lineItemsSource from "./line-items.svelte?highlight";
   import RenameTodo from "./rename-todo.svelte";
   import renameTodoSource from "./rename-todo.svelte?highlight";
-  import SignIn from "./sign-in.svelte";
-  import signInSource from "./sign-in.svelte?highlight";
+  import addressFieldsSource from "./address-fields.svelte?highlight";
+  import Checkout from "./checkout.svelte";
+  import checkoutSource from "./checkout.svelte?highlight";
+  import SignUp from "./sign-up.svelte";
+  import signUpSource from "./sign-up.svelte?highlight";
 </script>
 
 A form here is built from one Effect **Schema**. You give the Schema; the library gives you the values your inputs bind to, the errors to show under each one, the attributes that wire an input to its error for screen readers, and a `submit` that decodes the values and sends them through a [mutation](/mutations). It draws nothing: the markup and the copy are yours.
 
-This sign-in form checks the email when you leave the field, and once a field has shown an error, it checks again as you type. Signing in takes a second; the only password that works is `atom`:
+This sign-up form checks the email when you leave the field, and once a field has shown an error, it checks again as you type. Beside it, **What the form knows** shows each field's latest check, whether you've left the field, and whether its error is on screen: the Schema checks every change, and the timing decides what you see. Create account stays off until every check passes:
 
-<Example files={[{ html: signInSource, name: "sign-in.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a few letters in Email, then press Tab: the error appears only now. Fix it and it goes as you type. Then sign in with any password but atom."> <div data-testid="sign-in-example"><SignIn /></div> </Example>
+<Example files={[{ html: signUpSource, name: "sign-up.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a few letters in Email: its check fails at once, but the error waits until you press Tab. Fill in the rest, with two passwords that differ, then make them match and watch Create account turn on."> <div data-testid="sign-up-example"><SignUp /></div> </Example>
 
 ## Defining a form
 
@@ -34,19 +37,19 @@ A form uses both sides. The encoded side is what the inputs hold: text inputs ho
 import { Schema } from "effect";
 import { Form } from "effect-atom-svelte";
 
-export const SignIn = Form.make(
+export const SignUp = Form.make(
   Schema.Struct({
     email: Schema.String.check(
       Schema.isPattern(/^\S+@\S+\.\S+$/u, { message: "Enter an email address" })
     ),
     password: Schema.String.check(
-      Schema.isNonEmpty({ message: "Enter your password" })
+      Schema.isMinLength(8, { message: "At least 8 characters" })
     ),
   })
 );
 ```
 
-The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
+The example's full definition, with a confirm field and a terms checkbox, is in its `forms.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
 
 An error's message comes from the check's `message` annotation, as above. A check without one gets Effect's own message, such as `Expected a value with a length of at most 60`. To write those yourself, pass `leafHook` (for a value of the wrong type, or a missing key) or `checkHook` (for a failed check) to `Form.make`; a `message` annotation still wins over them.
 
@@ -59,10 +62,10 @@ Validation runs the Schema's decoding as an Effect, so a check can call a servic
 ```svelte
 <script lang="ts">
   import { useForm } from "effect-atom-svelte";
-  import { SignIn } from "./forms.ts";
+  import { SignUp } from "./forms.ts";
 
   const id = $props.id();
-  const form = useForm(SignIn, {
+  const form = useForm(SignUp, {
     id,
     initialValues: { email: "", password: "" },
   });
@@ -115,17 +118,17 @@ The defaults are "reward early, validate late": no error while you type into a f
 
 A submit shows every error, and after it, with `revalidateOn: "input"`, errors show as they appear. `form.validate(paths)` shows the errors under some paths and resolves whether they passed, as a wizard's Next button needs for its step. With no paths it checks the whole form.
 
-For a form that shows the state of every rule as you type, such as a password strength checklist, use `validateOn: "input"`. `form.valid` says whether the latest values decode, whatever is on screen, so a button can stay disabled until they do. `form.errors` lists the errors on show, in the Schema's order, for a summary at the top.
+`field.issue` is the latest check's message for a field whether or not its error shows yet. It's what the sign-up example's table reads, and what a live password checklist would read. For a form that shows every error as you type, use `validateOn: "input"`. `form.valid` says whether the latest values decode, whatever is on screen, so a button can stay disabled until they do. `form.errors` lists the errors on show, in the Schema's order, for a summary at the top.
 
 ## Submitting
 
 A submit decodes the values and, if they decode, writes them to a **submit atom**: a mutation from `Atom.fn`, `runtime.fn` or an [RPC](/rpc) or [HTTP API](/http) client. While it runs, `form.submitting` is true, and once it settles, `form.submitResult` is the mutation's `AsyncResult`. Both belong to this instance: another component writing the same mutation doesn't change them.
 
 ```ts
-const form = useForm(SignIn, {
+const form = useForm(SignUp, {
   id,
   initialValues: { email: "", password: "" },
-  submit: { atom: signInAtom },
+  submit: { atom: signUpAtom },
 });
 ```
 
@@ -183,11 +186,11 @@ A field error from `mapError` shows at once and goes when the user edits that fi
 
 An edit form starts from data that is already saved. Give `initialValues` as a function, and the form follows it: when the data changes, such as when a query fetches again, a form you haven't edited takes the new values, and one you have keeps your edits.
 
-After a successful submit, the submitted values become the initial values, so the form is clean again and `form.dirty` is false. `form.lastSubmitted` holds them, encoded and decoded, and `form.revertToLastSubmit()` goes back to them. For a form that creates something instead, `resetOnSuccess: true` goes back to the empty form after each save.
+After a successful submit, the submitted values become the initial values, `form.initialValues`, so the form is clean again and `form.dirty` is false. `form.lastSubmitted` holds them, encoded and decoded, and `form.revertToLastSubmit()` goes back to them. For a form that creates something instead, `resetOnSuccess: true` goes back to the empty form after each save.
 
 This form renames a todo on the demo API. Another todo is already called "Write a Svelte adapter", and the server refuses a second one with a `DuplicateTitle` error, which `mapError` puts on the field:
 
-<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Rename the todo and save: the form is clean again. Then type Write a Svelte adapter and save: the server's error lands on the field. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
+<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Rename the todo: dirty turns true. Save it: the new title becomes initialValues, and dirty is false again. Then type Write a Svelte adapter and save: the server's error lands on the field. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
 
 ### Asking before leaving
 
@@ -207,66 +210,51 @@ SvelteKit doesn't call `beforeNavigate` for back and forward over history entrie
 
 ## Checks across fields
 
-A check on the whole Struct sees every field, for rules such as "the passwords match". Return `{ path, issue }` from `Schema.makeFilter` to put the error on one field:
+A check on the whole Struct sees every field, for rules such as "the passwords match". Return `{ path, issue }` from `Schema.makeFilter` to put the error on one field, as the sign-up example's `forms.ts` does:
 
 ```ts
-const ResetPassword = Form.make(
-  Schema.Struct({
-    password: Schema.String.check(Schema.isMinLength(8)),
-    confirmPassword: Schema.String,
-  }).check(
-    Schema.makeFilter(
-      ({ password, confirmPassword }) =>
-        password === confirmPassword || {
-          path: ["confirmPassword"],
-          issue: "Passwords do not match",
-        }
-    )
+Schema.Struct({
+  confirmPassword: Schema.String,
+  password: Schema.String.check(Schema.isMinLength(8)),
+}).check(
+  Schema.makeFilter(
+    ({ confirmPassword, password }) =>
+      confirmPassword === password || {
+        issue: "Passwords do not match",
+        path: ["confirmPassword"],
+      }
   )
 );
 ```
 
-Effect runs a Struct's checks only once every field decodes, so "Passwords do not match" shows after the password itself is long enough. A check that returns no `path` is the form's error, `form.rootError`.
+Effect runs a Struct's checks only once every field decodes, so "Passwords do not match" shows only after the email, the password and the terms are right: in the example, the table shows `confirmPassword` passing until then. A check that returns no `path` is the form's error, `form.rootError`.
 
 ## Arrays
 
 `form.array("items")` is an array field. `append`, `remove`, `move` and `replace` change it, and `items` lists its items, each with its own fields. Each item has a `key` that stays with it when items move, so its errors and touched state move with it, and a keyed `{#each}` keeps its inputs:
 
-<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top, and its error goes with it. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
+<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top: its key, and its error, go with it. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
 
 An error on the array itself, such as from `isMinLength(1)`, is `items.error`.
 
 ## Groups of fields
 
-`form.at("address")` gives the fields under one path as a **group**, with the same `field`, `array` and `at`, relative to it. A component that edits an address takes a group of the address's shape, and works in any form that has one:
+`form.at("billing")` gives the fields under one path as a **group**, with the same `field`, `array` and `at`, relative to it. A component that edits an address takes a group of the address's shape, `Form.Group<{ city: string; street: string }>`, and works for any part of any form that has one. The checkout example below uses one component for both its addresses:
 
 ```svelte
-<script lang="ts">
-  import type { Form } from "effect-atom-svelte";
-
-  interface Props {
-    readonly fields: Form.Group<{ readonly street: string; readonly city: string }>;
-  }
-
-  const { fields }: Props = $props();
-  const street = fields.field("street");
-  const city = fields.field("city");
-</script>
-
-<input {...street.attrs} bind:value={street.value} />
-<input {...city.attrs} bind:value={city.value} />
-```
-
-```svelte
-<AddressFields fields={form.at("address")} />
-<AddressFields fields={form.at("billingAddress")} />
+<AddressFields fields={form.at("billing")} legend="Billing address" />
+<AddressFields fields={form.at(["fulfilment", "address"])} legend="Delivery address" />
 ```
 
 Fields that several forms share are a Schema you reuse, such as an `Address` Struct in each form's Schema.
 
 ## Unions
 
-A form whose fields depend on a choice uses a union of Structs with a tag, such as `Schema.TaggedUnion` or a `Schema.Union` of Structs that each have a literal `kind`. Effect decodes the member the tag picks, so only that member's fields report errors. When the tag changes, the other member's values stay in the form, so switching back restores them, but they aren't decoded or submitted.
+A form whose fields depend on a choice uses a union of Structs with a tag, such as `Schema.TaggedUnion`. Effect decodes the member the tag picks, so only that member's fields report errors. When the tag changes, the other member's values stay in the form, so switching back restores them, but they aren't decoded or submitted.
+
+In this checkout, an order is delivered to an address or picked up from a store:
+
+<Example files={[{ html: checkoutSource, name: "checkout.svelte" }, { html: addressFieldsSource, name: "address-fields.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a delivery street, click Pickup, then Delivery: the street is still there. Place the order with fields empty: only the chosen option's fields complain."> <div data-testid="checkout-example"><Checkout /></div> </Example>
 
 ## Drafts that survive a reload
 
@@ -281,16 +269,21 @@ import { Exit } from "effect";
 import { Form } from "effect-atom-svelte";
 import { expect, test } from "vitest";
 
-import { SignIn } from "./forms.ts";
+import { SignUp } from "./forms.ts";
 
 test("a submit shows every error", async () => {
-  const form = Form.instance(SignIn, {
+  const form = Form.instance(SignUp, {
     id: "test",
-    initialValues: { email: "", password: "" },
+    initialValues: {
+      confirmPassword: "",
+      email: "",
+      password: "",
+      terms: false,
+    },
   });
   const exit = await form.submit();
   expect(Exit.isFailure(exit)).toBe(true);
-  expect(form.field("password").error).toBe("Enter your password");
+  expect(form.field("password").error).toBe("At least 8 characters");
   form.dispose();
 });
 ```

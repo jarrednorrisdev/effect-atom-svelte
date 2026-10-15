@@ -161,6 +161,7 @@ describe("submit", () => {
     expect(Option.getOrThrow(form.lastSubmitted).encoded.email).toBe(
       "ada@example.com"
     );
+    expect(form.initialValues.email).toBe("ada@example.com");
     expect(AsyncResult.isSuccess(form.submitResult)).toBe(true);
     form.dispose();
   });
