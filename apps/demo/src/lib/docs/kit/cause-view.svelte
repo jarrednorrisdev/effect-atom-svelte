@@ -127,22 +127,24 @@
   .cause {
     margin-top: 0.75rem;
   }
+  /* The site's label voice (app.css's .docs-label); a name from the code keeps its case. */
   .caption {
     color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
     text-transform: uppercase;
   }
   .caption.code {
-    font-family: var(--font-mono);
+    color: var(--foreground);
+    font-size: 0.75rem;
     letter-spacing: normal;
     text-transform: none;
   }
   .empty {
-    border: 1.5px dashed var(--border-strong);
-    border-radius: var(--radius-lg);
+    border: 1px dashed var(--border-strong);
     color: var(--muted-foreground);
     font-size: 0.8rem;
     margin: 0;
@@ -159,9 +161,8 @@
     --mark: var(--tone-failure);
     --text: var(--tone-failure-text);
     align-items: center;
-    background: color-mix(in oklab, var(--mark) 10%, var(--background));
-    border: 1.5px solid color-mix(in oklab, var(--mark) 70%, transparent);
-    border-radius: var(--radius-lg);
+    background: color-mix(in oklab, var(--mark) 7%, var(--background));
+    border: 1px solid color-mix(in oklab, var(--mark) 60%, transparent);
     column-gap: 0.75rem;
     display: grid;
     font-size: 0.8rem;
@@ -188,7 +189,7 @@
     color: var(--text);
     display: inline-flex;
     font-family: var(--font-mono);
-    font-weight: 700;
+    font-weight: 500;
     gap: 0.35rem;
     grid-row: span 2;
   }

@@ -13,7 +13,7 @@
   const current = useAtomRef(() => profile);
 </script>
 
-<div class="bg-brand/15 rounded-md px-3 py-2" data-testid="profile-card">
+<div class="border px-3 py-2" data-testid="profile-card">
   <p class="m-0 font-medium">{current.current.name}</p>
   <p class="text-muted-foreground m-0 text-sm">
     {current.current.role} · {current.current.address.city}

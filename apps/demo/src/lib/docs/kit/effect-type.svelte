@@ -70,7 +70,7 @@
     color: var(--muted-foreground);
   }
   .side {
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     color: var(--muted-foreground);
     padding: 0.05rem 0.15rem;
     transition:

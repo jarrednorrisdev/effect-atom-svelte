@@ -2,6 +2,7 @@
   import { AtomRef } from "effect/reactivity";
 
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import ProfileCard from "./profile-card.svelte";
   import ProfileField from "./profile-field.svelte";
@@ -15,7 +16,7 @@
   });
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="profile-field.svelte × 3">
     <!-- Each field gets a writable slice: one property, however deep. -->
     <ProfileField label="Name" ref={profile.prop("name")} />
@@ -26,4 +27,4 @@
     <!-- The card reads the whole value. -->
     <ProfileCard {profile} />
   </Part>
-</div>
+</Parts>

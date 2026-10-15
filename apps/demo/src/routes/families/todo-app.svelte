@@ -1,5 +1,6 @@
 <script lang="ts">
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import TodoDetails from "./todo-details.svelte";
   import TodoList from "./todo-list.svelte";
@@ -27,7 +28,7 @@
   };
 </script>
 
-<div class="grid gap-3 sm:grid-cols-[3fr_2fr]">
+<Parts columns="3fr 2fr">
   <Part code label="todo-list.svelte">
     <TodoList bind:selected {todos} />
     <form class="mt-3 flex" onsubmit={add}>
@@ -43,4 +44,4 @@
   <Part code label="todo-details.svelte">
     {#if open}<TodoDetails id={open.id} title={open.title} />{/if}
   </Part>
-</div>
+</Parts>

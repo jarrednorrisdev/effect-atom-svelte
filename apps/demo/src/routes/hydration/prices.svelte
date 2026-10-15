@@ -4,6 +4,7 @@
 
   import Origin from "#lib/docs/kit/origin.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   // What the server's HTML had in the same place.
   import ServerHtml from "#lib/docs/kit/server-html.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -29,7 +30,7 @@
   </Part>
 {/snippet}
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   {@render price("pricesAtom", prices.current)}
   {@render price("pricesWithKeysAtom", withKeys.current)}
-</div>
+</Parts>

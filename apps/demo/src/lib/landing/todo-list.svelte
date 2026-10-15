@@ -25,6 +25,7 @@
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import LoadingBar from "#lib/docs/kit/loading-bar.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
@@ -87,7 +88,7 @@
     </ResultChip>
   </div>
 {/if}
-<div class="grid gap-3 sm:grid-cols-[3fr_2fr]">
+<Parts columns="3fr 2fr">
   <Part
     code
     count={requests.current}
@@ -138,4 +139,4 @@
     />
     <p class="text-muted-foreground mt-2 mb-0 text-sm">todos not done yet</p>
   </Part>
-</div>
+</Parts>

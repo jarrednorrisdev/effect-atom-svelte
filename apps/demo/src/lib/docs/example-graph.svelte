@@ -1,6 +1,6 @@
 <!--
   @component
-  The live dependency graph at the top of a docs example: the atoms the example's components use
+  The live dependency graph at the foot of a docs example's result: the atoms the example's components use
   (and those upstream of them), and the components themselves, read from the example's inspector
   scope and drawn by the devtools package's graph (effect-atom-svelte-devtools/graph), as the
   devtools panel draws the whole registry. It follows the example as it runs: a node rings when its
@@ -227,12 +227,13 @@
 {/if}
 
 <style>
-  /* Across the result's full width, ruled off from the result below it. */
+  /* Across the result's full width, under the controls and ruled off from them, so its height
+     changing never moves a control. */
   .example-graph {
     /* The result's own tint (example.svelte, .demo), behind the labels. */
     --graph-background: color-mix(in oklab, var(--brand) 4%, var(--background));
-    border-bottom: 1px solid var(--border);
-    margin: -0.75rem -1.5rem 1rem;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem -1.5rem -1.5rem;
     min-height: 3.5rem;
     position: relative;
   }

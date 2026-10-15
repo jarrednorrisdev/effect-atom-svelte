@@ -10,7 +10,7 @@
   let holdInLayout = $state(false);
 </script>
 
-<div class="grid gap-4 md:grid-cols-[1fr_16.5rem]">
+<div class="grid gap-4">
   <BrowserFrame bind:page pages={["inbox", "chat"]}>
     {#snippet bar()}
       <code class="text-xs">+layout.svelte</code>

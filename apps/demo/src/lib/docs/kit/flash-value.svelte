@@ -62,7 +62,7 @@
     background: color-mix(
       in oklab,
       var(--tint, var(--brand)) calc(var(--flash, 0) * 70%),
-      var(--muted)
+      var(--flash-rest, var(--muted))
     );
     display: inline-block;
     min-width: 2ch;
@@ -70,13 +70,14 @@
   }
   /* The same footprint as a ResultChip, so values and results line up in a row of parts. */
   .big {
+    --flash-rest: var(--background);
     align-content: center;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    border-radius: 0;
     font-family: var(--font-mono);
     font-size: 1.5rem;
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
+    font-weight: 500;
     min-height: 3.5rem;
     padding: 0.25rem 0.85rem;
     width: 100%;

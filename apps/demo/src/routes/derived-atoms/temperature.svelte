@@ -28,6 +28,7 @@
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import Stepper from "#lib/docs/kit/stepper.svelte";
 
   const celsius = useAtom(celsiusAtom);
@@ -41,46 +42,33 @@
   ]);
 </script>
 
-<div class="flex flex-col gap-3 sm:flex-row">
-  <div class="sm:self-center">
-    <Part code label="celsiusAtom">
-      <Stepper
-        bind:value={celsius.current}
-        data-testid="celsius"
-        label="Celsius"
-      />
-      <p class="text-muted-foreground mt-2 text-xs">Holds the value, in °C.</p>
-    </Part>
-  </div>
-  <div
-    class="grid flex-1 grid-cols-[2.5rem_1fr] gap-3 sm:grid-cols-[4.5rem_1fr]"
+<Parts fan>
+  <Part code label="celsiusAtom" note="holds the value, in °C">
+    <Stepper
+      bind:value={celsius.current}
+      data-testid="celsius"
+      label="Celsius"
+    />
+  </Part>
+  <span><Arrow both label="get, set" pulse={celsius.current} /></span>
+  <Part
+    code
+    label="fahrenheitAtom"
+    note="holds nothing: °C × 9 / 5 + 32, and a write sets celsiusAtom"
   >
-    <span class="flex justify-center">
-      <Arrow both label="get, set" pulse={celsius.current} />
-    </span>
-    <Part code label="fahrenheitAtom">
-      <Stepper
-        bind:value={fahrenheit.current}
-        data-testid="fahrenheit"
-        label="Fahrenheit"
-      />
-      <p class="text-muted-foreground mt-2 text-xs">
-        Holds nothing: °C × 9 / 5 + 32, and a write sets celsiusAtom.
-      </p>
-    </Part>
-    <span class="flex justify-center">
-      <Arrow label="get" pulse={celsius.current} />
-    </span>
-    <Part code label="feelAtom">
-      It feels
-      <FlashValue
-        data-testid="feel"
-        tint={tints.get(feel.current)}
-        value={feel.current}
-      />.
-      <p class="text-muted-foreground mt-2 text-xs">
-        Read-only, computed from °C.
-      </p>
-    </Part>
-  </div>
-</div>
+    <Stepper
+      bind:value={fahrenheit.current}
+      data-testid="fahrenheit"
+      label="Fahrenheit"
+    />
+  </Part>
+  <span><Arrow label="get" pulse={celsius.current} /></span>
+  <Part code label="feelAtom" note="read-only, computed from °C">
+    It feels
+    <FlashValue
+      data-testid="feel"
+      tint={tints.get(feel.current)}
+      value={feel.current}
+    />.
+  </Part>
+</Parts>

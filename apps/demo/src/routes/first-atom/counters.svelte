@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Parts from "#lib/docs/kit/parts.svelte";
+
   import Counter from "./counter.svelte";
 
   let shown = $state(true);
@@ -11,10 +13,10 @@
 </p>
 
 {#if shown}
-  <div class="flex flex-wrap gap-3">
+  <Parts columns={2}>
     <Counter label="First counter" />
     <Counter label="Second counter" />
-  </div>
+  </Parts>
 {:else}
   <p>Nothing reads countAtom now, so its value is gone.</p>
 {/if}

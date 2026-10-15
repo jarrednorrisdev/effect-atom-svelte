@@ -63,7 +63,7 @@ Work through these in order. Each item includes a real case from Jarred's first 
 - **Show lifecycle visibly.** Use a dashed `Part` when an atom is not in the registry, and show holder or reader counts.
 - **Label every result.** Use one row per atom name, with a `StateBadge`. Don't list bare results like "(Failure, Success)".
 - **Keep layout stable.**
-  - Lay out a row of Parts with the kit's `Parts`: equal widths and heights, contents and `actions` lined up, and a dashed rule between parts with no arrow between them (independent). Chains of three stack on a phone; add `stack` when a shorter chain's contents need the width. Don't use it for fan-outs (one part feeding two) or grids of hooks on the same atom.
+  - Lay out any two or more Parts with the kit's `Parts`, never a gapped grid of your own: they share ruled lines, with equal widths and heights and `actions` lined up. A row links parts with `Arrow`s in hatched cells; `columns` makes a grid (hooks on the same atom), and `fan` one part feeding several. Chains of three stack in the docs column; add `stack` when a shorter chain's contents need a phone's width.
   - Diagrams fit one row on desktop and stack on a phone.
   - Line up edges, e.g. Clear at the flex end, and buttons level with the input's right edge.
 - **No jitter.** Ticking numbers use `tabular-nums`. Progress is one CSS animation, not a bar stepped in JS. Changed values flash color only.

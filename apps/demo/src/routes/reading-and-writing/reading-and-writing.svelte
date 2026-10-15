@@ -10,6 +10,7 @@
 
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   // Read and write through .current.
   const count = useAtom(countAtom);
@@ -21,7 +22,7 @@
   const name = useAtom(nameAtom);
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="useAtom">
     <span class="button-group">
       <button data-cue="down" onclick={() => (count.current -= 1)}>−</button>
@@ -47,4 +48,4 @@
       value="Hello, {name.current || 'nobody'}!"
     />
   </Part>
-</div>
+</Parts>

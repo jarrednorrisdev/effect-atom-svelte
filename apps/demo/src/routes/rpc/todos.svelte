@@ -16,6 +16,7 @@
 
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
@@ -47,7 +48,7 @@
   };
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part
     code
     count={requests.current}
@@ -114,4 +115,4 @@
       <CauseView cause={creating.current.cause} data-testid="rpc-error" />
     {/if}
   </Part>
-</div>
+</Parts>

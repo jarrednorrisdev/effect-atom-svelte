@@ -69,20 +69,23 @@
 
 <style>
   .log {
-    border-top: 1px dashed var(--border-strong);
+    border-top: 1px solid var(--border);
     margin-top: 1rem;
     padding-top: 0.75rem;
   }
+  /* The site's label voice (app.css's .docs-label); a name from the code keeps its case. */
   .caption {
     color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
     text-transform: uppercase;
   }
   .caption.code {
-    font-family: var(--font-mono);
+    color: var(--foreground);
+    font-size: 0.75rem;
     letter-spacing: normal;
     text-transform: none;
   }
@@ -105,7 +108,7 @@
     align-items: center;
     display: grid;
     gap: 0.6rem;
-    grid-template-columns: 5.5rem 0.5rem 1fr;
+    grid-template-columns: 4.25rem 0.4rem 1fr;
   }
   li[data-tone="running"] {
     --mark: var(--tone-running);
@@ -120,15 +123,14 @@
     --mark: var(--tone-interrupted);
   }
   .time {
-    color: var(--muted-foreground);
+    color: var(--subtle-foreground);
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
   .dot {
     background: var(--mark);
-    border-radius: 999px;
-    height: 0.5rem;
-    width: 0.5rem;
+    height: 0.4rem;
+    width: 0.4rem;
   }
   .lane {
     color: var(--muted-foreground);

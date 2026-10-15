@@ -26,6 +26,7 @@
   import { AsyncResult } from "effect/reactivity";
 
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import { toneOf } from "#lib/docs/kit/tone.ts";
@@ -59,7 +60,7 @@
   </button>
   <StateBadge data-testid="sensor-state" result={reading.current} />
 </p>
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="AsyncResult.match">
     <ResultChip
       busy={reading.current.waiting}
@@ -80,4 +81,4 @@
       </span>
     </ResultChip>
   </Part>
-</div>
+</Parts>

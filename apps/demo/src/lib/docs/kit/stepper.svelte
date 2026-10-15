@@ -59,3 +59,10 @@
     +10
   </button>
 </span>
+
+<style>
+  /* Narrower than .demo's buttons, so the five fit a part in a row of two. */
+  .button-group > button {
+    padding: 0 0.5rem;
+  }
+</style>

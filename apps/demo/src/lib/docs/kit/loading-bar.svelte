@@ -30,7 +30,6 @@
   }
   .track {
     background: var(--border);
-    border-radius: 999px;
     flex: 1;
     height: 2px;
     overflow: hidden;
@@ -38,7 +37,6 @@
   }
   .sweep {
     background: var(--tone-running);
-    border-radius: inherit;
     height: 100%;
     opacity: 0;
     width: 40%;

@@ -26,6 +26,7 @@
 
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   const count = useAtom(countAtom);
 
@@ -43,7 +44,7 @@
   </button>
   countAtom is <FlashValue data-testid="shared-count" value={count.current} />
 </p>
-<div class="flex flex-wrap gap-3">
+<Parts columns={2}>
   <Part code count={atomRuns.count} countLabel="runs" label="doubledAtom">
     {#each derived as reader, index (index)}
       <p>Reader {index + 1}: <output>{reader.current}</output></p>
@@ -54,4 +55,4 @@
       <p>Reader {index + 1}: <output>{reader.current}</output></p>
     {/each}
   </Part>
-</div>
+</Parts>

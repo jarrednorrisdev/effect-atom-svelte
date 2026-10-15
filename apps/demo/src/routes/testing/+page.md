@@ -8,7 +8,7 @@ description: Test atoms against a registry of their own, render components with 
   import Example from "#lib/docs/example.svelte";
 
   import counterComponentTestSource from "./counter-component.test.ts?highlight";
-  import Counter from "./counter.svelte";
+  import CounterPart from "./counter-part.svelte";
   import counterSvelteSource from "./counter.svelte?highlight";
   import counterTestSource from "./counter.test.ts?highlight";
   import counterSource from "./counter.ts?highlight";
@@ -94,7 +94,7 @@ Render a component with `render` from vitest-browser-svelte, and wrap it in a `R
 - **`registry`**: a registry made by the test. The test can read what the component wrote and write values for it to show. A registry you pass in is yours to dispose.
 - **`initialValues`**: pairs of an atom and a starting value. The provider makes its own registry from them and disposes it when the component unmounts.
 
-<Example files={[{ html: counterComponentTestSource, name: "counter-component.test.ts" }, { html: counterSvelteSource, name: "counter.svelte" }]} hint="This is counter.svelte, the component under test. Click the button, as the first test does: both lines change, because the click writes countAtom."> <Counter /> </Example>
+<Example files={[{ html: counterComponentTestSource, name: "counter-component.test.ts" }, { html: counterSvelteSource, name: "counter.svelte" }]} hint="This is counter.svelte, the component under test. Click the button, as the first test does: both lines change, because the click writes countAtom."> <CounterPart /> </Example>
 
 A component that awaits shows its content once the await settles, not when `render` returns. Assert with `await expect.element(...)`, which retries until the element appears, as the tests on this page do.
 

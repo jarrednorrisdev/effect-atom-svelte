@@ -1,6 +1,7 @@
 <script lang="ts">
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import { streamLog } from "./clock.ts";
   import Reader from "./reader.svelte";
@@ -10,7 +11,7 @@
   const names = ["A", "B"] as const;
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   {#each names as name (name)}
     <Part
       dashed={!reading[name]}
@@ -35,7 +36,7 @@
       </div>
     </Part>
   {/each}
-</div>
+</Parts>
 <div class="mt-3">
   <EventLog
     code

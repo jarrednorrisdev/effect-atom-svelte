@@ -15,7 +15,7 @@ description: Name your atoms after their variables, and watch your registry live
 
 - a Vite plugin, `atomLabels()`, that names each atom after the variable that holds it;
 - a panel, `<AtomDevtools />`, that shows your registry live: its dependency graph, a sheet per atom, and a timeline of everything the registry does;
-- the panel's graph on its own, which this site draws above each example.
+- the panel's graph on its own, which this site draws under each example's result.
 
 <Aside type="note" title="This site runs the panel">
 
@@ -23,7 +23,7 @@ On a wide screen, the **Atoms** button at the bottom right of the window, or **A
 
 </Aside>
 
-<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="On a wide screen, open Atoms at the bottom right; or watch the graph above the example. Click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
+<Example files={[{ html: forecastSource, name: "forecast.svelte" }]} hint="On a wide screen, open Atoms at the bottom right; or watch the graph under the result. Click Paris: forecastAtom rings green when it loads. Then click Tokyo and Atlantis quickly: the Tokyo load is interrupted, and Atlantis rings red."> <Forecast /> </Example>
 
 ## Installing
 
@@ -150,7 +150,7 @@ In production it shows the nearest provider's registry, or the one you pass, wit
 
 ## Drawing a part of your app
 
-The graph above each example on this site is the panel's graph, drawn for one part of the page. Two pieces make it:
+The graph under each example's result on this site is the panel's graph, drawn for one part of the page. Two pieces make it:
 
 - `provideInspectorScope()` from `effect-atom-svelte/inspector` makes the component that calls it, and everything below it, a scope. The hooks below it report the atoms they use, and the scope gives you those atoms, everything upstream of them and the components that read them, with events for just those atoms. See [Inspector](/reference/Inspector) for its API.
 - `<AtomGraph>` from `effect-atom-svelte-devtools/graph` lays out and draws those atoms. Call its `pulse(id, tone)` when an atom's value changes and `interrupt(id)` when its effect is interrupted.

@@ -1,9 +1,10 @@
 <!--
   @component
-  A tile that holds one result, colored by its state, with an optional caption below, like the
-  tiles on effect.kitlangton.com, and moving like them (Motion). While `busy` or running it keeps
-  its content, dims it, sweeps a shine across and jitters, so a refresh visibly keeps the old
-  value. When a result arrives (its tone changes or `busy` ends) it flashes and its content pops
+  A tile that holds one result, with an optional caption below, after the tiles on
+  effect.kitlangton.com but ruled like the site's frame: a hairline box with square corners whose
+  state is a line along its top (a failure's text is red too). It moves like those tiles (Motion):
+  while `busy` or running it keeps its content, dims it, sweeps the line and jitters, so a refresh
+  visibly keeps the old value. When a result arrives (its tone changes or `busy` ends) it flashes and its content pops
   with a spring, so a new value is noticed even when it equals the old one; a failure shakes it.
   With reduced motion only the colors change.
 
@@ -124,7 +125,7 @@
 
 <style>
   .wrap {
-    align-items: center;
+    align-items: flex-start;
     display: inline-flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -133,49 +134,62 @@
   .chip {
     --flash: 0;
     --mark: var(--tone-idle);
-    --text: var(--tone-idle-text);
     align-items: center;
-    /* --flash (0 to 1, animated) brightens the tint when a result arrives. */
+    /* --flash (0 to 1, animated) tints the tile when a result arrives. */
     background: color-mix(
       in oklab,
-      var(--mark) calc(12% + var(--flash) * 40%),
+      var(--mark) calc(var(--flash) * 25%),
       var(--background)
     );
-    border: 1.5px solid color-mix(in oklab, var(--mark) 70%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 1px 2px color-mix(in oklab, var(--mark) 25%, transparent);
-    color: var(--text);
+    border: 1px solid var(--border);
+    color: var(--foreground);
     display: inline-flex;
     font-family: var(--font-mono);
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 500;
     justify-content: center;
     min-height: 3.5rem;
     min-width: 3.5rem;
     overflow: hidden;
-    padding: 0.25rem 0.85rem;
+    padding: 0.25rem 0.9rem;
     position: relative;
-    transition:
-      background-color 200ms,
-      border-color 200ms,
-      color 200ms;
+    transition: color 200ms;
+  }
+  /* The state, as a line along the top edge. */
+  .chip::before {
+    background: var(--mark);
+    content: "";
+    height: 2px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: background-color 200ms;
+  }
+  .chip[data-tone="idle"]::before {
+    background: var(--border-strong);
   }
   .chip[data-tone="running"] {
     --mark: var(--tone-running);
-    --text: var(--tone-running-text);
   }
   .chip[data-tone="success"] {
     --mark: var(--tone-success);
-    --text: var(--tone-success-text);
   }
   .chip[data-tone="failure"] {
     --mark: var(--tone-failure);
-    --text: var(--tone-failure-text);
+    color: var(--tone-failure-text);
   }
   .chip[data-tone="interrupted"] {
     --mark: var(--tone-interrupted);
-    --text: var(--tone-interrupted-text);
     border-style: dashed;
+    color: var(--tone-interrupted-text);
+  }
+  .chip[data-tone="interrupted"]::before {
+    background: repeating-linear-gradient(
+      90deg,
+      var(--mark) 0 6px,
+      transparent 6px 10px
+    );
   }
   .content {
     display: inline-block;
@@ -185,7 +199,7 @@
   .chip[data-kind="message"] {
     font-family: var(--font-sans);
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.35;
     text-align: center;
     text-wrap: balance;
@@ -193,31 +207,29 @@
   /* Overrides the generic pulse that app.css gives anything busy in an example. */
   .chip[aria-busy="true"] {
     animation: none;
-    border-color: var(--tone-running);
     cursor: progress;
     opacity: 1;
   }
   .chip[aria-busy="true"] .content {
     opacity: 0.55;
   }
-  .chip[aria-busy="true"]::after {
-    animation: shine 1.1s ease-in-out infinite;
+  /* While busy, the top line is a sweep in the running color. */
+  .chip[aria-busy="true"]::before {
+    animation: sweep 1.1s linear infinite;
     background: linear-gradient(
-      100deg,
-      transparent 20%,
-      color-mix(in oklab, var(--tone-running) 30%, transparent) 50%,
-      transparent 80%
+      90deg,
+      transparent 0 20%,
+      var(--tone-running) 20% 50%,
+      transparent 50%
     );
-    content: "";
-    inset: 0;
-    position: absolute;
+    background-size: 200% 100%;
   }
-  /* The time a running result takes, filling from the left. */
+  /* The time a running result takes, filling along the bottom from the left. */
   .progress {
     animation: fill var(--duration) linear forwards;
     background: var(--tone-running);
     bottom: 0;
-    height: 3px;
+    height: 2px;
     left: 0;
     position: absolute;
     transform-origin: left;
@@ -236,17 +248,18 @@
     font-size: 0.75rem;
     line-height: 1rem;
   }
-  @keyframes shine {
+  @keyframes sweep {
     from {
-      transform: translateX(-100%);
+      background-position: 100% 0;
     }
     to {
-      transform: translateX(100%);
+      background-position: -100% 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .chip[aria-busy="true"]::after {
+    .chip[aria-busy="true"]::before {
       animation: none;
+      background: var(--tone-running);
     }
   }
 </style>

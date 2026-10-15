@@ -2,6 +2,7 @@
   import { Effect, Random } from "effect";
 
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   // How many times each die was really rolled, and what each click got back.
   let promiseRolls = $state(0);
@@ -32,7 +33,7 @@
   };
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="Promise<number>">
     <button onclick={awaitPromise}>Await the promise</button>
     <p class="text-sm">
@@ -65,4 +66,4 @@
       {/each}
     </ol>
   </Part>
-</div>
+</Parts>

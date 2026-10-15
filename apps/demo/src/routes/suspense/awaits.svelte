@@ -1,5 +1,6 @@
 <script lang="ts">
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import Timeline from "#lib/docs/kit/timeline.svelte";
 
@@ -55,7 +56,7 @@
   </button>
   <button aria-pressed={todosFail} onclick={toggleFail}>Todos fails</button>
 </p>
-<div class="grid gap-3 lg:grid-cols-3">
+<Parts columns={1}>
   {#each sides as side (side.label)}
     <Part code dashed={!mounted} label={side.label} top>
       {#if mounted}
@@ -76,4 +77,4 @@
       />
     </Part>
   {/each}
-</div>
+</Parts>

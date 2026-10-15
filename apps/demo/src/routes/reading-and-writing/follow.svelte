@@ -11,6 +11,7 @@
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   let followed = $state<"draft" | "saved">("draft");
 
@@ -36,7 +37,7 @@
     savedAtom
   </button>
 </div>
-<div class="mt-3 flex flex-col gap-3 sm:flex-row">
+<Parts class="mt-3" fan>
   <Part code label="text = useAtom(getter)">
     <input
       aria-label="Followed text"
@@ -46,30 +47,20 @@
     />
   </Part>
   <!-- The arrow points at the atom the getter returns. -->
-  <div class="grid flex-1 grid-cols-[4.5rem_1fr] gap-3">
-    <span class="flex justify-center">
-      {#if followed === "draft"}
-        <Arrow both label="get, set" pulse={text.current} />
-      {/if}
-    </span>
-    <Part
-      code
-      label="draftAtom"
-      tone={followed === "draft" ? "success" : "idle"}
-    >
-      <FlashValue data-testid="draft" value={draft.current} />
-    </Part>
-    <span class="flex justify-center">
-      {#if followed === "saved"}
-        <Arrow both label="get, set" pulse={text.current} />
-      {/if}
-    </span>
-    <Part
-      code
-      label="savedAtom"
-      tone={followed === "saved" ? "success" : "idle"}
-    >
-      <FlashValue data-testid="saved" value={saved.current} />
-    </Part>
-  </div>
-</div>
+  <span>
+    {#if followed === "draft"}
+      <Arrow both label="get, set" pulse={text.current} />
+    {/if}
+  </span>
+  <Part code label="draftAtom" tone={followed === "draft" ? "success" : "idle"}>
+    <FlashValue data-testid="draft" value={draft.current} />
+  </Part>
+  <span>
+    {#if followed === "saved"}
+      <Arrow both label="get, set" pulse={text.current} />
+    {/if}
+  </span>
+  <Part code label="savedAtom" tone={followed === "saved" ? "success" : "idle"}>
+    <FlashValue data-testid="saved" value={saved.current} />
+  </Part>
+</Parts>

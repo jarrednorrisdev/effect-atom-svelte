@@ -100,8 +100,7 @@
 
 <style>
   .boundary {
-    border: 1.5px dashed var(--border-strong);
-    border-radius: var(--radius-lg);
+    border: 1px dashed var(--border-strong);
     padding: 1.1rem 0.9rem 0.9rem;
     position: relative;
   }
@@ -125,7 +124,7 @@
   }
   .slot {
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-xs);
     color: var(--muted-foreground);
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -136,16 +135,16 @@
       color 200ms;
   }
   .slot[aria-current] {
-    background: color-mix(in oklab, var(--tone-running) 14%, transparent);
+    background: color-mix(in oklab, var(--tone-running) 8%, transparent);
     border-color: var(--tone-running);
     color: var(--foreground);
   }
   .slot[data-slot="content"][aria-current] {
-    background: color-mix(in oklab, var(--tone-success) 14%, transparent);
+    background: color-mix(in oklab, var(--tone-success) 8%, transparent);
     border-color: var(--tone-success);
   }
   .slot[data-slot="failed"][aria-current] {
-    background: color-mix(in oklab, var(--tone-failure) 14%, transparent);
+    background: color-mix(in oklab, var(--tone-failure) 8%, transparent);
     border-color: var(--tone-failure);
   }
   .pending {

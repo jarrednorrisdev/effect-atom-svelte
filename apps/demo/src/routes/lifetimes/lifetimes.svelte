@@ -18,6 +18,8 @@
 </script>
 
 <script lang="ts">
+  import Parts from "#lib/docs/kit/parts.svelte";
+
   import Holders from "./holders.svelte";
   import Reader from "./reader.svelte";
   import RegistryLog from "./registry-log.svelte";
@@ -26,7 +28,7 @@
   const readers = $state({ "idle TTL": 0, keepAlive: 0, plain: 0 });
 </script>
 
-<div class="grid gap-3 sm:grid-cols-3">
+<Parts columns={3}>
   {#each atoms as { atom, name } (name)}
     <Holders {atom} {name} readers={readers[name]}>
       <p>
@@ -51,5 +53,5 @@
       {/each}
     </Holders>
   {/each}
-</div>
+</Parts>
 <RegistryLog data-testid="lifetimes-log" />

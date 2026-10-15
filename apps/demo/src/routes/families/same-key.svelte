@@ -32,6 +32,7 @@
 
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   let doc = $state(1);
   let lang = $state("en");
@@ -83,7 +84,7 @@
 <p class="text-muted-foreground text-sm">
   Key: <code>&#123; doc: {key.doc}, lang: "{key.lang}" &#125;</code>
 </p>
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   {#each stores as { draft, id, name }, index (id)}
     {@const atoms = made[index]?.size ?? 0}
     <!-- More atoms than keys: some key's earlier atom is still stored, but nothing can reach it. -->
@@ -104,4 +105,4 @@
       </p>
     </Part>
   {/each}
-</div>
+</Parts>

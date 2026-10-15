@@ -5,14 +5,15 @@
   Presentation only; it reads the example's atoms.
 -->
 <script lang="ts">
-  import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
   import { useAtomValue } from "effect-atom-svelte";
   import type { AsyncResult } from "effect/reactivity";
   import { untrack } from "svelte";
 
+  import Arrow from "#lib/docs/kit/arrow.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import { toneOf } from "#lib/docs/kit/tone.ts";
   import type { Tone } from "#lib/docs/kit/tone.ts";
 
@@ -84,7 +85,7 @@
 </script>
 
 <div class="mt-4 grid gap-3" data-testid="invalidation">
-  <div class="flex flex-col gap-2 sm:flex-row">
+  <Parts>
     <Part
       code
       data-testid="part-create"
@@ -93,10 +94,7 @@
     >
       <code>createTodo</code>
     </Part>
-    <ArrowRightIcon
-      aria-hidden="true"
-      class="text-muted-foreground rotate-90 self-center sm:rotate-0"
-    />
+    <Arrow />
     <Part
       code
       count={invalidations}
@@ -107,10 +105,7 @@
     >
       <code>"todos"</code>
     </Part>
-    <ArrowRightIcon
-      aria-hidden="true"
-      class="text-muted-foreground rotate-90 self-center sm:rotate-0"
-    />
+    <Arrow />
     <Part
       code
       {count}
@@ -121,7 +116,7 @@
     >
       <code>listTodos</code>
     </Part>
-  </div>
+  </Parts>
   <EventLog
     code
     data-testid="invalidation-log"

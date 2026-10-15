@@ -111,8 +111,7 @@
       var(--tone-interrupted) calc(var(--evicted, 0) * 30%),
       transparent
     );
-    border: 1.5px dashed var(--border-strong);
-    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-strong);
     display: inline-flex;
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -122,8 +121,9 @@
     padding: 0 0.5rem;
   }
   .filled {
-    background: color-mix(in oklab, var(--mark) 12%, var(--background));
+    background: var(--background);
     border-color: var(--mark);
+    box-shadow: inset 0 2px 0 var(--mark);
     border-style: solid;
     color: var(--foreground);
   }

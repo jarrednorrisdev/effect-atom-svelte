@@ -94,7 +94,7 @@
     align-items: center;
     background: var(--muted);
     border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     color: var(--muted-foreground);
     display: inline-flex;
     font-family: var(--font-mono);
@@ -105,10 +105,10 @@
     white-space: nowrap;
   }
   .tag {
-    font-family: var(--font-sans);
+    font-family: var(--font-mono);
     font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-weight: 400;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
   }

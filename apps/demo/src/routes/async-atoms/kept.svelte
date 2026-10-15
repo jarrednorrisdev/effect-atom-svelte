@@ -19,6 +19,7 @@
 
 <script lang="ts">
   import BrowserFrame from "#lib/docs/kit/browser-frame.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import CacheCard from "./cache-card.svelte";
   import Reader from "./kept-reader.svelte";
@@ -47,8 +48,8 @@
 </BrowserFrame>
 
 <!-- What the registry holds for each atom, and how often its request ran. -->
-<div class="mt-4 grid gap-3 sm:grid-cols-3">
+<Parts class="mt-4" columns={3}>
   {#each cards as card (card.name)}
     <CacheCard {...card} read={page === "dashboard"} />
   {/each}
-</div>
+</Parts>

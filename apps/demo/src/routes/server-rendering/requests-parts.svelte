@@ -10,6 +10,7 @@
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   interface Props {
     /** addedRef's value. */
@@ -22,7 +23,9 @@
 </script>
 
 <div class="requests not-prose">
-  <div class="row">{@render children()}</div>
+  <Parts columns="repeat(auto-fit, minmax(11rem, 1fr))">
+    {@render children()}
+  </Parts>
   <div class="shared">
     <Arrow both direction="down" label="every request" pulse={added} />
     <Part code data-testid="module-state" label="addedRef" tone="idle">
@@ -41,11 +44,6 @@
   .requests {
     display: grid;
     gap: 0.5rem;
-  }
-  .row {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   }
   .shared {
     align-items: center;

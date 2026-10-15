@@ -72,18 +72,18 @@
     /* --flash (0 to 1, animated) brightens the tint when the value changes. */
     background: color-mix(
       in oklab,
-      var(--mark) calc(10% + var(--flash) * 35%),
+      var(--mark) calc(var(--flash) * 35%),
       var(--background)
     );
-    border: 1.5px solid color-mix(in oklab, var(--mark) 60%, transparent);
-    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--mark) 50%, transparent);
+    border-radius: var(--radius-xs);
     color: var(--text);
     display: inline-flex;
-    font-family: var(--font-sans);
-    font-size: 0.8rem;
-    font-weight: 600;
-    gap: 0.35rem;
-    padding: 0.15rem 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    gap: 0.4rem;
+    padding: 0.15rem 0.5rem;
     white-space: nowrap;
   }
   .origin[data-where="server"] {

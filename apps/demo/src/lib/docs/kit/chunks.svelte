@@ -83,7 +83,7 @@
   li {
     align-items: center;
     border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     display: flex;
     flex-wrap: wrap;
     gap: 0.375rem;

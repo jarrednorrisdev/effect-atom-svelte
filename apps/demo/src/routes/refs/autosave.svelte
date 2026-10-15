@@ -3,6 +3,7 @@
   import { AtomRef } from "effect/reactivity";
 
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import { saveProfile } from "./profile-api.ts";
   import type { Profile } from "./profile-api.ts";
@@ -48,7 +49,7 @@
   });
 </script>
 
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="autosave.svelte">
     <ProfileField label="Name" ref={profile.prop("name")} />
     <ProfileField label="Role" ref={profile.prop("role")} />
@@ -83,4 +84,4 @@
       {/each}
     </ol>
   </Part>
-</div>
+</Parts>

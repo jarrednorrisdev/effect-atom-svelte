@@ -33,6 +33,7 @@
 
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
@@ -58,7 +59,7 @@
   {/each}
 </div>
 
-<div class="mt-3 grid gap-3 md:grid-cols-3">
+<Parts class="mt-3" columns={3}>
   <Part code label="useAtomValue">
     <StateBadge data-testid="places-result-state" result={asResult.current} />
     {#if asResult.current._tag === "Failure"}
@@ -108,4 +109,4 @@
       {/if}
     </svelte:boundary>
   </Part>
-</div>
+</Parts>

@@ -625,7 +625,6 @@ html {
 .demo {
   & section {
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
     margin-block: 1rem;
     padding: 1rem 1.25rem;
   }
@@ -640,7 +639,7 @@ html {
   & :where(button, select) {
     background: var(--background);
     border: 1px solid var(--input);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     color: var(--foreground);
     font-size: 0.875rem;
     font-weight: 500;
@@ -706,7 +705,7 @@ html {
   & :where(input:not([type="checkbox"]), textarea) {
     background: transparent;
     border: 1px solid var(--input);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     font-size: 0.875rem;
     margin: 0.125rem 0.25rem 0.125rem 0;
     padding: 0.25rem 0.625rem;
@@ -734,7 +733,7 @@ html {
   }
   & output {
     background: var(--muted);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     font-family: var(--font-mono);
     font-size: 0.85em;
     padding: 0.125rem 0.375rem;
@@ -744,7 +743,7 @@ html {
      small. */
   & :is(button, select, input) + output,
   & output:has(+ :is(button, select, input)) {
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     /* A line as tall as a control centers the text whether the value is inline or a kit
        component's inline-block. */
     line-height: 2rem;
@@ -766,10 +765,10 @@ html {
       margin-left: -1px;
     }
     & > :first-child {
-      border-radius: var(--radius-md) 0 0 var(--radius-md);
+      border-radius: var(--radius-sm) 0 0 var(--radius-sm);
     }
     & > :last-child {
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     }
     & > output {
       border: 1px solid var(--input);

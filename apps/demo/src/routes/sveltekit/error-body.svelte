@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   const { error }: { error: unknown } = $props();
 
@@ -19,7 +20,7 @@
   });
 </script>
 
-<div class="bodies not-prose">
+<Parts class="mt-3" columns={2}>
   <Part
     code
     data-testid="error-body"
@@ -31,15 +32,9 @@
   <Part code dashed label="SvelteKit's default hook">
     <code class="body">{'{ message: "Internal Error" }'}</code>
   </Part>
-</div>
+</Parts>
 
 <style>
-  .bodies {
-    display: grid;
-    gap: 0.5rem;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    margin-top: 0.75rem;
-  }
   .body {
     font-size: 0.8rem;
     overflow-wrap: anywhere;

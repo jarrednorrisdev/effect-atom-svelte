@@ -18,8 +18,8 @@
 
 <li
   class={[
-    "m-0 flex items-center gap-2 rounded-md px-2",
-    selected && "bg-brand/15",
+    "m-0 flex items-center gap-2 px-2",
+    selected && "bg-accent shadow-[inset_2px_0_0_var(--brand)]",
   ]}
 >
   <input

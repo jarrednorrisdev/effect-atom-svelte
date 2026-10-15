@@ -8,6 +8,7 @@
 
   import Origin from "#lib/docs/kit/origin.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import ServerHtml from "#lib/docs/kit/server-html.svelte";
   import { toneOf } from "#lib/docs/kit/tone.ts";
@@ -28,7 +29,7 @@
     result._tag === "Success" ? result.value : undefined;
 </script>
 
-<div class="parts not-prose">
+<Parts columns={2}>
   <Part code data-testid="revalidate-kept" label="default" tone={tone(kept)}>
     <p class="line">
       <Origin data-testid="revalidate-kept-where" where={where(kept)} />
@@ -54,14 +55,9 @@
     </p>
     <ResultHistory data-testid="revalidate-fresh-history" result={fresh} />
   </Part>
-</div>
+</Parts>
 
 <style>
-  .parts {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  }
   .line {
     align-items: center;
     display: flex;

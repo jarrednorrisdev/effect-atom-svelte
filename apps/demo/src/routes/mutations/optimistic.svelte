@@ -48,6 +48,7 @@
 
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
@@ -83,7 +84,7 @@
   {/if}
   <StateBadge data-testid="optimistic-state" result={saving.current} />
 </p>
-<div class="grid gap-3 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="On screen: optimisticTodosAtom" top>
     {#if onScreen.current._tag === "Success"}
       <ul class="m-0 grid list-none gap-1 p-0" data-testid="optimistic-todos">
@@ -120,7 +121,7 @@
       <p class="m-0">Loading the todos…</p>
     {/if}
   </Part>
-</div>
+</Parts>
 {#if saving.current._tag === "Failure"}
   <CauseView
     cause={saving.current.cause}

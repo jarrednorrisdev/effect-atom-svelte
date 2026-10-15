@@ -22,6 +22,7 @@
   import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
 
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   const plain = useAtomSuspense(plainAtom);
@@ -36,7 +37,7 @@
 </script>
 
 <p><button data-cue="start" onclick={refreshBoth}>Refresh both</button></p>
-<div class="grid gap-4 sm:grid-cols-2">
+<Parts columns={2}>
   <Part code label="useAtomSuspense(plainAtom)" top>
     <svelte:boundary>
       <div class="flex flex-wrap items-center gap-3">
@@ -74,4 +75,4 @@
       {/snippet}
     </svelte:boundary>
   </Part>
-</div>
+</Parts>

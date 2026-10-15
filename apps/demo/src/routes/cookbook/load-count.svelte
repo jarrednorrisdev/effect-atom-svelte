@@ -4,6 +4,7 @@
 
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+  import Parts from "#lib/docs/kit/parts.svelte";
 
   import { todosAtom } from "./todos.ts";
 
@@ -14,7 +15,7 @@
   const todos = useAtomValue(todosAtom);
 </script>
 
-<div class="flex flex-wrap gap-3">
+<Parts columns={2}>
   <Part code label="load">
     <output data-testid="load-count">{loaded ?? "?"}</output> todos
   </Part>
@@ -28,4 +29,4 @@
       <span aria-busy="true">Loading…</span>
     {/if}
   </Part>
-</div>
+</Parts>

@@ -121,12 +121,11 @@
     --mark: var(--tone-idle);
     background: var(--mark);
     border: 2px solid var(--background);
-    border-radius: 999px;
-    bottom: -0.4rem;
-    height: 0.8rem;
-    margin-left: -0.4rem;
+    bottom: -0.35rem;
+    height: 0.7rem;
+    margin-left: -0.35rem;
     position: absolute;
-    width: 0.8rem;
+    width: 0.7rem;
   }
   .dot[data-tone="running"] {
     --mark: var(--tone-running);

@@ -1,8 +1,9 @@
 <!--
   @component
-  An `AsyncResult`'s state as a badge: `Initial`, `Success` or `Failure`, with ", waiting" and a
-  spinner while `waiting` is true. Each state has its own color and icon; when the state changes
-  the badge bounces and the icon pops in with a spring (Motion). Once the reader has used the example, the badge plays the `success` or
+  An `AsyncResult`'s state as a tag in the site's label voice: `Initial`, `Success` or `Failure`,
+  with ", waiting" while `waiting` is true. A small square marks the state in its color (hollow
+  for `Initial`, blinking while waiting); when the state changes the tag bounces and the square
+  pops in with a spring (Motion). Once the reader has used the example, the badge plays the `success` or
   `failure` cue when a run ends.
 
   ```svelte
@@ -13,10 +14,6 @@
   `Success` or `Success, waiting`, so tests can match it.
 -->
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import CircleIcon from "@lucide/svelte/icons/circle";
-  import LoaderIcon from "@lucide/svelte/icons/loader-circle";
-  import XIcon from "@lucide/svelte/icons/x";
   import type { AsyncResult } from "effect/reactivity";
   import { animate } from "motion";
   import type { HTMLOutputAttributes } from "svelte/elements";
@@ -54,7 +51,7 @@
     }
   });
 
-  // On a change of state the badge gives a little bounce and its new icon pops in with a spring.
+  // On a change of state the badge gives a little bounce and its square pops in with a spring.
   const change = onChange(
     () => `${result._tag} ${result.waiting}`,
     (badge) => {
@@ -78,21 +75,7 @@
   {...rest}
   {@attach change}
 >
-  <!-- A first run has no state to show yet, only the spinner. -->
-  <span aria-hidden="true" class="icon" hidden={tone === "running"}>
-    {#if result._tag === "Success"}
-      <CheckIcon strokeWidth={3} />
-    {:else if result._tag === "Failure"}
-      <XIcon strokeWidth={3} />
-    {:else}
-      <CircleIcon strokeWidth={3} />
-    {/if}
-  </span>
-  {#if result.waiting}
-    <span aria-hidden="true" class="spinner"
-      ><LoaderIcon strokeWidth={2.5} /></span
-    >
-  {/if}
+  <span aria-hidden="true" class="icon"></span>
   <span
     >{result._tag}{tone === "interrupted" ? ", interrupted" : ""}{result.waiting
       ? ", waiting"
@@ -105,19 +88,21 @@
     --mark: var(--tone-idle);
     --text: var(--tone-idle-text);
     align-items: center;
-    background: color-mix(in oklab, var(--mark) 12%, var(--background));
-    border: 1px solid color-mix(in oklab, var(--mark) 45%, transparent);
-    border-radius: 999px;
+    /* An <output>: overrides the muted fill .demo gives values. */
+    background: transparent;
+    border: 1px solid color-mix(in oklab, var(--mark) 50%, transparent);
+    border-radius: var(--radius-xs);
     color: var(--text);
     display: inline-flex;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
-    font-weight: 600;
-    gap: 0.35rem;
-    line-height: 1.5rem;
-    padding: 0 0.6rem 0 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 400;
+    gap: 0.45rem;
+    letter-spacing: 0.08em;
+    line-height: 1.4rem;
+    padding: 0 0.5rem;
+    text-transform: uppercase;
     transition:
-      background-color 200ms,
       border-color 200ms,
       color 200ms;
     vertical-align: middle;
@@ -140,32 +125,29 @@
     --mark: var(--tone-running);
     --text: var(--tone-running-text);
   }
-  .icon,
-  .spinner {
-    display: inline-flex;
-  }
-  .icon[hidden] {
-    display: none;
-  }
-  .icon :global(svg),
-  .spinner :global(svg) {
-    height: 0.85rem;
-    width: 0.85rem;
-  }
+  /* The state's mark: a filled square, hollow before there is a result. */
   .icon {
-    color: var(--mark);
+    background: var(--mark);
+    border: 1px solid var(--mark);
+    flex: none;
+    height: 0.4rem;
+    width: 0.4rem;
   }
-  .spinner {
-    animation: spin 0.8s linear infinite;
-    color: var(--tone-running);
+  .badge[data-state="Initial"] .icon {
+    background: transparent;
   }
-  @keyframes spin {
+  .badge[data-waiting="true"] .icon {
+    animation: blink 0.8s ease-in-out infinite alternate;
+    background: var(--tone-running);
+    border-color: var(--tone-running);
+  }
+  @keyframes blink {
     to {
-      transform: rotate(1turn);
+      opacity: 0.2;
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .spinner {
+    .badge[data-waiting="true"] .icon {
       animation: none;
     }
   }
