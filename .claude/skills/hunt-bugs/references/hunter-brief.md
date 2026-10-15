@@ -3,7 +3,7 @@
 The prompt for one hunting agent. Fill in the angle brackets; keep the rest.
 
 ```
-Hunt for real, unreported bugs in <area: code paths> of effect-atom-svelte (Svelte 5 bindings for Effect 4's effect/reactivity atoms), repo /Users/jarrednorris/Documents/repos/jnd/effect-atom-svelte.
+Hunt for real, unreported bugs in <area: code paths> of effect-atom-svelte (Svelte 5 bindings for Effect 4's effect/reactivity atoms), repo ~/Documents/repos/jnd/effect-atom-svelte.
 
 Setup: git fetch origin, then `git worktree add --detach ~/Documents/repos/jnd/worktrees/esa-hunt<loop>-<area> <base>` and `bun install`. Don't commit or push.
 

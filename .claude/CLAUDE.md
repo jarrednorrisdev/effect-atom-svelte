@@ -23,7 +23,7 @@ Write PR bodies with the `pr` skill, with these on top:
 
 - **Write for the owner deciding whether to merge,** who knows Svelte and Effect but not this library's internals. Define a term or API at first use, saying where it comes from, and say what a user sees rather than naming internal functions.
 - **For a bug, show the user code that hits it** (built from the PR's test fixtures) and what the user sees, then the fix as a short simplified diff. Say where a real user meets it: a docs page, or a pattern the docs teach. When nothing real reaches the bug, say so instead of inventing an app.
-- **No Mermaid and no screenshots.** For a sequence over time, link an `explainer-diagram` step-through page, published per that skill.
+- **No Mermaid and no screenshots.** Where the `pr` template asks for a screenshot as evidence, show output or a test run instead. For a sequence over time, link an `explainer-diagram` step-through page, published per that skill.
 - **Decisions still open go under "Needs your call",** each with the alternative and a recommendation. Once decided, they move to "Decisions".
 - **Keep the body true as the PR changes:** its names, test results (with the browsers they ran in) and open decisions.
 

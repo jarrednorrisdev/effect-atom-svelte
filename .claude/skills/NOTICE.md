@@ -1,6 +1,6 @@
 # Where these skills come from
 
-**From [mattpocock/skills](https://github.com/mattpocock/skills)**, under the MIT licence below, copied as they were:
+**From [mattpocock/skills](https://github.com/mattpocock/skills)**, under the MIT licence below, copied as published at commit [`49dd158`](https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336), with the edits listed after them:
 
 - `ask-matt`
 - `chief-of-staff`
@@ -33,6 +33,11 @@
 - `writing-for-agents`
 
 `pr` credits its author, Dex Horthy of [Humanlayer](https://github.com/humanlayer/skills), in its own front matter.
+
+Edits to these skills, so far:
+
+- `wayfinder`: a map's Notes name the cross-cutting questions every ticket grills (in the map body template, and in "Create the map").
+- `handoff` and `claude-handoff`: a skill that sets `disable-model-invocation: true` is named by its path, as the Skill tool can't call it.
 
 **Written for this repo:**
 

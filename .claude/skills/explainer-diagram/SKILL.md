@@ -128,7 +128,7 @@ primer: {
 - **`[id, extra]`** adds one or two sentences after it, saying why the term matters in this diagram ("Here it keeps the draft's text."). This is where anything about the scenario goes. An extra may link other terms with `{{id}}`.
 - **`{ id, term, from, html }`**, written out, is only for a name that exists in this one scenario, such as a variable in its code (`reading`, `mounted`). Anything a second diagram could use goes in the glossary.
 
-**A term the glossary doesn't have: add it to the glossary** before using it. Don't write it inline instead. Edit `glossary.mjs` in the main checkout (`~/Documents/repos/jnd/effect-atom-svelte/.claude/skills/explainer-diagram/`), under the heading for where the term comes from (Effect, Svelte, JavaScript, this library, its devtools):
+**A term the glossary doesn't have: add it to the glossary** before using it. Don't write it inline instead. Edit `.claude/skills/explainer-diagram/glossary.mjs` in the checkout you're working in, and commit it with the diagram's PR (or a PR of its own), as it's tracked. Put it under the heading for where the term comes from (Effect, Svelte, JavaScript, this library, its devtools):
 - the definition says what the thing is in general, in plain words, with nothing about this diagram's scenario, which goes in the extra;
 - check it against the source (Effect's at `~/Documents/repos/reference/effect`, Svelte's in `node_modules/svelte`, this library's in `packages/`);
 - no `{{links}}` in a definition: another spec may not pick the term a link points to;

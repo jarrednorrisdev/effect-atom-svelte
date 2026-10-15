@@ -9,8 +9,8 @@ One **loop** is: hunt, verify, fix, ship. A finding counts only once a **red** t
 
 ## 0. Start
 
-- `git fetch origin`, and base everything on `origin/main`. Leave the main checkout (`~/Documents/repos/jnd/effect-atom-svelte`) on whatever it is: `.claude/` is untracked on `main`, and fast-forwarding an older checkout there deletes the skills from disk.
-- Create every worktree under `~/Documents/repos/jnd/worktrees/` (`git worktree add … origin/main`), never inside the repo. Run `bun install` in each. `gh` and the commit identity switch to the personal account there.
+- `git fetch origin`, and base everything on `origin/main`.
+- Create every worktree under `~/Documents/repos/jnd/worktrees/` (`git worktree add … origin/main`), never inside the repo. Run `bun install` in each.
 - List what is already known, so hunters don't find it again: open PRs (`gh pr list`), recent `fix` commits (`git log --oneline origin/main | grep -i fix`), and open issues. This is the **known list** every brief carries.
 
 ## 1. Hunt
