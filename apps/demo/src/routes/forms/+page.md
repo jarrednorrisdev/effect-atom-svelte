@@ -114,7 +114,7 @@ Every change to the values decodes the whole form again, and only the newest run
 - `revalidateOn`: when it updates after the field has shown an error, or once the form has been submitted. `"input"` by default.
 - `debounce`: how long to wait after a change before decoding, such as `"300 millis"` for a check that calls the server.
 
-The defaults are "reward early, validate late": no error while you type into a field for the first time, and once you've seen one, it goes the moment the value is right. An error whose check passes always goes at once, whatever the timing.
+The defaults are "reward early, validate late": no error while you type into a field for the first time, and once you've seen one, it goes the moment the value is right. An error whose check passes always goes at once, whatever the timing. And an error that a change to another field brings on, such as "Passwords do not match" after you edit the password, shows at once on a field you've already left.
 
 A submit shows every error, and after it, with `revalidateOn: "input"`, errors show as they appear. `form.validate(paths)` shows the errors under some paths and resolves whether they passed, as a wizard's Next button needs for its step. With no paths it checks the whole form.
 

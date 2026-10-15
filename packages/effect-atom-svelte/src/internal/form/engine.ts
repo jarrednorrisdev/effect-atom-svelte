@@ -107,6 +107,9 @@ export class Engine {
   #scheduled = false;
   #pending: KeyPath[] = [];
   #pendingAll = false;
+  // The field the latest change came from, when the user typed into it; undefined for a change
+  // made in code. Its errors follow its own timing; touched fields it changes the checks of don't.
+  #editing: KeyPath | undefined;
   #waiters: Deferred.Deferred<undefined>[] = [];
   #seen: { values: unknown; keys: Keys };
   #inflight: Promise<Exit.Exit<unknown, unknown>> | undefined;
@@ -267,6 +270,7 @@ export class Engine {
     if (index === undefined) {
       return;
     }
+    this.#editing = path;
     this.registry.set(
       this.valuesAtom,
       setIn(this.#currentValues(), index, value)
@@ -297,6 +301,7 @@ export class Engine {
   }
 
   setValues(values: unknown): void {
+    this.#editing = undefined;
     this.registry.set(
       this.valuesAtom,
       typeof values === "function"
@@ -310,6 +315,7 @@ export class Engine {
     path: KeyPath,
     f: (items: unknown[], keys: number[]) => void
   ): void {
+    this.#editing = undefined;
     const state = this.#current();
     const index = toIndexPath(state.keys, path);
     if (index === undefined) {
@@ -333,6 +339,7 @@ export class Engine {
 
   /** The current initial values change: a clean form takes them, a dirty one keeps its edits. */
   setInitial(initial: unknown): void {
+    this.#editing = undefined;
     const state = this.#current();
     if (equals(initial, state.initial)) {
       return;
@@ -356,6 +363,7 @@ export class Engine {
 
   #restart(initial: unknown, options: { readonly keepSubmit: boolean }): void {
     this.#session += 1;
+    this.#editing = undefined;
     this.#pending = [];
     this.#pendingAll = false;
     this.#inflight = undefined;
@@ -532,6 +540,7 @@ export class Engine {
   #reveal(consume: boolean): void {
     const pending = this.#pending;
     const all = this.#pendingAll;
+    const editing = this.#editing;
     if (consume) {
       this.#pending = [];
       this.#pendingAll = false;
@@ -540,10 +549,18 @@ export class Engine {
       const revealed = new Set<string>();
       for (const id of state.issues.keys()) {
         const path = JSON.parse(id) as KeyPath;
+        // An error on a field the user has left, which a change elsewhere brought on (a
+        // "passwords do not match" after editing the password), shows at once: the field is
+        // touched. The field being edited keeps to its own timing.
+        const fromElsewhere =
+          state.touched.has(id) &&
+          (editing === undefined || !startsWith(path, editing));
         if (
           state.revealed.has(id) ||
           (consume &&
-            (all || pending.some((prefix) => startsWith(path, prefix))))
+            (all ||
+              fromElsewhere ||
+              pending.some((prefix) => startsWith(path, prefix))))
         ) {
           revealed.add(id);
         }

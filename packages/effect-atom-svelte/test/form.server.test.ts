@@ -883,3 +883,64 @@ describe("names and issues", () => {
     form.dispose();
   });
 });
+
+describe("errors brought on by another field", () => {
+  const SignUpLike = Form.make(
+    Schema.Struct({
+      confirmPassword: Schema.String,
+      password: Schema.String.check(
+        Schema.isMinLength(8, { message: "At least 8 characters" })
+      ),
+    }).check(
+      Schema.makeFilter(
+        ({ confirmPassword, password }) =>
+          confirmPassword === password || {
+            issue: "Passwords do not match",
+            path: ["confirmPassword"],
+          }
+      )
+    )
+  );
+
+  test("a touched field shows an error a change to another field brought on", async () => {
+    const form = Form.instance(SignUpLike, {
+      id: "x",
+      initialValues: { confirmPassword: "", password: "" },
+    });
+    const password = form.field("password");
+    const confirm = form.field("confirmPassword");
+    password.value = "short";
+    await tick();
+    password.blur();
+    confirm.value = "different";
+    await tick();
+    confirm.blur();
+    // The password fails its own check, so Effect skips the struct's check.
+    expect(confirm.issue).toBeUndefined();
+    password.value = "longpassword";
+    await tick();
+    // The mismatch appears now, on confirm, which the user has left: it shows.
+    expect(confirm.issue).toBe("Passwords do not match");
+    expect(confirm.error).toBe("Passwords do not match");
+    form.dispose();
+  });
+
+  test("the field being typed into still waits for its own timing", async () => {
+    const form = Form.instance(SignUpLike, {
+      id: "y",
+      initialValues: { confirmPassword: "", password: "" },
+    });
+    const password = form.field("password");
+    password.value = "longpassword";
+    await tick();
+    password.blur();
+    password.value = "short";
+    await tick();
+    // Touched, but its own edit: validateOn "blur" holds the error until it's left.
+    expect(password.issue).toBe("At least 8 characters");
+    expect(password.error).toBeUndefined();
+    password.blur();
+    expect(password.error).toBe("At least 8 characters");
+    form.dispose();
+  });
+});
