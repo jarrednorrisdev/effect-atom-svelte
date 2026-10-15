@@ -14,6 +14,7 @@
  */
 /// <reference types="@sveltejs/kit" />
 import { beforeNavigate, goto } from "$app/navigation";
+import { Effect } from "effect";
 
 /**
  * The part of SvelteKit's `handleError` input that the hooks read. In SvelteKit 3, `kind` is
@@ -194,6 +195,16 @@ export interface UnsavedChangesGuardOptions {
   readonly confirm: () => boolean | Promise<boolean>;
 }
 
+// Waits for the next popstate, or a second, should none come.
+const nextPopState = (): Promise<unknown> =>
+  Effect.runPromise(
+    Effect.callback<undefined>((resume) => {
+      const done = () => resume(Effect.undefined);
+      addEventListener("popstate", done, { once: true });
+      return Effect.sync(() => removeEventListener("popstate", done));
+    }).pipe(Effect.timeoutOption("1 second"))
+  );
+
 // How long a "yes" lets the retried navigation through. The retry reaches beforeNavigate at once;
 // a navigation that never does, such as a link to a download, doesn't leave a bypass behind.
 const bypassFor = 2000;
@@ -247,13 +258,16 @@ export const useUnsavedChangesGuard = (
     if (navigation.type === "leave" || to === null) {
       return;
     }
+    // Cancelling back or forward makes SvelteKit undo the move with history.go, which finishes with
+    // a popstate. A retry before then would be lost to it, so the retry waits for it.
+    const undone = navigation.type === "popstate" ? nextPopState() : undefined;
     void (async () => {
       if (!(await options.confirm())) {
         return;
       }
       bypassUntil = Date.now() + bypassFor;
       if (navigation.type === "popstate") {
-        // SvelteKit has already stepped history back to undo the move; step forward again.
+        await undone;
         history.go(navigation.delta);
       } else if (navigation.willUnload) {
         // An external link, or one SvelteKit hands to the browser: goto can't follow it. The page

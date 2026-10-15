@@ -80,6 +80,7 @@ Hooks return an object whose `current` you read, assign or `bind:` to. Don't des
 - [Your first atom](https://atom.jarrednorris.dev/first-atom), [Reading and writing](https://atom.jarrednorris.dev/reading-and-writing) and [Async atoms](https://atom.jarrednorris.dev/async-atoms)
 - [Server rendering](https://atom.jarrednorris.dev/server-rendering) and [Hydration](https://atom.jarrednorris.dev/hydration)
 - [Effect RPC](https://atom.jarrednorris.dev/rpc) and [HttpApi](https://atom.jarrednorris.dev/http)
+- [Forms](https://atom.jarrednorris.dev/forms), built from one Effect Schema
 - [API reference](https://atom.jarrednorris.dev/reference) and [Troubleshooting](https://atom.jarrednorris.dev/troubleshooting)
 - [Every export at a glance, and more recipes](https://github.com/jarrednorrisdev/effect-atom-svelte#api-at-a-glance), in the repository's README
 

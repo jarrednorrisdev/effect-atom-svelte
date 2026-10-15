@@ -496,3 +496,28 @@ describe("more instance options", () => {
     form.dispose();
   });
 });
+
+describe("types", () => {
+  test("paths are checked against the Schema, and autoSubmit needs a submit without args", () => {
+    const form = signIn();
+    // @ts-expect-error: no such field
+    expect(() => form.field("emial")).not.toThrow();
+    // @ts-expect-error: password is a string, not an object
+    expect(() => form.field(["password", "length"])).not.toThrow();
+    const save = Atom.fn((input: { id: number; email: string }) =>
+      Effect.succeed(input.id)
+    );
+    // @ts-expect-error: autoSubmit can't supply submit's args
+    const withArgs = Form.instance(SignIn, {
+      autoSubmit: true,
+      id: "t",
+      initialValues: { email: "", password: "" },
+      submit: {
+        atom: save,
+        payload: (decoded, id: number) => ({ email: decoded.email, id }),
+      },
+    });
+    withArgs.dispose();
+    form.dispose();
+  });
+});
