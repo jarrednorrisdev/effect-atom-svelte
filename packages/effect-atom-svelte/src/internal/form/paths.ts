@@ -157,17 +157,19 @@ export const reconcileKeys = (
 export const isLive = (keys: Keys, path: KeyPath): boolean =>
   toIndexPath(keys, path) !== undefined;
 
-/**
- * Plain-data equality for form values: arrays, plain objects, dates, Effect's `Equal` for values
- * that implement it, and `Object.is` for the rest. Other class instances (a `File`, a `Map`) have
- * no own keys to compare, so two of them are equal only when they are the same instance.
- */
 // An object literal, or one made with `Object.create(null)`: not a class instance.
 const isPlain = (value: unknown): boolean => {
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 };
 
+/**
+ * Equality for form values. Arrays and plain objects compare by content, with a key set to
+ * `undefined` the same as a missing one; dates by time; values that implement Effect's `Equal`
+ * (`Option`, `HashMap`) by `Equal.equals`. Any other class instance compares by identity: a
+ * `File`, a `Map`, and also a `Data.Class` or `Schema.Class` value, which in Effect 4 doesn't
+ * implement `Equal`. So a fresh instance with the same content counts as a change.
+ */
 export const equals = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) {
     return true;

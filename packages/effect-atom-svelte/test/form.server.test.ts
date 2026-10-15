@@ -1,5 +1,5 @@
 // Form instances without Svelte: values, validation timing, submit and arrays.
-import { Cause, Effect, Exit, Layer, Option, Schema } from "effect";
+import { Cause, Data, Effect, Exit, Layer, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { assert, describe, expect, test } from "vitest";
 
@@ -543,6 +543,28 @@ describe("more instance options", () => {
     avatar.value = new File(["bbb"], "b.png");
     expect(avatar.error).toBeUndefined();
     expect(avatar.dirty).toBe(true);
+    form.dispose();
+  });
+
+  test("an Equal value compares by content, any other class instance by identity", () => {
+    class Money extends Data.Class<{ readonly cents: number }> {}
+    const Prices = Form.make(
+      Schema.Struct({
+        price: Schema.instanceOf(Money),
+        tip: Schema.Option(Schema.Number),
+      })
+    );
+    const form = Form.instance(Prices, {
+      id: "p",
+      initialValues: {
+        price: new Money({ cents: 100 }),
+        tip: Option.some(5),
+      },
+    });
+    form.field("tip").value = Option.some(5);
+    expect(form.field("tip").dirty).toBe(false);
+    form.field("price").value = new Money({ cents: 100 });
+    expect(form.field("price").dirty).toBe(true);
     form.dispose();
   });
 
