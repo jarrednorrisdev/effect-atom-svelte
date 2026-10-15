@@ -1,15 +1,19 @@
 /**
- * SvelteKit `handleError` hooks that keep an Effect error's `_tag`, so a `<svelte:boundary>`
- * `failed` snippet can tell typed errors apart. Import them from `effect-atom-svelte/sveltekit`.
+ * SvelteKit helpers. Import them from `effect-atom-svelte/sveltekit`.
  *
- * The module does not import SvelteKit: the hooks take the fields of SvelteKit's input they read
- * and return the fields they set, so they type-check against `HandleClientError` and
- * `HandleServerError` once `App.Error` declares `tag?: string`. In SvelteKit 2, whose `App.Error`
- * requires a message, they are typed to return one when there is no `kind`, as they then always
- * set one.
+ * `handleClientError` and `handleServerError` are `handleError` hooks that keep an Effect error's
+ * `_tag`, so a `<svelte:boundary>` `failed` snippet can tell typed errors apart. They take the
+ * fields of SvelteKit's input they read and return the fields they set, so they type-check against
+ * `HandleClientError` and `HandleServerError` once `App.Error` declares `tag?: string`. In
+ * SvelteKit 2, whose `App.Error` requires a message, they are typed to return one when there is no
+ * `kind`, as they then always set one.
+ *
+ * `useUnsavedChangesGuard` asks before leaving a page with a dirty form.
  *
  * @since 0.1.0
  */
+/// <reference types="@sveltejs/kit" />
+import { beforeNavigate, goto } from "$app/navigation";
 
 /**
  * The part of SvelteKit's `handleError` input that the hooks read. In SvelteKit 3, `kind` is
@@ -173,3 +177,91 @@ export function handleServerError(
   console.error(error);
   return body(fallbackMessage(input), tagOf(error));
 }
+
+/**
+ * Options for `useUnsavedChangesGuard`.
+ *
+ * @stability unstable
+ * @since 0.4.0
+ * @category models
+ */
+export interface UnsavedChangesGuardOptions {
+  /**
+   * Asks whether to leave and lose the changes, resolving `true` to leave. Called for links,
+   * `goto`, form navigations and the back and forward buttons. Closing the tab, reloading and
+   * typing a URL show the browser's own dialog instead, as a page can't show its own then.
+   */
+  readonly confirm: () => boolean | Promise<boolean>;
+}
+
+// How long a "yes" lets the retried navigation through. The retry reaches beforeNavigate at once;
+// a navigation that never does, such as a link to a download, doesn't leave a bypass behind.
+const bypassFor = 2000;
+
+/**
+ * Asks before the user navigates away from a page whose form is dirty, using SvelteKit's
+ * `beforeNavigate`. Call it while a component initializes, with any object that has `dirty`, such
+ * as a form instance from `useForm`.
+ *
+ * While the form is dirty, a navigation is cancelled and `confirm` asked; on yes it is retried, and
+ * the retry goes through. Closing the tab, reloading or typing a URL show the browser's own dialog
+ * instead. SvelteKit doesn't call `beforeNavigate` for back and forward over shallow history entries
+ * (from `pushState` or a hash change) or for links to a hash on the same page, so those aren't
+ * guarded.
+ *
+ * **Example** (Asking before leaving an edit page)
+ *
+ * ```ts
+ * import { useForm } from "effect-atom-svelte";
+ * import { useUnsavedChangesGuard } from "effect-atom-svelte/sveltekit";
+ *
+ * const form = useForm(EditProject, { id, initialValues, submit });
+ * useUnsavedChangesGuard(form, {
+ *   confirm: () => window.confirm("Leave without saving your changes?"),
+ * });
+ * ```
+ *
+ * @see {@link https://atom.jarrednorris.dev/forms | Forms}
+ * @stability unstable
+ * @since 0.4.0
+ * @category forms
+ */
+export const useUnsavedChangesGuard = (
+  form: { readonly dirty: boolean },
+  options: UnsavedChangesGuardOptions
+): void => {
+  let bypassUntil = 0;
+  beforeNavigate((navigation) => {
+    // The retry of a navigation the user agreed to: let it through, once.
+    if (bypassUntil > Date.now()) {
+      bypassUntil = 0;
+      return;
+    }
+    if (!form.dirty) {
+      return;
+    }
+    // Closing the tab, reloading or typing a URL: cancelling shows the browser's dialog, and no
+    // code of ours can run before the page goes.
+    navigation.cancel();
+    const { to } = navigation;
+    if (navigation.type === "leave" || to === null) {
+      return;
+    }
+    void (async () => {
+      if (!(await options.confirm())) {
+        return;
+      }
+      bypassUntil = Date.now() + bypassFor;
+      if (navigation.type === "popstate") {
+        // SvelteKit has already stepped history back to undo the move; step forward again.
+        history.go(navigation.delta);
+      } else if (navigation.willUnload) {
+        // An external link, or one SvelteKit hands to the browser: goto can't follow it. The page
+        // unloading fires a "leave", which the bypass lets through.
+        location.href = to.url.href;
+      } else {
+        await goto(to.url, { replaceState: to.url.href === location.href });
+      }
+    })();
+  });
+};
