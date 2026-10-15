@@ -47,6 +47,16 @@ export { default as RegistryProvider } from "./RegistryProvider.svelte";
 export * as ScopedAtom from "./ScopedAtom.ts";
 
 /**
+ * Forms driven by one Effect Schema: `Form.make` defines one, `useForm` creates an instance in a
+ * component.
+ *
+ * @stability unstable
+ * @since 0.4.0
+ * @category forms
+ */
+export * as Form from "./Form.ts";
+
+/**
  * Effect Atom's modules, so an app can import everything from one place.
  *
  * @stability unstable
