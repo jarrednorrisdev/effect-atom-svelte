@@ -129,7 +129,7 @@ test("browser atoms: searchParam writes the URL once typing stops, and follows B
 
   // An empty value removes the parameter.
   await filter.fill("");
-  await expect(page).toHaveURL(/\/browser\?$/u);
+  await expect(page).toHaveURL(/\/browser$/u);
   await expect(url).toHaveText("(no query string)");
 
   // Back restores the URL, and the atom follows it.
