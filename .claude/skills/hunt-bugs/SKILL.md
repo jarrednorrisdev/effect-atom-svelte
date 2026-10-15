@@ -39,7 +39,7 @@ One PR per area, so CI runs once per batch. For each PR:
 - Run `cd packages/effect-atom-svelte && bunx vitest run --project "browser (chromium)" --project server`, the devtools package's `bunx vitest run`, root `bun run format`, `bun run lint` and `bun run check`. Firefox fails locally; leave it to CI. Build the library first (`bun run --cwd packages/effect-atom-svelte build`): the devtools tests and `test/devtools-panel.browser.test.ts` import its `dist`, and without it the browser run fails in confusing ways.
 - Add a changeset (`bun run changeset`), user-facing. A PR that only adds tests to a package still needs one: `bunx changeset add --empty`.
 - Commit, then push only after reading the test totals. Gate the push on them; a `grep` that matched in a `&&` chain says nothing about whether tests passed.
-- `gh pr create --draft`, with the body written by the pr-description skill. Then `link_pull_request` and `watch_pull_request`.
+- `gh pr create --draft`, with the body written per the `pr` skill and the PR rules in `.claude/CLAUDE.md`. Then `link_pull_request` and `watch_pull_request`.
 
 Two PRs that edit neighbouring lines always conflict: stack the second on the first (`--base <first-branch>`) and say so in its body.
 

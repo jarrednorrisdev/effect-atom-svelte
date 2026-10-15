@@ -7,7 +7,6 @@ metadata:
     author: Dex Horthy
     organisation: Humanlayer
     url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
-disable-model-invocation: true
 ---
 
 Use this template for writing the PR body:

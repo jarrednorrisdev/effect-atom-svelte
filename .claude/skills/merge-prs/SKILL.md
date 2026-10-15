@@ -13,7 +13,7 @@ For each PR, in merge order (a stacked PR after its base):
 
 - `gh pr checks <n>`: every check passed on the PR's current head. `deploy` shows as skipping on every PR; that's expected.
 - `gh pr view <n> --json mergeStateStatus,isDraft`: `CLEAN`, and not a draft (`gh pr ready <n>`).
-- The body is true of the PR as it stands (the pr-description skill's done criterion).
+- The body is true of the PR as it stands: every name and claim matches the final diff, the test results name the browsers they ran in, and nothing it lists as open has been decided.
 
 Checks still running: mark it ready, `watch_pull_request`, and end the turn. A check that fails: stop and tell Jarred what failed, with the job's output.
 

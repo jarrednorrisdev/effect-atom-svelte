@@ -50,12 +50,6 @@ The PR carries one review comment, rewritten each round from the latest report a
 
 <the reviewer's summary>
 
-### Diagram
-
-```mermaid
-<the reviewer's diagram>
-```
-
 <details>
 <summary>Fixed (<count>)</summary>
 
@@ -122,7 +116,6 @@ Take the first rule that matches:
 >   - **Security**: is it unlikely to open a security hole, leak a secret or weaken a guardrail? Write n/a when the PR has no security surface.
 > - **Confidence score**: the lowest subscore, with n/a counting as 5. Add the impact (Low, Medium or High: how much breaks if you are wrong) and a one-line verdict.
 > - **Summary**: what the PR changes, in two to four bullets in the repo's domain language.
-> - **Diagram**: one Mermaid diagram of the shape the PR changes, as a flowchart, sequence or state diagram. Pick the view a reviewer needs to follow the change; a docs PR gets the flow or states it describes. Keep it to about ten nodes with labels of a few words, label an edge only with its trigger or condition, and draw only real transitions. In a flowchart or state diagram, mark what the PR adds or changes with `classDef changed stroke-width:3px` and `:::changed`. Leave the theme and colours to GitHub, which matches the reader's light or dark mode.
 >
 > End the report with **Context for the next round**, under 200 words: the PR's shape, the invariants it relies on, the risky areas and the files that hold them, and which parts you read in full. Describe the PR; keep verdicts in the findings.
 >

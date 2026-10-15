@@ -1,6 +1,6 @@
 # Where these skills come from
 
-**From [mattpocock/skills](https://github.com/mattpocock/skills)**, under the MIT licence below, copied as they were except where noted:
+**From [mattpocock/skills](https://github.com/mattpocock/skills)**, under the MIT licence below, copied as they were:
 
 - `ask-matt`
 - `chief-of-staff`
@@ -32,7 +32,7 @@
 - `wizard`
 - `writing-for-agents`
 
-`pr` credits its author, Dex Horthy of [Humanlayer](https://github.com/humanlayer/skills), in its own front matter. It's the one change: here it runs only when invoked (`disable-model-invocation: true`), so this repo's `pr-description` stays the default for PR bodies.
+`pr` credits its author, Dex Horthy of [Humanlayer](https://github.com/humanlayer/skills), in its own front matter.
 
 **Written for this repo:**
 
@@ -40,7 +40,6 @@
 - `hunt-bugs`
 - `improve-docs-page`
 - `merge-prs`
-- `pr-description`
 - `review-docs-site`
 - `review-pr`
 - `wayfinder-orchestrator`

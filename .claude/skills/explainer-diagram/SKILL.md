@@ -1,6 +1,6 @@
 ---
 name: explainer-diagram
-description: Build an interactive, step-through HTML diagram that explains a sequence (a timeline across server and browser, a lifecycle, a data flow, a bug and its fix) in the docs site's visual style. Use when Jarred asks for a diagram or visual explanation, says they still can't follow a sequence, or when a PR description needs one (the pr-description skill calls this).
+description: Build an interactive, step-through HTML diagram that explains a sequence (a timeline across server and browser, a lifecycle, a data flow, a bug and its fix) in the docs site's visual style. Use when Jarred asks for a diagram or visual explanation, says they still can't follow a sequence, or when a PR description needs one.
 ---
 
 # Explainer diagrams
@@ -166,7 +166,29 @@ Done when all of that holds.
 ## 5. Deliver
 
 - **In chat:** `html_preview`, then `html_render` with the built file's contents. Reply only with what the page doesn't say: what's simplified, and what's next.
-- **Always, when the diagram explains a PR** (even one asked for only in chat): follow the pr-description skill to publish the built page and update that PR's description with a link to it (no screenshots). Jarred asked for this on 2026-10-10 as standing approval, so don't stop to ask first. A diagram rebuilt later gets republished at the same path, and the link updated if the slug changed. If no PR exists yet, link the diagram when the PR is opened.
+- **Always, when the diagram explains a PR** (even one asked for only in chat): publish the built page and link it from that PR's description, as below (no screenshots). Jarred asked for this on 2026-10-10 as standing approval, so don't stop to ask first. A diagram rebuilt later gets republished at the same path, and the link updated if the slug changed. If no PR exists yet, link the diagram when the PR is opened.
+
+### Publishing a PR's diagram
+
+1. A page's path holds the PR number, so open the PR (as a draft) before publishing.
+2. Publish the page on the `pr-assets` branch, which shares no history with `main` and is never merged:
+
+   ```sh
+   # if missing: git worktree add ~/Documents/repos/jnd/worktrees/esa-pr-assets pr-assets
+   cd ~/Documents/repos/jnd/worktrees/esa-pr-assets
+   git pull -q
+   mkdir -p pr/<number> && cp <slug>.html pr/<number>/<slug>.html
+   git add pr/<number> && git commit -m "docs: <slug> diagram for #<number>" && git push
+   ```
+
+3. Pages serves it at `https://jarrednorrisdev.github.io/effect-atom-svelte/pr/<number>/<slug>.html` about a minute later. Wait until `curl -sI <url>` says `200` before linking it. A 404 that lasts: check Pages still serves the branch's root (`gh api repos/jarrednorrisdev/effect-atom-svelte/pages -q .source` gives `pr-assets` and `/`; Settings → Pages → "Deploy from a branch" to set it).
+4. In the PR body, beside what it explains, link it, deep-linking the step where it goes wrong. Every step has its own hash, `#before-<n>` or `#after-<n>`:
+
+   ```md
+   **[Step through the whole page load](…/pr/38/bug-2.html#before-1)**: [step 10](…#before-10) is where it goes wrong, and [the same step with the fix](…#after-10).
+   ```
+
+A diagram that explains a lasting concept, rather than one PR, belongs in the docs site (`apps/demo`) as a deliberate docs change.
 
 ## Style
 

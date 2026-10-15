@@ -15,4 +15,15 @@ Jarred owns this library and reviews the work as the person deciding what ships.
 - Start the dev server as a background command with `timeout: 7200000`; the default stops it after 30 minutes. Site on :5180.
 - The skills' scripts check the checkout they sit in, so run them from the worktree you want checked.
 - `oxfmt` reflows files after edits. Re-read a file before matching its text for another edit.
-- When a PR merges, remove its worktree and local branch. Keep `esa-pr-assets`: the `pr-description` skill publishes diagrams from it.
+- When a PR merges, remove its worktree and local branch. Keep `esa-pr-assets`: the `explainer-diagram` skill publishes PR diagrams from it.
+
+## Pull requests
+
+Write PR bodies with the `pr` skill, with these on top:
+
+- **Write for the owner deciding whether to merge,** who knows Svelte and Effect but not this library's internals. Define a term or API at first use, saying where it comes from, and say what a user sees rather than naming internal functions.
+- **For a bug, show the user code that hits it** (built from the PR's test fixtures) and what the user sees, then the fix as a short simplified diff. Say where a real user meets it: a docs page, or a pattern the docs teach. When nothing real reaches the bug, say so instead of inventing an app.
+- **No Mermaid and no screenshots.** For a sequence over time, link an `explainer-diagram` step-through page, published per that skill.
+- **Decisions still open go under "Needs your call",** each with the alternative and a recommendation. Once decided, they move to "Decisions".
+- **Keep the body true as the PR changes:** its names, test results (with the browsers they ran in) and open decisions.
+
