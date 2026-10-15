@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { Rpc, RpcGroup } from "effect/rpc";
 
-import { TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
+import { DuplicateTitle, TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
 
 export class TodosRpcs extends RpcGroup.make(
   Rpc.make("listTodos", { success: Schema.Array(Todo) }),
@@ -13,6 +13,11 @@ export class TodosRpcs extends RpcGroup.make(
   Rpc.make("createTodo", {
     error: TitleTooLong,
     payload: { title: Schema.String },
+    success: Todo,
+  }),
+  Rpc.make("renameTodo", {
+    error: Schema.Union([TodoNotFound, DuplicateTitle, TitleTooLong]),
+    payload: { id: Schema.Int, title: Schema.String },
     success: Todo,
   }),
   Rpc.make("toggleTodo", {

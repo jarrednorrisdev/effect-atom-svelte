@@ -17,6 +17,13 @@ export class TodoNotFound extends Schema.TaggedError<TodoNotFound>()(
   { httpApiStatus: 404 }
 ) {}
 
+/** Another todo already has this title, compared trimmed and ignoring case. */
+export class DuplicateTitle extends Schema.TaggedError<DuplicateTitle>()(
+  "DuplicateTitle",
+  { title: Schema.String },
+  { httpApiStatus: 409 }
+) {}
+
 export class TitleTooLong extends Schema.TaggedError<TitleTooLong>()(
   "TitleTooLong",
   { maxLength: Schema.Int },

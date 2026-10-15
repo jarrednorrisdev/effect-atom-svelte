@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Account, Unauthorized } from "./account.ts";
-import { TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
+import { DuplicateTitle, TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
 
 export class TodosApiGroup extends HttpApiGroup.make("todos")
   .add(
@@ -17,6 +17,12 @@ export class TodosApiGroup extends HttpApiGroup.make("todos")
     }),
     HttpApiEndpoint.post("create", "/", {
       error: TitleTooLong,
+      payload: Schema.Struct({ title: Schema.String }),
+      success: Todo,
+    }),
+    HttpApiEndpoint.patch("rename", "/:id", {
+      error: [TodoNotFound, DuplicateTitle, TitleTooLong],
+      params: { id: Schema.NumberFromString },
       payload: Schema.Struct({ title: Schema.String }),
       success: Todo,
     }),

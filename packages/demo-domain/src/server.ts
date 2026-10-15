@@ -6,7 +6,13 @@ import { RpcSerialization, RpcServer } from "effect/rpc";
 import { Account, DEMO_TOKEN, Unauthorized } from "./account.ts";
 import { DemoApi } from "./http.ts";
 import { TodosRpcs } from "./rpc.ts";
-import { TITLE_MAX_LENGTH, TitleTooLong, Todo, TodoNotFound } from "./todo.ts";
+import {
+  DuplicateTitle,
+  TITLE_MAX_LENGTH,
+  TitleTooLong,
+  Todo,
+  TodoNotFound,
+} from "./todo.ts";
 
 export interface ServerOptions {
   /** Added to every handler so loading and refresh states are visible. */
@@ -19,6 +25,10 @@ class TodoStore extends Context.Service<
     readonly list: (done?: boolean) => Effect.Effect<readonly Todo[]>;
     readonly get: (id: number) => Effect.Effect<Todo, TodoNotFound>;
     readonly create: (title: string) => Effect.Effect<Todo, TitleTooLong>;
+    readonly rename: (
+      id: number,
+      title: string
+    ) => Effect.Effect<Todo, TodoNotFound | DuplicateTitle | TitleTooLong>;
     readonly toggle: (id: number) => Effect.Effect<Todo, TodoNotFound>;
     readonly remove: (id: number) => Effect.Effect<void, TodoNotFound>;
   }
@@ -71,6 +81,31 @@ class TodoStore extends Context.Service<
             Effect.asVoid,
             delay
           ),
+        rename: (id, title) =>
+          find(id).pipe(
+            Effect.flatMap(
+              (todo): Effect.Effect<Todo, DuplicateTitle | TitleTooLong> => {
+                const same = (other: string) =>
+                  other.trim().toLowerCase() === title.trim().toLowerCase();
+                if (title.length > TITLE_MAX_LENGTH) {
+                  return Effect.fail(
+                    new TitleTooLong({ maxLength: TITLE_MAX_LENGTH })
+                  );
+                }
+                if (
+                  [...todos.values()].some(
+                    (other) => other.id !== id && same(other.title)
+                  )
+                ) {
+                  return Effect.fail(new DuplicateTitle({ title }));
+                }
+                const next = new Todo({ ...todo, title });
+                todos.set(id, next);
+                return Effect.succeed(next);
+              }
+            ),
+            delay
+          ),
         toggle: (id) =>
           find(id).pipe(
             Effect.map((todo) => {
@@ -92,6 +127,7 @@ const RpcHandlers = TodosRpcs.toLayer(
       getTodo: ({ id }) => store.get(id),
       listTodos: () => store.list(),
       removeTodo: ({ id }) => store.remove(id),
+      renameTodo: ({ id, title }) => store.rename(id, title),
       ticks: ({ count }) =>
         Stream.fromSchedule(Schedule.spaced("500 millis")).pipe(
           Stream.take(count)
@@ -112,6 +148,7 @@ const HttpHandlers = HttpApiBuilder.group(DemoApi, "todos", (handlers) =>
           query.done === undefined ? undefined : query.done === "true"
         ),
       remove: ({ params }) => store.remove(params.id),
+      rename: ({ params, payload }) => store.rename(params.id, payload.title),
       toggle: ({ params }) => store.toggle(params.id),
     });
   })

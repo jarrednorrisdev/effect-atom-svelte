@@ -2,6 +2,7 @@ export { Account, DEMO_TOKEN, Unauthorized } from "./account.ts";
 export { AccountApiGroup, DemoApi, TodosApiGroup } from "./http.ts";
 export { TodosRpcs } from "./rpc.ts";
 export {
+  DuplicateTitle,
   isAddedTodo,
   TITLE_MAX_LENGTH,
   TitleTooLong,
