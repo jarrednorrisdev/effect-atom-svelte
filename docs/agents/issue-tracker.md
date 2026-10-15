@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues on [jarrednorrisdev/effect-atom-svelte](https://github.com/jarrednorrisdev/effect-atom-svelte/issues). Use the `gh` CLI for all operations, as the `jarrednorrisdev` account. Commits, changesets and code comments refer to an issue as `#<n>`. Older ones cite `JND-<n>`, from a private tracker the project used before; those links only open for the maintainer.
+Issues and specs for this repo live as GitHub issues on [jarrednorrisdev/effect-atom-svelte](https://github.com/jarrednorrisdev/effect-atom-svelte/issues). Use the `gh` CLI for all operations. Commits, changesets and code comments refer to an issue as `#<n>`. Older ones cite `JND-<n>`, from a private tracker the project used before; those links only open for the maintainer.
 
 ## Conventions
 

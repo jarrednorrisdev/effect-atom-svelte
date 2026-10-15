@@ -64,4 +64,4 @@ Report bugs and suggest changes in [GitHub issues](https://github.com/jarrednorr
 
 Work is tracked in the same GitHub issues, so commits, changesets and code comments refer to an issue as `#<n>`. Older ones cite `JND-<n>`, from a private tracker the project used before; those links only open for the maintainer, so the commit or comment around a reference says what it was about.
 
-Agents working in this repo read `AGENTS.md`, whose "Agent skills" section points at `docs/agents/`: how to use the issue tracker, the triage labels, and where domain docs live.
+Agents working in this repo read `AGENTS.md` (Claude Code through `CLAUDE.md`, which imports it). Its "Agent skills" section points at `docs/agents/`: how to use the issue tracker, the triage labels, and where domain docs live.
