@@ -213,11 +213,9 @@ describe("AtomDevtools", () => {
     graphNode("doubleAtom")?.click();
     await expect.poll(() => panelButton("Graph")).toBeDefined();
     panelButton("Graph")?.click();
+    // The graph redraws from atoms the panel already has, so no frame to wait for.
     await expect
-      .poll(
-        () => graphNode("doubleAtom")?.classList.contains("selected"),
-        drawn
-      )
+      .poll(() => graphNode("doubleAtom")?.classList.contains("selected"))
       .toBe(true);
     // Something starts reading doubleAtom: the graph grows a column after it.
     const quad = Atom.make((get) => get(double) * 2).pipe(
