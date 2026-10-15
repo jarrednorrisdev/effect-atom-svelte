@@ -78,12 +78,13 @@ test.describe("Forms page", () => {
     await expect(page.getByTestId("rename-state")).toHaveText("Success");
     await expect(page.getByTestId("rename-dirty")).toHaveText("Saved");
     await expect(form.getByRole("button", { name: "Save" })).toBeDisabled();
-    // The query fetched the saved title, and a reload renders it on the server.
+    expect(errors).toEqual([]);
+    // The query fetched the saved title, and a reload renders it on the server. Checked for errors
+    // first: WebKit reports imports the reload cuts short as page errors.
     await page.reload();
     await expect(
       page.getByTestId("rename").getByLabel("Title of todo 1")
     ).toHaveValue("Read the Atom source");
-    expect(errors).toEqual([]);
   });
 
   test("order: an item's error moves with it", async ({ page }) => {
