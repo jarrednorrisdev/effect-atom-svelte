@@ -551,7 +551,7 @@ describe("more instance options", () => {
     const Prices = Form.make(
       Schema.Struct({
         price: Schema.instanceOf(Money),
-        tip: Schema.Option(Schema.Number),
+        tip: Schema.Option(Schema.Finite),
       })
     );
     const form = Form.instance(Prices, {
