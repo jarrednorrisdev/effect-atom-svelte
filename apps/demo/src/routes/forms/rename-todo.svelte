@@ -22,7 +22,7 @@
   import CauseView from "#lib/docs/kit/cause-view.svelte";
 
   import FormState from "./form-state.svelte";
-  import { RenameTodo } from "./forms.ts";
+  import { RenameTodo } from "./rename-form.ts";
 
   const id = $props.id();
   const todo = await useAtomResult(todoAtom);
@@ -31,7 +31,10 @@
     // Follows the query: a clean form takes a new title, a
     // dirty one keeps your edit.
     initialValues: () => ({
-      title: todo.current._tag === "Success" ? todo.current.value.title : "",
+      title:
+        todo.current._tag === "Success"
+          ? todo.current.value.title
+          : "",
     }),
     // The server's DuplicateTitle goes on the field. Any
     // other failure stays in submitResult.
@@ -58,16 +61,26 @@
   });
 </script>
 
-<form {...form.attrs} class="grid max-w-md gap-1" data-testid="rename">
+<form
+  {...form.attrs}
+  class="grid max-w-md gap-1"
+  data-testid="rename"
+>
   <label for={title.id}>Title of todo 1</label>
-  <input {...title.attrs} {...title.constraints} bind:value={title.value} />
+  <input
+    {...title.attrs}
+    {...title.constraints}
+    bind:value={title.value}
+  />
   <!-- Keeps its space while empty: the buttons stay put. -->
   <p class="field-error min-h-5" id={title.errorId}>
     {title.error ?? ""}
   </p>
   <p class="mt-1 flex flex-wrap items-center gap-2">
     <!-- Nothing to save until the title changes. -->
-    <button disabled={!form.dirty || form.submitting}>Save</button>
+    <button disabled={!form.dirty || form.submitting}
+      >Save</button
+    >
     <!-- Back to the last saved title, or the first one. -->
     <button
       type="button"
@@ -86,5 +99,9 @@
   result={form.submitResult}
 />
 {#if form.submitResult._tag === "Failure"}
-  <CauseView cause={form.submitResult.cause} code label="renameAtom" />
+  <CauseView
+    cause={form.submitResult.cause}
+    code
+    label="renameAtom"
+  />
 {/if}

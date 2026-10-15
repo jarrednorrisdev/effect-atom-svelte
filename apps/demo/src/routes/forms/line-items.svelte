@@ -3,7 +3,7 @@
 
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
-  import { Order } from "./forms.ts";
+  import { Order } from "./order-form.ts";
 
   const id = $props.id();
   // No submit atom: submit only validates, and resolves with
@@ -31,7 +31,10 @@
     {#each items.items as item (item.key)}
       {@const name = item.fields.field("name")}
       {@const quantity = item.fields.field("quantity")}
-      <li class="flex flex-wrap items-center gap-1" data-testid="order-item">
+      <li
+        class="flex flex-wrap items-center gap-1"
+        data-testid="order-item"
+      >
         <code data-testid="order-key">key {item.key}</code>
         <input
           {...name.attrs}
@@ -53,7 +56,10 @@
         >
           Move to top
         </button>
-        <button type="button" onclick={() => items.remove(item.index)}>
+        <button
+          type="button"
+          onclick={() => items.remove(item.index)}
+        >
           Remove
         </button>
         <!-- Each error line keeps its space while empty. -->

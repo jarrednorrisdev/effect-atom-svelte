@@ -4,7 +4,7 @@
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import AddressFields from "./address-fields.svelte";
-  import { Checkout } from "./forms.ts";
+  import { Checkout } from "./checkout-form.ts";
 
   const id = $props.id();
   const address = { city: "", street: "" };
@@ -23,7 +23,11 @@
   const stores = ["Soho", "Camden"] as const;
 </script>
 
-<form {...form.attrs} class="grid gap-3" data-testid="checkout">
+<form
+  {...form.attrs}
+  class="grid gap-3"
+  data-testid="checkout"
+>
   <div aria-label="Fulfilment" role="group">
     <button
       type="button"
@@ -72,7 +76,10 @@
   {/if}
 
   <!-- The same component, for another part of the form. -->
-  <AddressFields fields={form.at("billing")} legend="Billing address" />
+  <AddressFields
+    fields={form.at("billing")}
+    legend="Billing address"
+  />
 
   <p><button>Place order</button></p>
 </form>

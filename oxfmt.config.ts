@@ -9,6 +9,15 @@ export default defineConfig({
   endOfLine: "lf",
   ignorePatterns,
   jsxSingleQuote: false,
+  overrides: [
+    {
+      // The Forms page shows these files in code frames that fit
+      // about 62 characters before scrolling sideways.
+      excludeFiles: ["apps/demo/src/routes/forms/+page.*"],
+      files: ["apps/demo/src/routes/forms/*"],
+      options: { printWidth: 62 },
+    },
+  ],
   printWidth: 80,
   proseWrap: "never",
   quoteProps: "as-needed",

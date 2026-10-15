@@ -8,7 +8,9 @@
   import type { Form } from "effect-atom-svelte";
 
   interface Props {
-    readonly fields: Readonly<Record<string, Form.Field<unknown>>>;
+    readonly fields: Readonly<
+      Record<string, Form.Field<unknown>>
+    >;
     readonly valid: boolean;
   }
 
@@ -24,24 +26,35 @@
   <table>
     <thead>
       <tr
-        ><th>field</th><th>latest check</th><th>touched</th><th>on screen</th
-        ></tr
+        ><th>field</th><th>latest check</th><th>touched</th
+        ><th>on screen</th></tr
       >
     </thead>
     <tbody>
       {#each Object.entries(fields) as [name, field] (name)}
         <tr data-testid="knows-{name}">
           <td><code>{name}</code></td>
-          <td class={field.issue ? "bad" : "ok"}>{field.issue ?? "passes"}</td>
+          <td class={field.issue ? "bad" : "ok"}
+            >{field.issue ?? "passes"}</td
+          >
           <td>{field.touched ? "yes" : "no"}</td>
-          <td>{field.error ? "shown" : field.issue ? "hidden" : "—"}</td>
+          <td
+            >{field.error
+              ? "shown"
+              : field.issue
+                ? "hidden"
+                : "—"}</td
+          >
         </tr>
       {/each}
     </tbody>
   </table>
   <p class="knows-valid">
     <code>form.valid</code>:
-    <span class={valid ? "ok" : "bad"} data-testid="knows-valid">{valid}</span>
+    <span
+      class={valid ? "ok" : "bad"}
+      data-testid="knows-valid">{valid}</span
+    >
   </p>
 </section>
 

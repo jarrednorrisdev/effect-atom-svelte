@@ -603,6 +603,7 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
    * field's error clears when the value at its path changes, including from a change to a parent or
    * a child path. The form-level error (`form`) clears on any change to the values, and at the
    * next submit. Both clear on reset; blur, `validate` and a write of the same values leave them.
+   * They don't stop a submit: it checks only the Schema, and the server checks the values again.
    */
   readonly setErrors: (errors: Errors<T>) => void;
   /**

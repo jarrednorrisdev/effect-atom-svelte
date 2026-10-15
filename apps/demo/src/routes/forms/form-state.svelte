@@ -15,20 +15,42 @@
     readonly claimed: boolean;
     readonly initial: unknown;
     readonly dirty: boolean;
-    readonly lastSubmitted: Option.Option<{ readonly encoded: unknown }>;
-    readonly result: AsyncResult.AsyncResult<unknown, unknown>;
+    readonly lastSubmitted: Option.Option<{
+      readonly encoded: unknown;
+    }>;
+    readonly result: AsyncResult.AsyncResult<
+      unknown,
+      unknown
+    >;
   }
 
-  const { claimed, dirty, initial, lastSubmitted, result }: Props = $props();
+  const {
+    claimed,
+    dirty,
+    initial,
+    lastSubmitted,
+    result,
+  }: Props = $props();
 </script>
 
-<section aria-label="The form's state" class="state" data-testid="form-state">
+<section
+  aria-label="The form's state"
+  class="state"
+  data-testid="form-state"
+>
   <p class="state-title">The form's state</p>
   <dl>
     <dt><code>form.initialValues</code></dt>
-    <dd data-testid="state-initial">{JSON.stringify(initial)}</dd>
+    <dd data-testid="state-initial">
+      {JSON.stringify(initial)}
+    </dd>
     <dt><code>form.dirty</code></dt>
-    <dd class={dirty ? "bad" : "ok"} data-testid="state-dirty">{dirty}</dd>
+    <dd
+      class={dirty ? "bad" : "ok"}
+      data-testid="state-dirty"
+    >
+      {dirty}
+    </dd>
     <dt><code>form.lastSubmitted</code></dt>
     <dd data-testid="state-last">
       {Option.match(lastSubmitted, {

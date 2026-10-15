@@ -7,7 +7,10 @@ description: Build a form from one Effect Schema, with errors that show at the r
   import Aside from "#lib/docs/aside.svelte";
   import Example from "#lib/docs/example.svelte";
 
-  import formsSource from "./forms.ts?highlight";
+  import checkoutFormSource from "./checkout-form.ts?highlight";
+  import orderFormSource from "./order-form.ts?highlight";
+  import renameFormSource from "./rename-form.ts?highlight";
+  import signUpFormSource from "./sign-up-form.ts?highlight";
   import LineItems from "./line-items.svelte";
   import lineItemsSource from "./line-items.svelte?highlight";
   import RenameTodo from "./rename-todo.svelte";
@@ -23,7 +26,7 @@ A form here is built from one Effect **Schema**. You give the Schema; the librar
 
 This sign-up form checks the email when you leave the field, and once a field has shown an error, it checks again as you type. Under it, **What the form knows** shows each field's latest check, whether you've left the field, and whether its error is on screen: the Schema checks every change, and the timing decides what you see. Create account is always on: a submit shows every error and moves focus to the first one:
 
-<Example files={[{ html: signUpSource, name: "sign-up.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a few letters in Email: its check fails at once, but the error waits until you press Tab. Click Create account with the rest empty: every error shows, and focus moves to Email. Fill in the rest, with two passwords that differ, then make them match and watch form.valid turn true."> <div data-testid="sign-up-example"><SignUp /></div> </Example>
+<Example files={[{ html: signUpSource, name: "sign-up.svelte" }, { html: signUpFormSource, name: "sign-up-form.ts" }]} hint="Type a few letters in Email: its check fails at once, but the error waits until you press Tab. Click Create account with the rest empty: every error shows, and focus moves to Email. Fill in the rest, with two passwords that differ, then make them match and watch form.valid turn true."> <div data-testid="sign-up-example"><SignUp /></div> </Example>
 
 ## Defining a form
 
@@ -53,7 +56,7 @@ export const Login = Form.make(
 );
 ```
 
-The sign-up example's own definition, with a confirm field and a terms checkbox, is in its `forms.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
+The sign-up example's own definition, with a confirm field and a terms checkbox, is in its `sign-up-form.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
 
 An error's message comes from the check's `message` annotation, as above. A check without one gets Effect's own message, such as `Expected a value with a length of at most 60`. To write those yourself, pass `leafHook` (for a value of the wrong type, or a missing key) or `checkHook` (for a failed check) to `Form.make`; a `message` annotation still wins over them.
 
@@ -188,7 +191,7 @@ mapError: (error) => {
 
 A field error from `mapError` shows at once and goes when the user edits that field. The form error is `form.rootError`, which goes when the user changes any value, or at the next submit. A failure that `mapError` returns `undefined` for stays in `submitResult`, for the app to show its own way, such as a toast. A claimed failure never appears there, so it isn't shown twice. Defects and interruptions are never passed to `mapError`.
 
-`form.setErrors({ fields, paths, form })` puts errors on the form from anywhere else. They clear the same way: a field's error when that field changes, and the form error when any value changes.
+`form.setErrors({ fields, paths, form })` puts errors on the form from anywhere else. They clear the same way: a field's error when that field changes, and the form error when any value changes. They don't stop a submit, which checks only the Schema: if the user submits again without changing anything, the server sees the values again and decides.
 
 ## Edit forms
 
@@ -198,7 +201,7 @@ After a successful submit, the submitted values become the initial values, `form
 
 This form renames a todo on the demo API, and its Undo button calls `revertToLastSubmit`. Another todo is already called "Write a Svelte adapter", and the server refuses a second one with a `DuplicateTitle` error, which `mapError` puts on the field. A claimed failure isn't kept in `submitResult`, so the panel shows it as `Initial`:
 
-<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Rename the todo: dirty turns true. Save it: the new title becomes initialValues and lastSubmitted, and dirty is false again. Type another title and click Undo: the saved one comes back. Then type Write a Svelte adapter and save: the server's error lands on the field, and submitResult is Initial. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
+<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: renameFormSource, name: "rename-form.ts" }]} hint="Rename the todo: dirty turns true. Save it: the new title becomes initialValues and lastSubmitted, and dirty is false again. Type another title and click Undo: the saved one comes back. Then type Write a Svelte adapter and save: the server's error lands on the field, and submitResult is Initial. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
 
 ### Asking before leaving
 
@@ -241,7 +244,7 @@ Effect runs a Struct's check only once every field of that Struct decodes. So pu
 
 `form.array("items")` is an array field. `append`, `remove`, `move` and `replace` change it, and `items` lists its items, each with its own fields. Each item has a `key` that stays with it when items move, so its errors and touched state move with it, and a keyed `{#each}` keeps its inputs:
 
-<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top: its key, and its error, go with it. Click Add item: the blank row's errors show at once, as after a submit every error shows. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
+<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: orderFormSource, name: "order-form.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top: its key, and its error, go with it. Click Add item: the blank row's errors show at once, as after a submit every error shows. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
 
 An error on the array itself, such as from `isMinLength(1)`, is `items.error`.
 
@@ -265,7 +268,7 @@ A form whose fields depend on a choice uses a union of Structs with a tag, such 
 
 In this checkout, an order is delivered to an address or picked up from a store:
 
-<Example files={[{ html: checkoutSource, name: "checkout.svelte" }, { html: addressFieldsSource, name: "address-fields.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a delivery street, click Pickup, then Delivery: the street is still there. Click Pickup and place the order with the rest empty: the store and Billing complain, while Delivery's address isn't checked, as Pickup is chosen."> <div data-testid="checkout-example"><Checkout /></div> </Example>
+<Example files={[{ html: checkoutSource, name: "checkout.svelte" }, { html: addressFieldsSource, name: "address-fields.svelte" }, { html: checkoutFormSource, name: "checkout-form.ts" }]} hint="Type a delivery street, click Pickup, then Delivery: the street is still there. Click Pickup and place the order with the rest empty: the store and Billing complain, while Delivery's address isn't checked, as Pickup is chosen."> <div data-testid="checkout-example"><Checkout /></div> </Example>
 
 ## Drafts that survive a reload
 
