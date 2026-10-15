@@ -19,6 +19,11 @@ export interface PathIssue {
 // `message` annotation, or `messageMissingKey`/`messageUnexpectedKey` for those issues. Done here
 // so an annotated message wins over the caller's hooks, which would otherwise replace Effect's
 // default hooks and with them the annotation lookup.
+const messageKeys: Readonly<Record<string, string>> = {
+  MissingKey: "messageMissingKey",
+  UnexpectedKey: "messageUnexpectedKey",
+};
+
 const findMessage = (issue: SchemaIssue.Issue): string | undefined => {
   if (issue._tag === "Pointer") {
     return undefined;
@@ -26,19 +31,18 @@ const findMessage = (issue: SchemaIssue.Issue): string | undefined => {
   if (issue._tag === "Encoding") {
     return findMessage(issue.issue);
   }
-  const annotations: Readonly<Record<string, unknown>> | undefined =
-    issue._tag === "Filter"
-      ? issue.filter.annotations
-      : "annotations" in issue
-        ? issue.annotations
-        : issue.ast.annotations;
-  const key =
-    issue._tag === "MissingKey"
-      ? "messageMissingKey"
-      : issue._tag === "UnexpectedKey"
-        ? "messageUnexpectedKey"
-        : "message";
-  const message = annotations?.[key];
+  let source: {
+    readonly annotations?: Readonly<Record<string, unknown>> | undefined;
+  };
+  if (issue._tag === "Filter") {
+    source = issue.filter;
+  } else if ("annotations" in issue) {
+    source = issue;
+  } else {
+    source = issue.ast;
+  }
+  const { annotations } = source;
+  const message = annotations?.[messageKeys[issue._tag] ?? "message"];
   return typeof message === "string" ? message : undefined;
 };
 
@@ -48,7 +52,7 @@ type Segment = PropertyKey | { readonly key: PropertyKey };
 
 // Paths from Effect are PropertyKeys, or `{ key }` in Standard Schema's type; a form's paths are
 // object keys and array indexes.
-const normalize = (path: ReadonlyArray<Segment>): IndexPath =>
+const normalize = (path: readonly Segment[]): IndexPath =>
   path.map((segment) => {
     const key = typeof segment === "object" ? segment.key : segment;
     return typeof key === "number" ? key : String(key);
@@ -58,8 +62,8 @@ const normalize = (path: ReadonlyArray<Segment>): IndexPath =>
 // `{ path, issue }` wraps its issue in a Pointer.
 const pointedPaths = (
   issue: SchemaIssue.Issue,
-  path: ReadonlyArray<PropertyKey>
-): ReadonlyArray<ReadonlyArray<PropertyKey>> => {
+  path: readonly PropertyKey[]
+): readonly (readonly PropertyKey[])[] => {
   switch (issue._tag) {
     case "Pointer": {
       return [[...path, ...issue.path]];
@@ -77,6 +81,56 @@ const pointedPaths = (
   }
 };
 
+interface Hooks {
+  readonly leafHook?: LeafHook | undefined;
+  readonly checkHook?: CheckHook | undefined;
+}
+
+type Emit = (path: readonly Segment[], message: string) => void;
+type Walk = (issue: SchemaIssue.Issue, path: readonly PropertyKey[]) => void;
+
+// Effect's own message for an issue it formats with no hook, at `path`.
+const emitDefault = (
+  issue: SchemaIssue.Issue,
+  path: readonly PropertyKey[],
+  emit: Emit
+) => {
+  for (const formatted of effectFormatter(issue).issues) {
+    emit([...path, ...(formatted.path ?? [])], formatted.message);
+  }
+};
+
+const walkFilter = (
+  issue: SchemaIssue.Filter,
+  path: readonly PropertyKey[],
+  hooks: Hooks,
+  emit: Emit,
+  walk: Walk
+): void => {
+  const pointed = pointedPaths(issue.issue, path);
+  const annotated = findMessage(issue.issue) ?? findMessage(issue);
+  if (annotated !== undefined) {
+    for (const target of pointed.length > 0 ? pointed : [path]) {
+      emit(target, annotated);
+    }
+    return;
+  }
+  // A check that points at fields carries its own messages there ({ path, issue }), so the
+  // caller's hook doesn't replace them.
+  if (pointed.length > 0) {
+    walk(issue.issue, path);
+    return;
+  }
+  const hooked = hooks.checkHook?.(issue);
+  if (hooked !== undefined) {
+    emit(path, hooked);
+  } else if (issue.issue._tag === "InvalidValue") {
+    emitDefault(issue, path, emit);
+  } else {
+    walk(issue.issue, path);
+  }
+};
+
 /**
  * Every issue in a decode failure, as Effect's Standard Schema formatter walks them, but with the
  * message chosen in this order: the Schema's annotation, then the caller's hook, then Effect's
@@ -85,47 +139,16 @@ const pointedPaths = (
  */
 export const toPathIssues = (
   issue: SchemaIssue.Issue,
-  hooks: {
-    readonly leafHook?: LeafHook | undefined;
-    readonly checkHook?: CheckHook | undefined;
-  }
-): ReadonlyArray<PathIssue> => {
+  hooks: Hooks
+): readonly PathIssue[] => {
   const out: PathIssue[] = [];
-  const emit = (path: ReadonlyArray<Segment>, message: string) => {
+  const emit: Emit = (path, message) => {
     out.push({ message, path: normalize(path) });
   };
-  const walk = (
-    current: SchemaIssue.Issue,
-    path: ReadonlyArray<PropertyKey>
-  ): void => {
+  const walk: Walk = (current, path) => {
     switch (current._tag) {
       case "Filter": {
-        const pointed = pointedPaths(current.issue, path);
-        const annotated = findMessage(current.issue) ?? findMessage(current);
-        if (annotated !== undefined) {
-          for (const target of pointed.length > 0 ? pointed : [path]) {
-            emit(target, annotated);
-          }
-          return;
-        }
-        // A check that points at fields carries its own messages there ({ path, issue }), so the
-        // caller's hook doesn't replace them.
-        if (pointed.length > 0) {
-          walk(current.issue, path);
-          return;
-        }
-        const hooked = hooks.checkHook?.(current);
-        if (hooked !== undefined) {
-          emit(path, hooked);
-          return;
-        }
-        if (current.issue._tag !== "InvalidValue") {
-          walk(current.issue, path);
-          return;
-        }
-        for (const formatted of effectFormatter(current).issues) {
-          emit([...path, ...(formatted.path ?? [])], formatted.message);
-        }
+        walkFilter(current, path, hooks, emit, walk);
         return;
       }
       case "Encoding": {
@@ -136,21 +159,13 @@ export const toPathIssues = (
         walk(current.issue, [...path, ...current.path]);
         return;
       }
-      case "Composite": {
+      case "Composite":
+      case "AnyOf": {
+        if (current.issues.length === 0) {
+          emitDefault(current, path, emit);
+        }
         for (const inner of current.issues) {
           walk(inner, path);
-        }
-        return;
-      }
-      case "AnyOf": {
-        if (current.issues.length > 0) {
-          for (const inner of current.issues) {
-            walk(inner, path);
-          }
-          return;
-        }
-        for (const formatted of effectFormatter(current).issues) {
-          emit([...path, ...(formatted.path ?? [])], formatted.message);
         }
         return;
       }

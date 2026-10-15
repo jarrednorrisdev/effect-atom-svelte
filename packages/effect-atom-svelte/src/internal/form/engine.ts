@@ -1,22 +1,24 @@
 // The form engine behind `Form.instance` and `useForm`: one instance's state, its validation runs
 // and its submit. Internal: not exported from the package. It is untyped (values are `unknown`);
 // `Form.ts` puts the Schema's types on it.
-import { Cause, Data, Effect, Exit, Option, Schema } from "effect";
+import { Cause, Deferred, Effect, Exit, Option, Schema } from "effect";
 import { AsyncResult, Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
 
 import { awaitWrite } from "../awaitWrite.ts";
 import { onDispose } from "../disposal.ts";
+import { ArrayImpl } from "./array.ts";
 import { constraintsAt } from "./constraints.ts";
 import type { Constraints } from "./constraints.ts";
+import { FieldImpl } from "./field.ts";
+import { GroupImpl } from "./group.ts";
+import { InstanceImpl } from "./instance.ts";
 import { toPathIssues } from "./issues.ts";
-import type { CheckHook, LeafHook } from "./issues.ts";
 import {
   equals,
   getIn,
   idSuffix,
   isLive,
-  nameOf,
   pathId,
   reconcileKeys,
   setIn,
@@ -25,97 +27,15 @@ import {
   toKeyPath,
 } from "./paths.ts";
 import type { IndexPath, KeyPath, Keys } from "./paths.ts";
-
-/** When a field is checked: as the user types, when they leave it, or only on submit. */
-export type Timing = "submit" | "blur" | "input";
-
-/** Where an error came from, which decides when it clears. */
-export type ErrorSource = "schema" | "submit" | "manual";
-
-/** Errors to put on a form: per top-level field, per path, and form-level. */
-export interface ErrorsInput {
-  readonly fields?: Readonly<Record<string, string | undefined>> | undefined;
-  readonly paths?:
-    | ReadonlyArray<readonly [IndexPath | string, string]>
-    | undefined;
-  readonly form?: string | undefined;
-}
-
-/** A form's validation failure, as `submit` reports it. */
-export class FormValidationError extends Data.TaggedError(
-  "FormValidationError"
-)<{
-  readonly errors: ReadonlyArray<{
-    readonly path: IndexPath;
-    readonly message: string;
-  }>;
-}> {}
-
-/** A definition's settings, shared by every instance. */
-export interface Definition {
-  readonly schema: Schema.Top;
-  readonly runtime?: Atom.AtomRuntime<any, any> | undefined;
-  readonly validateOn: Timing;
-  readonly revalidateOn: Timing;
-  readonly debounce: number;
-  readonly leafHook?: LeafHook | undefined;
-  readonly checkHook?: CheckHook | undefined;
-}
-
-/** One instance's settings. */
-export interface EngineOptions {
-  readonly registry: AtomRegistry.AtomRegistry;
-  readonly id: string;
-  readonly initialValues: unknown;
-  readonly values?: Atom.Writable<any, any> | undefined;
-  readonly submit?:
-    | {
-        readonly atom: () => Atom.Writable<
-          AsyncResult.AsyncResult<unknown, unknown>,
-          unknown
-        >;
-        readonly payload?:
-          | ((decoded: unknown, args: unknown) => unknown)
-          | undefined;
-      }
-    | undefined;
-  readonly mapError?: ((error: unknown) => ErrorsInput | undefined) | undefined;
-  readonly autoSubmit?: boolean | undefined;
-  readonly resetOnSuccess?: boolean | undefined;
-  /** Whether validation runs at all: not while rendering on the server. */
-  readonly validates: boolean;
-}
-
-interface ExternalError {
-  readonly message: string;
-  readonly source: "submit" | "manual";
-}
-
-/** An instance's state, in one atom. Error maps are keyed by `pathId` of a key path. */
-export interface State {
-  readonly initial: unknown;
-  readonly keys: Keys;
-  readonly touched: ReadonlySet<string>;
-  /** Schema errors on show, by path. A path drops out once its check passes. */
-  readonly revealed: ReadonlySet<string>;
-  /** Paths that have shown an error since the last reset: they follow `revalidateOn`. */
-  readonly shown: ReadonlySet<string>;
-  /** The latest validation run's messages, in the Schema's order. */
-  readonly issues: ReadonlyMap<string, string>;
-  /** The values that run decoded, to tell whether its result is current. */
-  readonly checked: unknown;
-  readonly decoded: Option.Option<unknown>;
-  readonly validating: boolean;
-  readonly external: ReadonlyMap<string, ExternalError>;
-  readonly submitCount: number;
-  readonly validationCount: number;
-  readonly submitting: boolean;
-  readonly submitResult: AsyncResult.AsyncResult<unknown, unknown>;
-  readonly lastSubmitted: Option.Option<{
-    readonly encoded: unknown;
-    readonly decoded: unknown;
-  }>;
-}
+import type {
+  Definition,
+  EngineOptions,
+  ErrorsInput,
+  ExternalError,
+  State,
+  Timing,
+} from "./types.ts";
+import { FormValidationError } from "./validationError.ts";
 
 const ROOT = pathId([]);
 const notChecked = Symbol("notChecked");
@@ -135,10 +55,10 @@ type RunResult =
   | {
       readonly _tag: "Invalid";
       readonly input: RunInput;
-      readonly issues: ReadonlyArray<{
+      readonly issues: readonly {
         readonly path: IndexPath;
         readonly message: string;
-      }>;
+      }[];
     };
 
 const freshState = (initial: unknown, keys: Keys): State => ({
@@ -184,7 +104,7 @@ export class Engine {
   #scheduled = false;
   #pending: KeyPath[] = [];
   #pendingAll = false;
-  #waiters: (() => void)[] = [];
+  #waiters: Deferred.Deferred<undefined>[] = [];
   #seen: { values: unknown; keys: Keys };
   #inflight: Promise<Exit.Exit<unknown, unknown>> | undefined;
   #queued = false;
@@ -214,16 +134,18 @@ export class Engine {
     const run = (input: RunInput): Effect.Effect<RunResult> =>
       decode(input.values, { errors: "all" }).pipe(
         Effect.map((decoded): RunResult => ({ _tag: "Valid", decoded, input })),
-        Effect.catchTag("SchemaError", (error) =>
+        Effect.catchTag("SchemaError", (failure) =>
           Effect.succeed<RunResult>({
             _tag: "Invalid",
             input,
-            issues: toPathIssues(error.issue, definition),
+            issues: toPathIssues(failure.issue, definition),
           })
         )
       );
-    this.#validateAtom = (definition.runtime
-      ? definition.runtime.fn(run)
+    // The runtime provides the services the Schema's checks need; the types were checked in make.
+    const runtime = definition.runtime as Atom.AtomRuntime<never> | undefined;
+    this.#validateAtom = (runtime
+      ? runtime.fn(run)
       : Atom.fn(run)) as unknown as Atom.Writable<
       AsyncResult.AsyncResult<RunResult, unknown>,
       RunInput
@@ -380,8 +302,7 @@ export class Engine {
     const items = Array.isArray(current) ? [...current] : [];
     const keys = [...(state.keys.get(pathId(path)) ?? [])];
     f(items, keys);
-    const nextKeys = new Map(state.keys);
-    nextKeys.set(pathId(path), keys);
+    const nextKeys = new Map([...state.keys, [pathId(path), keys]]);
     this.#update((latest) => ({ ...latest, keys: nextKeys }));
     this.registry.set(
       this.valuesAtom,
@@ -628,26 +549,26 @@ export class Engine {
   }
 
   // Resolves once a run of the current values has settled.
-  #settled(): Promise<void> {
+  #settled(): Promise<undefined> {
     if (!this.options.validates || this.#isCurrent()) {
-      return Promise.resolve();
+      return Promise.resolve(undefined);
     }
     this.#flush();
-    return new Promise((resolve) => {
-      this.#waiters.push(resolve);
-    });
+    const waiter = Deferred.makeUnsafe<undefined>();
+    this.#waiters.push(waiter);
+    return Effect.runPromise(Deferred.await(waiter));
   }
 
   #release(): void {
     const waiters = this.#waiters;
     this.#waiters = [];
-    for (const resolve of waiters) {
-      resolve();
+    for (const waiter of waiters) {
+      Deferred.doneUnsafe(waiter, Effect.undefined);
     }
   }
 
   /** Checks the given paths (all by default), shows their errors, and says whether they passed. */
-  async validate(paths?: ReadonlyArray<string | IndexPath>): Promise<boolean> {
+  async validate(paths?: readonly (string | IndexPath)[]): Promise<boolean> {
     const state = this.#current();
     const keyPaths =
       paths === undefined
@@ -686,20 +607,29 @@ export class Engine {
     if (this.#inflight !== undefined) {
       return this.#inflight;
     }
-    const inflight = this.#submit(args).finally(() => {
-      if (this.#inflight === inflight) {
+    const inflight = this.#submitOnce(args);
+    this.#inflight = inflight;
+    return inflight;
+  }
+
+  async #submitOnce(args: unknown): Promise<Exit.Exit<unknown, unknown>> {
+    const session = this.#session;
+    try {
+      return await this.#submit(args);
+    } finally {
+      // A reset has already let go of this submit.
+      if (session === this.#session) {
         this.#inflight = undefined;
         if (this.#queued) {
           this.#queued = false;
           this.#autoSubmit();
         }
-        if (this.#disposeAfterSubmit) {
-          this.dispose();
-        }
       }
-    });
-    this.#inflight = inflight;
-    return inflight;
+      if (this.#disposeAfterSubmit) {
+        this.#disposeAfterSubmit = false;
+        this.dispose();
+      }
+    }
   }
 
   async #submit(args: unknown): Promise<Exit.Exit<unknown, unknown>> {
@@ -848,7 +778,7 @@ export class Engine {
 
   /** The error to show on a path: from outside the Schema first, then the Schema's once revealed. */
   errorAt(path: KeyPath): string | undefined {
-    const state = this.state;
+    const { state } = this;
     const id = pathId(path);
     const external = state.external.get(id);
     if (external !== undefined) {
@@ -863,7 +793,7 @@ export class Engine {
 
   /** Resolves `relative`, an index path below `base`, to a key path. */
   resolve(base: KeyPath, relative: string | IndexPath): KeyPath {
-    const keys = this.state.keys;
+    const { keys } = this.state;
     const out = [...base];
     for (const segment of toPath(relative)) {
       if (typeof segment === "number") {
@@ -952,345 +882,5 @@ export class Engine {
       release();
     }
     this.#releases = [];
-  }
-}
-
-export class GroupImpl {
-  readonly engine: Engine;
-  readonly keyPath: KeyPath;
-
-  constructor(engine: Engine, keyPath: KeyPath) {
-    this.engine = engine;
-    this.keyPath = keyPath;
-  }
-
-  get path(): IndexPath {
-    return this.engine.indexPath(this.keyPath) ?? [];
-  }
-
-  field(path: string | IndexPath): FieldImpl {
-    return this.engine.field(this.engine.resolve(this.keyPath, path));
-  }
-
-  array(path: string | IndexPath): ArrayImpl {
-    return this.engine.array(this.engine.resolve(this.keyPath, path));
-  }
-
-  at(path: string | IndexPath): GroupImpl {
-    return this.engine.group(this.engine.resolve(this.keyPath, path));
-  }
-}
-
-export class FieldImpl {
-  readonly #engine: Engine;
-  readonly keyPath: KeyPath;
-  readonly #blur = () => this.#engine.blur(this.keyPath);
-
-  constructor(engine: Engine, keyPath: KeyPath) {
-    this.#engine = engine;
-    this.keyPath = keyPath;
-  }
-
-  get path(): IndexPath {
-    return this.#engine.indexPath(this.keyPath) ?? [];
-  }
-
-  get value(): unknown {
-    const index = this.#engine.indexPath(this.keyPath);
-    return index === undefined ? undefined : getIn(this.#engine.values, index);
-  }
-
-  set value(value: unknown) {
-    this.#engine.setField(this.keyPath, value);
-  }
-
-  get error(): string | undefined {
-    return this.#engine.errorAt(this.keyPath);
-  }
-
-  get touched(): boolean {
-    return this.#engine.state.touched.has(pathId(this.keyPath));
-  }
-
-  set touched(touched: boolean) {
-    this.#engine.setTouched(this.keyPath, touched);
-  }
-
-  get dirty(): boolean {
-    const index = this.#engine.indexPath(this.keyPath);
-    return (
-      index !== undefined &&
-      !equals(
-        getIn(this.#engine.values, index),
-        getIn(this.#engine.state.initial, index)
-      )
-    );
-  }
-
-  get validating(): boolean {
-    return this.#engine.state.validating;
-  }
-
-  get id(): string {
-    return this.#engine.elementId(this.keyPath);
-  }
-
-  get errorId(): string {
-    return `${this.id}-error`;
-  }
-
-  get name(): string {
-    return nameOf(this.path);
-  }
-
-  get attrs() {
-    const invalid = this.error !== undefined;
-    return {
-      "aria-describedby": invalid ? this.errorId : undefined,
-      "aria-invalid": invalid ? true : undefined,
-      id: this.id,
-      name: this.name,
-      onblur: this.#blur,
-    } as const;
-  }
-
-  get constraints(): Constraints {
-    return this.#engine.constraints(this.path);
-  }
-
-  /** What leaving the field does, for a custom control with no blur event of its own. */
-  blur(): void {
-    this.#blur();
-  }
-}
-
-export class ArrayImpl {
-  readonly #engine: Engine;
-  readonly keyPath: KeyPath;
-
-  constructor(engine: Engine, keyPath: KeyPath) {
-    this.#engine = engine;
-    this.keyPath = keyPath;
-  }
-
-  get path(): IndexPath {
-    return this.#engine.indexPath(this.keyPath) ?? [];
-  }
-
-  get items(): ReadonlyArray<{
-    readonly key: number;
-    readonly index: number;
-    readonly fields: GroupImpl;
-    readonly field: FieldImpl;
-  }> {
-    const keys = this.#engine.state.keys.get(pathId(this.keyPath)) ?? [];
-    return keys.map((key, index) => ({
-      field: this.#engine.field([...this.keyPath, key]),
-      fields: this.#engine.group([...this.keyPath, key]),
-      index,
-      key,
-    }));
-  }
-
-  get error(): string | undefined {
-    return this.#engine.errorAt(this.keyPath);
-  }
-
-  append(item: unknown): void {
-    this.#engine.updateArray(this.keyPath, (items, keys) => {
-      items.push(item);
-      keys.push(this.#engine.newKey());
-    });
-  }
-
-  remove(index: number): void {
-    this.#engine.updateArray(this.keyPath, (items, keys) => {
-      if (index >= 0 && index < items.length) {
-        items.splice(index, 1);
-        keys.splice(index, 1);
-      }
-    });
-  }
-
-  move(from: number, to: number): void {
-    this.#engine.updateArray(this.keyPath, (items, keys) => {
-      if (
-        from < 0 ||
-        from >= items.length ||
-        to < 0 ||
-        to >= items.length ||
-        from === to
-      ) {
-        return;
-      }
-      items.splice(to, 0, ...items.splice(from, 1));
-      keys.splice(to, 0, ...keys.splice(from, 1));
-    });
-  }
-
-  replace(index: number, item: unknown): void {
-    this.#engine.updateArray(this.keyPath, (items, keys) => {
-      if (index >= 0 && index < items.length) {
-        items[index] = item;
-        // A new item: the old one's errors and touched state don't carry over.
-        keys[index] = this.#engine.newKey();
-      }
-    });
-  }
-}
-
-export class InstanceImpl extends GroupImpl {
-  readonly #onsubmit = (event: Event) => {
-    event.preventDefault();
-    void this.submit().then((exit) => {
-      if (Exit.isFailure(exit)) {
-        const error = Cause.findErrorOption(exit.cause);
-        if (
-          Option.isSome(error) &&
-          error.value instanceof FormValidationError
-        ) {
-          this.focusFirstError();
-        }
-      }
-    });
-  };
-
-  constructor(engine: Engine) {
-    super(engine, []);
-  }
-
-  get values(): unknown {
-    return this.engine.values;
-  }
-
-  get dirty(): boolean {
-    return !equals(this.engine.values, this.engine.state.initial);
-  }
-
-  get valid(): boolean {
-    const state = this.engine.state;
-    return (
-      state.checked === this.engine.values &&
-      !state.validating &&
-      state.issues.size === 0 &&
-      state.external.size === 0
-    );
-  }
-
-  get validating(): boolean {
-    return this.engine.state.validating;
-  }
-
-  get submitting(): boolean {
-    return this.engine.state.submitting;
-  }
-
-  get submitResult(): AsyncResult.AsyncResult<unknown, unknown> {
-    return this.engine.state.submitResult;
-  }
-
-  get rootError(): string | undefined {
-    return this.engine.errorAt([]);
-  }
-
-  get errors(): ReadonlyArray<{
-    readonly path: IndexPath;
-    readonly message: string;
-  }> {
-    const state = this.engine.state;
-    const out: { path: IndexPath; message: string }[] = [];
-    const seen = new Set<string>();
-    const add = (id: string) => {
-      if (seen.has(id)) {
-        return;
-      }
-      seen.add(id);
-      const keyPath = JSON.parse(id) as KeyPath;
-      const message = this.engine.errorAt(keyPath);
-      const path = this.engine.indexPath(keyPath);
-      if (message !== undefined && path !== undefined) {
-        out.push({ message, path });
-      }
-    };
-    add(pathId([]));
-    for (const id of state.issues.keys()) {
-      add(id);
-    }
-    for (const id of state.external.keys()) {
-      add(id);
-    }
-    return out;
-  }
-
-  get submitCount(): number {
-    return this.engine.state.submitCount;
-  }
-
-  get validationCount(): number {
-    return this.engine.state.validationCount;
-  }
-
-  get lastSubmitted(): Option.Option<{
-    readonly encoded: unknown;
-    readonly decoded: unknown;
-  }> {
-    return this.engine.state.lastSubmitted;
-  }
-
-  get dirtySinceSubmit(): boolean {
-    const last = this.engine.state.lastSubmitted;
-    return (
-      Option.isSome(last) && !equals(this.engine.values, last.value.encoded)
-    );
-  }
-
-  get attrs() {
-    return { novalidate: true, onsubmit: this.#onsubmit } as const;
-  }
-
-  submit(args?: unknown): Promise<Exit.Exit<unknown, unknown>> {
-    return this.engine.submit(args);
-  }
-
-  validate(paths?: ReadonlyArray<string | IndexPath>): Promise<boolean> {
-    return this.engine.validate(paths);
-  }
-
-  setValues(values: unknown): void {
-    this.engine.setValues(values);
-  }
-
-  reset(values?: unknown): void {
-    this.engine.reset(values);
-  }
-
-  revertToLastSubmit(): void {
-    this.engine.revertToLastSubmit();
-  }
-
-  setErrors(errors: ErrorsInput): void {
-    this.engine.setErrors(errors, "manual");
-  }
-
-  focusFirstError(): void {
-    if (typeof document === "undefined") {
-      return;
-    }
-    for (const { path } of this.errors) {
-      if (path.length === 0) {
-        continue;
-      }
-      const keyPath = toKeyPath(this.engine.state.keys, path);
-      const element =
-        keyPath && document.getElementById(this.engine.elementId(keyPath));
-      if (element) {
-        element.focus();
-        return;
-      }
-    }
-  }
-
-  dispose(): void {
-    this.engine.dispose();
   }
 }

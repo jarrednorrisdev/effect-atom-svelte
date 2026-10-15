@@ -5,12 +5,12 @@ import type { IndexPath } from "./paths.ts";
 
 /** The attributes `field.constraints` can set. */
 export interface Constraints {
-  readonly required?: boolean;
-  readonly minlength?: number;
-  readonly maxlength?: number;
-  readonly min?: number;
-  readonly max?: number;
-  readonly pattern?: string;
+  readonly required?: boolean | undefined;
+  readonly minlength?: number | undefined;
+  readonly maxlength?: number | undefined;
+  readonly min?: number | undefined;
+  readonly max?: number | undefined;
+  readonly pattern?: string | undefined;
 }
 
 interface Representation {
@@ -20,9 +20,51 @@ interface Representation {
 
 type Check = NonNullable<SchemaAST.AST["checks"]>[number];
 
+type Payload = Readonly<Record<string, unknown>> | undefined;
+
+const finite = (payload: Payload, key: string): number | undefined => {
+  const value = payload?.[key];
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+};
+
 // Effect's built-in checks say what they are in a `representation` annotation (`Schema.ts`, for
 // example `isMinLength`). Only the ones that map exactly onto an HTML attribute are read; exclusive
 // bounds and custom filters are left out.
+const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
+  "effect/schema/isBetween": (payload) => ({
+    max:
+      payload?.["exclusiveMaximum"] === true
+        ? undefined
+        : finite(payload, "maximum"),
+    min:
+      payload?.["exclusiveMinimum"] === true
+        ? undefined
+        : finite(payload, "minimum"),
+  }),
+  "effect/schema/isGreaterThanOrEqualTo": (payload) => ({
+    min: finite(payload, "minimum"),
+  }),
+  "effect/schema/isLessThanOrEqualTo": (payload) => ({
+    max: finite(payload, "maximum"),
+  }),
+  "effect/schema/isMaxLength": (payload) => ({
+    maxlength: finite(payload, "maxLength"),
+  }),
+  "effect/schema/isMinLength": (payload) => ({
+    minlength: finite(payload, "minLength"),
+  }),
+  // HTML patterns match the whole value and take no flags.
+  "effect/schema/isPattern": (payload) => {
+    const source = payload?.["source"];
+    const flags = payload?.["flags"];
+    return typeof source === "string" && (flags === "" || flags === undefined)
+      ? { pattern: source }
+      : {};
+  },
+};
+
 const readCheck = (check: Check, into: Record<string, unknown>): void => {
   if (check._tag === "FilterGroup") {
     for (const inner of check.checks) {
@@ -33,49 +75,17 @@ const readCheck = (check: Check, into: Record<string, unknown>): void => {
   const representation = check.annotations?.["representation"] as
     | Representation
     | undefined;
-  const payload = representation?.payload ?? undefined;
-  const number = (key: string) => {
-    const value = payload?.[key];
-    return typeof value === "number" && Number.isFinite(value)
-      ? value
-      : undefined;
-  };
-  switch (representation?.id) {
-    case "effect/schema/isMinLength": {
-      into["minlength"] = number("minLength");
-      break;
+  const id = representation?.id;
+  const reader = typeof id === "string" ? readers[id] : undefined;
+  if (reader === undefined) {
+    return;
+  }
+  for (const [key, value] of Object.entries(
+    reader(representation?.payload ?? undefined)
+  )) {
+    if (value !== undefined) {
+      into[key] = value;
     }
-    case "effect/schema/isMaxLength": {
-      into["maxlength"] = number("maxLength");
-      break;
-    }
-    case "effect/schema/isGreaterThanOrEqualTo": {
-      into["min"] = number("minimum");
-      break;
-    }
-    case "effect/schema/isLessThanOrEqualTo": {
-      into["max"] = number("maximum");
-      break;
-    }
-    case "effect/schema/isBetween": {
-      if (payload?.["exclusiveMinimum"] !== true) {
-        into["min"] = number("minimum");
-      }
-      if (payload?.["exclusiveMaximum"] !== true) {
-        into["max"] = number("maximum");
-      }
-      break;
-    }
-    case "effect/schema/isPattern": {
-      // HTML patterns match the whole value and take no flags.
-      const source = payload?.["source"];
-      const flags = payload?.["flags"];
-      if (typeof source === "string" && (flags === "" || flags === undefined)) {
-        into["pattern"] = source;
-      }
-      break;
-    }
-    default:
   }
 };
 
@@ -102,7 +112,7 @@ const unwrap = (ast: SchemaAST.AST): SchemaAST.AST => {
   }
   if (SchemaAST.isDeclaration(ast)) {
     const [inner] = (
-      ast as unknown as { typeParameters: ReadonlyArray<SchemaAST.AST> }
+      ast as unknown as { typeParameters: readonly SchemaAST.AST[] }
     ).typeParameters;
     if (inner !== undefined) {
       return unwrap(inner);
@@ -122,7 +132,7 @@ const step = (
   const node = unwrap(ast);
   if (SchemaAST.isUnion(node)) {
     for (const member of (
-      node as unknown as { types: ReadonlyArray<SchemaAST.AST> }
+      node as unknown as { types: readonly SchemaAST.AST[] }
     ).types) {
       const found = step(member, segment);
       if (found !== undefined) {
@@ -133,7 +143,7 @@ const step = (
   }
   if (SchemaAST.isObjects(node) && typeof segment === "string") {
     const property = (
-      node as unknown as { propertySignatures: ReadonlyArray<PropertyLike> }
+      node as unknown as { propertySignatures: readonly PropertyLike[] }
     ).propertySignatures.find((candidate) => candidate.name === segment);
     return property === undefined
       ? undefined
@@ -141,8 +151,8 @@ const step = (
   }
   if (SchemaAST.isArrays(node) && typeof segment === "number") {
     const arrays = node as unknown as {
-      elements: ReadonlyArray<SchemaAST.AST>;
-      rest: ReadonlyArray<SchemaAST.AST>;
+      elements: readonly SchemaAST.AST[];
+      rest: readonly SchemaAST.AST[];
     };
     const element = arrays.elements[segment] ?? arrays.rest[0];
     return element === undefined
@@ -158,7 +168,7 @@ const withoutUndefined = (ast: SchemaAST.AST): SchemaAST.AST => {
     return ast;
   }
   const types = (
-    ast as unknown as { types: ReadonlyArray<SchemaAST.AST> }
+    ast as unknown as { types: readonly SchemaAST.AST[] }
   ).types.filter((member) => member._tag !== "Undefined");
   return types.length === 1 && types[0] !== undefined ? types[0] : ast;
 };
@@ -168,21 +178,24 @@ export const constraintsAt = (
   root: SchemaAST.AST,
   path: IndexPath
 ): Constraints => {
-  let ast = root;
-  let optional = false;
+  let found:
+    | { readonly ast: SchemaAST.AST; readonly optional: boolean }
+    | undefined = {
+    ast: root,
+    optional: false,
+  };
   for (const segment of path) {
-    const next = step(ast, segment);
-    if (next === undefined) {
-      return {};
-    }
-    ast = next.ast;
-    optional = next.optional;
+    found &&= step(found.ast, segment);
   }
+  if (found === undefined) {
+    return {};
+  }
+  const { ast, optional } = found;
   const into: Record<string, unknown> = {};
   readNode(withoutUndefined(ast), into);
   // `required` means "not empty" to a browser, so it is set only where the Schema rejects an empty
   // string: a required key alone allows "", and a checkbox's boolean is always present.
-  const minlength = into["minlength"];
+  const { minlength } = into;
   const out: Record<string, unknown> = {};
   if (!optional && typeof minlength === "number" && minlength >= 1) {
     out["required"] = true;

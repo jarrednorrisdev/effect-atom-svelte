@@ -8,13 +8,14 @@
  */
 import { Duration } from "effect";
 import type { Exit, Option, Schema, SchemaIssue } from "effect";
-import { Atom as AtomModule, AtomRegistry } from "effect/reactivity";
+import { AtomRegistry } from "effect/reactivity";
 import type { AsyncResult, Atom } from "effect/reactivity";
 
 import type { AtomInput } from "./Hooks.svelte.ts";
 import type { Constraints as InternalConstraints } from "./internal/form/constraints.ts";
-import { Engine, FormValidationError } from "./internal/form/engine.ts";
-import type { Definition, EngineOptions } from "./internal/form/engine.ts";
+import { engineOf } from "./internal/form/engineOf.ts";
+import type { Definition } from "./internal/form/types.ts";
+import { FormValidationError } from "./internal/form/validationError.ts";
 
 // A const and a type of the same name, as in Effect's modules.
 /* oxlint-disable eslint/no-redeclare */
@@ -121,9 +122,7 @@ export interface MakeOptionsWithRuntime<R, ER> extends MakeOptions {
 
 const definitionOf = (
   schema: Schema.Top,
-  options: MakeOptions & {
-    readonly runtime?: Atom.AtomRuntime<any, any> | undefined;
-  }
+  options: MakeOptions & { readonly runtime?: unknown }
 ): Definition => ({
   checkHook: options.checkHook,
   debounce:
@@ -168,7 +167,7 @@ export function make<S extends Schema.Top, R, ER>(
 ): Form<S>;
 export function make(
   schema: Schema.Top,
-  options: MakeOptions & { readonly runtime?: Atom.AtomRuntime<any, any> } = {}
+  options: MakeOptions & { readonly runtime?: unknown } = {}
 ): Form<Schema.Top> {
   return {
     [TypeId]: TypeId,
@@ -200,7 +199,7 @@ type Scalar =
   | null
   | undefined
   | Date
-  | ((...args: ReadonlyArray<never>) => unknown);
+  | ((...args: readonly never[]) => unknown);
 
 /**
  * Every path into `T`, as a tuple of object keys and array indexes:
@@ -214,7 +213,7 @@ export type Path<T, D extends number = 8> = [D] extends [never]
   ? never
   : T extends Scalar
     ? never
-    : T extends ReadonlyArray<infer Item>
+    : T extends readonly (infer Item)[]
       ?
           | readonly [number]
           | readonly [number, ...Path<NonNullable<Item>, Depth[D]>]
@@ -237,7 +236,7 @@ export type At<T, P> = P extends readonly []
   ? T
   : P extends readonly [infer Head, ...infer Rest]
     ? T extends unknown
-      ? T extends ReadonlyArray<infer Item>
+      ? T extends readonly (infer Item)[]
         ? Head extends number
           ? At<Rest extends readonly [] ? Item : NonNullable<Item>, Rest>
           : never
@@ -255,15 +254,14 @@ export type At<T, P> = P extends readonly []
  * @category models
  */
 export type Key<T> = T extends unknown
-  ? T extends ReadonlyArray<unknown> | Scalar
+  ? T extends readonly unknown[] | Scalar
     ? never
     : T extends object
       ? keyof T & string
       : never
   : never;
 
-type ItemOf<V> =
-  NonNullable<V> extends ReadonlyArray<infer Item> ? Item : never;
+type ItemOf<V> = NonNullable<V> extends readonly (infer Item)[] ? Item : never;
 
 /**
  * A path as the form reports it, such as in `errors`: object keys and array indexes.
@@ -272,7 +270,7 @@ type ItemOf<V> =
  * @since 0.4.0
  * @category models
  */
-export type AnyPath = ReadonlyArray<string | number>;
+export type AnyPath = readonly (string | number)[];
 
 // ── fields ────────────────────────────────────────────────────────────────────────────────────
 
@@ -333,7 +331,7 @@ export interface Field<V> {
   readonly attrs: FieldAttrs;
   readonly constraints: Constraints;
   /** What leaving the field does, for a custom control that has no blur event. */
-  blur(): void;
+  readonly blur: () => void;
 }
 
 /**
@@ -361,15 +359,15 @@ export interface ArrayItem<I> {
  * @category models
  */
 export interface ArrayField<I> {
-  readonly items: ReadonlyArray<ArrayItem<I>>;
+  readonly items: readonly ArrayItem<I>[];
   /** An error on the array itself, such as from a check on its length. */
   readonly error: string | undefined;
   readonly path: AnyPath;
-  append(item: I): void;
-  remove(index: number): void;
-  move(from: number, to: number): void;
+  readonly append: (item: I) => void;
+  readonly remove: (index: number) => void;
+  readonly move: (from: number, to: number) => void;
   /** Puts a new item at `index`: the old item's errors and touched state go with it. */
-  replace(index: number, item: I): void;
+  readonly replace: (index: number, item: I) => void;
 }
 
 /**
@@ -382,12 +380,21 @@ export interface ArrayField<I> {
  */
 export interface Group<T> {
   readonly path: AnyPath;
-  field<K extends Key<T>>(key: K): Field<At<T, readonly [K]>>;
-  field<const P extends Path<T>>(path: P): Field<At<T, P>>;
-  array<K extends Key<T>>(key: K): ArrayField<ItemOf<At<T, readonly [K]>>>;
-  array<const P extends Path<T>>(path: P): ArrayField<ItemOf<At<T, P>>>;
-  at<K extends Key<T>>(key: K): Group<NonNullable<At<T, readonly [K]>>>;
-  at<const P extends Path<T>>(path: P): Group<NonNullable<At<T, P>>>;
+  /** A field by top-level key, or by path: `field("email")`, `field(["items", 0, "qty"])`. */
+  readonly field: {
+    <K extends Key<T>>(key: K): Field<At<T, readonly [K]>>;
+    <const P extends Path<T>>(path: P): Field<At<T, P>>;
+  };
+  /** An array field, by top-level key or by path. */
+  readonly array: {
+    <K extends Key<T>>(key: K): ArrayField<ItemOf<At<T, readonly [K]>>>;
+    <const P extends Path<T>>(path: P): ArrayField<ItemOf<At<T, P>>>;
+  };
+  /** The fields under a key or path, as a group to hand to a component. */
+  readonly at: {
+    <K extends Key<T>>(key: K): Group<NonNullable<At<T, readonly [K]>>>;
+    <const P extends Path<T>>(path: P): Group<NonNullable<At<T, P>>>;
+  };
 }
 
 // ── the instance ──────────────────────────────────────────────────────────────────────────────
@@ -401,8 +408,10 @@ export interface Group<T> {
  * @category models
  */
 export interface Errors<T> {
-  readonly fields?: { readonly [K in Key<T>]?: string | undefined } | undefined;
-  readonly paths?: ReadonlyArray<readonly [Path<T>, string]> | undefined;
+  readonly fields?:
+    | Readonly<Partial<Record<Key<T>, string | undefined>>>
+    | undefined;
+  readonly paths?: readonly (readonly [Path<T>, string])[] | undefined;
   readonly form?: string | undefined;
 }
 
@@ -419,6 +428,7 @@ export interface ErrorEntry {
   readonly message: string;
 }
 
+/* oxlint-disable eslint/no-redeclare */
 /**
  * Why `submit` didn't call the submit atom: the values didn't decode. `errors` lists what showed.
  *
@@ -436,6 +446,7 @@ export const ValidationError = FormValidationError;
  * @category errors
  */
 export type ValidationError = FormValidationError;
+/* oxlint-enable eslint/no-redeclare */
 
 /**
  * The attributes `form.attrs` spreads on a `<form>`: `novalidate`, so the browser's own bubbles
@@ -472,7 +483,7 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   /** A form-level error: `mapError`'s `form`, or a Schema check with no path, once submitted. */
   readonly rootError: string | undefined;
   /** Every error on show, in the Schema's order, for an error summary. */
-  readonly errors: ReadonlyArray<ErrorEntry>;
+  readonly errors: readonly ErrorEntry[];
   readonly submitCount: number;
   readonly validationCount: number;
   /** The values of the last successful submit, encoded and decoded. */
@@ -488,20 +499,22 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
    * call while a submit runs gets that submit's result. A submit that settles after a reset doesn't
    * touch the fresh form.
    */
-  submit(
-    ...args: [Args] extends [void] ? [] : [args: Args]
-  ): Promise<Exit.Exit<A, E | ValidationError>>;
+  readonly submit: (
+    ...args: [Args] extends [undefined] ? [] : [args: Args]
+  ) => Promise<Exit.Exit<A, E | ValidationError>>;
   /** Shows the errors under these paths, all by default, and resolves whether they passed. */
-  validate(paths?: ReadonlyArray<Key<T> | Path<T>>): Promise<boolean>;
+  readonly validate: (
+    paths?: readonly (Key<T> | Path<T>)[]
+  ) => Promise<boolean>;
   /** Sets several values at once. Not counted as input, so no error is revealed. */
-  setValues(values: T | ((previous: T) => T)): void;
+  readonly setValues: (values: T | ((previous: T) => T)) => void;
   /** Back to the initial values, or to `values`, which become the initial values. */
-  reset(values?: T): void;
-  revertToLastSubmit(): void;
+  readonly reset: (values?: T) => void;
+  readonly revertToLastSubmit: () => void;
   /** Puts errors on fields, or on the form. Each clears when its field changes, or on reset. */
-  setErrors(errors: Errors<T>): void;
+  readonly setErrors: (errors: Errors<T>) => void;
   /** Focuses the first field with an error, by the ids in `field.attrs`. */
-  focusFirstError(): void;
+  readonly focusFirstError: () => void;
 }
 
 /**
@@ -568,7 +581,9 @@ export interface InstanceOptions<
    */
   readonly mapError?: ((error: E) => Errors<T> | undefined) | undefined;
   /** Submit after each change that validates. Only for a submit that takes no arguments. */
-  readonly autoSubmit?: ([Args] extends [void] ? boolean : never) | undefined;
+  readonly autoSubmit?:
+    | ([Args] extends [undefined] ? boolean : never)
+    | undefined;
 }
 
 /**
@@ -583,51 +598,6 @@ export interface ValidateOnlyOptions<T> extends BaseInstanceOptions<T> {
   readonly submit?: undefined;
   readonly autoSubmit?: boolean | undefined;
 }
-
-/** @internal */
-export const engineOf = (
-  form: Form<Schema.Top>,
-  options: {
-    readonly registry: AtomRegistry.AtomRegistry;
-    readonly initialValues: unknown;
-    readonly validates: boolean;
-    readonly id: string;
-    readonly values?: Atom.Writable<any, any> | undefined;
-    readonly submit?:
-      | { readonly atom: unknown; readonly payload?: unknown }
-      | undefined;
-    readonly mapError?: unknown;
-    readonly autoSubmit?: boolean | undefined;
-    readonly resetOnSuccess?: boolean | undefined;
-  }
-): Engine => {
-  const submit = options.submit;
-  const atom = submit?.atom;
-  return new Engine(form.definition, {
-    autoSubmit: options.autoSubmit,
-    id: options.id,
-    initialValues: options.initialValues,
-    mapError: options.mapError as EngineOptions["mapError"],
-    registry: options.registry,
-    resetOnSuccess: options.resetOnSuccess,
-    submit:
-      submit === undefined
-        ? undefined
-        : {
-            atom: (typeof atom === "function" && !AtomModule.isAtom(atom)
-              ? atom
-              : () => atom) as () => Atom.Writable<
-              AsyncResult.AsyncResult<unknown, unknown>,
-              unknown
-            >,
-            payload: submit.payload as
-              | ((decoded: unknown, args: unknown) => unknown)
-              | undefined,
-          },
-    validates: options.validates,
-    values: options.values,
-  });
-};
 
 /**
  * Creates a form instance without Svelte, for tests and code outside components. It lives in
@@ -650,19 +620,21 @@ export const engineOf = (
  * @since 0.4.0
  * @category constructors
  */
-export function instance<F extends Form<Schema.Top>, A, E, W, Args = void>(
+export function instance<F extends Form<Schema.Top>, A, E, W, Args = undefined>(
   form: F,
   options: InstanceOptions<Encoded<F>, Decoded<F>, A, E, W, Args> & {
     readonly registry?: AtomRegistry.AtomRegistry | undefined;
   }
-): Instance<Encoded<F>, Decoded<F>, A, E, Args> & { dispose(): void };
+): Instance<Encoded<F>, Decoded<F>, A, E, Args> & {
+  readonly dispose: () => void;
+};
 export function instance<F extends Form<Schema.Top>>(
   form: F,
   options: ValidateOnlyOptions<Encoded<F>> & {
     readonly registry?: AtomRegistry.AtomRegistry | undefined;
   }
-): Instance<Encoded<F>, Decoded<F>, Decoded<F>, never, void> & {
-  dispose(): void;
+): Instance<Encoded<F>, Decoded<F>, Decoded<F>, never, undefined> & {
+  readonly dispose: () => void;
 };
 export function instance(
   form: Form<Schema.Top>,

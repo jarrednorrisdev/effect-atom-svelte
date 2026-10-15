@@ -7,13 +7,13 @@
 // strings (object keys) and numbers (an index, or an item key).
 
 /** A path into a form's values: object keys, and numbers for array indexes. */
-export type IndexPath = ReadonlyArray<string | number>;
+export type IndexPath = readonly (string | number)[];
 
 /** A path with each array index replaced by that item's key. */
-export type KeyPath = ReadonlyArray<string | number>;
+export type KeyPath = readonly (string | number)[];
 
 /** Item keys per array, by the array's key path (as `pathId`). */
-export type Keys = ReadonlyMap<string, ReadonlyArray<number>>;
+export type Keys = ReadonlyMap<string, readonly number[]>;
 
 /** A string for a key path, to use as a map key. */
 export const pathId = (path: KeyPath): string => JSON.stringify(path);
@@ -115,8 +115,8 @@ export const reconcileKeys = (
   values: unknown,
   previous: Keys,
   next: () => number
-): Map<string, ReadonlyArray<number>> => {
-  const out = new Map<string, ReadonlyArray<number>>();
+): Map<string, readonly number[]> => {
+  const out = new Map<string, readonly number[]>();
   const walk = (value: unknown, path: KeyPath) => {
     if (Array.isArray(value)) {
       const id = pathId(path);

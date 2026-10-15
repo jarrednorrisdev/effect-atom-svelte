@@ -4,8 +4,9 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
 import { Form } from "../src/index.ts";
+import { sleep } from "./helpers.ts";
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const tick = () => sleep(0);
 
 const SignIn = Form.make(
   Schema.Struct({
@@ -106,14 +107,14 @@ describe("validation timing", () => {
 
 describe("messages", () => {
   const Reset = Schema.Struct({
-    password: Schema.String.check(Schema.isMinLength(8)),
     confirmPassword: Schema.String,
+    password: Schema.String.check(Schema.isMinLength(8)),
   }).check(
     Schema.makeFilter(
       ({ password, confirmPassword }) =>
         password === confirmPassword || {
-          path: ["confirmPassword"],
           issue: "Mismatch",
+          path: ["confirmPassword"],
         },
       { message: "Passwords do not match" }
     )
@@ -139,8 +140,8 @@ describe("messages", () => {
   });
 });
 
-class Taken extends Data.TaggedError("Taken")<{}> {}
-class Boom extends Data.TaggedError("Boom")<{}> {}
+class Taken extends Data.TaggedError("Taken")<{ readonly email: string }> {}
+class Boom extends Data.TaggedError("Boom")<{ readonly reason: string }> {}
 
 describe("submit", () => {
   test("success adopts the submitted values as initial values", async () => {
@@ -164,7 +165,9 @@ describe("submit", () => {
   });
 
   test("mapError claims a failure onto a field, and an edit clears it", async () => {
-    const save = Atom.fn((_: { email: string }) => Effect.fail(new Taken()));
+    const save = Atom.fn((input: { email: string }) =>
+      Effect.fail(new Taken(input))
+    );
     const form = Form.instance(SignIn, {
       id: "s",
       initialValues: { email: "ada@example.com", password: "x" },
@@ -181,7 +184,9 @@ describe("submit", () => {
   });
 
   test("an unclaimed failure stays in submitResult", async () => {
-    const save = Atom.fn((_: { email: string }) => Effect.fail(new Boom()));
+    const save = Atom.fn((input: { email: string }) =>
+      Effect.fail(new Boom({ reason: input.email }))
+    );
     const form = Form.instance(SignIn, {
       id: "s",
       initialValues: { email: "ada@example.com", password: "x" },
@@ -219,7 +224,7 @@ describe("submit", () => {
   });
 
   test("a submit that settles after a reset leaves the fresh form alone", async () => {
-    const save = Atom.fn((_: { email: string }) =>
+    const save = Atom.fn<{ email: string }>()(() =>
       Effect.sleep("10 millis").pipe(Effect.as("saved"))
     );
     const form = Form.instance(SignIn, {
@@ -297,12 +302,12 @@ describe("constraints", () => {
   test("lengths, ranges and patterns come from the Schema's checks", () => {
     const Preset = Form.make(
       Schema.Struct({
-        name: Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(40)),
-        width: Schema.NumberFromString.check(
-          Schema.isBetween({ minimum: 16, maximum: 12000 })
-        ),
         code: Schema.optional(
           Schema.String.check(Schema.isPattern(/[A-Z]{3}/u))
+        ),
+        name: Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(40)),
+        width: Schema.NumberFromString.check(
+          Schema.isBetween({ maximum: 12_000, minimum: 16 })
         ),
       })
     );
@@ -315,7 +320,7 @@ describe("constraints", () => {
       minlength: 1,
       required: true,
     });
-    expect(form.field("width").constraints).toEqual({ max: 12000, min: 16 });
+    expect(form.field("width").constraints).toEqual({ max: 12_000, min: 16 });
     expect(form.field("code").constraints).toEqual({});
     form.dispose();
   });
@@ -324,18 +329,18 @@ describe("constraints", () => {
 describe("unions", () => {
   const Model = Form.make(
     Schema.Struct({
-      name: Schema.NonEmptyString,
       body: Schema.Union([
         Schema.Struct({
-          gender: Schema.Literal("Female"),
           dressSize: Schema.NonEmptyString,
+          gender: Schema.Literal("Female"),
         }),
         Schema.Struct({
-          gender: Schema.Literal("Male"),
           chest: Schema.NonEmptyString,
+          gender: Schema.Literal("Male"),
           waist: Schema.NonEmptyString,
         }),
       ]),
+      name: Schema.NonEmptyString,
     })
   );
 
@@ -368,6 +373,126 @@ describe("registry", () => {
     });
     form.field("email").value = "a";
     expect(form.values.email).toBe("a");
+    form.dispose();
+  });
+});
+
+describe("more instance options", () => {
+  const Settings = Form.make(Schema.Struct({ name: Schema.NonEmptyString }));
+
+  test("autoSubmit submits each valid change, queuing the latest while one runs", async () => {
+    const saved: string[] = [];
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.sleep("10 millis").pipe(Effect.map(() => saved.push(input.name)))
+    );
+    const form = Form.instance(Settings, {
+      autoSubmit: true,
+      id: "a",
+      initialValues: { name: "Ada" },
+      submit: { atom: save },
+    });
+    await tick();
+    expect(saved).toEqual([]);
+    form.field("name").value = "Bo";
+    await tick();
+    form.field("name").value = "Bob";
+    await tick();
+    form.field("name").value = "";
+    await tick();
+    form.field("name").value = "Bobby";
+    await sleep("60 millis");
+    expect(saved).toEqual(["Bo", "Bobby"]);
+    form.dispose();
+  });
+
+  test("values can live in an atom the caller owns", () => {
+    const draft = Atom.make({ name: "Draft" });
+    const registry = AtomRegistry.make();
+    const form = Form.instance(Settings, {
+      id: "v",
+      initialValues: { name: "" },
+      registry,
+      values: draft,
+    });
+    expect(form.field("name").value).toBe("Draft");
+    form.field("name").value = "Edited";
+    expect(registry.get(draft)).toEqual({ name: "Edited" });
+    expect(form.dirty).toBe(true);
+    form.dispose();
+  });
+
+  test("a manual error clears when its field changes, and a form error on reset", () => {
+    const form = Form.instance(Settings, {
+      id: "m",
+      initialValues: { name: "Ada" },
+    });
+    form.setErrors({ fields: { name: "Taken" }, form: "Try again" });
+    expect(form.field("name").error).toBe("Taken");
+    expect(form.rootError).toBe("Try again");
+    expect(form.valid).toBe(false);
+    form.field("name").value = "Bo";
+    expect(form.field("name").error).toBeUndefined();
+    expect(form.rootError).toBe("Try again");
+    form.reset();
+    expect(form.rootError).toBeUndefined();
+    form.dispose();
+  });
+
+  test("resetOnSuccess goes back to the initial values but keeps the result", async () => {
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.succeed(input.name)
+    );
+    const form = Form.instance(Settings, {
+      id: "r",
+      initialValues: { name: "" },
+      resetOnSuccess: true,
+      submit: { atom: save },
+    });
+    form.field("name").value = "New";
+    await form.submit();
+    expect(form.values.name).toBe("");
+    expect(AsyncResult.isSuccess(form.submitResult)).toBe(true);
+    expect(form.submitCount).toBe(0);
+    form.dispose();
+  });
+
+  test("revertToLastSubmit and dirtySinceSubmit follow the last success", async () => {
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.succeed(input.name)
+    );
+    const form = Form.instance(Settings, {
+      id: "l",
+      initialValues: { name: "Ada" },
+      submit: { atom: save },
+    });
+    form.field("name").value = "Bo";
+    await form.submit();
+    form.field("name").value = "Cy";
+    expect(form.dirtySinceSubmit).toBe(true);
+    form.revertToLastSubmit();
+    expect(form.values.name).toBe("Bo");
+    expect(form.dirtySinceSubmit).toBe(false);
+    form.dispose();
+  });
+
+  test("a group addresses the fields under a path", () => {
+    const Address = Schema.Struct({
+      city: Schema.String,
+      street: Schema.String,
+    });
+    const Person = Form.make(
+      Schema.Struct({ address: Address, name: Schema.String })
+    );
+    const form = Form.instance(Person, {
+      id: "g",
+      initialValues: { address: { city: "Paris", street: "" }, name: "" },
+    });
+    const address: Form.Group<{
+      readonly street: string;
+      readonly city: string;
+    }> = form.at("address");
+    expect(address.field("city").value).toBe("Paris");
+    expect(address.field("city").id).toBe("g-address-city");
     form.dispose();
   });
 });
