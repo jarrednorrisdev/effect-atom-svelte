@@ -254,7 +254,8 @@ export class Engine {
   // from outside the Schema clear where their field's value changed, a form-level one on any
   // change, and validation runs again.
   #onValues(next: unknown): void {
-    if (next !== this.#fieldWrite) {
+    // Compared by content: a derived `values` atom hands back a copy of what was written.
+    if (!equals(next, this.#fieldWrite)) {
       this.#editing = undefined;
     }
     const previous = this.#seen;

@@ -504,6 +504,31 @@ describe("more instance options", () => {
     form.dispose();
   });
 
+  test("typing through a derived values atom keeps the field's own timing", async () => {
+    const source = Atom.make({ name: "Ada" });
+    // Each read builds a new object, as a derived atom does.
+    const copying = Atom.writable(
+      (get) => ({ ...get(source) }),
+      (ctx, value: { name: string }) => {
+        ctx.set(source, value);
+      }
+    );
+    const form = Form.instance(Settings, {
+      id: "d2",
+      initialValues: { name: "Ada" },
+      registry: AtomRegistry.make(),
+      values: copying,
+    });
+    await tick();
+    const name = form.field("name");
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    name.blur();
+    name.value = "";
+    await tick();
+    expect(name.error).toBeUndefined();
+    form.dispose();
+  });
+
   test("a manual error clears when its field changes, and a form error with it", () => {
     const form = Form.instance(Settings, {
       id: "m",
