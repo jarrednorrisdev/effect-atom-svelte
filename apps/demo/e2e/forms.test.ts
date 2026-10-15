@@ -12,6 +12,9 @@ const pageErrors = (page: Page) => {
 /** Opens the Forms page once it has hydrated. */
 const openForms = async (page: Page) => {
   await page.goto("/forms");
+  // Typed before hydration, a title can be lost (WebKit on CI): wait
+  // for the layout's mark, as the other e2e tests do.
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
   await page.waitForLoadState("networkidle");
 };
 
@@ -195,6 +198,7 @@ test.describe("Forms page", () => {
       let accept = false;
       const dialogs = answerDialogs(page, () => accept);
       await page.goto("/mutations");
+      await expect(page.locator("html[data-hydrated]")).toBeAttached();
       await page.waitForLoadState("networkidle");
       await page
         .getByRole("navigation", { name: "Docs" })
