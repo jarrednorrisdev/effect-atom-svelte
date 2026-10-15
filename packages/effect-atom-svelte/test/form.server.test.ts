@@ -1,5 +1,5 @@
 // Form instances without Svelte: values, validation timing, submit and arrays.
-import { Cause, Data, Effect, Exit, Option, Schema } from "effect";
+import { Cause, Data, Effect, Exit, Layer, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
@@ -140,6 +140,7 @@ describe("messages", () => {
   });
 });
 
+class Down extends Data.TaggedError("Down")<{ readonly reason: string }> {}
 class Taken extends Data.TaggedError("Taken")<{ readonly email: string }> {}
 class Boom extends Data.TaggedError("Boom")<{ readonly reason: string }> {}
 
@@ -756,6 +757,30 @@ describe("found in review, round 1", () => {
       AsyncResult.isFailure(form.submitResult) &&
         Cause.hasDies(form.submitResult.cause)
     ).toBe(true);
+    form.dispose();
+  });
+
+  test("a runtime that fails with a typed error ends the submit as a defect, outside the submit's error type", async () => {
+    // The layer fails with Down, an error the form's types know nothing about.
+    const broken = Atom.runtime(
+      Layer.effectDiscard(Effect.fail(new Down({ reason: "no database" })))
+    );
+    const WithRuntime = Form.make(Schema.Struct({ name: Schema.String }), {
+      runtime: broken,
+    });
+    const form = Form.instance(WithRuntime, {
+      id: "r6",
+      initialValues: { name: "Ada" },
+    });
+    const exit = await quiet(() => settled(form.submit()));
+    expect(exit !== "timed out" && Exit.isFailure(exit)).toBe(true);
+    const result = form.submitResult;
+    expect(AsyncResult.isFailure(result)).toBe(true);
+    if (AsyncResult.isFailure(result)) {
+      expect(Cause.hasDies(result.cause)).toBe(true);
+      expect(Cause.hasFails(result.cause)).toBe(false);
+      expect(Cause.squash(result.cause)).toBeInstanceOf(Down);
+    }
     form.dispose();
   });
 
