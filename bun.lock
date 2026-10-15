@@ -88,7 +88,7 @@
     },
     "packages/effect-atom-svelte": {
       "name": "effect-atom-svelte",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "dependencies": {
         "esm-env": "^1.2.2",
       },
@@ -119,7 +119,7 @@
     },
     "packages/effect-atom-svelte-devtools": {
       "name": "effect-atom-svelte-devtools",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.13",
         "acorn": "^8.18.0",
@@ -140,7 +140,7 @@
       },
       "peerDependencies": {
         "effect": "~4.0.0",
-        "effect-atom-svelte": "^0.3.0",
+        "effect-atom-svelte": "^0.4.0",
         "svelte": "^5.57.2",
         "vite": ">=5.0.0",
       },

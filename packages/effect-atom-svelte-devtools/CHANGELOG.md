@@ -1,5 +1,18 @@
 # effect-atom-svelte-devtools
 
+## 0.3.0
+
+### Minor Changes
+
+- 85d302a: The Vite plugin names a form from `Form.make` after the variable it's declared as (#60), so a form instance's atoms show in the panel and the docs graph as `SignUp.values`, `SignUp.state` and `SignUp.check` rather than by number.
+
+### Patch Changes
+
+- b5033af: Internal tidy-ups from stricter, type-aware linting: fewer type assertions, and Effect 4.0.5's public registry members in place of private ones. No change to the API or behaviour.
+- Updated dependencies [85d302a]
+- Updated dependencies [b5033af]
+  - effect-atom-svelte@0.4.0
+
 ## 0.2.2
 
 ### Patch Changes
