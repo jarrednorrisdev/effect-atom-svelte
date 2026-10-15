@@ -104,6 +104,36 @@ describe("validation timing", () => {
     form.dispose();
   });
 
+  test("setValues shows a touched field's error at once, and an untouched one's waits", async () => {
+    const form = signIn();
+    form.setValues({ email: "ada@example.com", password: "x" });
+    await tick();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    form.field("email").blur();
+    form.setValues({ email: "ada", password: "" });
+    await tick();
+    expect(form.field("email").error).toBe("Enter a valid email");
+    expect(form.field("password").error).toBeUndefined();
+    form.dispose();
+  });
+
+  test("revertToLastSubmit counts as a change made in code", async () => {
+    const form = signIn();
+    form.setValues({ email: "ada@example.com", password: "x" });
+    await tick();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    form.field("email").blur();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    form.field("password").blur();
+    form.field("password").value = "xy";
+    await tick();
+    form.revertToLastSubmit();
+    await tick();
+    expect(form.field("email").error).toBe("Enter a valid email");
+    expect(form.field("password").error).toBe("Enter your password");
+    form.dispose();
+  });
+
   test("validate(paths) shows only those paths", async () => {
     const form = signIn();
     await expect(form.validate(["email"])).resolves.toBe(false);

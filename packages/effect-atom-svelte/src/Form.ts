@@ -583,8 +583,9 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
     paths?: readonly (Key<T> | Path<T>)[]
   ) => Promise<boolean>;
   /**
-   * Sets several values at once. Not counted as input, so no error is revealed. Like any change,
-   * it clears external errors where values changed.
+   * Sets several values at once. Not counted as input on any field, so an untouched field's error
+   * waits for its own timing; a touched field whose check it breaks shows its error at once, as
+   * after another field's change. Like any change, it clears external errors where values changed.
    */
   readonly setValues: (values: T | ((previous: T) => T)) => void;
   /**

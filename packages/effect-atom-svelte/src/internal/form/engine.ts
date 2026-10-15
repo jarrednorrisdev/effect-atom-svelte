@@ -419,6 +419,7 @@ export class Engine {
   }
 
   revertToLastSubmit(): void {
+    this.#editing = undefined;
     const state = this.#current();
     this.registry.set(
       this.valuesAtom,
