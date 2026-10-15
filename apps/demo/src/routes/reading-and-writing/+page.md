@@ -74,6 +74,8 @@ Because `current` is assignable, `bind:` works too:
 <input bind:value={name.current} />
 ```
 
+For a whole form, with validation and errors, see [Forms](/forms).
+
 ## Writing
 
 `useAtomSet` returns a setter. Call it with a new value, or with a function that receives the current value and returns the next one:

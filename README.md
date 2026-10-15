@@ -199,6 +199,16 @@ Types: [`AtomInput`](https://atom.jarrednorris.dev/reference/Hooks#AtomInput), [
 
 Types: [`RegistryOptions`](https://atom.jarrednorris.dev/reference/RegistryContext#RegistryOptions), [`ProvideRegistryOptions`](https://atom.jarrednorris.dev/reference/RegistryContext#ProvideRegistryOptions), [`ProvideRegistryCommon`](https://atom.jarrednorris.dev/reference/RegistryContext#ProvideRegistryCommon), [`ProvideNewRegistry`](https://atom.jarrednorris.dev/reference/RegistryContext#ProvideNewRegistry), [`ProvideExistingRegistry`](https://atom.jarrednorris.dev/reference/RegistryContext#ProvideExistingRegistry).
 
+### Forms
+
+| Export | What it does |
+| --- | --- |
+| [`Form.make`](https://atom.jarrednorris.dev/reference/Form#make) | Defines a form from one Effect Schema: its encoded side is what inputs hold, its decoded side what a submit sends. |
+| [`useForm`](https://atom.jarrednorris.dev/reference/Hooks#useForm) | Creates an instance of a form in a component: fields to bind, errors that show at the right time, and a submit that writes a mutation. |
+| [`Form.instance`](https://atom.jarrednorris.dev/reference/Form#instance) | The same instance without Svelte, for tests. |
+
+Types: [`Form.Instance`](https://atom.jarrednorris.dev/reference/Form#Instance), [`Form.Field`](https://atom.jarrednorris.dev/reference/Form#Field), [`Form.ArrayField`](https://atom.jarrednorris.dev/reference/Form#ArrayField), [`Form.Group`](https://atom.jarrednorris.dev/reference/Form#Group), [`Form.Errors`](https://atom.jarrednorris.dev/reference/Form#Errors), [`Form.ValidationError`](https://atom.jarrednorris.dev/reference/Form#ValidationError), and the rest on the [Form](https://atom.jarrednorris.dev/reference/Form) page.
+
 ### Scoped atoms
 
 | Export | What it does |
@@ -213,8 +223,9 @@ Types: [`ScopedAtom.ScopedAtom`](https://atom.jarrednorris.dev/reference/ScopedA
 | --- | --- |
 | [`handleClientError`](https://atom.jarrednorris.dev/reference/SvelteKit#handleClientError) | A client `handleError` hook that keeps the message and `_tag` of errors your code throws. |
 | [`handleServerError`](https://atom.jarrednorris.dev/reference/SvelteKit#handleServerError) | A server `handleError` hook that keeps the `_tag`, but not the message, which could expose details of the server. |
+| [`useUnsavedChangesGuard`](https://atom.jarrednorris.dev/reference/SvelteKit#useUnsavedChangesGuard) | Asks before leaving a page whose form has unsaved changes. |
 
-Types: [`CaughtError`](https://atom.jarrednorris.dev/reference/SvelteKit#CaughtError), [`EffectErrorBody`](https://atom.jarrednorris.dev/reference/SvelteKit#EffectErrorBody).
+Types: [`CaughtError`](https://atom.jarrednorris.dev/reference/SvelteKit#CaughtError), [`EffectErrorBody`](https://atom.jarrednorris.dev/reference/SvelteKit#EffectErrorBody), [`UnsavedChangesGuardOptions`](https://atom.jarrednorris.dev/reference/SvelteKit#UnsavedChangesGuardOptions).
 
 ### Re-exported from `effect/reactivity`
 

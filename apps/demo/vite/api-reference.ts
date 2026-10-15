@@ -113,6 +113,19 @@ const moduleName = (file: string) => file.replace(/(?:\.svelte)?\.ts$/u, "");
  * missing from its page, fails the build.
  */
 const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  Form: {
+    ArrayField: "/forms#arrays",
+    ArrayItem: "/forms#arrays",
+    Errors: "/forms#server-errors-on-fields",
+    Field: "/forms#fields",
+    Group: "/forms#groups-of-fields",
+    Instance: "/forms#creating-an-instance",
+    MakeOptions: "/forms#when-errors-show",
+    SubmitOptions: "/forms#submitting",
+    ValidationError: "/forms#submitting",
+    instance: "/forms#without-svelte",
+    make: "/forms#defining-a-form",
+  },
   Hooks: {
     AtomInput: "/reading-and-writing#following-a-different-atom",
     AtomState: "/reading-and-writing",
@@ -133,6 +146,7 @@ const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     useAtomSubscribe: "/reading-and-writing#running-code-on-every-change",
     useAtomSuspense: "/suspense",
     useAtomValue: "/reading-and-writing#reading",
+    useForm: "/forms#creating-an-instance",
   },
   RegistryContext: {
     ProvideExistingRegistry: "/installation#registry-options",
@@ -152,8 +166,10 @@ const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   SvelteKit: {
     CaughtError: "/sveltekit#errors-in-boundaries",
     EffectErrorBody: "/sveltekit#errors-in-boundaries",
+    UnsavedChangesGuardOptions: "/forms#asking-before-leaving",
     handleClientError: "/sveltekit#errors-in-boundaries",
     handleServerError: "/sveltekit#errors-in-boundaries",
+    useUnsavedChangesGuard: "/forms#asking-before-leaving",
   },
   index: {
     AsyncResult: "/async-atoms#asyncresult",
@@ -162,6 +178,7 @@ const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     AtomRef: "/refs",
     AtomRegistry: "/installation#add-a-registry",
     AtomRpc: "/rpc",
+    Form: "/forms",
     Hooks: "/reading-and-writing",
     Hydration: "/hydration",
     HydrationBoundary: "/hydration#hydrationboundary",

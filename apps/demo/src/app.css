@@ -717,6 +717,15 @@ html {
   & input[type="checkbox"] {
     accent-color: var(--brand);
   }
+  /* A field a form marks invalid (the Forms page), and the message under it. */
+  & :where(input, textarea)[aria-invalid="true"] {
+    border-color: var(--tone-failure);
+  }
+  & .field-error {
+    color: var(--tone-failure-text);
+    font-size: 0.8125rem;
+    margin: 0.125rem 0 0;
+  }
   & :where(button, select, input, textarea):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 1px;

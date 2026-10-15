@@ -277,6 +277,8 @@ The hooks need a component's context, but not its markup. A class in a `.svelte.
 
 Create it at the top level of the script, not in an event handler or after an `await` inside a function. See [can only be used during component initialisation](/troubleshooting#can-only-be-used-during-component-initialisation).
 
+This suits logic around a few hooks. For a form with fields, validation and errors from the server, use [Forms](/forms), whose instances work the same way: create one in a component, and pass it down.
+
 ### Write atoms from a plain function
 
 `getRegistry()` returns the registry the hooks use. Call it while the component initializes, and keep the result for later, for example to read or write atoms from code that isn't reactive:

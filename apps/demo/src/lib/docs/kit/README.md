@@ -7,7 +7,7 @@ Small components that make the live examples clear and fun to use, after [effect
 Take the quality, not a checklist. Add a piece only when it helps the reader see what the section teaches, and leave out any control that would do nothing meaningful.
 
 - A counter needs clear feedback (`FlashValue`), not Run, Interrupt or a timeline.
-- A form needs good pending and error states (`StateBadge`, `ResultChip`), not Play / Restart.
+- A form needs good pending and error states (`StateBadge`, `ResultChip`), not Play / Restart. A form built with `useForm` shows its field errors with the `.field-error` class from `app.css`, as the [Forms](/forms) page does.
 - An async atom's refresh is about `waiting` and order, so a `ResultHistory` earns its place there.
 - Interrupt only where stopping is something the reader can see (a slow save they cancel), not on an atom that the registry interrupts by itself.
 - A timeline only where timing is the point: a refresh and `waiting`, two boundaries resolving at different times, reactivity keys, streams.

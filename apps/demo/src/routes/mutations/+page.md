@@ -26,6 +26,8 @@ This form saves a todo with a pretend save that takes a second. Under the form, 
 
 <Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
+A form with fields to validate is on [Forms](/forms), which decodes the fields with a Schema and submits them through a mutation like this one.
+
 ## Creating a mutation
 
 `Atom.fn` takes a function from an argument to an `Effect`, and returns a writable atom:

@@ -39,6 +39,7 @@ export const nav: readonly NavSection[] = [
       { href: "/suspense", title: "Suspense" },
       { href: "/services", title: "Services and runtimes" },
       { href: "/mutations", title: "Mutations" },
+      { href: "/forms", title: "Forms" },
       { href: "/streams", title: "Streams" },
       { href: "/errors", title: "Errors" },
     ],
@@ -75,6 +76,7 @@ export const nav: readonly NavSection[] = [
     // module is missing here.
     pages: [
       { href: "/reference", title: "API overview" },
+      { href: "/reference/Form", title: "Form" },
       { href: "/reference/Hooks", title: "Hooks" },
       { href: "/reference/Inspector", title: "Inspector" },
       { href: "/reference/RegistryContext", title: "RegistryContext" },
