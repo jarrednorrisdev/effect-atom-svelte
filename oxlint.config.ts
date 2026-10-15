@@ -9,6 +9,8 @@ export default defineConfig({
   ignorePatterns: [
     "apps/demo/src/lib/components/ui/**",
     "apps/demo/src/lib/hooks/is-mobile.svelte.ts",
+    // Agent instructions and skills, some of them third-party (.claude/skills/NOTICE.md).
+    ".claude/**",
   ],
   overrides: [
     {

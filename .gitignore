@@ -17,5 +17,8 @@ playwright-report
 # Alchemy local state
 .alchemy/
 
-# Claude Code local config, skills and agent worktrees
-.claude/
+# Claude Code: agent worktrees, and per-machine settings and instructions. The rest of .claude/
+# (the project's CLAUDE.md and skills) is tracked.
+.claude/worktrees/
+.claude/settings.local.json
+CLAUDE.local.md
