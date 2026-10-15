@@ -241,11 +241,25 @@ export const useUnsavedChangesGuard = (
   form: { readonly dirty: boolean },
   options: UnsavedChangesGuardOptions
 ): void => {
-  let bypassUntil = 0;
+  // The retry of a navigation the user agreed to: where it goes, whether it unloads the page, and
+  // until when to expect it.
+  let retry:
+    | {
+        readonly href: string;
+        readonly unloads: boolean;
+        readonly until: number;
+      }
+    | undefined;
   beforeNavigate((navigation) => {
-    // The retry of a navigation the user agreed to: let it through, once.
-    if (bypassUntil > Date.now()) {
-      bypassUntil = 0;
+    // Let the retry through, once. Any other navigation is asked about as usual.
+    if (
+      retry !== undefined &&
+      retry.until > Date.now() &&
+      (navigation.type === "leave"
+        ? retry.unloads
+        : navigation.to?.url.href === retry.href)
+    ) {
+      retry = undefined;
       return;
     }
     if (!form.dirty) {
@@ -265,7 +279,11 @@ export const useUnsavedChangesGuard = (
       if (!(await options.confirm())) {
         return;
       }
-      bypassUntil = Date.now() + bypassFor;
+      retry = {
+        href: to.url.href,
+        unloads: navigation.type !== "popstate" && navigation.willUnload,
+        until: Date.now() + bypassFor,
+      };
       if (navigation.type === "popstate") {
         await undone;
         history.go(navigation.delta);

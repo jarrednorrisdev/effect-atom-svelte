@@ -1,5 +1,5 @@
 // Types shared by the form engine's modules. Internal: not exported from the package.
-import type { Option, Schema } from "effect";
+import type { Cause, Option, Schema } from "effect";
 import type { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 
 import type { CheckHook, LeafHook } from "./issues.ts";
@@ -75,6 +75,8 @@ export interface State {
   /** The values that run decoded, to tell whether its result is current. */
   readonly checked: unknown;
   readonly decoded: Option.Option<unknown>;
+  /** Why the latest run couldn't decode at all (a defect, a runtime that failed), if it couldn't. */
+  readonly failure: Cause.Cause<unknown> | undefined;
   readonly validating: boolean;
   readonly external: ReadonlyMap<string, ExternalError>;
   readonly submitCount: number;

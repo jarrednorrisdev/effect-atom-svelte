@@ -42,6 +42,7 @@ export class InstanceImpl extends GroupImpl {
     return (
       state.checked === this.engine.values &&
       !state.validating &&
+      state.failure === undefined &&
       state.issues.size === 0 &&
       state.external.size === 0
     );

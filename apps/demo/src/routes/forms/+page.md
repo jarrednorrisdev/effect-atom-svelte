@@ -154,7 +154,7 @@ A submit holds its atom until it settles, as `useAtomSet`'s promise modes do (se
 
 <Aside type="caution" title="Two instances, one atom">
 
-Writes to one `Atom.fn` share its single result, so a new call interrupts one still running. Two instances that submit to the same atom at once can interrupt each other. Give each instance its own atom: create it in the component's script, which makes one per instance, or key an `Atom.family` by the instance's `id`.
+Writes to one `Atom.fn` share its single result: a new call interrupts one still running, and every call still waiting resolves with the newest call's result. So if two instances submit to the same atom at once, the first one's submit resolves with the second one's result, and its form takes that as its own success, although its values were never saved. Give each instance its own atom: create it in the component's script, which makes one per instance, or key an `Atom.family` by the instance's `id`.
 
 </Aside>
 

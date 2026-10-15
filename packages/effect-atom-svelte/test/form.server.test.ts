@@ -293,7 +293,7 @@ describe("arrays", () => {
     const items = form.array("items");
     items.append({ name: "", qty: "" });
     const [first] = items.items;
-    expect(first?.fields.field("name").id).toBe(`o-items-i${first?.key}-name`);
+    expect(first?.fields.field("name").id).toBe(`o-items-_${first?.key}-name`);
     form.dispose();
   });
 });
@@ -518,6 +518,170 @@ describe("types", () => {
       },
     });
     withArgs.dispose();
+    form.dispose();
+  });
+});
+
+/** A promise, or "timed out" if it hasn't settled after 200 milliseconds. */
+const settled = <A>(promise: Promise<A>) =>
+  Promise.race([promise, sleep("200 millis").then(() => "timed out" as const)]);
+
+describe("found in review", () => {
+  const Settings = Form.make(Schema.Struct({ name: Schema.NonEmptyString }));
+
+  test("a submit within the debounce settles", async () => {
+    const Debounced = Form.make(
+      Schema.Struct({ name: Schema.NonEmptyString }),
+      {
+        debounce: "50 millis",
+      }
+    );
+    const form = Form.instance(Debounced, {
+      id: "a",
+      initialValues: { name: "Ada" },
+    });
+    await sleep("80 millis");
+    form.field("name").value = "Bo";
+    expect(await settled(form.submit())).toEqual(Exit.succeed({ name: "Bo" }));
+    form.field("name").value = "Cy";
+    expect(await settled(form.validate())).toBe(true);
+    form.dispose();
+  });
+
+  test("a validation that can't run ends the submit with its cause", async () => {
+    const Throws = Form.make(
+      Schema.Struct({
+        name: Schema.String.check(
+          Schema.makeFilter((name: string) => {
+            if (name === "boom") {
+              throw new Error("boom");
+            }
+            return true;
+          })
+        ),
+      })
+    );
+    const form = Form.instance(Throws, {
+      id: "c",
+      initialValues: { name: "boom" },
+    });
+    const errors: unknown[] = [];
+    const { error } = console;
+    console.error = (...args: unknown[]) => errors.push(args);
+    try {
+      await tick();
+      const exit = await settled(form.submit());
+      expect(exit !== "timed out" && Exit.isFailure(exit)).toBe(true);
+      expect(form.valid).toBe(false);
+    } finally {
+      console.error = error;
+    }
+    expect(errors).toHaveLength(1);
+    form.dispose();
+  });
+
+  test("a write during a submit isn't recorded as submitted", async () => {
+    const sent: string[] = [];
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.sync(() => sent.push(input.name))
+    );
+    const form = Form.instance(Settings, {
+      id: "b",
+      initialValues: { name: "Ada" },
+      submit: { atom: save },
+    });
+    form.field("name").value = "Bo";
+    await tick();
+    const pending = form.submit();
+    form.setValues({ name: "" });
+    await pending;
+    expect(sent).toEqual(["Bo"]);
+    expect(Option.getOrThrow(form.lastSubmitted).encoded.name).toBe("Bo");
+    expect(form.dirty).toBe(true);
+    form.dispose();
+  });
+
+  test("resetOnSuccess goes back to the latest initial values", async () => {
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.succeed(input.name)
+    );
+    const form = Form.instance(Settings, {
+      id: "d",
+      initialValues: { name: "Loading" },
+      resetOnSuccess: true,
+      submit: { atom: save },
+    });
+    form.reset({ name: "Loaded" });
+    form.field("name").value = "Edited";
+    await form.submit();
+    expect(form.values.name).toBe("Loaded");
+    form.dispose();
+  });
+
+  test("autoSubmit with resetOnSuccess doesn't submit the reset values", async () => {
+    const sent: string[] = [];
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.sync(() => sent.push(input.name))
+    );
+    const form = Form.instance(Settings, {
+      autoSubmit: true,
+      id: "e",
+      initialValues: { name: "Ada" },
+      resetOnSuccess: true,
+      submit: { atom: save },
+    });
+    await tick();
+    form.field("name").value = "Bo";
+    await sleep("30 millis");
+    expect(sent).toEqual(["Bo"]);
+    form.dispose();
+  });
+
+  test("ids differ for keys that look alike", () => {
+    const Keys = Form.make(
+      Schema.Struct({
+        a: Schema.Struct({ b: Schema.String }),
+        "a-b": Schema.String,
+        "a.b": Schema.String,
+        a_b: Schema.String,
+      })
+    );
+    const form = Form.instance(Keys, {
+      id: "g",
+      initialValues: { a: { b: "" }, "a-b": "", "a.b": "", a_b: "" },
+    });
+    const ids = [
+      form.field(["a", "b"]).id,
+      form.field("a-b").id,
+      form.field("a.b").id,
+      form.field("a_b").id,
+    ];
+    expect(new Set(ids).size).toBe(4);
+    expect(ids[0]).toBe("g-a-b");
+    form.dispose();
+  });
+
+  test("submit and validate after dispose don't hang", async () => {
+    const form = Form.instance(Settings, {
+      id: "h",
+      initialValues: { name: "" },
+    });
+    form.dispose();
+    expect(await settled(form.validate())).not.toBe("timed out");
+    expect(await settled(form.submit())).not.toBe("timed out");
+  });
+
+  test("a field under an optional parent may be undefined", () => {
+    const WithOptional = Form.make(
+      Schema.Struct({
+        address: Schema.optional(Schema.Struct({ city: Schema.String })),
+      })
+    );
+    const form = Form.instance(WithOptional, { id: "o", initialValues: {} });
+    const city: string | undefined = form.field(["address", "city"]).value;
+    // @ts-expect-error: undefined while there is no address
+    const notString: string = form.field(["address", "city"]).value;
+    expect([city, notString]).toEqual([undefined, undefined]);
     form.dispose();
   });
 });

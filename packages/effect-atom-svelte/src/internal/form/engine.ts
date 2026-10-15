@@ -65,6 +65,7 @@ const freshState = (initial: unknown, keys: Keys): State => ({
   checked: notChecked,
   decoded: Option.none(),
   external: new Map(),
+  failure: undefined,
   initial,
   issues: new Map(),
   keys,
@@ -94,7 +95,9 @@ export class Engine {
     AsyncResult.AsyncResult<RunResult, unknown>,
     RunInput
   >;
-  readonly #original: unknown;
+  #original: unknown;
+  // The values the latest validation run decodes.
+  #runValues: unknown;
   #readState: () => State;
   #readValues: () => unknown;
   #nextKey = 0;
@@ -233,6 +236,14 @@ export class Engine {
         )
       );
     this.#seen = { keys, values: next };
+    // Fields of items that are gone can't come back: their keys are never reused.
+    for (const cache of [this.#fields, this.#groups, this.#arrays]) {
+      for (const id of cache.keys()) {
+        if (!isLive(keys, JSON.parse(id) as KeyPath)) {
+          cache.delete(id);
+        }
+      }
+    }
     this.#update((current) => ({
       ...current,
       external,
@@ -321,6 +332,7 @@ export class Engine {
       return;
     }
     const clean = equals(this.#currentValues(), state.initial);
+    this.#original = initial;
     this.#update((latest) => ({ ...latest, initial }));
     if (clean) {
       this.registry.set(this.valuesAtom, initial);
@@ -328,6 +340,9 @@ export class Engine {
   }
 
   reset(values?: unknown): void {
+    if (values !== undefined) {
+      this.#original = values;
+    }
     this.#restart(values === undefined ? this.#current().initial : values, {
       keepSubmit: false,
     });
@@ -427,10 +442,11 @@ export class Engine {
       return;
     }
     this.#token += 1;
+    this.#runValues = this.#currentValues();
     this.registry.set(this.#validateAtom, {
       keys: this.#current().keys,
       token: this.#token,
-      values: this.#currentValues(),
+      values: this.#runValues,
     });
   }
 
@@ -445,7 +461,14 @@ export class Engine {
         "effect-atom-svelte: a form's validation failed",
         Cause.pretty(result.cause)
       );
-      this.#update((state) => ({ ...state, validating: false }));
+      const values = this.#runValues;
+      this.#update((state) => ({
+        ...state,
+        checked: values,
+        decoded: Option.none(),
+        failure: result.cause,
+        validating: false,
+      }));
       this.#release();
       return;
     }
@@ -477,6 +500,7 @@ export class Engine {
       ...state,
       checked: run.input.values,
       decoded: run._tag === "Valid" ? Option.some(run.decoded) : Option.none(),
+      failure: undefined,
       issues,
       validating: !fresh,
     }));
@@ -550,12 +574,13 @@ export class Engine {
 
   // Resolves once a run of the current values has settled.
   #settled(): Promise<undefined> {
-    if (!this.options.validates || this.#isCurrent()) {
+    if (!this.options.validates || this.#disposed || this.#isCurrent()) {
       return Promise.resolve(undefined);
     }
-    this.#flush();
+    // Waiting first: a run with nothing async settles inside #flush, and releases its waiters.
     const waiter = Deferred.makeUnsafe<undefined>();
     this.#waiters.push(waiter);
+    this.#flush();
     return Effect.runPromise(Deferred.await(waiter));
   }
 
@@ -622,7 +647,9 @@ export class Engine {
         this.#inflight = undefined;
         if (this.#queued) {
           this.#queued = false;
-          this.#autoSubmit();
+          if (!this.#disposeAfterSubmit) {
+            this.#autoSubmit();
+          }
         }
       }
       if (this.#disposeAfterSubmit) {
@@ -650,9 +677,16 @@ export class Engine {
       this.#reveal(true);
     }
     const state = this.#current();
-    const encoded = this.#currentValues();
+    // The values the run decoded: a write since the submit started isn't part of it.
+    const encoded = this.options.validates
+      ? state.checked
+      : this.#currentValues();
     let decoded: unknown;
     if (this.options.validates) {
+      // The decode couldn't run at all: there is nothing to send.
+      if (state.failure !== undefined) {
+        return Exit.failCause(state.failure);
+      }
       if (state.issues.size > 0 || Option.isNone(state.decoded)) {
         return Exit.fail(new FormValidationError({ errors: this.root.errors }));
       }
@@ -765,10 +799,13 @@ export class Engine {
       onNone: () => state.initial,
       onSome: ({ encoded }) => encoded,
     });
+    const values = this.#currentValues();
+    // Only edits: not the values a reset (as after resetOnSuccess) brought back.
     if (
       state.issues.size === 0 &&
       this.#isCurrent() &&
-      !equals(this.#currentValues(), baseline)
+      !equals(values, baseline) &&
+      !equals(values, state.initial)
     ) {
       void this.submit();
     }

@@ -173,13 +173,22 @@ export const equals = (a: unknown, b: unknown): boolean => {
   return false;
 };
 
-/** A string safe in an element id for a key path: `items-i7-qty`, item keys marked with `i`. */
+// One character of a key that isn't a letter or a digit, as `_` and its code in hex: `-` is `_2d`.
+const escapeChar = (char: string): string =>
+  `_${(char.codePointAt(0) ?? 0).toString(16)}_`;
+
+/**
+ * A string for a key path that is safe in an element id and different for every path:
+ * `items-_7-qty`. Segments are joined with `-`, an item key is `_` and the number, and any other
+ * character of a key than a letter or a digit is escaped (`a-b` is `a_2d_b`), so a key can't
+ * produce a `-` or an item key's form.
+ */
 export const idSuffix = (path: KeyPath): string =>
   path
     .map((segment) =>
       typeof segment === "number"
-        ? `i${segment}`
-        : segment.replaceAll(/[^\w-]/gu, "_")
+        ? `_${segment}`
+        : segment.replaceAll(/[^A-Za-z0-9]/gu, escapeChar)
     )
     .join("-");
 

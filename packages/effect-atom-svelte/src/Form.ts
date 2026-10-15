@@ -226,7 +226,8 @@ export type Path<T, D extends number = 8> = [D] extends [never]
         : never;
 
 /**
- * The value at path `P` in `T`. For a union, the value in each member that has the path.
+ * The value at path `P` in `T`. For a union, the value in each member that has the path. Below an
+ * optional parent it may also be `undefined`, as it is while the parent is.
  *
  * @stability unstable
  * @since 0.4.0
@@ -241,7 +242,11 @@ export type At<T, P> = P extends readonly []
           ? At<Rest extends readonly [] ? Item : NonNullable<Item>, Rest>
           : never
         : Head extends keyof T
-          ? At<Rest extends readonly [] ? T[Head] : NonNullable<T[Head]>, Rest>
+          ? Rest extends readonly []
+            ? T[Head]
+            :
+                | At<NonNullable<T[Head]>, Rest>
+                | (undefined extends T[Head] ? undefined : never)
           : never
       : never
     : never;
@@ -497,7 +502,9 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   /**
    * Decodes the values and, when they decode, writes the submit atom and waits for its result. A
    * call while a submit runs gets that submit's result. A submit that settles after a reset doesn't
-   * touch the fresh form.
+   * touch the fresh form. Instances that submit to the same `Atom.fn` share its one result: if
+   * another instance writes it while this submit runs, this submit resolves with the other's
+   * result, so give each instance its own atom.
    */
   readonly submit: (
     ...args: [Args] extends [undefined] ? [] : [args: Args]
