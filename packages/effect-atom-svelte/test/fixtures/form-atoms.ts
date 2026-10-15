@@ -1,12 +1,13 @@
 // Forms and submit atoms shared by the form fixtures.
-import { Data, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { Atom } from "effect/reactivity";
 
 import { Form } from "../../src/index.ts";
 
-export class WrongPassword extends Data.TaggedError("WrongPassword")<{
-  readonly email: string;
-}> {}
+export class WrongPassword extends Schema.TaggedError<WrongPassword>()(
+  "WrongPassword",
+  { email: Schema.String }
+) {}
 
 export const SignIn = Form.make(
   Schema.Struct({

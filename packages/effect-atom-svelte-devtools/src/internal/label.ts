@@ -140,21 +140,26 @@ interface LabelOptions {
   readonly local?: boolean;
 }
 
+const isObjectLike = (value: unknown): value is object =>
+  typeof value === "object" && value !== null;
+
 // The key a form definition from `Form.make` carries (effect-atom-svelte's `Form.TypeId`).
 const formTypeId = "~effect-atom-svelte/Form";
 
 /** A form definition that `Form.make` was given no name for. */
 const isUnnamedForm = (
   value: unknown
-): value is { readonly definition: { name: string | undefined } } =>
-  typeof value === "object" &&
-  value !== null &&
-  formTypeId in value &&
-  "definition" in value &&
-  typeof value.definition === "object" &&
-  value.definition !== null &&
-  "name" in value.definition &&
-  value.definition.name === undefined;
+): value is { readonly definition: { name: string | undefined } } => {
+  if (!isObjectLike(value) || !(formTypeId in value && "definition" in value)) {
+    return false;
+  }
+  const { definition } = value;
+  return (
+    isObjectLike(definition) &&
+    "name" in definition &&
+    definition.name === undefined
+  );
+};
 
 /**
  * Labels `value` with `text` and the place it was declared, `at` (`/src/lib/todos.ts:12:14`), if

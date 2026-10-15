@@ -15,7 +15,7 @@ import type * as Form from "./Form.ts";
 import { awaitWrite } from "./internal/awaitWrite.ts";
 import { queuedByBoundary } from "./internal/boundaries.ts";
 import { onDispose } from "./internal/disposal.ts";
-import { engineOf } from "./internal/form/engineOf.ts";
+import { engineOf, initialGetter } from "./internal/form/engineOf.ts";
 import {
   decodeSeed,
   encodeSeed,
@@ -2140,8 +2140,7 @@ export function useForm(
 ): unknown {
   const registry = getRegistry();
   const initial = options.initialValues;
-  const getInitial =
-    typeof initial === "function" ? (initial as () => unknown) : undefined;
+  const getInitial = initialGetter(initial);
   const engine = engineOf(form, {
     ...options,
     initialValues: getInitial ? getInitial() : initial,
@@ -2157,9 +2156,13 @@ export function useForm(
   if (getInitial && BROWSER) {
     $effect.pre(() => {
       const next = getInitial();
-      untrack(() => engine.setInitial(next));
+      untrack(() => {
+        engine.setInitial(next);
+      });
     });
   }
-  onTeardown(() => engine.dispose());
+  onTeardown(() => {
+    engine.dispose();
+  });
   return engine.root;
 }

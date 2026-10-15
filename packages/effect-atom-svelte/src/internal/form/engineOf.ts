@@ -13,7 +13,7 @@ export const engineOf = (
     readonly initialValues: unknown;
     readonly validates: boolean;
     readonly id: string;
-    readonly values?: unknown;
+    readonly values?: Atom.Writable<unknown> | undefined;
     readonly submit?:
       | { readonly atom: unknown; readonly payload?: unknown }
       | undefined;
@@ -24,10 +24,15 @@ export const engineOf = (
 ): Engine => {
   const { submit } = options;
   const atom = submit?.atom;
+  const getAtom =
+    typeof atom === "function" && !Atom.isAtom(atom) ? atom : () => atom;
   return new Engine(form.definition, {
     autoSubmit: options.autoSubmit,
     id: options.id,
     initialValues: options.initialValues,
+    // SAFETY: the overloads of useForm and Form.instance type mapError as taking the submit atom's
+    // error and returning errors for the form's values.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the implementation signatures can't carry the overloads' types
     mapError: options.mapError as EngineOptions["mapError"],
     registry: options.registry,
     resetOnSuccess: options.resetOnSuccess,
@@ -35,17 +40,31 @@ export const engineOf = (
       submit === undefined
         ? undefined
         : {
-            atom: (typeof atom === "function" && !Atom.isAtom(atom)
-              ? atom
-              : () => atom) as () => Atom.Writable<
+            // SAFETY: the overloads type the submit atom as a writable AsyncResult atom, or a
+            // function returning one; anything else that is a function is the second.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a typeof check can't recover the function's signature
+            atom: getAtom as () => Atom.Writable<
               AsyncResult.AsyncResult<unknown, unknown>,
               unknown
             >,
+            // SAFETY: the overloads type payload as a function of the decoded values and the
+            // submit's arguments.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the implementation signatures can't carry the overloads' types
             payload: submit.payload as
               | ((decoded: unknown, args: unknown) => unknown)
               | undefined,
           },
     validates: options.validates,
-    values: options.values as Atom.Writable<unknown> | undefined,
+    values: options.values,
   });
 };
+
+/**
+ * The function that computes a form's initial values, when `initialValues` is one rather than the
+ * values themselves.
+ */
+export const initialGetter = (initial: unknown): (() => unknown) | undefined =>
+  // SAFETY: the overloads type initialValues as the values or a function of no arguments that
+  // returns them, so a function here is the second.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a typeof check can't recover the function's signature
+  typeof initial === "function" ? (initial as () => unknown) : undefined;

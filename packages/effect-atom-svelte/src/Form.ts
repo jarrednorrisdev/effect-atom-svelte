@@ -13,7 +13,7 @@ import type { AsyncResult, Atom } from "effect/reactivity";
 
 import type { AtomInput } from "./Hooks.svelte.ts";
 import type { Constraints as InternalConstraints } from "./internal/form/constraints.ts";
-import { engineOf } from "./internal/form/engineOf.ts";
+import { engineOf, initialGetter } from "./internal/form/engineOf.ts";
 import type { Definition } from "./internal/form/types.ts";
 import { FormValidationError } from "./internal/form/validationError.ts";
 
@@ -676,10 +676,10 @@ export function instance(
   }
 ): unknown {
   const initial = options.initialValues;
+  const getInitial = initialGetter(initial);
   return engineOf(form, {
     ...options,
-    initialValues:
-      typeof initial === "function" ? (initial as () => unknown)() : initial,
+    initialValues: getInitial ? getInitial() : initial,
     registry: options.registry ?? AtomRegistry.make(),
     validates: true,
   }).root;

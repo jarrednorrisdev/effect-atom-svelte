@@ -1,4 +1,5 @@
 // Turns a Schema decode failure into one message per path. Internal: not exported from the package.
+import type { Schema } from "effect";
 import { SchemaIssue } from "effect";
 
 import type { IndexPath } from "./paths.ts";
@@ -32,7 +33,7 @@ const findMessage = (issue: SchemaIssue.Issue): string | undefined => {
     return findMessage(issue.issue);
   }
   let source: {
-    readonly annotations?: Readonly<Record<string, unknown>> | undefined;
+    readonly annotations?: Schema.Annotations.Annotations | undefined;
   };
   if (issue._tag === "Filter") {
     source = issue.filter;
@@ -75,7 +76,13 @@ const pointedPaths = (
     case "Encoding": {
       return pointedPaths(issue.issue, path);
     }
-    default: {
+    case "Filter":
+    case "Forbidden":
+    case "InvalidType":
+    case "InvalidValue":
+    case "MissingKey":
+    case "OneOf":
+    case "UnexpectedKey": {
       return [];
     }
   }
@@ -169,7 +176,12 @@ export const toPathIssues = (
         }
         return;
       }
-      default: {
+      case "Forbidden":
+      case "InvalidType":
+      case "InvalidValue":
+      case "MissingKey":
+      case "OneOf":
+      case "UnexpectedKey": {
         emit(
           path,
           findMessage(current) ??

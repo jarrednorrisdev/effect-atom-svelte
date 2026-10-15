@@ -5,6 +5,7 @@
 // a key path (["items", 7, "qty"]) names array items by their key instead of their index. Touched
 // state and errors are stored by key path, so they move with their item. Both are arrays of
 // strings (object keys) and numbers (an index, or an item key).
+import { Array as Arr, Predicate } from "effect";
 
 /** A path into a form's values: object keys, and numbers for array indexes. */
 export type IndexPath = readonly (string | number)[];
@@ -19,10 +20,14 @@ export type Keys = ReadonlyMap<string, readonly number[]>;
 export const pathId = (path: KeyPath): string => JSON.stringify(path);
 
 /** Parses a `pathId` back into its path. */
-export const fromPathId = (id: string): KeyPath => JSON.parse(id) as KeyPath;
+export const fromPathId = (id: string): KeyPath => {
+  const path: unknown = JSON.parse(id);
+  // SAFETY: every id comes from `pathId`, which stringifies a KeyPath.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse can't say what it parsed, and the id is only ever pathId's
+  return path as KeyPath;
+};
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isRecord = Predicate.isObject;
 
 /** The value at `path`, or `undefined` when a step is missing. */
 export const getIn = (root: unknown, path: IndexPath): unknown => {
@@ -50,14 +55,17 @@ export const setIn = (
   }
   const [head, ...rest] = path;
   if (typeof head === "number") {
-    const array = Array.isArray(root) ? [...root] : [];
+    const array = Arr.isArray(root) ? [...root] : [];
     array[head] = setIn(array[head], rest, value);
     return array;
+  }
+  if (head === undefined) {
+    return value;
   }
   const record = isRecord(root) ? root : {};
   return {
     ...record,
-    [head as string]: setIn(record[head as string], rest, value),
+    [head]: setIn(record[head], rest, value),
   };
 };
 
@@ -130,7 +138,10 @@ export const reconcileKeys = (
             );
       out.set(id, keys);
       for (const [index, item] of value.entries()) {
-        walk(item, [...path, keys[index] as number]);
+        const key = keys[index];
+        if (key !== undefined) {
+          walk(item, [...path, key]);
+        }
       }
     } else if (isRecord(value)) {
       for (const [key, item] of Object.entries(value)) {

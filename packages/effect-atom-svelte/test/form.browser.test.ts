@@ -58,7 +58,7 @@ describe("lifetimes", () => {
     await title.fill("Feed the dog");
     await view.getByRole("button", { name: "Save" }).click();
     await view.getByRole("button", { name: "Close" }).click();
-    await expect.poll(() => log).toEqual(["saved Feed the dog"]);
+    await expect.poll(() => log).toStrictEqual(["saved Feed the dog"]);
     await view.getByRole("button", { name: "Open" }).click();
     await expect
       .element(view.getByLabelText("Title"))
@@ -99,17 +99,19 @@ describe("server rendering", () => {
     const { body, head } = await commands.renderOnServer(
       "/test/fixtures/form-ssr.svelte"
     );
+    // oxlint-disable-next-line github/no-dynamic-script-tag -- stands in for the hydratable script SvelteKit puts in the server's <head>
     const script = document.createElement("script");
     script.textContent =
       new DOMParser().parseFromString(head, "text/html").querySelector("script")
         ?.textContent ?? "";
     document.head.append(script);
     const target = document.createElement("div");
+    // oxlint-disable-next-line github/no-inner-html -- the server's own rendered HTML, which hydrate() expects to find in the DOM
     target.innerHTML = body;
     document.body.append(target);
     const serverInput = target.querySelector("input");
     const serverId = serverInput?.id;
-    expect(serverId).toBeTruthy();
+    expect(serverId?.length).toBeGreaterThan(0);
     const warnings: unknown[] = [];
     const { warn } = console;
     console.warn = (...args: unknown[]) => {
@@ -127,6 +129,6 @@ describe("server rendering", () => {
     console.warn = warn;
     expect(target.querySelector("input")).toBe(serverInput);
     expect(target.querySelector("label")?.getAttribute("for")).toBe(serverId);
-    expect(warnings).toEqual([]);
+    expect(warnings).toStrictEqual([]);
   }, 120_000);
 });

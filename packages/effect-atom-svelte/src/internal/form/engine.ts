@@ -1,7 +1,15 @@
 // The form engine behind `Form.instance` and `useForm`: one instance's state, its validation runs
 // and its submit. Internal: not exported from the package. It is untyped (values are `unknown`);
 // `Form.ts` puts the Schema's types on it.
-import { Cause, Deferred, Effect, Exit, Option, Schema } from "effect";
+import {
+  Array as Arr,
+  Cause,
+  Deferred,
+  Effect,
+  Exit,
+  Option,
+  Schema,
+} from "effect";
 import { AsyncResult, Atom } from "effect/reactivity";
 import type { AtomRegistry } from "effect/reactivity";
 
@@ -16,6 +24,7 @@ import { InstanceImpl } from "./instance.ts";
 import { toPathIssues } from "./issues.ts";
 import {
   equals,
+  fromPathId,
   getIn,
   idSuffix,
   isLive,
@@ -80,6 +89,27 @@ const freshState = (initial: unknown, keys: Keys): State => ({
   validationCount: 0,
 });
 
+/**
+ * The definition's Schema as a codec that needs no services. A runtime, when the definition has
+ * one, provides those its checks need.
+ */
+const codecOf = (definition: Definition): Schema.Codec<unknown, unknown> =>
+  // SAFETY: make checked that the Schema's decoding services are ones the definition's runtime
+  // provides, and validation decodes through that runtime. Without a runtime, make allowed none.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a definition keeps its Schema as Schema.Top, without its types
+  definition.schema as Schema.Codec<unknown, unknown>;
+
+/** The values `setValues` writes: `values`, or what an update function makes of the current ones. */
+const updatedValues = (values: unknown, current: unknown): unknown => {
+  if (typeof values !== "function") {
+    return values;
+  }
+  // SAFETY: setValues' type takes the values, or a function from the current values to new ones.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a typeof check can't recover the function's signature
+  const update = values as (previous: unknown) => unknown;
+  return update(current);
+};
+
 /** Turns a path given as `"email"` or `["items", 0]` into an index path. */
 const toPath = (path: string | IndexPath): IndexPath =>
   typeof path === "string" ? [path] : path;
@@ -129,10 +159,11 @@ export class Engine {
     this.#original = options.initialValues;
     // Labelled for the devtools and inspector: an instance's atoms are made here, not by the app.
     const name = definition.name ?? "form";
-    this.valuesAtom = (options.values ??
+    this.valuesAtom =
+      options.values ??
       Atom.make<unknown>(options.initialValues).pipe(
         Atom.withLabel(`${name}.values`)
-      )) as Atom.Writable<unknown>;
+      );
     const values = registry.get(this.valuesAtom);
     const keys = reconcileKeys(values, new Map(), () => this.#key());
     this.stateAtom = Atom.make<State>(
@@ -140,9 +171,7 @@ export class Engine {
     ).pipe(Atom.withLabel(`${name}.state`));
     this.#seen = { keys, values };
 
-    const decode = Schema.decodeUnknownEffect(
-      definition.schema as Schema.Codec<unknown, unknown>
-    );
+    const decode = Schema.decodeUnknownEffect(codecOf(definition));
     const run = (input: RunInput): Effect.Effect<RunResult> =>
       decode(input.values, { errors: "all" }).pipe(
         Effect.map((decoded): RunResult => ({ _tag: "Valid", decoded, input })),
@@ -154,24 +183,27 @@ export class Engine {
           })
         )
       );
-    // The runtime provides the services the Schema's checks need; the types were checked in make.
+    // SAFETY: the runtime provides the services the Schema's checks need; the types were checked in
+    // make, which is the only place a definition gets its runtime.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a definition keeps its runtime untyped, as it keeps its Schema's services
     const runtime = definition.runtime as Atom.AtomRuntime<never> | undefined;
     this.#validateAtom = (runtime ? runtime.fn(run) : Atom.fn(run)).pipe(
       Atom.withLabel(`${name}.check`)
-    ) as unknown as Atom.Writable<
-      AsyncResult.AsyncResult<RunResult, unknown>,
-      RunInput
-    >;
+    );
 
     this.#readState = () => registry.get(this.stateAtom);
     this.#readValues = () => registry.get(this.valuesAtom);
     this.#releases.push(
       registry.mount(this.stateAtom),
-      registry.subscribe(this.valuesAtom, (next) => this.#onValues(next))
+      registry.subscribe(this.valuesAtom, (next) => {
+        this.#onValues(next);
+      })
     );
     if (options.validates) {
       this.#releases.push(
-        registry.subscribe(this.#validateAtom, (result) => this.#onRun(result))
+        registry.subscribe(this.#validateAtom, (result) => {
+          this.#onRun(result);
+        })
       );
       this.#schedule();
     }
@@ -227,7 +259,7 @@ export class Engine {
         external.set(id, error);
         continue;
       }
-      const path = JSON.parse(id) as KeyPath;
+      const path = fromPathId(id);
       const before = toIndexPath(previous.keys, path);
       const after = toIndexPath(keys, path);
       if (
@@ -240,15 +272,13 @@ export class Engine {
     }
     const live = (ids: ReadonlySet<string>) =>
       new Set(
-        [...ids].filter(
-          (id) => id === ROOT || isLive(keys, JSON.parse(id) as KeyPath)
-        )
+        [...ids].filter((id) => id === ROOT || isLive(keys, fromPathId(id)))
       );
     this.#seen = { keys, values: next };
     // Fields of items that are gone can't come back: their keys are never reused.
     for (const cache of [this.#fields, this.#groups, this.#arrays]) {
       for (const id of cache.keys()) {
-        if (!isLive(keys, JSON.parse(id) as KeyPath)) {
+        if (!isLive(keys, fromPathId(id))) {
           cache.delete(id);
         }
       }
@@ -279,7 +309,7 @@ export class Engine {
   }
 
   /** Marks a field touched, as leaving it does, and checks it if `validateOn` says so. */
-  blur(path: KeyPath): void {
+  leave(path: KeyPath): void {
     this.setTouched(path, true);
     this.#trigger(path, "blur");
   }
@@ -304,9 +334,7 @@ export class Engine {
     this.#editing = undefined;
     this.registry.set(
       this.valuesAtom,
-      typeof values === "function"
-        ? (values as (previous: unknown) => unknown)(this.#currentValues())
-        : values
+      updatedValues(values, this.#currentValues())
     );
   }
 
@@ -322,7 +350,7 @@ export class Engine {
       return;
     }
     const current = getIn(this.#currentValues(), index);
-    const items = Array.isArray(current) ? [...current] : [];
+    const items = Arr.isArray(current) ? [...current] : [];
     const keys = [...(state.keys.get(pathId(path)) ?? [])];
     f(items, keys);
     const nextKeys = new Map([...state.keys, [pathId(path), keys]]);
@@ -428,7 +456,10 @@ export class Engine {
     }
     clearTimeout(this.#timer);
     if (this.definition.debounce > 0) {
-      this.#timer = setTimeout(() => this.#run(), this.definition.debounce);
+      // oxlint-disable-next-line effecttsgo/global-timers -- debounces validation between the user's edits, outside any Effect program
+      this.#timer = setTimeout(() => {
+        this.#run();
+      }, this.definition.debounce);
       return;
     }
     // Several changes in one tick, such as a reset, run once.
@@ -548,20 +579,18 @@ export class Engine {
     this.#update((state) => {
       const revealed = new Set<string>();
       for (const id of state.issues.keys()) {
-        const path = JSON.parse(id) as KeyPath;
+        const path = fromPathId(id);
         // An error on a field the user has left, which a change elsewhere brought on (a
         // "passwords do not match" after editing the password), shows at once: the field is
         // touched. The field being edited keeps to its own timing.
         const fromElsewhere =
           state.touched.has(id) &&
           (editing === undefined || !startsWith(path, editing));
-        if (
-          state.revealed.has(id) ||
-          (consume &&
-            (all ||
-              fromElsewhere ||
-              pending.some((prefix) => startsWith(path, prefix))))
-        ) {
+        const asked =
+          all ||
+          fromElsewhere ||
+          pending.some((prefix) => startsWith(path, prefix));
+        if (state.revealed.has(id) || (consume && asked)) {
           revealed.add(id);
         }
       }
@@ -630,6 +659,7 @@ export class Engine {
   }
 
   /** Checks the given paths (all by default), shows their errors, and says whether they passed. */
+  // oxlint-disable-next-line effecttsgo/async-function -- the form's validate, part of the library's Promise-facing API for Svelte handlers
   async validate(paths?: readonly (string | IndexPath)[]): Promise<boolean> {
     const state = this.#current();
     const keyPaths =
@@ -661,7 +691,7 @@ export class Engine {
       if (keyPaths === undefined) {
         return false;
       }
-      const path = JSON.parse(id) as KeyPath;
+      const path = fromPathId(id);
       return !keyPaths.some((prefix) => startsWith(path, prefix));
     });
   }
@@ -678,6 +708,7 @@ export class Engine {
     return inflight;
   }
 
+  // oxlint-disable-next-line effecttsgo/async-function -- behind the form's submit, part of the library's Promise-facing API for Svelte handlers
   async #submitOnce(args: unknown): Promise<Exit.Exit<unknown, unknown>> {
     const session = this.#session;
     try {
@@ -700,6 +731,7 @@ export class Engine {
     }
   }
 
+  // oxlint-disable-next-line effecttsgo/async-function -- behind the form's submit, part of the library's Promise-facing API for Svelte handlers
   async #submit(args: unknown): Promise<Exit.Exit<unknown, unknown>> {
     const session = this.#session;
     this.#pendingAll = true;
@@ -746,12 +778,9 @@ export class Engine {
     } else {
       // Not validating (on the server): decode now.
       const exit = await Effect.runPromiseExit(
-        Schema.decodeUnknownEffect(
-          this.definition.schema as Schema.Codec<unknown, unknown>
-        )(encoded, { errors: "all" }) as Effect.Effect<
-          unknown,
-          Schema.SchemaError
-        >
+        Schema.decodeUnknownEffect(codecOf(this.definition))(encoded, {
+          errors: "all",
+        })
       );
       if (Exit.isFailure(exit)) {
         return Exit.fail(new FormValidationError({ errors: [] }));
@@ -771,12 +800,15 @@ export class Engine {
       submitResult: AsyncResult.waiting(latest.submitResult),
       submitting: true,
     }));
+    // oxlint-disable-next-line effecttsgo/global-date -- compared with an AsyncResult's timestamp, which Effect takes from Date.now
     const start = Date.now();
     this.registry.set(atom, value);
     // The wait holds the atom, so the call finishes after the component is gone, unless the
     // registry itself is disposed of, which ends it as interrupted.
     const controller = new AbortController();
-    const cancel = onDispose(this.registry, () => controller.abort());
+    const cancel = onDispose(this.registry, () => {
+      controller.abort();
+    });
     let exit: Exit.Exit<unknown, unknown>;
     try {
       exit = await awaitWrite(this.registry, atom, start, controller.signal);
@@ -802,7 +834,7 @@ export class Engine {
       ...latest,
       submitResult:
         claimed === undefined
-          ? AsyncResult.failure(exit.cause as Cause.Cause<unknown>)
+          ? AsyncResult.failure(exit.cause)
           : AsyncResult.initial(),
       submitting: false,
     }));
@@ -828,18 +860,18 @@ export class Engine {
     const lastSubmitted = Option.some({ decoded, encoded });
     this.#update((latest) => ({
       ...latest,
-      initial: this.options.resetOnSuccess ? latest.initial : encoded,
+      initial: this.options.resetOnSuccess === true ? latest.initial : encoded,
       lastSubmitted,
       submitResult: AsyncResult.success(value),
       submitting: false,
     }));
-    if (this.options.resetOnSuccess) {
+    if (this.options.resetOnSuccess === true) {
       this.#restart(this.#original, { keepSubmit: true });
     }
   }
 
   #autoSubmit(): void {
-    if (!this.options.autoSubmit || this.#disposed) {
+    if (this.options.autoSubmit !== true || this.#disposed) {
       return;
     }
     if (this.#inflight !== undefined) {

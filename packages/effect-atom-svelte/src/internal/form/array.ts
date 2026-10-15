@@ -55,13 +55,8 @@ export class ArrayImpl {
 
   move(from: number, to: number): void {
     this.#engine.updateArray(this.keyPath, (items, keys) => {
-      if (
-        from < 0 ||
-        from >= items.length ||
-        to < 0 ||
-        to >= items.length ||
-        from === to
-      ) {
+      const inRange = (index: number) => index >= 0 && index < items.length;
+      if (!(inRange(from) && inRange(to)) || from === to) {
         return;
       }
       items.splice(to, 0, ...items.splice(from, 1));

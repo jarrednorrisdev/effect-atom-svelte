@@ -22,7 +22,7 @@ export class TodosApiGroup extends HttpApiGroup.make("todos")
     }),
     HttpApiEndpoint.patch("rename", "/:id", {
       error: [TodoNotFound, DuplicateTitle, TitleTooLong],
-      params: { id: Schema.NumberFromString },
+      params: { id: Schema.FiniteFromString },
       payload: Schema.Struct({ title: Schema.String }),
       success: Todo,
     }),

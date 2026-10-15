@@ -102,7 +102,7 @@ A control that isn't a native input, such as a date picker from a component libr
 
 <Aside type="tip" title="Number inputs">
 
-For a number input, Svelte's `bind:value` on `type="number"` gives a number, or `null` when the input is empty, so the Schema's encoded side is a number there. `Schema.NumberFromString` fits a text input with `inputmode="numeric"`. It decodes an empty string to `0`, so check that the string isn't empty first, as the quantity in [Arrays](#arrays) does.
+For a number input, Svelte's `bind:value` on `type="number"` gives a number, or `null` when the input is empty, so the Schema's encoded side is a number there. `Schema.FiniteFromString` fits a text input with `inputmode="numeric"`. It decodes an empty string to `0`, so check that the string isn't empty first, as the quantity in [Arrays](#arrays) does.
 
 </Aside>
 

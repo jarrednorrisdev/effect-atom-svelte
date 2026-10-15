@@ -208,9 +208,13 @@ export interface UnsavedChangesGuardOptions {
 const nextPopState = (): Promise<unknown> =>
   Effect.runPromise(
     Effect.callback<undefined>((resume) => {
-      const done = () => resume(Effect.undefined);
+      const done = () => {
+        resume(Effect.undefined);
+      };
       addEventListener("popstate", done, { once: true });
-      return Effect.sync(() => removeEventListener("popstate", done));
+      return Effect.sync(() => {
+        removeEventListener("popstate", done);
+      });
     }).pipe(Effect.timeoutOption("1 second"))
   );
 
@@ -263,6 +267,7 @@ export const useUnsavedChangesGuard = (
     // Let the retry through, once. Any other navigation is asked about as usual.
     if (
       retry !== undefined &&
+      // oxlint-disable-next-line effecttsgo/global-date -- SvelteKit calls beforeNavigate synchronously, outside any Effect program
       retry.until > Date.now() &&
       (navigation.type === "leave"
         ? retry.unloads
@@ -284,6 +289,7 @@ export const useUnsavedChangesGuard = (
     // Cancelling back or forward makes SvelteKit undo the move with history.go, which finishes with
     // a popstate. A retry before then would be lost to it, so the retry waits for it.
     const undone = navigation.type === "popstate" ? nextPopState() : undefined;
+    // oxlint-disable-next-line effecttsgo/async-function -- awaits the app's confirm, which may return a Promise, from SvelteKit's beforeNavigate, outside any Effect program
     void (async () => {
       if (!(await options.confirm())) {
         return;
@@ -291,6 +297,7 @@ export const useUnsavedChangesGuard = (
       retry = {
         href: to.url.href,
         unloads: navigation.type !== "popstate" && navigation.willUnload,
+        // oxlint-disable-next-line effecttsgo/global-date -- compared with Date.now in beforeNavigate, outside any Effect program
         until: Date.now() + bypassFor,
       };
       if (navigation.type === "popstate") {
@@ -301,6 +308,7 @@ export const useUnsavedChangesGuard = (
         // unloading fires a "leave", which the bypass lets through.
         location.href = to.url.href;
       } else {
+        // oxlint-disable-next-line typescript/no-deprecated -- the peer range includes SvelteKit 2, whose goto has no `replace`, only `replaceState`
         await goto(to.url, { replaceState: to.url.href === location.href });
       }
     })();

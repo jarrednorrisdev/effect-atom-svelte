@@ -1,4 +1,5 @@
 // HTML input constraints read from a Schema's checks. Internal: not exported from the package.
+import type { Schema } from "effect";
 import { SchemaAST } from "effect";
 
 import type { IndexPath } from "./paths.ts";
@@ -13,14 +14,18 @@ export interface Constraints {
   readonly pattern?: string | undefined;
 }
 
-interface Representation {
-  readonly id?: unknown;
-  readonly payload?: Readonly<Record<string, unknown>> | null;
-}
-
 type Check = NonNullable<SchemaAST.AST["checks"]>[number];
 
-type Payload = Readonly<Record<string, unknown>> | undefined;
+/** A check's `representation` payload, when it is an object. */
+type Payload = Schema.JsonObject | undefined;
+
+const isJsonArray = (json: Schema.Json): json is Schema.JsonArray =>
+  Array.isArray(json);
+
+const objectPayload = (payload: Schema.Json | undefined): Payload =>
+  typeof payload === "object" && payload !== null && !isJsonArray(payload)
+    ? payload
+    : undefined;
 
 const finite = (payload: Payload, key: string): number | undefined => {
   const value = payload?.[key];
@@ -29,17 +34,34 @@ const finite = (payload: Payload, key: string): number | undefined => {
     : undefined;
 };
 
+// An HTML pattern is compiled with the v flag and must match the whole value, while a Schema
+// pattern matches anywhere in it: only one anchored at both ends, with no flags but u or v, means
+// the same to both.
+const sameAsHtmlPattern = (source: string, flags: Schema.Json | undefined) => {
+  if (
+    flags !== undefined &&
+    !(typeof flags === "string" && ["", "u", "v"].includes(flags))
+  ) {
+    return false;
+  }
+  if (!(source.startsWith("^") && source.endsWith("$"))) {
+    return false;
+  }
+  // `^a|b$` is anchored only at its ends: the browser wraps it as `^(?:^a|b$)$`.
+  return !source.includes("|") && !source.endsWith("\\$");
+};
+
 // Effect's built-in checks say what they are in a `representation` annotation (`Schema.ts`, for
 // example `isMinLength`). Only the ones that map exactly onto an HTML attribute are read; exclusive
 // bounds and custom filters are left out.
 const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
   "effect/schema/isBetween": (payload) => ({
     max:
-      payload?.["exclusiveMaximum"] === true
+      payload?.exclusiveMaximum === true
         ? undefined
         : finite(payload, "maximum"),
     min:
-      payload?.["exclusiveMinimum"] === true
+      payload?.exclusiveMinimum === true
         ? undefined
         : finite(payload, "minimum"),
   }),
@@ -59,51 +81,48 @@ const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
   "effect/schema/isMinLength": (payload) => ({
     minlength: finite(payload, "minLength"),
   }),
-  // An HTML pattern is compiled with the v flag and must match the whole value, while a Schema
-  // pattern matches anywhere in it: only one anchored at both ends, with no flags but u or v, means
-  // the same to both.
   "effect/schema/isPattern": (payload) => {
-    const source = payload?.["source"];
-    const flags = payload?.["flags"];
+    const source = payload?.source;
     return typeof source === "string" &&
-      (flags === undefined || ["", "u", "v"].includes(String(flags))) &&
-      source.startsWith("^") &&
-      source.endsWith("$") &&
-      // `^a|b$` is anchored only at its ends: the browser wraps it as `^(?:^a|b$)$`.
-      !source.includes("|") &&
-      !source.endsWith("\\$")
+      sameAsHtmlPattern(source, payload?.flags)
       ? { pattern: source }
       : {};
   },
 };
 
-const readCheck = (check: Check, into: Record<string, unknown>): void => {
+/** `Constraints`, to fill in. */
+type Mutable = { -readonly [K in keyof Constraints]: Constraints[K] };
+
+/** Copies `from`'s defined constraints into `into`, in `from`'s order. */
+const merge = (into: Mutable, from: Constraints): void => {
+  Object.assign(
+    into,
+    Object.fromEntries(
+      Object.entries(from).filter(([, value]) => value !== undefined)
+    )
+  );
+};
+
+const readCheck = (check: Check, into: Mutable): void => {
   if (check._tag === "FilterGroup") {
     for (const inner of check.checks) {
       readCheck(inner, into);
     }
     return;
   }
-  const representation = check.annotations?.["representation"] as
-    | Representation
-    | undefined;
-  const id = representation?.id;
-  const reader = typeof id === "string" ? readers[id] : undefined;
-  if (reader === undefined) {
+  const representation = check.annotations?.representation;
+  if (representation === undefined) {
     return;
   }
-  for (const [key, value] of Object.entries(
-    reader(representation?.payload ?? undefined)
-  )) {
-    if (value !== undefined) {
-      into[key] = value;
-    }
+  const reader = readers[representation.id];
+  if (reader !== undefined) {
+    merge(into, reader(objectPayload(representation.payload)));
   }
 };
 
 // The node's checks, then the checks along its encoding chain (NumberFromString keeps a range check
 // on the decoded Number and a NonEmpty check on the encoded String).
-const readNode = (ast: SchemaAST.AST, into: Record<string, unknown>): void => {
+const readNode = (ast: SchemaAST.AST, into: Mutable): void => {
   for (const check of ast.checks ?? []) {
     readCheck(check, into);
   }
@@ -112,20 +131,13 @@ const readNode = (ast: SchemaAST.AST, into: Record<string, unknown>): void => {
   }
 };
 
-interface PropertyLike {
-  readonly name: PropertyKey;
-  readonly type: SchemaAST.AST;
-}
-
 // Steps into declarations (a Schema.Class wraps its Struct) and suspensions, to a node with fields.
 const unwrap = (ast: SchemaAST.AST): SchemaAST.AST => {
   if (SchemaAST.isSuspend(ast)) {
-    return unwrap((ast as unknown as { thunk: () => SchemaAST.AST }).thunk());
+    return unwrap(ast.thunk());
   }
   if (SchemaAST.isDeclaration(ast)) {
-    const [inner] = (
-      ast as unknown as { typeParameters: readonly SchemaAST.AST[] }
-    ).typeParameters;
+    const [inner] = ast.typeParameters;
     if (inner !== undefined) {
       return unwrap(inner);
     }
@@ -143,9 +155,7 @@ const step = (
 ): { readonly ast: SchemaAST.AST; readonly optional: boolean } | undefined => {
   const node = unwrap(ast);
   if (SchemaAST.isUnion(node)) {
-    for (const member of (
-      node as unknown as { types: readonly SchemaAST.AST[] }
-    ).types) {
+    for (const member of node.types) {
       const found = step(member, segment);
       if (found !== undefined) {
         return found;
@@ -154,19 +164,15 @@ const step = (
     return undefined;
   }
   if (SchemaAST.isObjects(node) && typeof segment === "string") {
-    const property = (
-      node as unknown as { propertySignatures: readonly PropertyLike[] }
-    ).propertySignatures.find((candidate) => candidate.name === segment);
+    const property = node.propertySignatures.find(
+      (candidate) => candidate.name === segment
+    );
     return property === undefined
       ? undefined
       : { ast: property.type, optional: SchemaAST.isOptional(property.type) };
   }
   if (SchemaAST.isArrays(node) && typeof segment === "number") {
-    const arrays = node as unknown as {
-      elements: readonly SchemaAST.AST[];
-      rest: readonly SchemaAST.AST[];
-    };
-    const element = arrays.elements[segment] ?? arrays.rest[0];
+    const element = node.elements[segment] ?? node.rest[0];
     return element === undefined
       ? undefined
       : { ast: element, optional: SchemaAST.isOptional(element) };
@@ -179,9 +185,7 @@ const withoutUndefined = (ast: SchemaAST.AST): SchemaAST.AST => {
   if (!SchemaAST.isUnion(ast)) {
     return ast;
   }
-  const types = (
-    ast as unknown as { types: readonly SchemaAST.AST[] }
-  ).types.filter((member) => member._tag !== "Undefined");
+  const types = ast.types.filter((member) => member._tag !== "Undefined");
   return types.length === 1 && types[0] !== undefined ? types[0] : ast;
 };
 
@@ -203,19 +207,15 @@ export const constraintsAt = (
     return {};
   }
   const { ast, optional } = found;
-  const into: Record<string, unknown> = {};
+  const into: Mutable = {};
   readNode(withoutUndefined(ast), into);
   // `required` means "not empty" to a browser, so it is set only where the Schema rejects an empty
   // string: a required key alone allows "", and a checkbox's boolean is always present.
   const { minlength } = into;
-  const out: Record<string, unknown> = {};
+  const out: Mutable = {};
   if (!optional && typeof minlength === "number" && minlength >= 1) {
-    out["required"] = true;
+    out.required = true;
   }
-  for (const [key, value] of Object.entries(into)) {
-    if (value !== undefined) {
-      out[key] = value;
-    }
-  }
-  return out as Constraints;
+  merge(out, into);
+  return out;
 };

@@ -4,8 +4,8 @@ import type { AsyncResult } from "effect/reactivity";
 
 import type { Engine } from "./engine.ts";
 import { GroupImpl } from "./group.ts";
-import { equals, pathId, toKeyPath } from "./paths.ts";
-import type { IndexPath, KeyPath } from "./paths.ts";
+import { equals, fromPathId, pathId, toKeyPath } from "./paths.ts";
+import type { IndexPath } from "./paths.ts";
 import type { ErrorsInput } from "./types.ts";
 import { FormValidationError } from "./validationError.ts";
 
@@ -15,6 +15,7 @@ export class InstanceImpl extends GroupImpl {
     void this.#submitAndFocus();
   };
 
+  // oxlint-disable-next-line effecttsgo/async-function -- the form's submit handler, which awaits the Promise-facing submit, outside any Effect program
   async #submitAndFocus(): Promise<void> {
     const exit = await this.submit();
     if (Exit.isFailure(exit)) {
@@ -43,9 +44,9 @@ export class InstanceImpl extends GroupImpl {
 
   get valid(): boolean {
     const { state } = this.engine;
+    const current = state.checked === this.engine.values && !state.validating;
     return (
-      state.checked === this.engine.values &&
-      !state.validating &&
+      current &&
       state.failure === undefined &&
       state.issues.size === 0 &&
       state.external.size === 0
@@ -80,7 +81,7 @@ export class InstanceImpl extends GroupImpl {
         return;
       }
       seen.add(id);
-      const keyPath = JSON.parse(id) as KeyPath;
+      const keyPath = fromPathId(id);
       const message = this.engine.errorAt(keyPath);
       const path = this.engine.indexPath(keyPath);
       if (message !== undefined && path !== undefined) {

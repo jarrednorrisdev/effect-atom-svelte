@@ -203,12 +203,16 @@ test.describe("Forms page", () => {
       await expect(page).toHaveURL(/\/forms$/u);
       await page.waitForLoadState("networkidle");
       await editTitle(page);
-      await page.evaluate(() => history.back());
+      await page.evaluate(() => {
+        history.back();
+      });
       await expect.poll(() => dialogs).toEqual([confirmMessage]);
       await expect(page).toHaveURL(/\/forms$/u);
       await expect(page.getByTestId("state-dirty")).toHaveText("true");
       accept = true;
-      await page.evaluate(() => history.back());
+      await page.evaluate(() => {
+        history.back();
+      });
       await expect(page).toHaveURL(/\/mutations$/u);
       expect(dialogs).toEqual([confirmMessage, confirmMessage]);
     });

@@ -1,7 +1,7 @@
 // Form instances without Svelte: values, validation timing, submit and arrays.
-import { Cause, Data, Effect, Exit, Layer, Option, Schema } from "effect";
+import { Cause, Effect, Exit, Layer, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
-import { describe, expect, test } from "vitest";
+import { assert, describe, expect, test } from "vitest";
 
 import { Form } from "../src/index.ts";
 import { sleep } from "./helpers.ts";
@@ -31,10 +31,19 @@ describe("values", () => {
     const email = form.field("email");
     expect(email.value).toBe("");
     email.value = "ada@example.com";
-    expect(form.values).toEqual({ email: "ada@example.com", password: "" });
+    expect(form.values).toStrictEqual({
+      email: "ada@example.com",
+      password: "",
+    });
     expect(email.dirty).toBe(true);
     expect(form.field("password").dirty).toBe(false);
     expect(form.dirty).toBe(true);
+    form.dispose();
+  });
+
+  test("reset brings back the initial values, and the form is clean again", () => {
+    const form = signIn();
+    form.field("email").value = "ada@example.com";
     form.reset();
     expect(form.values.email).toBe("");
     expect(form.dirty).toBe(false);
@@ -57,6 +66,7 @@ describe("validation timing", () => {
     email.value = "ada";
     await tick();
     expect(email.error).toBeUndefined();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     email.blur();
     expect(email.error).toBe("Enter a valid email");
     expect(email.touched).toBe(true);
@@ -74,7 +84,7 @@ describe("validation timing", () => {
     const form = signIn();
     const exit = await form.submit();
     expect(Exit.isFailure(exit)).toBe(true);
-    expect(form.errors.map((entry) => entry.path)).toEqual([
+    expect(form.errors.map((entry) => entry.path)).toStrictEqual([
       ["email"],
       ["password"],
     ]);
@@ -90,17 +100,17 @@ describe("validation timing", () => {
     form.setValues({ email: "ada@example.com", password: "x" });
     await tick();
     expect(form.valid).toBe(true);
-    expect(form.errors).toEqual([]);
+    expect(form.errors).toStrictEqual([]);
     form.dispose();
   });
 
   test("validate(paths) shows only those paths", async () => {
     const form = signIn();
-    expect(await form.validate(["email"])).toBe(false);
+    await expect(form.validate(["email"])).resolves.toBe(false);
     expect(form.field("email").error).toBe("Enter a valid email");
     expect(form.field("password").error).toBeUndefined();
     form.field("email").value = "ada@example.com";
-    expect(await form.validate(["email"])).toBe(true);
+    await expect(form.validate(["email"])).resolves.toBe(true);
     form.dispose();
   });
 });
@@ -129,7 +139,7 @@ describe("messages", () => {
       }
     );
     await form.submit();
-    expect(form.errors).toEqual([
+    expect(form.errors).toStrictEqual([
       { message: "Passwords do not match", path: ["confirmPassword"] },
     ]);
     form.field("password").value = "abc";
@@ -140,9 +150,15 @@ describe("messages", () => {
   });
 });
 
-class Down extends Data.TaggedError("Down")<{ readonly reason: string }> {}
-class Taken extends Data.TaggedError("Taken")<{ readonly email: string }> {}
-class Boom extends Data.TaggedError("Boom")<{ readonly reason: string }> {}
+class Down extends Schema.TaggedError<Down>()("Down", {
+  reason: Schema.String,
+}) {}
+class Taken extends Schema.TaggedError<Taken>()("Taken", {
+  email: Schema.String,
+}) {}
+class Boom extends Schema.TaggedError<Boom>()("Boom", {
+  reason: Schema.String,
+}) {}
 
 describe("submit", () => {
   test("success adopts the submitted values as initial values", async () => {
@@ -156,7 +172,7 @@ describe("submit", () => {
     });
     form.setValues({ email: "ada@example.com", password: "x" });
     const exit = await form.submit();
-    expect(exit).toEqual(Exit.succeed(15));
+    expect(exit).toStrictEqual(Exit.succeed(15));
     expect(form.dirty).toBe(false);
     expect(Option.getOrThrow(form.lastSubmitted).encoded.email).toBe(
       "ada@example.com"
@@ -192,7 +208,9 @@ describe("submit", () => {
     const form = Form.instance(SignIn, {
       id: "s",
       initialValues: { email: "ada@example.com", password: "x" },
-      mapError: () => undefined,
+      mapError: () => {
+        // Claims no failure.
+      },
       submit: { atom: save },
     });
     await form.submit();
@@ -219,7 +237,7 @@ describe("submit", () => {
       },
     });
     const [a, b] = await Promise.all([form.submit(7), form.submit(8)]);
-    expect(a).toEqual(Exit.succeed(7));
+    expect(a).toStrictEqual(Exit.succeed(7));
     expect(b).toBe(a);
     expect(calls).toBe(1);
     form.dispose();
@@ -258,7 +276,7 @@ describe("arrays", () => {
     })
   );
 
-  test("an item's error and touched state move with it", async () => {
+  const submittedOrder = async () => {
     const form = Form.instance(Order, {
       id: "o",
       initialValues: {
@@ -270,6 +288,11 @@ describe("arrays", () => {
       },
     });
     await form.submit();
+    return form;
+  };
+
+  test("an item's error and touched state move with it", async () => {
+    const form = await submittedOrder();
     const items = form.array("items");
     expect(items.items[1]?.fields.field("qty").error).toBeDefined();
     const key = items.items[1]?.key;
@@ -278,12 +301,17 @@ describe("arrays", () => {
     expect(form.field(["items", 0, "qty"]).error).toBeDefined();
     expect(form.field(["items", 1, "qty"]).error).toBeUndefined();
     await tick();
-    expect(form.errors.map((entry) => entry.path)).toEqual([
+    expect(form.errors.map((entry) => entry.path)).toStrictEqual([
       ["items", 0, "qty"],
     ]);
-    items.remove(0);
+    form.dispose();
+  });
+
+  test("removing an item drops its error", async () => {
+    const form = await submittedOrder();
+    form.array("items").remove(1);
     await tick();
-    expect(form.errors).toEqual([]);
+    expect(form.errors).toStrictEqual([]);
     form.dispose();
   });
 
@@ -308,7 +336,7 @@ describe("constraints", () => {
           Schema.String.check(Schema.isPattern(/[A-Z]{3}/u))
         ),
         name: Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(40)),
-        width: Schema.NumberFromString.check(
+        width: Schema.FiniteFromString.check(
           Schema.isBetween({ maximum: 12_000, minimum: 16 })
         ),
       })
@@ -317,13 +345,16 @@ describe("constraints", () => {
       id: "p",
       initialValues: { name: "", width: "100" },
     });
-    expect(form.field("name").constraints).toEqual({
+    expect(form.field("name").constraints).toStrictEqual({
       maxlength: 40,
       minlength: 1,
       required: true,
     });
-    expect(form.field("width").constraints).toEqual({ max: 12_000, min: 16 });
-    expect(form.field("code").constraints).toEqual({});
+    expect(form.field("width").constraints).toStrictEqual({
+      max: 12_000,
+      min: 16,
+    });
+    expect(form.field("code").constraints).toStrictEqual({});
     form.dispose();
   });
 });
@@ -352,12 +383,12 @@ describe("unions", () => {
       initialValues: { body: { dressSize: "", gender: "Female" }, name: "Ada" },
     });
     await form.submit();
-    expect(form.errors.map((entry) => entry.path)).toEqual([
+    expect(form.errors.map((entry) => entry.path)).toStrictEqual([
       ["body", "dressSize"],
     ]);
     form.field(["body", "gender"]).value = "Male";
     await tick();
-    expect(form.errors.map((entry) => entry.path)).toEqual([
+    expect(form.errors.map((entry) => entry.path)).toStrictEqual([
       ["body", "chest"],
       ["body", "waist"],
     ]);
@@ -394,7 +425,7 @@ describe("more instance options", () => {
       submit: { atom: save },
     });
     await tick();
-    expect(saved).toEqual([]);
+    expect(saved).toStrictEqual([]);
     form.field("name").value = "Bo";
     await tick();
     form.field("name").value = "Bob";
@@ -403,7 +434,7 @@ describe("more instance options", () => {
     await tick();
     form.field("name").value = "Bobby";
     await sleep("60 millis");
-    expect(saved).toEqual(["Bo", "Bobby"]);
+    expect(saved).toStrictEqual(["Bo", "Bobby"]);
     form.dispose();
   });
 
@@ -418,22 +449,31 @@ describe("more instance options", () => {
     });
     expect(form.field("name").value).toBe("Draft");
     form.field("name").value = "Edited";
-    expect(registry.get(draft)).toEqual({ name: "Edited" });
+    expect(registry.get(draft)).toStrictEqual({ name: "Edited" });
     expect(form.dirty).toBe(true);
     form.dispose();
   });
 
-  test("a manual error clears when its field changes, and a form error on reset", () => {
+  test("a manual error clears when its field changes, but not a form error", () => {
     const form = Form.instance(Settings, {
       id: "m",
       initialValues: { name: "Ada" },
     });
     form.setErrors({ fields: { name: "Taken" }, form: "Try again" });
     expect(form.field("name").error).toBe("Taken");
-    expect(form.rootError).toBe("Try again");
     expect(form.valid).toBe(false);
     form.field("name").value = "Bo";
     expect(form.field("name").error).toBeUndefined();
+    expect(form.rootError).toBe("Try again");
+    form.dispose();
+  });
+
+  test("a manual form error clears on reset", () => {
+    const form = Form.instance(Settings, {
+      id: "m",
+      initialValues: { name: "Ada" },
+    });
+    form.setErrors({ fields: { name: "Taken" }, form: "Try again" });
     expect(form.rootError).toBe("Try again");
     form.reset();
     expect(form.rootError).toBeUndefined();
@@ -526,7 +566,13 @@ describe("types", () => {
 
 /** A promise, or "timed out" if it hasn't settled after 200 milliseconds. */
 const settled = <A>(promise: Promise<A>) =>
-  Promise.race([promise, sleep("200 millis").then(() => "timed out" as const)]);
+  Promise.race([
+    promise,
+    (async () => {
+      await sleep("200 millis");
+      return "timed out" as const;
+    })(),
+  ]);
 
 describe("found in review", () => {
   const Settings = Form.make(Schema.Struct({ name: Schema.NonEmptyString }));
@@ -544,9 +590,11 @@ describe("found in review", () => {
     });
     await sleep("80 millis");
     form.field("name").value = "Bo";
-    expect(await settled(form.submit())).toEqual(Exit.succeed({ name: "Bo" }));
+    await expect(settled(form.submit())).resolves.toStrictEqual(
+      Exit.succeed({ name: "Bo" })
+    );
     form.field("name").value = "Cy";
-    expect(await settled(form.validate())).toBe(true);
+    await expect(settled(form.validate())).resolves.toBe(true);
     form.dispose();
   });
 
@@ -598,7 +646,7 @@ describe("found in review", () => {
     const pending = form.submit();
     form.setValues({ name: "" });
     await pending;
-    expect(sent).toEqual(["Bo"]);
+    expect(sent).toStrictEqual(["Bo"]);
     expect(Option.getOrThrow(form.lastSubmitted).encoded.name).toBe("Bo");
     expect(form.dirty).toBe(true);
     form.dispose();
@@ -636,7 +684,7 @@ describe("found in review", () => {
     await tick();
     form.field("name").value = "Bo";
     await sleep("30 millis");
-    expect(sent).toEqual(["Bo"]);
+    expect(sent).toStrictEqual(["Bo"]);
     form.dispose();
   });
 
@@ -670,8 +718,8 @@ describe("found in review", () => {
       initialValues: { name: "" },
     });
     form.dispose();
-    expect(await settled(form.validate())).not.toBe("timed out");
-    expect(await settled(form.submit())).not.toBe("timed out");
+    await expect(settled(form.validate())).resolves.not.toBe("timed out");
+    await expect(settled(form.submit())).resolves.not.toBe("timed out");
   });
 
   test("a field under an optional parent may be undefined", () => {
@@ -684,7 +732,7 @@ describe("found in review", () => {
     const city: string | undefined = form.field(["address", "city"]).value;
     // @ts-expect-error: undefined while there is no address
     const notString: string = form.field(["address", "city"]).value;
-    expect([city, notString]).toEqual([undefined, undefined]);
+    expect([city, notString]).toStrictEqual([undefined, undefined]);
     form.dispose();
   });
 });
@@ -709,7 +757,9 @@ const throwsOnce = () => {
 };
 const quiet = async <A>(f: () => Promise<A>): Promise<A> => {
   const { error } = console;
-  console.error = () => undefined;
+  console.error = () => {
+    // Silenced while `f` runs.
+  };
   try {
     return await f();
   } finally {
@@ -731,7 +781,7 @@ describe("found in review, round 1", () => {
     await quiet(tick);
     expect(form.valid).toBe(false);
     const exit = await settled(form.submit());
-    expect(exit).toEqual(Exit.succeed("Ada"));
+    expect(exit).toStrictEqual(Exit.succeed("Ada"));
     expect(blip.calls()).toBe(2);
     form.dispose();
   });
@@ -776,12 +826,10 @@ describe("found in review, round 1", () => {
     const exit = await quiet(() => settled(form.submit()));
     expect(exit !== "timed out" && Exit.isFailure(exit)).toBe(true);
     const result = form.submitResult;
-    expect(AsyncResult.isFailure(result)).toBe(true);
-    if (AsyncResult.isFailure(result)) {
-      expect(Cause.hasDies(result.cause)).toBe(true);
-      expect(Cause.hasFails(result.cause)).toBe(false);
-      expect(Cause.squash(result.cause)).toBeInstanceOf(Down);
-    }
+    assert(AsyncResult.isFailure(result));
+    expect(Cause.hasDies(result.cause)).toBe(true);
+    expect(Cause.hasFails(result.cause)).toBe(false);
+    expect(Cause.squash(result.cause)).toBeInstanceOf(Down);
     form.dispose();
   });
 
@@ -799,8 +847,8 @@ describe("found in review, round 1", () => {
       id: "r3",
       initialValues: { name: "Ada" },
     });
-    expect(await quiet(() => form.validate())).toBe(false);
-    expect(await quiet(() => form.validate(["name"]))).toBe(false);
+    await expect(quiet(() => form.validate())).resolves.toBe(false);
+    await expect(quiet(() => form.validate(["name"]))).resolves.toBe(false);
     form.dispose();
   });
 
@@ -833,12 +881,12 @@ describe("found in review, round 1", () => {
       id: "r5",
       initialValues: { anchored: "", anywhere: "", either: "", title: "" },
     });
-    expect(form.field("anchored").constraints).toEqual({
+    expect(form.field("anchored").constraints).toStrictEqual({
       pattern: "^[A-Z]{3}$",
     });
-    expect(form.field("anywhere").constraints).toEqual({});
-    expect(form.field("either").constraints).toEqual({});
-    expect(form.field("title").constraints).toEqual({
+    expect(form.field("anywhere").constraints).toStrictEqual({});
+    expect(form.field("either").constraints).toStrictEqual({});
+    expect(form.field("title").constraints).toStrictEqual({
       maxlength: 80,
       minlength: 1,
       required: true,
@@ -864,7 +912,7 @@ describe("names and issues", () => {
         ? []
         : [atom.label[0]]
     );
-    expect(new Set(labels)).toEqual(
+    expect(new Set(labels)).toStrictEqual(
       new Set(["SignUp.check", "SignUp.state", "SignUp.values"])
     );
     form.dispose();
@@ -911,9 +959,11 @@ describe("errors brought on by another field", () => {
     const confirm = form.field("confirmPassword");
     password.value = "short";
     await tick();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     password.blur();
     confirm.value = "different";
     await tick();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     confirm.blur();
     // The password fails its own check, so Effect skips the struct's check.
     expect(confirm.issue).toBeUndefined();
@@ -933,12 +983,14 @@ describe("errors brought on by another field", () => {
     const password = form.field("password");
     password.value = "longpassword";
     await tick();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     password.blur();
     password.value = "short";
     await tick();
     // Touched, but its own edit: validateOn "blur" holds the error until it's left.
     expect(password.issue).toBe("At least 8 characters");
     expect(password.error).toBeUndefined();
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     password.blur();
     expect(password.error).toBe("At least 8 characters");
     form.dispose();

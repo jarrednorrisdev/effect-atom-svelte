@@ -7,7 +7,9 @@ import type { IndexPath, KeyPath } from "./paths.ts";
 export class FieldImpl {
   readonly #engine: Engine;
   readonly keyPath: KeyPath;
-  readonly #blur = () => this.#engine.blur(this.keyPath);
+  readonly #onblur = () => {
+    this.#engine.leave(this.keyPath);
+  };
 
   constructor(engine: Engine, keyPath: KeyPath) {
     this.#engine = engine;
@@ -77,7 +79,7 @@ export class FieldImpl {
       "aria-invalid": invalid ? true : undefined,
       id: this.id,
       name: this.name,
-      onblur: this.#blur,
+      onblur: this.#onblur,
     } as const;
   }
 
@@ -87,6 +89,6 @@ export class FieldImpl {
 
   /** What leaving the field does, for a custom control with no blur event of its own. */
   blur(): void {
-    this.#blur();
+    this.#onblur();
   }
 }

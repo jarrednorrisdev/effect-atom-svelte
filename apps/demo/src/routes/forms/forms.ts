@@ -50,7 +50,7 @@ export const RenameTodo = Form.make(
 const Quantity = Schema.String.check(
   Schema.isNonEmpty({ message: "Enter a quantity" })
 ).pipe(
-  Schema.decodeTo(Schema.NumberFromString),
+  Schema.decodeTo(Schema.FiniteFromString),
   Schema.decodeTo(
     Schema.Int.check(
       Schema.isGreaterThanOrEqualTo(1, { message: "At least 1" })
