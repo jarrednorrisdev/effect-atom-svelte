@@ -60,8 +60,7 @@
 
 <style>
   .knows {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
     font-size: 0.8125rem;
     padding: 0.75rem 1rem;
   }

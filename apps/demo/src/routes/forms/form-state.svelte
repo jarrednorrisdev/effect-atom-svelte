@@ -72,8 +72,7 @@
 
 <style>
   .state {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
     font-size: 0.8125rem;
     margin-top: 0.75rem;
     padding: 0.75rem 1rem;

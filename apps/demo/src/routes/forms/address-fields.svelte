@@ -18,7 +18,7 @@
   const city = $derived(fields.field("city"));
 </script>
 
-<fieldset class="grid gap-1 rounded-lg border p-3">
+<fieldset class="grid gap-1 border p-3">
   <legend class="px-1 text-sm font-medium">{legend}</legend>
   <label for={street.id}>Street</label>
   <input {...street.attrs} bind:value={street.value} />
