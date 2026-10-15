@@ -154,7 +154,7 @@ A submit holds its atom until it settles, as `useAtomSet`'s promise modes do (se
 
 <Aside type="caution" title="Two instances, one atom">
 
-Writes to one `Atom.fn` share its single result: a new call interrupts one still running, and every call still waiting resolves with the newest call's result. So if two instances submit to the same atom at once, the first one's submit resolves with the second one's result, and its form takes that as its own success, although its values were never saved. Give each instance its own atom: create it in the component's script, which makes one per instance, or key an `Atom.family` by the instance's `id`.
+Writes to one `Atom.fn` share its single result: a new call interrupts one still running, and every call still waiting resolves with the newest call's result. So if two instances submit to the same atom at once, the first one's submit resolves with the second one's result, and its form takes that as its own success, although its values were never saved. Give each instance its own atom where two can submit at once: an `Atom.fn` created in the component's script is one per instance. An RPC or HTTP client's `mutation(...)` is not: it returns the same atom for the same procedure wherever it's called, so for one per instance build it from the client's `runtime.fn` in the component's script.
 
 </Aside>
 
@@ -177,7 +177,7 @@ mapError: (error) => {
 
 A field error from `mapError` shows at once and goes when the user edits that field. The form error is `form.rootError`, which stays until the next submit. A failure that `mapError` returns `undefined` for stays in `submitResult`, for the app to show its own way, such as a toast. A claimed failure never appears there, so it isn't shown twice. Defects and interruptions are never passed to `mapError`.
 
-`form.setErrors({ fields, form })` puts errors on the form from anywhere else. They clear the same way.
+`form.setErrors({ fields, form })` puts errors on the form from anywhere else. They clear the same way: a field's error when that field changes, and the form error at the next submit.
 
 ## Edit forms
 

@@ -576,7 +576,8 @@ describe("found in review", () => {
     } finally {
       console.error = error;
     }
-    expect(errors).toHaveLength(1);
+    // The first run, and the run submit tries again.
+    expect(errors).toHaveLength(2);
     form.dispose();
   });
 
@@ -682,6 +683,133 @@ describe("found in review", () => {
     // @ts-expect-error: undefined while there is no address
     const notString: string = form.field(["address", "city"]).value;
     expect([city, notString]).toEqual([undefined, undefined]);
+    form.dispose();
+  });
+});
+
+/** A form whose check throws the first time it runs, and counts its runs. */
+const throwsOnce = () => {
+  let calls = 0;
+  const form = Form.make(
+    Schema.Struct({
+      name: Schema.String.check(
+        Schema.makeFilter(() => {
+          calls += 1;
+          if (calls === 1) {
+            throw new Error("blip");
+          }
+          return true;
+        })
+      ),
+    })
+  );
+  return { calls: () => calls, form };
+};
+const quiet = async <A>(f: () => Promise<A>): Promise<A> => {
+  const { error } = console;
+  console.error = () => undefined;
+  try {
+    return await f();
+  } finally {
+    console.error = error;
+  }
+};
+
+describe("found in review, round 1", () => {
+  test("a validation that couldn't run is run again by submit, and its cause is in submitResult", async () => {
+    const blip = throwsOnce();
+    const save = Atom.fn((input: { name: string }) =>
+      Effect.succeed(input.name)
+    );
+    const form = Form.instance(blip.form, {
+      id: "r1",
+      initialValues: { name: "Ada" },
+      submit: { atom: save },
+    });
+    await quiet(tick);
+    expect(form.valid).toBe(false);
+    const exit = await settled(form.submit());
+    expect(exit).toEqual(Exit.succeed("Ada"));
+    expect(blip.calls()).toBe(2);
+    form.dispose();
+  });
+
+  test("a submit whose validation fails again reports the cause in submitResult", async () => {
+    const Always = Form.make(
+      Schema.Struct({
+        name: Schema.String.check(
+          Schema.makeFilter(() => {
+            throw new Error("down");
+          })
+        ),
+      })
+    );
+    const form = Form.instance(Always, {
+      id: "r2",
+      initialValues: { name: "Ada" },
+    });
+    const exit = await quiet(() => settled(form.submit()));
+    expect(exit !== "timed out" && Exit.isFailure(exit)).toBe(true);
+    expect(AsyncResult.isFailure(form.submitResult)).toBe(true);
+    form.dispose();
+  });
+
+  test("validate is false while the decode can't run", async () => {
+    const Always = Form.make(
+      Schema.Struct({
+        name: Schema.String.check(
+          Schema.makeFilter(() => {
+            throw new Error("down");
+          })
+        ),
+      })
+    );
+    const form = Form.instance(Always, {
+      id: "r3",
+      initialValues: { name: "Ada" },
+    });
+    expect(await quiet(() => form.validate())).toBe(false);
+    expect(await quiet(() => form.validate(["name"]))).toBe(false);
+    form.dispose();
+  });
+
+  test("a form error from setErrors clears at the next submit", async () => {
+    const form = Form.instance(
+      Form.make(Schema.Struct({ name: Schema.String })),
+      {
+        id: "r4",
+        initialValues: { name: "Ada" },
+      }
+    );
+    form.setErrors({ form: "Server is down" });
+    expect(form.rootError).toBe("Server is down");
+    await form.submit();
+    expect(form.rootError).toBeUndefined();
+    expect(form.valid).toBe(true);
+    form.dispose();
+  });
+
+  test("only an anchored pattern becomes an HTML pattern, and isBetweenLength sets both lengths", () => {
+    const Codes = Form.make(
+      Schema.Struct({
+        anchored: Schema.String.check(Schema.isPattern(/^[A-Z]{3}$/u)),
+        anywhere: Schema.String.check(Schema.isPattern(/\d/u)),
+        title: Schema.String.check(Schema.isBetweenLength(1, 80)),
+      })
+    );
+    const form = Form.instance(Codes, {
+      id: "r5",
+      initialValues: { anchored: "", anywhere: "", title: "" },
+    });
+    expect(form.field("anchored").constraints).toEqual({
+      pattern: "^[A-Z]{3}$",
+    });
+    expect(form.field("anywhere").constraints).toEqual({});
+    expect(form.field("title").constraints).toEqual({
+      maxlength: 80,
+      minlength: 1,
+      required: true,
+    });
     form.dispose();
   });
 });

@@ -281,8 +281,10 @@ export type AnyPath = readonly (string | number)[];
 
 /**
  * HTML input constraints read from a field's Schema checks: `minlength` from `isMinLength` and
- * `isNonEmpty`, `maxlength` from `isMaxLength`, `min` and `max` from `isGreaterThanOrEqualTo`,
- * `isLessThanOrEqualTo` and `isBetween`, `pattern` from `isPattern` without flags, and `required`
+ * `isNonEmpty`, `maxlength` from `isMaxLength`, both from `isBetweenLength`, `min` and `max` from
+ * `isGreaterThanOrEqualTo`, `isLessThanOrEqualTo` and `isBetween`, `pattern` from an `isPattern`
+ * anchored with `^` and `$`, with no flags but `u` or `v` (an HTML pattern must match the whole value, a
+ * Schema pattern anywhere in it), and `required`
  * where the Schema rejects an empty string. Other checks set nothing.
  *
  * @stability unstable

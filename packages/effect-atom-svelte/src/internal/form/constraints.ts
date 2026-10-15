@@ -43,6 +43,10 @@ const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
         ? undefined
         : finite(payload, "minimum"),
   }),
+  "effect/schema/isBetweenLength": (payload) => ({
+    maxlength: finite(payload, "maximum"),
+    minlength: finite(payload, "minimum"),
+  }),
   "effect/schema/isGreaterThanOrEqualTo": (payload) => ({
     min: finite(payload, "minimum"),
   }),
@@ -55,11 +59,17 @@ const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
   "effect/schema/isMinLength": (payload) => ({
     minlength: finite(payload, "minLength"),
   }),
-  // HTML patterns match the whole value and take no flags.
+  // An HTML pattern is compiled with the v flag and must match the whole value, while a Schema
+  // pattern matches anywhere in it: only one anchored at both ends, with no flags but u or v, means
+  // the same to both.
   "effect/schema/isPattern": (payload) => {
     const source = payload?.["source"];
     const flags = payload?.["flags"];
-    return typeof source === "string" && (flags === "" || flags === undefined)
+    return typeof source === "string" &&
+      (flags === undefined || ["", "u", "v"].includes(String(flags))) &&
+      source.startsWith("^") &&
+      source.endsWith("$") &&
+      !source.endsWith("\\$")
       ? { pattern: source }
       : {};
   },

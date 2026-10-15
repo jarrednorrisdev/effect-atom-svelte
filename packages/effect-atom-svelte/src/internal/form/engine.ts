@@ -572,6 +572,20 @@ export class Engine {
     return state.checked === this.#currentValues() && !state.validating;
   }
 
+  // A run that couldn't decode at all (a check that threw, a runtime that failed) may have been a
+  // blip, so validate and submit run it again rather than reuse its failure.
+  #retryFailed(): void {
+    if (
+      this.options.validates &&
+      !this.#disposed &&
+      this.#current().failure !== undefined
+    ) {
+      this.#update((state) => ({ ...state, validating: true }));
+      clearTimeout(this.#timer);
+      this.#run();
+    }
+  }
+
   // Resolves once a run of the current values has settled.
   #settled(): Promise<undefined> {
     if (!this.options.validates || this.#disposed || this.#isCurrent()) {
@@ -611,11 +625,15 @@ export class Engine {
       ...latest,
       validationCount: latest.validationCount + 1,
     }));
+    this.#retryFailed();
     await this.#settled();
     if (this.#isCurrent()) {
       this.#reveal(true);
     }
     const latest = this.#current();
+    if (latest.failure !== undefined) {
+      return false;
+    }
     return [...latest.issues.keys()].every((id) => {
       if (keyPaths === undefined) {
         return false;
@@ -664,11 +682,15 @@ export class Engine {
     this.#pendingAll = true;
     this.#update((state) => ({
       ...state,
+      // Errors from the last submit, and a form-level error from setErrors, give way to this one.
       external: new Map(
-        [...state.external].filter(([, error]) => error.source !== "submit")
+        [...state.external].filter(
+          ([id, error]) => error.source !== "submit" && id !== ROOT
+        )
       ),
       submitCount: state.submitCount + 1,
     }));
+    this.#retryFailed();
     await this.#settled();
     if (session !== this.#session) {
       return Exit.interrupt();
@@ -685,7 +707,13 @@ export class Engine {
     if (this.options.validates) {
       // The decode couldn't run at all: there is nothing to send.
       if (state.failure !== undefined) {
-        return Exit.failCause(state.failure);
+        const cause = state.failure;
+        // Not the form's fault, and nothing claims it: the app shows it, as a failed submit.
+        this.#update((latest) => ({
+          ...latest,
+          submitResult: AsyncResult.failure(cause),
+        }));
+        return Exit.failCause(cause);
       }
       if (state.issues.size > 0 || Option.isNone(state.decoded)) {
         return Exit.fail(new FormValidationError({ errors: this.root.errors }));
