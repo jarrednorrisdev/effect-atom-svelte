@@ -299,8 +299,9 @@ export default defineConfig({
     // Services provide their layers once, when their own layer is built.
     "effecttsgo/strict-effect-provide": "warn",
     "effecttsgo/unsafe-effect-type-assertion": "error",
-    // Effect marks its platform, reactivity and HTTP modules unstable, and
-    // this library is built on them.
+    // Effect tags its reactivity, HTTP, RPC and persistence modules
+    // @stability unstable, and this library mirrors those tags on its own
+    // exports, so every use of it would be flagged.
     "effecttsgo/unstable-api-usage": "off",
     // Misreads Effect.forEach(items, f) as Array#forEach.
     "github/array-foreach": "off",
