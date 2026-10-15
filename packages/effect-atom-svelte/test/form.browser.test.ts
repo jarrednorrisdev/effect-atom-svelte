@@ -1,15 +1,18 @@
 // useForm in components: attributes, timing in the DOM, submit, lifetimes and hydration.
 import { hydrate, unmount } from "svelte";
 import type { Component } from "svelte";
-import { describe, expect, onTestFinished, test } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import { commands, userEvent } from "vitest/browser";
 
+import { useUnsavedChangesGuard } from "../src/SvelteKit.ts";
 import { makeSlowSave } from "./fixtures/form-atoms.ts";
+import FormBilling from "./fixtures/form-billing.svelte";
 import FormDialog from "./fixtures/form-dialog.svelte";
 import FormSignIn from "./fixtures/form-sign-in.svelte";
 import FormSsr from "./fixtures/form-ssr.svelte";
 import { sleep } from "./helpers.ts";
+import { recorded } from "./stubs/app-navigation.ts";
 
 describe("a sign-in form", () => {
   test("an error waits for the user to leave the field, and is wired to the input", async () => {
@@ -46,6 +49,47 @@ describe("a sign-in form", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent("Initial");
+  });
+});
+
+describe("focusing the first error", () => {
+  test("a failed submit focuses the first field on the page, not the Schema's first", async () => {
+    const screen = await render(FormBilling);
+    await screen.getByRole("button", { name: "Pay" }).click();
+    await expect.element(screen.getByText("Enter a city")).toBeVisible();
+    await expect.element(screen.getByLabelText("Street")).toHaveFocus();
+    // form.errors keeps the Schema's order.
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("city street");
+  });
+});
+
+describe("the unsaved-changes guard", () => {
+  // Calls the guard's beforeNavigate listener as SvelteKit would, then reads the retry's goto.
+  const retryOptions = async (href: string): Promise<unknown> => {
+    recorded.listeners = [];
+    recorded.gotos = [];
+    useUnsavedChangesGuard({ dirty: true }, { confirm: () => true });
+    const [listener] = recorded.listeners;
+    listener?.({
+      cancel: vi.fn<() => void>(),
+      to: { url: new URL(href, location.href) },
+      type: "link",
+      willUnload: false,
+    });
+    await expect.poll(() => recorded.gotos.length).toBe(1);
+    return recorded.gotos[0]?.options;
+  };
+
+  test("a retry to another page passes no replaceState, which SvelteKit 3 warns about", async () => {
+    await expect(retryOptions("/elsewhere")).resolves.toStrictEqual({});
+  });
+
+  test("a retry to the same page replaces its history entry", async () => {
+    await expect(retryOptions(location.href)).resolves.toStrictEqual({
+      replaceState: true,
+    });
   });
 });
 

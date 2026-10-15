@@ -2077,29 +2077,36 @@ export function useAtomSuspense<A, E>(
  * is nothing to hydrate. A getter for `initialValues` is followed: when it changes, a clean form
  * takes the new values and a dirty one keeps its edits.
  *
- * **Example** (A sign-in form)
+ * **Example** (A login form)
  *
  * ```svelte
  * <script lang="ts">
  *   import { useForm } from "effect-atom-svelte";
- *   import { SignIn, signInAtom } from "./auth.ts";
+ *   import { Login, loginAtom } from "./forms.ts";
  *
  *   const id = $props.id();
- *   const form = useForm(SignIn, {
+ *   const form = useForm(Login, {
  *     id,
  *     initialValues: { email: "", password: "" },
- *     submit: { atom: signInAtom },
+ *     submit: { atom: loginAtom },
  *     mapError: (error) =>
- *       error._tag === "WrongPassword" ? { form: "Wrong email or password" } : undefined,
+ *       error._tag === "WrongPassword"
+ *         ? { form: "Wrong email or password" }
+ *         : undefined,
  *   });
  *   const email = form.field("email");
  * </script>
  *
  * <form {...form.attrs}>
+ *   <label for={email.id}>Email</label>
  *   <input {...email.attrs} bind:value={email.value} />
- *   {#if email.error}<p id={email.errorId}>{email.error}</p>{/if}
- *   {#if form.rootError}<p role="alert">{form.rootError}</p>{/if}
- *   <button disabled={form.submitting}>Sign in</button>
+ *   {#if email.error}
+ *     <p id={email.errorId}>{email.error}</p>
+ *   {/if}
+ *   {#if form.rootError}
+ *     <p role="alert">{form.rootError}</p>
+ *   {/if}
+ *   <button disabled={form.submitting}>Log in</button>
  * </form>
  * ```
  *

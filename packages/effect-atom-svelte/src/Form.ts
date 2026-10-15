@@ -39,8 +39,9 @@ export type TypeId = typeof TypeId;
 /* oxlint-enable eslint/no-redeclare */
 
 /**
- * When a field is checked: as the user types (`"input"`), when they leave it (`"blur"`), or only
- * when the form is submitted (`"submit"`).
+ * When a field's error shows: as the user types (`"input"`), when they leave it (`"blur"`), or only
+ * when the form is submitted (`"submit"`). The Schema checks every change whatever the timing, so
+ * `valid` and `field.issue` are always current; the timing only decides when `field.error` shows.
  *
  * @stability unstable
  * @since 0.4.0
@@ -145,16 +146,24 @@ const definitionOf = (
  * checks that call services work when a runtime provides them. A message comes from the Schema's
  * `message` annotation first, then from `leafHook` or `checkHook`, then from Effect's default.
  *
- * **Example** (Defining a sign-in form)
+ * **Example** (Defining a login form)
  *
  * ```ts
  * import { Schema } from "effect";
  * import { Form } from "effect-atom-svelte";
  *
- * export const SignIn = Form.make(
+ * export const Login = Form.make(
  *   Schema.Struct({
- *     email: Schema.String.check(Schema.isPattern(/^\S+@\S+$/u, { message: "Enter a valid email" })),
- *     password: Schema.String.check(Schema.isNonEmpty({ message: "Enter your password" })),
+ *     email: Schema.String.check(
+ *       Schema.isPattern(/^\S+@\S+\.\S+$/u, {
+ *         message: "Enter an email address",
+ *       })
+ *     ),
+ *     password: Schema.String.check(
+ *       Schema.isMinLength(8, {
+ *         message: "At least 8 characters",
+ *       })
+ *     ),
  *   })
  * );
  * ```
@@ -317,7 +326,7 @@ export interface FieldAttrs {
 /**
  * One field of a form instance. Every property is reactive in a component. `value` can be
  * assigned, so `bind:value={field.value}` works; an assignment counts as input for validation
- * timing, and clears a server or manual error on the field.
+ * timing, and a change clears a server or manual error on the field and the form-level error.
  *
  * @stability unstable
  * @since 0.4.0
@@ -336,7 +345,10 @@ export interface Field<V> {
   touched: boolean;
   /** Whether the value differs from the initial value. */
   readonly dirty: boolean;
-  /** Whether validation is running or waiting for its debounce. */
+  /**
+   * Whether the form's validation is running or waiting for its debounce: the whole form's flag,
+   * the same on every field, as one run checks every field.
+   */
   readonly validating: boolean;
   /** The field's element id, from the instance's `id`. */
   readonly id: string;
@@ -346,6 +358,11 @@ export interface Field<V> {
   readonly name: string;
   /** Where the field is now. An array item's field follows the item when it moves. */
   readonly path: AnyPath;
+  /**
+   * Attributes to spread on a native input: `name`, `id`, `aria-invalid` while `error` is set,
+   * `aria-describedby` pointing at `errorId` while it is, and an `onblur` that marks the field
+   * touched.
+   */
   readonly attrs: FieldAttrs;
   readonly constraints: Constraints;
   /** What leaving the field does, for a custom control that has no blur event. */
@@ -381,8 +398,14 @@ export interface ArrayField<I> {
   /** An error on the array itself, such as from a check on its length. */
   readonly error: string | undefined;
   readonly path: AnyPath;
+  /** Adds an item at the end, with a new key and no errors or touched state. */
   readonly append: (item: I) => void;
+  /** Removes the item at `index`, and its errors and touched state. Out of range does nothing. */
   readonly remove: (index: number) => void;
+  /**
+   * Moves the item at index `from` to index `to`, shifting the items between; its errors and
+   * touched state go with it. Either index out of range does nothing.
+   */
   readonly move: (from: number, to: number) => void;
   /** Puts a new item at `index`: the old item's errors and touched state go with it. */
   readonly replace: (index: number, item: I) => void;
@@ -449,6 +472,7 @@ export interface ErrorEntry {
 /* oxlint-disable eslint/no-redeclare */
 /**
  * Why `submit` didn't call the submit atom: the values didn't decode. `errors` lists what showed.
+ * Its `_tag` is `"FormValidationError"`, for `Effect.catchTag`.
  *
  * @stability unstable
  * @since 0.4.0
@@ -490,27 +514,45 @@ export interface FormAttrs {
  * @category models
  */
 export interface Instance<T, D, A, E, Args> extends Group<T> {
+  /** The current values, encoded, as the inputs hold them. */
   readonly values: T;
   /**
    * What `dirty` compares the values with: `initialValues`, or the values of the last successful
    * submit, which become the initial values.
    */
   readonly initialValues: T;
+  /** Whether the values differ from `initialValues`. */
   readonly dirty: boolean;
-  /** Whether the latest values decode, with no server or manual error left. */
+  /**
+   * Whether the form can be submitted as it stands: the latest values have been checked and
+   * decode, and no external error (from `mapError` or `setErrors`) is set. It is false while the
+   * Schema fails, while a check is running or waiting for its debounce, and while any external
+   * error is set, whether or not an error shows yet.
+   */
   readonly valid: boolean;
+  /** Whether validation is running or waiting for its debounce. */
   readonly validating: boolean;
+  /** Whether a submit is waiting for the submit atom's result. */
   readonly submitting: boolean;
   /**
    * The last submit's result, holding only failures `mapError` didn't claim. A validation that
    * couldn't run at all, such as when the form's runtime failed to build, ends here as a defect.
    */
   readonly submitResult: AsyncResult.AsyncResult<A, E>;
-  /** A form-level error: `mapError`'s `form`, or a Schema check with no path, once submitted. */
+  /**
+   * A form-level error, on no field: `mapError`'s or `setErrors`' `form`, which shows at once and
+   * clears on any change to the values, at the next submit or on reset; or an error from a check on the whole Struct
+   * that gives no `path`, which shows only after `submit` or a `validate()` of the whole form.
+   */
   readonly rootError: string | undefined;
-  /** Every error on show, in the Schema's order, for an error summary. */
+  /**
+   * Every error on show, for an error summary: the form-level one first, then the fields' in the
+   * Schema's order, which may not be the page's.
+   */
   readonly errors: readonly ErrorEntry[];
+  /** How many times `submit` has been called since the last reset, whatever the outcome. */
   readonly submitCount: number;
+  /** How many times `validate` has been called since the last reset. */
   readonly validationCount: number;
   /** The values of the last successful submit, encoded and decoded. */
   readonly lastSubmitted: Option.Option<{
@@ -519,6 +561,7 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   }>;
   /** Whether the values differ from the last successful submit's. */
   readonly dirtySinceSubmit: boolean;
+  /** Attributes to spread on the `<form>` element: see `FormAttrs`. */
   readonly attrs: FormAttrs;
   /**
    * Decodes the values and, when they decode, writes the submit atom and waits for its result. A
@@ -530,18 +573,43 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   readonly submit: (
     ...args: [Args] extends [undefined] ? [] : [args: Args]
   ) => Promise<Exit.Exit<A, E | ValidationError>>;
-  /** Shows the errors under these paths, all by default, and resolves whether they passed. */
+  /**
+   * Shows the Schema's errors at and under these paths (every path by default) and resolves
+   * whether they passed: no Schema error and no external error (from `mapError` or `setErrors`) at
+   * or under any of them. A whole-form `validate()` also counts the form-level error; a call with
+   * paths doesn't.
+   */
   readonly validate: (
     paths?: readonly (Key<T> | Path<T>)[]
   ) => Promise<boolean>;
-  /** Sets several values at once. Not counted as input, so no error is revealed. */
+  /**
+   * Sets several values at once. Not counted as input, so no error is revealed. Like any change,
+   * it clears external errors where values changed.
+   */
   readonly setValues: (values: T | ((previous: T) => T)) => void;
-  /** Back to the initial values, or to `values`, which become the initial values. */
+  /**
+   * Back to `initialValues`, or to `values`, which become the initial values. Clears
+   * `lastSubmitted`, `submitResult`, touched state, every error and both counts. After a successful
+   * submit, `initialValues` are the submitted values, unless `resetOnSuccess` is set.
+   */
   readonly reset: (values?: T) => void;
+  /**
+   * Puts the values back to the last successful submit's, or to `initialValues` when there has
+   * been none. Touched state stays; like any change, it clears external errors where values change.
+   */
   readonly revertToLastSubmit: () => void;
-  /** Puts errors on fields, or on the form. Each clears when its field changes, or on reset. */
+  /**
+   * Puts errors on fields or on the form; they show at once, and keep `valid` false while set. A
+   * field's error clears when the value at its path changes, including from a change to a parent or
+   * a child path. The form-level error (`form`) clears on any change to the values, and at the
+   * next submit. Both clear on reset; blur, `validate` and a write of the same values leave them.
+   */
   readonly setErrors: (errors: Errors<T>) => void;
-  /** Focuses the first field with an error, by the ids in `field.attrs`. */
+  /**
+   * Focuses the field with an error that comes first on the page, finding each by the id in
+   * `field.attrs`. Fields whose element isn't on the page are skipped. `errors` keeps the Schema's
+   * order, which may differ from the page's.
+   */
   readonly focusFirstError: () => void;
 }
 
@@ -583,7 +651,10 @@ export interface BaseInstanceOptions<T> {
   readonly initialValues: T | (() => T);
   /** Storage for the values that you own, such as an `Atom.kvs` draft that survives a reload. */
   readonly values?: Atom.Writable<T> | undefined;
-  /** After a successful submit, go back to the initial values rather than adopting the submitted. */
+  /**
+   * After a successful submit, reset to `initialValues` rather than adopting the submitted values
+   * as the new initial values. The reset keeps `lastSubmitted` and `submitResult`.
+   */
   readonly resetOnSuccess?: boolean | undefined;
 }
 
@@ -605,7 +676,10 @@ export interface InstanceOptions<
   readonly submit: SubmitOptions<D, A, E, W, Args>;
   /**
    * Claims a typed failure: return errors to put on fields or the form, or `undefined` to leave
-   * the failure in `submitResult`. Defects and interruptions are never passed here.
+   * the failure in `submitResult`. Defects and interruptions are never passed here. The errors
+   * show at once and keep `valid` false while set. A field's error clears when the value at its
+   * path changes; the form-level one (`form`) on any change to the values. All of them clear at the
+   * next submit and on reset.
    */
   readonly mapError?: ((error: E) => Errors<T> | undefined) | undefined;
   /** Submit after each change that validates. Only for a submit that takes no arguments. */
@@ -636,9 +710,12 @@ export interface ValidateOnlyOptions<T> extends BaseInstanceOptions<T> {
  *
  * ```ts
  * import { Form } from "effect-atom-svelte";
- * import { SignIn } from "./sign-in.ts";
+ * import { Login } from "./forms.ts";
  *
- * const form = Form.instance(SignIn, { id: "test", initialValues: { email: "", password: "" } });
+ * const form = Form.instance(Login, {
+ *   id: "test",
+ *   initialValues: { email: "", password: "" },
+ * });
  * form.field("email").value = "ada@example.com";
  * const exit = await form.submit();
  * form.dispose();

@@ -308,8 +308,15 @@ export const useUnsavedChangesGuard = (
         // unloading fires a "leave", which the bypass lets through.
         location.href = to.url.href;
       } else {
-        // oxlint-disable-next-line typescript/no-deprecated -- the peer range includes SvelteKit 2, whose goto has no `replace`, only `replaceState`
-        await goto(to.url, { replaceState: to.url.href === location.href });
+        // SvelteKit 3 warns in dev whenever the `replaceState` key is there, even false, so it is
+        // passed only when true.
+        await goto(
+          to.url,
+          to.url.href === location.href
+            ? // oxlint-disable-next-line typescript/no-deprecated -- the peer range includes SvelteKit 2, whose goto has no `replace`, only `replaceState`
+              { replaceState: true }
+            : {}
+        );
       }
     })();
   });

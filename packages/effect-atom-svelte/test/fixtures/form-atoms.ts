@@ -39,3 +39,13 @@ export const makeSlowSave = (log: string[]) =>
       })
     )
   );
+
+/** An address whose Schema puts city first, which the fixture lays out street first, as checkout does. */
+export const Billing = Form.make(
+  Schema.Struct({
+    city: Schema.String.check(Schema.isNonEmpty({ message: "Enter a city" })),
+    street: Schema.String.check(
+      Schema.isNonEmpty({ message: "Enter a street" })
+    ),
+  })
+);

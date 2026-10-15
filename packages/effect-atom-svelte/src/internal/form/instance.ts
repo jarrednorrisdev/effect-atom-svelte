@@ -152,21 +152,22 @@ export class InstanceImpl extends GroupImpl {
     if (typeof document === "undefined") {
       return;
     }
+    // The ids of the fields showing an error, as in `field.attrs`.
+    const selectors: string[] = [];
     for (const { path } of this.errors) {
-      if (path.length === 0) {
-        continue;
-      }
-      const keyPath = toKeyPath(this.engine.state.keys, path);
-      const element =
-        keyPath &&
-        document.querySelector<HTMLElement>(
-          `#${CSS.escape(this.engine.elementId(keyPath))}`
-        );
-      if (element) {
-        element.focus();
-        return;
+      const keyPath =
+        path.length === 0 ? undefined : toKeyPath(this.engine.state.keys, path);
+      if (keyPath !== undefined) {
+        selectors.push(`#${CSS.escape(this.engine.elementId(keyPath))}`);
       }
     }
+    if (selectors.length === 0) {
+      return;
+    }
+    // querySelector finds the first match in document order: the first on the page, which may not
+    // be the Schema's first, as for a `{ city, street }` laid out street first. A field whose
+    // element isn't on the page is skipped.
+    document.querySelector<HTMLElement>(selectors.join(","))?.focus();
   }
 
   dispose(): void {

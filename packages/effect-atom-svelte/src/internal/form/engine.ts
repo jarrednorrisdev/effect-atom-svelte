@@ -248,7 +248,8 @@ export class Engine {
   // ── values ──────────────────────────────────────────────────────────────────────────────────
 
   // Every change to the values passes here, whoever made it: item keys follow the arrays, errors
-  // from outside the Schema clear where their field's value changed, and validation runs again.
+  // from outside the Schema clear where their field's value changed, a form-level one on any
+  // change, and validation runs again.
   #onValues(next: unknown): void {
     const previous = this.#seen;
     const state = this.#current();
@@ -256,7 +257,11 @@ export class Engine {
     const external = new Map<string, ExternalError>();
     for (const [id, error] of state.external) {
       if (id === ROOT) {
-        external.set(id, error);
+        // A form-level error isn't tied to a field, so any edit may have answered it. Kept, it
+        // would hold `valid` false until the next submit.
+        if (equals(previous.values, next)) {
+          external.set(id, error);
+        }
         continue;
       }
       const path = fromPathId(id);
@@ -582,9 +587,11 @@ export class Engine {
         const path = fromPathId(id);
         // An error on a field the user has left, which a change elsewhere brought on (a
         // "passwords do not match" after editing the password), shows at once: the field is
-        // touched. The field being edited keeps to its own timing.
+        // touched. The field being edited keeps to its own timing, and so does a field whose
+        // timing is "submit": its errors wait for a submit or validate().
         const fromElsewhere =
           state.touched.has(id) &&
+          this.#phase(state, id) !== "submit" &&
           (editing === undefined || !startsWith(path, editing));
         const asked =
           all ||
@@ -602,15 +609,17 @@ export class Engine {
     });
   }
 
-  // A field event asks for its errors to show when the field's timing matches it: `validateOn`
-  // until the field has shown an error or the form was submitted, then `revalidateOn`.
+  // A field's timing: `validateOn` until the field has shown an error or the form was submitted,
+  // then `revalidateOn`.
+  #phase(state: State, id: string): Timing {
+    return state.shown.has(id) || state.submitCount > 0
+      ? this.definition.revalidateOn
+      : this.definition.validateOn;
+  }
+
+  // A field event asks for its errors to show when the field's timing matches it.
   #trigger(path: KeyPath, event: Timing): void {
-    const state = this.#current();
-    const phase =
-      state.shown.has(pathId(path)) || state.submitCount > 0
-        ? this.definition.revalidateOn
-        : this.definition.validateOn;
-    if (phase !== event) {
+    if (this.#phase(this.#current(), pathId(path)) !== event) {
       return;
     }
     this.#pending.push(path);
@@ -658,7 +667,10 @@ export class Engine {
     }
   }
 
-  /** Checks the given paths (all by default), shows their errors, and says whether they passed. */
+  /**
+   * Checks the given paths (all by default), shows their errors, and says whether they passed: no
+   * Schema error and no external error at or under any of them.
+   */
   // oxlint-disable-next-line effecttsgo/async-function -- the form's validate, part of the library's Promise-facing API for Svelte handlers
   async validate(paths?: readonly (string | IndexPath)[]): Promise<boolean> {
     const state = this.#current();
@@ -687,7 +699,8 @@ export class Engine {
     if (latest.failure !== undefined) {
       return false;
     }
-    return [...latest.issues.keys()].every((id) => {
+    // A server or setErrors error counts as a Schema one does; it already shows, as it always does.
+    return [...latest.issues.keys(), ...latest.external.keys()].every((id) => {
       if (keyPaths === undefined) {
         return false;
       }

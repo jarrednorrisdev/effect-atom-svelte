@@ -5,7 +5,10 @@ import type { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { CheckHook, LeafHook } from "./issues.ts";
 import type { IndexPath, Keys } from "./paths.ts";
 
-/** When a field is checked: as the user types, when they leave it, or only on submit. */
+/**
+ * When a field's error shows: as the user types, when they leave it, or only on submit. The Schema
+ * checks every change whatever the timing.
+ */
 export type Timing = "submit" | "blur" | "input";
 
 /** Where an error came from, which decides when it clears. */

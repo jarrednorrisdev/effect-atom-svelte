@@ -454,7 +454,7 @@ describe("more instance options", () => {
     form.dispose();
   });
 
-  test("a manual error clears when its field changes, but not a form error", () => {
+  test("a manual error clears when its field changes, and a form error with it", () => {
     const form = Form.instance(Settings, {
       id: "m",
       initialValues: { name: "Ada" },
@@ -464,7 +464,7 @@ describe("more instance options", () => {
     expect(form.valid).toBe(false);
     form.field("name").value = "Bo";
     expect(form.field("name").error).toBeUndefined();
-    expect(form.rootError).toBe("Try again");
+    expect(form.rootError).toBeUndefined();
     form.dispose();
   });
 
@@ -993,6 +993,169 @@ describe("errors brought on by another field", () => {
     // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
     password.blur();
     expect(password.error).toBe("At least 8 characters");
+    form.dispose();
+  });
+});
+
+describe("form-level errors", () => {
+  const Profile = Form.make(
+    Schema.Struct({
+      name: Schema.NonEmptyString,
+      tags: Schema.Array(Schema.String),
+    })
+  );
+  const profile = () =>
+    Form.instance(Profile, {
+      id: "p",
+      initialValues: { name: "Ada", tags: [] },
+    });
+
+  test("a change to any value clears a form error from setErrors, and the form is valid again", async () => {
+    const form = profile();
+    await tick();
+    form.setErrors({ form: "Server is down" });
+    expect(form.valid).toBe(false);
+    form.field("name").value = "Ada L";
+    await tick();
+    expect(form.rootError).toBeUndefined();
+    expect(form.valid).toBe(true);
+    form.setErrors({ form: "Server is down" });
+    form.setValues((previous) => ({ ...previous, name: "Ada" }));
+    expect(form.rootError).toBeUndefined();
+    form.setErrors({ form: "Server is down" });
+    form.array("tags").append("math");
+    expect(form.rootError).toBeUndefined();
+    form.dispose();
+  });
+
+  test("blur, validate and writing the same values keep a form error", async () => {
+    const form = profile();
+    form.setErrors({ form: "Server is down" });
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    form.field("name").blur();
+    await form.validate();
+    form.setValues({ name: "Ada", tags: [] });
+    form.field("name").value = "Ada";
+    await tick();
+    expect(form.rootError).toBe("Server is down");
+    expect(form.valid).toBe(false);
+    form.dispose();
+  });
+
+  test("a form error from mapError clears on an edit, so a submit button gated on valid works again", async () => {
+    const save = Atom.fn((_input: { name: string }) =>
+      Effect.fail(new Boom({ reason: "down" }))
+    );
+    const form = Form.instance(Profile, {
+      id: "p",
+      initialValues: { name: "Ada", tags: [] },
+      mapError: () => ({ form: "Try again later" }),
+      submit: { atom: save },
+    });
+    await form.submit();
+    expect(form.rootError).toBe("Try again later");
+    expect(form.valid).toBe(false);
+    form.field("name").value = "Ada L";
+    await tick();
+    expect(form.rootError).toBeUndefined();
+    expect(form.valid).toBe(true);
+    form.dispose();
+  });
+
+  test("a field's error from setErrors stays when another field changes", () => {
+    const form = profile();
+    form.setErrors({ fields: { name: "Taken" } });
+    form.array("tags").append("math");
+    expect(form.field("name").error).toBe("Taken");
+    form.dispose();
+  });
+});
+
+describe("validate and errors from outside the Schema", () => {
+  const Profile = Form.make(
+    Schema.Struct({ email: Schema.String, name: Schema.String })
+  );
+
+  test("validate(paths) fails where a setErrors or server error is set", async () => {
+    const form = Form.instance(Profile, {
+      id: "v",
+      initialValues: { email: "", name: "Ada" },
+    });
+    form.setErrors({ fields: { name: "Taken" } });
+    await expect(form.validate(["name"])).resolves.toBe(false);
+    await expect(form.validate(["email"])).resolves.toBe(true);
+    await expect(form.validate()).resolves.toBe(false);
+    expect(form.field("name").error).toBe("Taken");
+    form.dispose();
+  });
+
+  test("validate() fails while a form error is set, and validate(paths) doesn't count it", async () => {
+    const form = Form.instance(Profile, {
+      id: "v",
+      initialValues: { email: "", name: "Ada" },
+    });
+    form.setErrors({ form: "Server is down" });
+    await expect(form.validate()).resolves.toBe(false);
+    await expect(form.validate(["name"])).resolves.toBe(true);
+    form.dispose();
+  });
+
+  test("an error on a nested path fails validate of its parent", async () => {
+    const Address = Form.make(
+      Schema.Struct({
+        address: Schema.Struct({ city: Schema.String, street: Schema.String }),
+      })
+    );
+    const form = Form.instance(Address, {
+      id: "n",
+      initialValues: { address: { city: "", street: "" } },
+    });
+    form.setErrors({ paths: [[["address", "city"], "Not delivered there"]] });
+    await expect(form.validate(["address"])).resolves.toBe(false);
+    await expect(form.validate([["address", "street"]])).resolves.toBe(true);
+    form.dispose();
+  });
+});
+
+describe("validateOn submit", () => {
+  const Passwords = Form.make(
+    Schema.Struct({
+      confirmPassword: Schema.String,
+      password: Schema.String,
+    }).check(
+      Schema.makeFilter(
+        ({ confirmPassword, password }) =>
+          confirmPassword === password || {
+            issue: "Passwords do not match",
+            path: ["confirmPassword"],
+          }
+      )
+    ),
+    { validateOn: "submit" }
+  );
+
+  test("an error another field brings on waits for the first submit, then follows input", async () => {
+    const form = Form.instance(Passwords, {
+      id: "q",
+      initialValues: { confirmPassword: "", password: "" },
+    });
+    const password = form.field("password");
+    const confirm = form.field("confirmPassword");
+    confirm.value = "secret";
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    confirm.blur();
+    password.value = "other";
+    await tick();
+    expect(confirm.issue).toBe("Passwords do not match");
+    expect(confirm.error).toBeUndefined();
+    await form.submit();
+    expect(confirm.error).toBe("Passwords do not match");
+    password.value = "secret";
+    await tick();
+    expect(confirm.error).toBeUndefined();
+    password.value = "secret2";
+    await tick();
+    expect(confirm.error).toBe("Passwords do not match");
     form.dispose();
   });
 });
