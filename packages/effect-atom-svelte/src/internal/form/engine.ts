@@ -140,6 +140,9 @@ export class Engine {
   // The field the latest change came from, when the user typed into it; undefined for a change
   // made in code. Its errors follow its own timing; touched fields it changes the checks of don't.
   #editing: KeyPath | undefined;
+  // The values `setField` last wrote. Values arriving that aren't these were written by code,
+  // through the instance or straight to an app's own `values` atom.
+  #fieldWrite: unknown;
   #waiters: Deferred.Deferred<undefined>[] = [];
   #seen: { values: unknown; keys: Keys };
   #inflight: Promise<Exit.Exit<unknown, unknown>> | undefined;
@@ -251,6 +254,9 @@ export class Engine {
   // from outside the Schema clear where their field's value changed, a form-level one on any
   // change, and validation runs again.
   #onValues(next: unknown): void {
+    if (next !== this.#fieldWrite) {
+      this.#editing = undefined;
+    }
     const previous = this.#seen;
     const state = this.#current();
     const keys = reconcileKeys(next, state.keys, () => this.#key());
@@ -306,10 +312,8 @@ export class Engine {
       return;
     }
     this.#editing = path;
-    this.registry.set(
-      this.valuesAtom,
-      setIn(this.#currentValues(), index, value)
-    );
+    this.#fieldWrite = setIn(this.#currentValues(), index, value);
+    this.registry.set(this.valuesAtom, this.#fieldWrite);
     this.#trigger(path, "input");
   }
 

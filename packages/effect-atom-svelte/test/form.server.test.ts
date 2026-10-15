@@ -484,6 +484,26 @@ describe("more instance options", () => {
     form.dispose();
   });
 
+  test("a write straight to the caller's atom counts as a change made in code", async () => {
+    const draft = Atom.make({ name: "Ada" });
+    const registry = AtomRegistry.make();
+    const form = Form.instance(Settings, {
+      id: "w",
+      initialValues: { name: "Ada" },
+      registry,
+      values: draft,
+    });
+    const name = form.field("name");
+    // oxlint-disable-next-line github/no-blur -- a form field's blur, which marks it touched, not HTMLElement.blur
+    name.blur();
+    name.value = "Bo";
+    await tick();
+    registry.set(draft, { name: "" });
+    await tick();
+    expect(name.error).toBeDefined();
+    form.dispose();
+  });
+
   test("a manual error clears when its field changes, and a form error with it", () => {
     const form = Form.instance(Settings, {
       id: "m",

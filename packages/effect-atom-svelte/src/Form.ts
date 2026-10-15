@@ -596,7 +596,8 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   readonly reset: (values?: T) => void;
   /**
    * Puts the values back to the last successful submit's, or to `initialValues` when there has
-   * been none. Touched state stays; like any change, it clears external errors where values change.
+   * been none. Touched state stays. As with `setValues`, a touched field whose check it breaks shows
+   * its error at once, and it clears external errors where values change.
    */
   readonly revertToLastSubmit: () => void;
   /**
