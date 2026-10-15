@@ -19,12 +19,16 @@
   const id = $props.id();
   const form = useForm(SignUp, {
     id,
-    initialValues: { confirmPassword: "", email: "", password: "", terms: false },
+    initialValues: {
+      email: "",
+      password: { confirm: "", value: "" },
+      terms: false,
+    },
     submit: { atom: signUpAtom },
   });
   const email = form.field("email");
-  const password = form.field("password");
-  const confirmPassword = form.field("confirmPassword");
+  const password = form.field(["password", "value"]);
+  const confirmPassword = form.field(["password", "confirm"]);
   const terms = form.field("terms");
 </script>
 
@@ -64,5 +68,8 @@
       </ResultChip>
     {/if}
   </form>
-  <FormKnows fields={{ confirmPassword, email, password, terms }} valid={form.valid} />
+  <FormKnows
+    fields={{ email, "password.confirm": confirmPassword, "password.value": password, terms }}
+    valid={form.valid}
+  />
 </div>

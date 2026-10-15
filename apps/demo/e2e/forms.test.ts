@@ -52,10 +52,19 @@ test.describe("Forms page", () => {
     await expect(email).toHaveAttribute("aria-invalid", "true");
     await email.fill("ada@example.com");
     await expect(form.getByText("Enter an email address")).toHaveCount(0);
-    await form.getByLabel("Password", { exact: true }).fill("longpassword");
+    // Your scenario: a too-short password, a confirm that differs, then the password fixed.
+    // The mismatch shows on confirm at once, before the email or the terms are right.
+    const password = form.getByLabel("Password", { exact: true });
+    await email.fill("ada");
+    await password.fill("short");
+    await password.press("Tab");
     await form.getByLabel("Confirm password").fill("longpasswor");
+    await form.getByLabel("Confirm password").press("Tab");
+    await password.fill("longpassword");
+    await expect(form.getByText("Passwords do not match")).toBeVisible();
+    await email.fill("ada@example.com");
     await form.getByLabel("I agree to the terms").check();
-    await expect(page.getByTestId("knows-confirmPassword")).toContainText(
+    await expect(page.getByTestId("knows-password.confirm")).toContainText(
       "Passwords do not match"
     );
     const create = form.getByRole("button", { name: "Create account" });

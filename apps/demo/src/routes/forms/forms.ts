@@ -4,29 +4,34 @@ import { Form } from "effect-atom-svelte";
 
 // Each Schema's encoded side is what the inputs hold, and its decoded side what a submit sends.
 
-// The struct's own check compares two fields and puts its error on one. It runs once every field
-// decodes.
+// The two passwords are one group, and the group's check compares them. Effect runs a struct's
+// check once every field in that struct decodes, so here it waits only for the password, not for
+// the email or the terms.
+const NewPassword = Schema.Struct({
+  confirm: Schema.String,
+  value: Schema.String.check(
+    Schema.isMinLength(8, { message: "At least 8 characters" })
+  ),
+}).check(
+  Schema.makeFilter(
+    ({ confirm, value }) =>
+      confirm === value || {
+        issue: "Passwords do not match",
+        path: ["confirm"],
+      }
+  )
+);
+
 export const SignUp = Form.make(
   Schema.Struct({
-    confirmPassword: Schema.String,
     email: Schema.String.check(
       Schema.isPattern(/^\S+@\S+\.\S+$/u, { message: "Enter an email address" })
     ),
-    password: Schema.String.check(
-      Schema.isMinLength(8, { message: "At least 8 characters" })
-    ),
+    password: NewPassword,
     terms: Schema.Boolean.check(
       Schema.makeFilter((agreed) => agreed || "Agree to the terms to continue")
     ),
-  }).check(
-    Schema.makeFilter(
-      ({ confirmPassword, password }) =>
-        confirmPassword === password || {
-          issue: "Passwords do not match",
-          path: ["confirmPassword"],
-        }
-    )
-  )
+  })
 );
 
 // Trim decodes "  Feed the cat " to "Feed the cat"; the checks run on the trimmed title.

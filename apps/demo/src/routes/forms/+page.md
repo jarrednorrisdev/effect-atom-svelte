@@ -37,7 +37,7 @@ A form uses both sides. The encoded side is what the inputs hold: text inputs ho
 import { Schema } from "effect";
 import { Form } from "effect-atom-svelte";
 
-export const SignUp = Form.make(
+export const Login = Form.make(
   Schema.Struct({
     email: Schema.String.check(
       Schema.isPattern(/^\S+@\S+\.\S+$/u, { message: "Enter an email address" })
@@ -49,7 +49,7 @@ export const SignUp = Form.make(
 );
 ```
 
-The example's full definition, with a confirm field and a terms checkbox, is in its `forms.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
+The sign-up example's own definition, with a confirm field and a terms checkbox, is in its `forms.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
 
 An error's message comes from the check's `message` annotation, as above. A check without one gets Effect's own message, such as `Expected a value with a length of at most 60`. To write those yourself, pass `leafHook` (for a value of the wrong type, or a missing key) or `checkHook` (for a failed check) to `Form.make`; a `message` annotation still wins over them.
 
@@ -62,10 +62,10 @@ Validation runs the Schema's decoding as an Effect, so a check can call a servic
 ```svelte
 <script lang="ts">
   import { useForm } from "effect-atom-svelte";
-  import { SignUp } from "./forms.ts";
+  import { Login } from "./forms.ts";
 
   const id = $props.id();
-  const form = useForm(SignUp, {
+  const form = useForm(Login, {
     id,
     initialValues: { email: "", password: "" },
   });
@@ -125,10 +125,10 @@ A submit shows every error, and after it, with `revalidateOn: "input"`, errors s
 A submit decodes the values and, if they decode, writes them to a **submit atom**: a mutation from `Atom.fn`, `runtime.fn` or an [RPC](/rpc) or [HTTP API](/http) client. While it runs, `form.submitting` is true, and once it settles, `form.submitResult` is the mutation's `AsyncResult`. Both belong to this instance: another component writing the same mutation doesn't change them.
 
 ```ts
-const form = useForm(SignUp, {
+const form = useForm(Login, {
   id,
   initialValues: { email: "", password: "" },
-  submit: { atom: signUpAtom },
+  submit: { atom: loginAtom },
 });
 ```
 
@@ -210,24 +210,24 @@ SvelteKit doesn't call `beforeNavigate` for back and forward over history entrie
 
 ## Checks across fields
 
-A check on the whole Struct sees every field, for rules such as "the passwords match". Return `{ path, issue }` from `Schema.makeFilter` to put the error on one field, as the sign-up example's `forms.ts` does:
+A check on a Struct sees all of its fields, for rules such as "the passwords match". Return `{ path, issue }` from `Schema.makeFilter` to put the error on one field:
 
 ```ts
-Schema.Struct({
-  confirmPassword: Schema.String,
-  password: Schema.String.check(Schema.isMinLength(8)),
+const NewPassword = Schema.Struct({
+  confirm: Schema.String,
+  value: Schema.String.check(Schema.isMinLength(8)),
 }).check(
   Schema.makeFilter(
-    ({ confirmPassword, password }) =>
-      confirmPassword === password || {
+    ({ confirm, value }) =>
+      confirm === value || {
         issue: "Passwords do not match",
-        path: ["confirmPassword"],
+        path: ["confirm"],
       }
   )
 );
 ```
 
-Effect runs a Struct's checks only once every field decodes, so "Passwords do not match" shows only after the email, the password and the terms are right: in the example, the table shows `confirmPassword` passing until then. A check that returns no `path` is the form's error, `form.rootError`.
+Effect runs a Struct's check only once every field of that Struct decodes. So put the check on the smallest group that holds the fields it compares, as the sign-up example does with `password: NewPassword`. On the whole form, "Passwords do not match" would also wait for a valid email and a ticked terms box. Here it waits only for the password, whose own check comes first: the example's table shows `password.confirm` passing until the password is 8 characters long. A check that returns no `path` is its Struct's error; on the form's top-level Struct, that's `form.rootError`.
 
 ## Arrays
 
@@ -269,17 +269,12 @@ import { Exit } from "effect";
 import { Form } from "effect-atom-svelte";
 import { expect, test } from "vitest";
 
-import { SignUp } from "./forms.ts";
+import { Login } from "./forms.ts";
 
 test("a submit shows every error", async () => {
-  const form = Form.instance(SignUp, {
+  const form = Form.instance(Login, {
     id: "test",
-    initialValues: {
-      confirmPassword: "",
-      email: "",
-      password: "",
-      terms: false,
-    },
+    initialValues: { email: "", password: "" },
   });
   const exit = await form.submit();
   expect(Exit.isFailure(exit)).toBe(true);
