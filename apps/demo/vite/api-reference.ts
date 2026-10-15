@@ -116,12 +116,12 @@ const guides = {
   Form: {
     "/forms#arrays": ["ArrayField", "ArrayItem"],
     "/forms#creating-an-instance": ["Instance"],
-    "/forms#defining-a-form": ["make"],
-    "/forms#fields": ["Field"],
+    "/forms#defining-a-form": ["MakeOptionsWithRuntime", "make"],
+    "/forms#fields": ["Constraints", "Field", "FieldAttrs", "FormAttrs"],
     "/forms#groups-of-fields": ["Group"],
     "/forms#server-errors-on-fields": ["Errors"],
     "/forms#submitting": ["SubmitOptions", "ValidationError"],
-    "/forms#when-errors-show": ["MakeOptions"],
+    "/forms#when-errors-show": ["MakeOptions", "Timing"],
     "/forms#without-svelte": ["instance"],
   },
   Hooks: {

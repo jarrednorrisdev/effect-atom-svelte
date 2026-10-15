@@ -16,6 +16,7 @@ Effect Atom keeps state in **atoms**: small reactive values that hold plain data
 - **Async atoms you can `await`.** `useAtomSuspense` and `useAtomResult` build on Svelte's async support, so pending and failed states go through `<svelte:boundary>`. See [Suspense](https://atom.jarrednorris.dev/suspense).
 - **Server rendering and hydration.** Each request gets its own registry, and the results of serializable atoms travel to the browser, which starts from them instead of running the effects again. See [Server rendering](https://atom.jarrednorris.dev/server-rendering) and [Hydration](https://atom.jarrednorris.dev/hydration).
 - **Effect services in components.** `AtomRpc` and `AtomHttpApi` turn an Effect RPC group or `HttpApi` into atoms for queries and mutations. See [RPC](https://atom.jarrednorris.dev/rpc) and [HTTP API](https://atom.jarrednorris.dev/http).
+- **Forms from one Schema.** `useForm` gives each field its value, its error at the right time and the attributes that wire it for screen readers, and a submit that decodes the values and sends them through a mutation. See [Forms](https://atom.jarrednorris.dev/forms).
 - **Scoped atoms** for one atom per component subtree, and SvelteKit `handleError` hooks that keep an Effect error's `_tag`. See [Scoped atoms](https://atom.jarrednorris.dev/scoped-atoms) and [SvelteKit](https://atom.jarrednorris.dev/sveltekit).
 
 The docs site has a live example on most pages, and the code under each one is the file that runs.

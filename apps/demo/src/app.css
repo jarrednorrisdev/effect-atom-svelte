@@ -721,9 +721,11 @@ html {
   & :where(input, textarea)[aria-invalid="true"] {
     border-color: var(--tone-failure);
   }
+  /* One line is 1.25rem, the min-h-5 the examples reserve for it. */
   & .field-error {
     color: var(--tone-failure-text);
     font-size: 0.8125rem;
+    line-height: 1.25rem;
     margin: 0.125rem 0 0;
   }
   & :where(button, select, input, textarea):focus-visible {

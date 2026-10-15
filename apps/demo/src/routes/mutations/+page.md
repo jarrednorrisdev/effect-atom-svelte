@@ -26,8 +26,6 @@ This form saves a todo with a pretend save that takes a second. Under the form, 
 
 <Example files={[{ html: addTodoSource, name: "add-todo.svelte" }]} hint="Click Add: the mutation waits, then succeeds with the new todo, and the input clears. Then click Paste a long title and Add again: it fails with TitleTooLong, and the input keeps the title."> <div data-testid="add-example"><AddTodo /></div> </Example>
 
-A form with fields to validate is on [Forms](/forms), which decodes the fields with a Schema and submits them through a mutation like this one.
-
 ## Creating a mutation
 
 `Atom.fn` takes a function from an argument to an `Effect`, and returns a writable atom:
@@ -218,3 +216,5 @@ The example fails on purpose without sending anything: its mutation checks a fla
 ## Mutations from RPC and HTTP APIs
 
 `AtomRpc` and `AtomHttpApi` generate mutations from the API's definition. They are ordinary mutations: an RPC client's `mutation("createTodo")` is a `runtime.fn` on the client's [runtime](/services), whose argument is `{ payload }` and whose call sends one `createTodo` request. Its error type is the procedure's errors, such as `TitleTooLong`, plus the client's own. Their queries take `reactivityKeys` as an option, and their mutations take them with each call. See [RPC](/rpc#mutations) and [HTTP API](/http#mutations).
+
+For a form with fields to validate, see [Forms](/forms): it decodes the fields with a Schema and submits them through a mutation.

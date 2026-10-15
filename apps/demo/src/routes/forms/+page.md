@@ -21,9 +21,9 @@ description: Build a form from one Effect Schema, with errors that show at the r
 
 A form here is built from one Effect **Schema**. You give the Schema; the library gives you the values your inputs bind to, the errors to show under each one, the attributes that wire an input to its error for screen readers, and a `submit` that decodes the values and sends them through a [mutation](/mutations). It draws nothing: the markup and the copy are yours.
 
-This sign-up form checks the email when you leave the field, and once a field has shown an error, it checks again as you type. Beside it, **What the form knows** shows each field's latest check, whether you've left the field, and whether its error is on screen: the Schema checks every change, and the timing decides what you see. Create account stays off until every check passes:
+This sign-up form checks the email when you leave the field, and once a field has shown an error, it checks again as you type. Under it, **What the form knows** shows each field's latest check, whether you've left the field, and whether its error is on screen: the Schema checks every change, and the timing decides what you see. Create account is always on: a submit shows every error and moves focus to the first one:
 
-<Example files={[{ html: signUpSource, name: "sign-up.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a few letters in Email: its check fails at once, but the error waits until you press Tab. Fill in the rest, with two passwords that differ, then make them match and watch Create account turn on."> <div data-testid="sign-up-example"><SignUp /></div> </Example>
+<Example files={[{ html: signUpSource, name: "sign-up.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a few letters in Email: its check fails at once, but the error waits until you press Tab. Click Create account with the rest empty: every error shows, and focus moves to Email. Fill in the rest, with two passwords that differ, then make them match and watch form.valid turn true."> <div data-testid="sign-up-example"><SignUp /></div> </Example>
 
 ## Defining a form
 
@@ -40,10 +40,14 @@ import { Form } from "effect-atom-svelte";
 export const Login = Form.make(
   Schema.Struct({
     email: Schema.String.check(
-      Schema.isPattern(/^\S+@\S+\.\S+$/u, { message: "Enter an email address" })
+      Schema.isPattern(/^\S+@\S+\.\S+$/u, {
+        message: "Enter an email address",
+      })
     ),
     password: Schema.String.check(
-      Schema.isMinLength(8, { message: "At least 8 characters" })
+      Schema.isMinLength(8, {
+        message: "At least 8 characters",
+      })
     ),
   })
 );
@@ -85,7 +89,7 @@ A field has:
 
 - `value`: its value, which you can assign, so `bind:value={field.value}` works. Use `bind:checked` for a checkbox.
 - `error`: the message to show, or `undefined`. See [When errors show](#when-errors-show).
-- `attrs`: attributes to spread on a native input: `name`, `id`, `aria-invalid` while there is an error, `aria-describedby` pointing at the error's element, and an `onblur` that marks the field touched.
+- `attrs`: attributes to spread on a native input: `name`, `id`, and, while there is an error, `aria-invalid` and `aria-describedby` pointing at the error's element, and an `onblur` that marks the field touched.
 - `errorId`: the id to give the element that shows `error`, which `aria-describedby` points at.
 - `touched` (the user has left the field), `dirty` (the value differs from the initial value) and `validating`.
 - `constraints`: HTML attributes read from the Schema's checks, such as `maxlength` from `isMaxLength`, `min` and `max` from `isBetween`, and `required` where the Schema rejects an empty string. Spread them to get the browser's own limits too, such as stopping typing at the maximum length. They are kept out of `attrs`, so using them is your choice.
@@ -93,16 +97,16 @@ A field has:
 ```svelte
 <label for={email.id}>Email</label>
 <input {...email.attrs} bind:value={email.value} />
-{#if email.error}<p id={email.errorId}>{email.error}</p>{/if}
+<p class="min-h-5" id={email.errorId}>{email.error ?? ""}</p>
 ```
 
-`form.attrs` goes on the `<form>`. It sets `novalidate`, so the browser's own error bubbles never compete with the form's errors, and an `onsubmit` that submits the form and, when the values don't decode, moves focus to the first field with an error.
+`form.attrs` goes on the `<form>`. It sets `novalidate`, so the browser's own error bubbles never compete with the form's errors, and an `onsubmit` that submits the form and, when the values don't decode, moves focus to the first field on the page with an error.
 
 A control that isn't a native input, such as a date picker from a component library, takes only what it needs: its value through `field.value`, and `field.blur()` where it would fire blur.
 
 <Aside type="tip" title="Number inputs">
 
-For a number input, Svelte's `bind:value` on `type="number"` gives a number, or `null` when the input is empty, so the Schema's encoded side is a number there. `Schema.FiniteFromString` fits a text input with `inputmode="numeric"`. It decodes an empty string to `0`, so check that the string isn't empty first, as the quantity in [Arrays](#arrays) does.
+For a number input, Svelte's `bind:value` on `type="number"` gives a number, or `null` when the input is empty, so the Schema's encoded type there is `number | null`. A text input with `inputmode="numeric"` holds a string, which `Schema.FiniteFromString` decodes: it fails on `abc`, where `Schema.NumberFromString` gives `NaN`. It decodes an empty string to `0`, so check that the string isn't empty first, as the quantity in [Arrays](#arrays) does.
 
 </Aside>
 
@@ -110,15 +114,19 @@ For a number input, Svelte's `bind:value` on `type="number"` gives a number, or 
 
 Every change to the values decodes the whole form again, and only the newest run's result is kept. What decides whether a field's error is on screen is its **timing**, set on `Form.make`:
 
-- `validateOn`: when a field's error first shows. `"blur"` by default: once the user leaves the field. `"input"` shows it as they type, and `"submit"` only after a submit.
+- `validateOn`: when a field's error first shows. `"blur"` by default: once the user leaves the field. `"input"` shows it as they type, and `"submit"` shows nothing before the first submit, not even an error that a change to one field brings on another.
 - `revalidateOn`: when it updates after the field has shown an error, or once the form has been submitted. `"input"` by default.
 - `debounce`: how long to wait after a change before decoding, such as `"300 millis"` for a check that calls the server.
 
 The defaults are "reward early, validate late": no error while you type into a field for the first time, and once you've seen one, it goes the moment the value is right. An error whose check passes always goes at once, whatever the timing. And an error that a change to another field brings on, such as "Passwords do not match" after you edit the password, shows at once on a field you've already left.
 
-A submit shows every error, and after it, with `revalidateOn: "input"`, errors show as they appear. `form.validate(paths)` shows the errors under some paths and resolves whether they passed, as a wizard's Next button needs for its step. With no paths it checks the whole form.
+Keep the space for each error's line, with an element that is always there, as the `min-h-5` paragraph above does: an error that appears as the user leaves a field otherwise pushes what's under it down, so a click on the submit button below can start on the button and end beside it, and never submit.
 
-`field.issue` is the latest check's message for a field whether or not its error shows yet. It's what the sign-up example's table reads, and what a live password checklist would read. For a form that shows every error as you type, use `validateOn: "input"`. `form.valid` says whether the latest values decode, whatever is on screen, so a button can stay disabled until they do. `form.errors` lists the errors on show, in the Schema's order, for a summary at the top.
+A submit shows every error, and after it, with `revalidateOn: "input"`, errors show as they appear. `form.validate(paths)` shows the errors under some paths and resolves whether they passed, as a wizard's Next button needs for its step. An error from the server or `setErrors` under those paths counts as a failure. With no paths it checks the whole form.
+
+Each field knows more than it shows. `field.issue` is the latest check's message for a field, whether or not its error shows yet. It's what the sign-up example's table reads, and what a live password checklist would read. For a form that shows every error as you type, use `validateOn: "input"`.
+
+The form as a whole knows two things. `form.valid` is false while the values fail the Schema, while a check is still running, and while an error from the server or `setErrors` is set, whatever is on screen. `form.errors` lists the errors on show, in the Schema's order, for a summary at the top. The sign-up example leaves its button on rather than `disabled={!form.valid}`, so a click shows the user what to fix.
 
 ## Submitting
 
@@ -151,7 +159,7 @@ const form = useForm(EditProject, {
 await form.submit(projectId);
 ```
 
-`form.submit` resolves with the mutation's `Exit`, an Effect value that is either the success or the failure. When the values don't decode, the submit atom isn't called and the `Exit` fails with `Form.ValidationError`. A second submit while one runs doesn't start another: it gets the running one's result.
+`form.submit` resolves with the mutation's `Exit`, an Effect value that is either the success or the failure. When the values don't decode, the submit atom isn't called and the `Exit` fails with `Form.ValidationError`, whose `_tag` is `"FormValidationError"`. A second submit while one runs doesn't start another: it gets the running one's result.
 
 A submit holds its atom until it settles, as `useAtomSet`'s promise modes do (see [Mutations](/mutations#waiting-for-the-result)). A save started in a dialog still finishes if the dialog closes, and reopening it creates a fresh instance.
 
@@ -163,13 +171,13 @@ Writes to one `Atom.fn` share its single result: a new call interrupts one still
 
 ### Server errors on fields
 
-A mutation's typed failure often belongs on a field: the email is already taken. `mapError` claims a failure by returning errors for fields, for the form as a whole, or both:
+A mutation's typed failure often belongs on a field: the email is already taken. `mapError` claims a failure by returning errors for the form's top-level fields (`fields`), for the form as a whole (`form`), or both. For a nested field, give `paths`, such as `paths: [[["address", "city"], "No such city"]]`:
 
 ```ts
 mapError: (error) => {
   switch (error._tag) {
     case "EmailTaken":
-      return { fields: { email: "That email already has an account" } };
+      return { fields: { email: "That email is taken" } };
     case "InvitePending":
       return { form: "An invite is already on its way" };
     default:
@@ -178,19 +186,19 @@ mapError: (error) => {
 },
 ```
 
-A field error from `mapError` shows at once and goes when the user edits that field. The form error is `form.rootError`, which stays until the next submit. A failure that `mapError` returns `undefined` for stays in `submitResult`, for the app to show its own way, such as a toast. A claimed failure never appears there, so it isn't shown twice. Defects and interruptions are never passed to `mapError`.
+A field error from `mapError` shows at once and goes when the user edits that field. The form error is `form.rootError`, which goes when the user changes any value, or at the next submit. A failure that `mapError` returns `undefined` for stays in `submitResult`, for the app to show its own way, such as a toast. A claimed failure never appears there, so it isn't shown twice. Defects and interruptions are never passed to `mapError`.
 
-`form.setErrors({ fields, form })` puts errors on the form from anywhere else. They clear the same way: a field's error when that field changes, and the form error at the next submit.
+`form.setErrors({ fields, paths, form })` puts errors on the form from anywhere else. They clear the same way: a field's error when that field changes, and the form error when any value changes.
 
 ## Edit forms
 
 An edit form starts from data that is already saved. Give `initialValues` as a function, and the form follows it: when the data changes, such as when a query fetches again, a form you haven't edited takes the new values, and one you have keeps your edits.
 
-After a successful submit, the submitted values become the initial values, `form.initialValues`, so the form is clean again and `form.dirty` is false. `form.lastSubmitted` holds them, encoded and decoded, and `form.revertToLastSubmit()` goes back to them. For a form that creates something instead, `resetOnSuccess: true` goes back to the empty form after each save.
+After a successful submit, the submitted values become the initial values, `form.initialValues`, so the form is clean again and `form.dirty` is false. `form.lastSubmitted` holds them, encoded and decoded, and `form.revertToLastSubmit()` goes back to them, or to the initial values before any submit. `form.reset()` goes back to the initial values too, but also clears `lastSubmitted` and `submitResult`. For a form that creates something instead, `resetOnSuccess: true` goes back to `initialValues` after each save, keeping `lastSubmitted` and `submitResult`.
 
-This form renames a todo on the demo API. Another todo is already called "Write a Svelte adapter", and the server refuses a second one with a `DuplicateTitle` error, which `mapError` puts on the field:
+This form renames a todo on the demo API, and its Undo button calls `revertToLastSubmit`. Another todo is already called "Write a Svelte adapter", and the server refuses a second one with a `DuplicateTitle` error, which `mapError` puts on the field. A claimed failure isn't kept in `submitResult`, so the panel shows it as `Initial`:
 
-<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Rename the todo: dirty turns true. Save it: the new title becomes initialValues, and dirty is false again. Then type Write a Svelte adapter and save: the server's error lands on the field. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
+<Example files={[{ html: renameTodoSource, name: "rename-todo.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Rename the todo: dirty turns true. Save it: the new title becomes initialValues and lastSubmitted, and dirty is false again. Type another title and click Undo: the saved one comes back. Then type Write a Svelte adapter and save: the server's error lands on the field, and submitResult is Initial. Leave a change unsaved and click a link in the sidebar: the page asks first."> <div data-testid="rename-example"><RenameTodo /></div> </Example>
 
 ### Asking before leaving
 
@@ -200,7 +208,7 @@ This form renames a todo on the demo API. Another todo is already called "Write 
 import { useUnsavedChangesGuard } from "effect-atom-svelte/sveltekit";
 
 useUnsavedChangesGuard(form, {
-  confirm: () => window.confirm("Leave without saving the new title?"),
+  confirm: () => window.confirm("Discard the new title?"),
 });
 ```
 
@@ -227,13 +235,13 @@ const NewPassword = Schema.Struct({
 );
 ```
 
-Effect runs a Struct's check only once every field of that Struct decodes. So put the check on the smallest group that holds the fields it compares, as the sign-up example does with `password: NewPassword`. On the whole form, "Passwords do not match" would also wait for a valid email and a ticked terms box. Here it waits only for the password, whose own check comes first: the example's table shows `password.confirm` passing until the password is 8 characters long. A check that returns no `path` is its Struct's error; on the form's top-level Struct, that's `form.rootError`.
+Effect runs a Struct's check only once every field of that Struct decodes. So put the check on the smallest group that holds the fields it compares, as the sign-up example does with `password: NewPassword`. On the whole form, "Passwords do not match" would also wait for a valid email and a ticked terms box. Here it waits only for the password, whose own check comes first: the example's table shows `password.confirm` passing until the password is 8 characters long. A check that returns no `path` is its Struct's error; on the form's top-level Struct, that's `form.rootError`, which shows only after a `submit` or a `validate()`.
 
 ## Arrays
 
 `form.array("items")` is an array field. `append`, `remove`, `move` and `replace` change it, and `items` lists its items, each with its own fields. Each item has a `key` that stays with it when items move, so its errors and touched state move with it, and a keyed `{#each}` keeps its inputs:
 
-<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top: its key, and its error, go with it. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
+<Example files={[{ html: lineItemsSource, name: "line-items.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Place the order: Ink has no quantity. Move Ink to the top: its key, and its error, go with it. Click Add item: the blank row's errors show at once, as after a submit every error shows. Remove every item to see the array's own error."> <div data-testid="order-example"><LineItems /></div> </Example>
 
 An error on the array itself, such as from `isMinLength(1)`, is `items.error`.
 
@@ -257,7 +265,7 @@ A form whose fields depend on a choice uses a union of Structs with a tag, such 
 
 In this checkout, an order is delivered to an address or picked up from a store:
 
-<Example files={[{ html: checkoutSource, name: "checkout.svelte" }, { html: addressFieldsSource, name: "address-fields.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a delivery street, click Pickup, then Delivery: the street is still there. Place the order with fields empty: only the chosen option's fields complain."> <div data-testid="checkout-example"><Checkout /></div> </Example>
+<Example files={[{ html: checkoutSource, name: "checkout.svelte" }, { html: addressFieldsSource, name: "address-fields.svelte" }, { html: formsSource, name: "forms.ts" }]} hint="Type a delivery street, click Pickup, then Delivery: the street is still there. Click Pickup and place the order with the rest empty: the store and Billing complain, while Delivery's address isn't checked, as Pickup is chosen."> <div data-testid="checkout-example"><Checkout /></div> </Example>
 
 ## Drafts that survive a reload
 
@@ -281,7 +289,8 @@ test("a submit shows every error", async () => {
   });
   const exit = await form.submit();
   expect(Exit.isFailure(exit)).toBe(true);
-  expect(form.field("password").error).toBe("At least 8 characters");
+  const password = form.field("password");
+  expect(password.error).toBe("At least 8 characters");
   form.dispose();
 });
 ```

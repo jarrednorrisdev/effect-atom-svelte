@@ -32,10 +32,10 @@ const editTitle = async (page: Page) => {
   await expect(page.getByTestId("state-dirty")).toHaveText("true");
 };
 
-const confirmMessage = "confirm: Leave without saving the new title?";
+const confirmMessage = "confirm: Discard the new title?";
 
 test.describe("Forms page", () => {
-  test("sign up: a check fails at once, its error waits for blur, and the button waits for every check", async ({
+  test("sign up: a check fails at once, its error waits for blur, and form.valid waits for every check", async ({
     page,
   }) => {
     const errors = pageErrors(page);
@@ -67,8 +67,8 @@ test.describe("Forms page", () => {
     await expect(page.getByTestId("knows-password.confirm")).toContainText(
       "Passwords do not match"
     );
+    await expect(page.getByTestId("knows-valid")).toHaveText("false");
     const create = form.getByRole("button", { name: "Create account" });
-    await expect(create).toBeDisabled();
     await form.getByLabel("Confirm password").fill("longpassword");
     await expect(page.getByTestId("knows-valid")).toHaveText("true");
     await create.click();

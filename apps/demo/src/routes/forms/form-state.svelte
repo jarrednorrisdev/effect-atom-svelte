@@ -11,13 +11,15 @@
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   interface Props {
+    /** Whether the last failure is on a field, claimed by mapError. */
+    readonly claimed: boolean;
     readonly initial: unknown;
     readonly dirty: boolean;
     readonly lastSubmitted: Option.Option<{ readonly encoded: unknown }>;
     readonly result: AsyncResult.AsyncResult<unknown, unknown>;
   }
 
-  const { dirty, initial, lastSubmitted, result }: Props = $props();
+  const { claimed, dirty, initial, lastSubmitted, result }: Props = $props();
 </script>
 
 <section aria-label="The form's state" class="state" data-testid="form-state">
@@ -35,7 +37,14 @@
       })}
     </dd>
     <dt><code>form.submitResult</code></dt>
-    <dd><StateBadge data-testid="state-result" {result} /></dd>
+    <dd>
+      <StateBadge data-testid="state-result" {result} />
+      {#if claimed && result._tag === "Initial"}
+        <span class="muted" data-testid="state-claimed"
+          >claimed by mapError, so it's on the field instead</span
+        >
+      {/if}
+    </dd>
   </dl>
 </section>
 
@@ -69,6 +78,10 @@
   }
   dd {
     overflow-wrap: anywhere;
+  }
+  .muted {
+    color: var(--muted-foreground);
+    margin-left: 0.5rem;
   }
   .ok {
     color: var(--tone-success-text);

@@ -70,6 +70,10 @@
     text-align: left;
     vertical-align: top;
   }
+  /* Cells may break anywhere, so the table fits a phone. */
+  td {
+    overflow-wrap: anywhere;
+  }
   th {
     color: var(--muted-foreground);
     font-weight: 500;
