@@ -38,10 +38,10 @@ Read it as in **Read an issue** above.
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
 
-- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
+- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --title "<map name>" --label wayfinder:map --body-file <file>`.
 - **Child ticket**: an issue linked to the map as a GitHub sub-issue (see **Make an issue a sub-issue of a parent**). Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
 - **Blocking**: GitHub's **native issue dependencies**, the canonical, UI-visible representation. Add an edge by issue number with `gh issue edit <child> --add-blocked-by <blocker>` (or `gh issue create --blocked-by <blocker>`), and remove one with `--remove-blocked-by`. A ticket is unblocked when every blocker is closed.
-- **Frontier query**: list the map's open, unassigned children in map order with `gh api repos/{owner}/{repo}/issues/<map>/sub_issues --paginate --jq '.[] | select(.state == "open" and (.assignees | length) == 0) | .number'`. Then drop any with an open blocker: `gh api repos/{owner}/{repo}/issues/<n> --jq .issue_dependencies_summary.blocked_by` counts open blockers only, so anything above 0 is blocked. The first that remains wins.
+- **Frontier query**: list the map's open, unassigned children in map order with `gh api repos/{owner}/{repo}/issues/<map>/sub_issues --paginate --jq '.[] | select(.state == "open" and (.assignees | length) == 0) | .number'`. Then drop any with an open blocker: `gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by --jq '[.[] | select(.state == "open")] | length'` counts them, so anything above 0 is blocked. The first that remains wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far. The resolution comment is where the decision lives; no docs file or PR is needed for it. A decision that should outlive the map becomes an ADR through `/domain-modeling`.
 - **Map body edits**: other sessions edit the map concurrently, so re-read it (`gh issue view <map> --json body -q .body`) immediately before `gh issue edit <map> --body-file <file>`, and change only your own line.
