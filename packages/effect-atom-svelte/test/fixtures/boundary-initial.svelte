@@ -2,7 +2,11 @@
 <script lang="ts">
   import type { Atom, AtomRegistry } from "effect/reactivity";
 
-  import { provideRegistry, useAtomInitialValues, useAtomValue } from "../../src/index.ts";
+  import {
+    provideRegistry,
+    useAtomInitialValues,
+    useAtomValue,
+  } from "../../src/index.ts";
   import Run from "./run.svelte";
 
   interface Props {

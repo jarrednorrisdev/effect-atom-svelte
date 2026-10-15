@@ -1,15 +1,30 @@
 import { defineConfig } from "oxfmt";
-import ultracite from "ultracite/oxfmt";
+
+import { ignorePatterns } from "./lint/ignores.ts";
 
 export default defineConfig({
-  ...ultracite,
-  // shadcn-svelte's generated components, as in oxlint.config.ts.
-  ignorePatterns: [
-    ...(ultracite.ignorePatterns ?? []),
-    "apps/demo/src/lib/components/ui/**",
-    "apps/demo/src/lib/hooks/is-mobile.svelte.ts",
-    // Agent instructions and skills, some of them third-party (.claude/skills/NOTICE.md): kept as
-    // their authors wrote them, as in oxlint.config.ts.
-    ".claude/**",
-  ],
+  arrowParens: "always",
+  bracketSameLine: false,
+  bracketSpacing: true,
+  endOfLine: "lf",
+  ignorePatterns,
+  jsxSingleQuote: false,
+  printWidth: 80,
+  proseWrap: "never",
+  quoteProps: "as-needed",
+  semi: true,
+  singleQuote: false,
+  sortImports: {
+    ignoreCase: true,
+    newlinesBetween: true,
+    order: "asc",
+  },
+  sortPackageJson: true,
+  sortTailwindcss: {
+    functions: ["clsx", "cva", "tw", "twMerge", "cn", "twJoin", "tv"],
+  },
+  svelte: true,
+  tabWidth: 2,
+  trailingComma: "es5",
+  useTabs: false,
 });

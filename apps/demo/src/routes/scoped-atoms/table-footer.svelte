@@ -9,14 +9,21 @@
 </script>
 
 <div
-  class="flex items-center justify-between gap-2 text-sm text-muted-foreground"
+  class="text-muted-foreground flex items-center justify-between gap-2 text-sm"
 >
   <span>
-    {view.total} {table.current.name.toLowerCase()} · page {view.page + 1} of {view.pages}
+    {view.total}
+    {table.current.name.toLowerCase()} · page {view.page + 1} of {view.pages}
   </span>
   <span>
-    <button disabled={view.page === 0} onclick={() => goTo(view.page - 1)}>Prev</button>
-    <button class="mr-0!" disabled={view.page >= view.pages - 1} onclick={() => goTo(view.page + 1)}>
+    <button disabled={view.page === 0} onclick={() => goTo(view.page - 1)}
+      >Prev</button
+    >
+    <button
+      class="mr-0!"
+      disabled={view.page >= view.pages - 1}
+      onclick={() => goTo(view.page + 1)}
+    >
       Next
     </button>
   </span>

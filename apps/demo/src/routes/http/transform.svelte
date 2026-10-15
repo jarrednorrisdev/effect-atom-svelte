@@ -9,15 +9,18 @@
   // The demo's HTTP client, which also logs each request for the panel below.
   import { loggedHttpClient, wire } from "./logged-client.ts";
 
-  class SignedHttp extends AtomHttpApi.Service<SignedHttp>()("docs/SignedHttp", {
-    api: DemoApi,
-    baseUrl,
-    httpClient: loggedHttpClient,
-    // Changes every request the client sends: here, adds a header.
-    transformClient: HttpClient.mapRequest(
-      HttpClientRequest.setHeader("x-reader", "docs")
-    ),
-  }) {}
+  class SignedHttp extends AtomHttpApi.Service<SignedHttp>()(
+    "docs/SignedHttp",
+    {
+      api: DemoApi,
+      baseUrl,
+      httpClient: loggedHttpClient,
+      // Changes every request the client sends: here, adds a header.
+      transformClient: HttpClient.mapRequest(
+        HttpClientRequest.setHeader("x-reader", "docs")
+      ),
+    }
+  ) {}
 
   // The service is also the HttpApi client, with a method for each endpoint.
   const getTodoAtom = SignedHttp.runtime.fn((id: number) =>
@@ -30,6 +33,7 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";

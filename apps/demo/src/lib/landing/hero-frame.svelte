@@ -12,10 +12,9 @@
 -->
 <script lang="ts">
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
-  import type { Snippet } from "svelte";
-
   import { FrameGraph } from "effect-atom-svelte-devtools/graph";
   import type { GraphEdge, GraphNode } from "effect-atom-svelte-devtools/graph";
+  import type { Snippet } from "svelte";
 
   const {
     copy,
@@ -35,64 +34,139 @@
   const bottom = $derived(top + (mainRect?.height ?? 0));
 
   const nodes = $derived<GraphNode[]>([
-    { kind: "effect", label: "currentUser", note: "an Effect<User, SignedOut>", side: "se", x: 0, y: top },
-    { kind: "atom", label: "userAtom", note: "runs it once for every reader", side: "se", step: 1, x: 0.5, y: top },
-    { kind: "component", label: "SiteHeader.svelte", side: "sw", step: 2, x: 1, y: top },
+    {
+      kind: "effect",
+      label: "currentUser",
+      note: "an Effect<User, SignedOut>",
+      side: "se",
+      x: 0,
+      y: top,
+    },
+    {
+      kind: "atom",
+      label: "userAtom",
+      note: "runs it once for every reader",
+      side: "se",
+      step: 1,
+      x: 0.5,
+      y: top,
+    },
+    {
+      kind: "component",
+      label: "SiteHeader.svelte",
+      side: "sw",
+      step: 2,
+      x: 1,
+      y: top,
+    },
     { kind: "junction", step: 2, x: 0.5, y: bottom },
-    { kind: "component", label: "UserBadge.svelte", side: "ne", step: 3, x: 0, y: bottom },
-    { kind: "component", label: "Settings.svelte", side: "nw", step: 3, x: 1, y: bottom },
+    {
+      kind: "component",
+      label: "UserBadge.svelte",
+      side: "ne",
+      step: 3,
+      x: 0,
+      y: bottom,
+    },
+    {
+      kind: "component",
+      label: "Settings.svelte",
+      side: "nw",
+      step: 3,
+      x: 1,
+      y: bottom,
+    },
   ]);
   const edges = $derived<GraphEdge[]>([
-    { lit: true, points: [[0, top], [0.5, top]], step: 0 },
-    { lit: true, points: [[0.5, top], [1, top]], step: 1 },
-    { lit: true, points: [[0.5, top], [0.5, bottom]], step: 1 },
-    { lit: true, points: [[0.5, bottom], [0, bottom]], step: 2 },
-    { lit: true, points: [[0.5, bottom], [1, bottom]], step: 2 },
+    {
+      lit: true,
+      points: [
+        [0, top],
+        [0.5, top],
+      ],
+      step: 0,
+    },
+    {
+      lit: true,
+      points: [
+        [0.5, top],
+        [1, top],
+      ],
+      step: 1,
+    },
+    {
+      lit: true,
+      points: [
+        [0.5, top],
+        [0.5, bottom],
+      ],
+      step: 1,
+    },
+    {
+      lit: true,
+      points: [
+        [0.5, bottom],
+        [0, bottom],
+      ],
+      step: 2,
+    },
+    {
+      lit: true,
+      points: [
+        [0.5, bottom],
+        [1, bottom],
+      ],
+      step: 2,
+    },
   ]);
 </script>
 
 <section class="frame-wrap">
-<div class="frame">
-  <!-- Row 1: labels. -->
-  <div bind:contentRect={labelsRect} class="row labels">
-    <div class="cell">
-      <span aria-hidden="true">A</span><span>One Effect → one atom → every component that reads it</span>
+  <div class="frame">
+    <!-- Row 1: labels. -->
+    <div bind:contentRect={labelsRect} class="row labels">
+      <div class="cell">
+        <span aria-hidden="true">A</span><span
+          >One Effect → one atom → every component that reads it</span
+        >
+      </div>
+      <div class="cell hidden lg:flex">
+        <span aria-hidden="true">B</span><span>When to reach for atoms</span>
+      </div>
+      <!-- No crosses: the site header draws them on its own bottom line, which this row sits under. -->
     </div>
-    <div class="cell hidden lg:flex">
-      <span aria-hidden="true">B</span><span>When to reach for atoms</span>
-    </div>
-    <!-- No crosses: the site header draws them on its own bottom line, which this row sits under. -->
-  </div>
 
-  <!-- Row 2: the copy beside the panel. -->
-  <div bind:contentRect={mainRect} class="row main">
-    <div class="cell copy">{@render copy()}</div>
-    <div class="cell panel">{@render panel()}</div>
-    <i class="cross" style:left="-1px"></i>
-    <i class="cross mid hidden lg:block"></i>
-    <i class="cross" style:left="100%"></i>
-  </div>
-
-  <!-- Row 3: where to go next. -->
-  <div class="row foot">
-    <a class="cell next" href="#where-atoms-fit" onclick={seeItRun}>
-      <span aria-hidden="true">01–04</span>Four reasons, each running on this page <ArrowDownIcon class="size-3.5" />
-    </a>
-    <div class="cell hidden lg:flex">
-      <span aria-hidden="true">MIT</span>A community project · not made by the Effect team
+    <!-- Row 2: the copy beside the panel. -->
+    <div bind:contentRect={mainRect} class="row main">
+      <div class="cell copy">{@render copy()}</div>
+      <div class="cell panel">{@render panel()}</div>
+      <i class="cross" style:left="-1px"></i>
+      <i class="cross mid hidden lg:block"></i>
+      <i class="cross" style:left="100%"></i>
     </div>
-    <i class="cross" style:left="-1px"></i>
-    <i class="cross mid hidden lg:block"></i>
-    <i class="cross" style:left="100%"></i>
+
+    <!-- Row 3: where to go next. -->
+    <div class="row foot">
+      <a class="cell next" href="#where-atoms-fit" onclick={seeItRun}>
+        <span aria-hidden="true">01–04</span>Four reasons, each running on this
+        page <ArrowDownIcon class="size-3.5" />
+      </a>
+      <div class="cell hidden lg:flex">
+        <span aria-hidden="true">MIT</span>A community project · not made by the
+        Effect team
+      </div>
+      <i class="cross" style:left="-1px"></i>
+      <i class="cross mid hidden lg:block"></i>
+      <i class="cross" style:left="100%"></i>
+    </div>
+    <div class="hidden lg:contents">
+      <!-- The graph's box starts inside the frame's 1px side borders. -->
+      <FrameGraph {edges} {nodes} origin={{ left: -1, right: 0, top: 0 }} />
+    </div>
+    <i class="cross end" style:left="-1px"></i>
+    <i class="cross end mid hidden lg:block"></i>
+    <i class="cross end" style:left="100%"></i>
   </div>
-  <div class="hidden lg:contents">
-    <!-- The graph's box starts inside the frame's 1px side borders. -->
-    <FrameGraph {edges} {nodes} origin={{ left: -1, right: 0, top: 0 }} />
-  </div>
-  <i class="cross end" style:left="-1px"></i>
-  <i class="cross end mid hidden lg:block"></i>
-  <i class="cross end" style:left="100%"></i>
-</div>
 </section>
 
 <style>

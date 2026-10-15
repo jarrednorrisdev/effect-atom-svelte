@@ -11,7 +11,7 @@
   const newDraft = () => Atom.make("").pipe(Atom.keepAlive);
 
   // The family compares keys by their contents.
-  const draftAtom = Atom.family((key: Key) => newDraft());
+  const draftAtom = Atom.family((_key: Key) => newDraft());
 
   // A hand-rolled cache: a Map compares object keys by reference.
   const byMap = new Map<Key, Atom.Writable<string>>();
@@ -28,9 +28,10 @@
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
+  import { SvelteSet } from "svelte/reactivity";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import { SvelteSet } from "svelte/reactivity";
 
   let doc = $state(1);
   let lang = $state("en");
@@ -38,8 +39,18 @@
   const key = $derived({ doc, lang });
 
   const stores = [
-    { draft: useAtom(() => draftAtom(key)), get: draftAtom, id: "family", name: "Atom.family" },
-    { draft: useAtom(() => mapDraftAtom(key)), get: mapDraftAtom, id: "map", name: "new Map()" },
+    {
+      draft: useAtom(() => draftAtom(key)),
+      get: draftAtom,
+      id: "family",
+      name: "Atom.family",
+    },
+    {
+      draft: useAtom(() => mapDraftAtom(key)),
+      get: mapDraftAtom,
+      id: "map",
+      name: "new Map()",
+    },
   ];
 
   // The different keys visited, and the different atoms each store has handed out for them.
@@ -56,16 +67,20 @@
 <p>
   <span class="button-group">
     {#each [1, 2] as value (value)}
-      <button aria-pressed={doc === value} onclick={() => (doc = value)}>doc: {value}</button>
+      <button aria-pressed={doc === value} onclick={() => (doc = value)}
+        >doc: {value}</button
+      >
     {/each}
   </span>
   <span class="button-group">
     {#each ["en", "fr"] as value (value)}
-      <button aria-pressed={lang === value} onclick={() => (lang = value)}>lang: "{value}"</button>
+      <button aria-pressed={lang === value} onclick={() => (lang = value)}
+        >lang: "{value}"</button
+      >
     {/each}
   </span>
 </p>
-<p class="text-sm text-muted-foreground">
+<p class="text-muted-foreground text-sm">
   Key: <code>&#123; doc: {key.doc}, lang: "{key.lang}" &#125;</code>
 </p>
 <div class="grid gap-3 sm:grid-cols-2">
@@ -77,8 +92,7 @@
         aria-label="{name} draft"
         bind:value={draft.current}
         class="h-20 w-full resize-none"
-        placeholder="Type a draft"
-      ></textarea>
+        placeholder="Type a draft"></textarea>
       <p class="mt-2 mb-0 text-sm" data-testid="made-{id}">
         <FlashValue
           class={[atoms > keys.size && "text-(--tone-failure-text)"]}

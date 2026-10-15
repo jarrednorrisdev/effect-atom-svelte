@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
@@ -22,10 +23,16 @@
 </script>
 
 <div aria-label="Follow" class="flex flex-wrap gap-2" role="group">
-  <button aria-pressed={followed === "draft"} onclick={() => (followed = "draft")}>
+  <button
+    aria-pressed={followed === "draft"}
+    onclick={() => (followed = "draft")}
+  >
     draftAtom
   </button>
-  <button aria-pressed={followed === "saved"} onclick={() => (followed = "saved")}>
+  <button
+    aria-pressed={followed === "saved"}
+    onclick={() => (followed = "saved")}
+  >
     savedAtom
   </button>
 </div>
@@ -45,7 +52,11 @@
         <Arrow both label="get, set" pulse={text.current} />
       {/if}
     </span>
-    <Part code label="draftAtom" tone={followed === "draft" ? "success" : "idle"}>
+    <Part
+      code
+      label="draftAtom"
+      tone={followed === "draft" ? "success" : "idle"}
+    >
       <FlashValue data-testid="draft" value={draft.current} />
     </Part>
     <span class="flex justify-center">
@@ -53,7 +64,11 @@
         <Arrow both label="get, set" pulse={text.current} />
       {/if}
     </span>
-    <Part code label="savedAtom" tone={followed === "saved" ? "success" : "idle"}>
+    <Part
+      code
+      label="savedAtom"
+      tone={followed === "saved" ? "success" : "idle"}
+    >
       <FlashValue data-testid="saved" value={saved.current} />
     </Part>
   </div>

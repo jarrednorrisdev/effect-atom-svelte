@@ -65,9 +65,15 @@ const mark = (scale) => {
 const cross = (x, y) => `<i class="cross" style="left:${x}px;top:${y}px"></i>`;
 
 // A node of the graph on the line at y, with its label and note above it, as the hero draws them.
-const node = (kind, x, y, label, note, align = "left") => `
+const node = (kind, x, y, label, note, align = "left") => {
+  const side =
+    align === "left"
+      ? `left:${x + 18}px`
+      : `right:${1200 - x + 18}px;text-align:right`;
+  return `
   <i class="node ${kind}" style="left:${x}px;top:${y}px"></i>
-  <span class="label" style="${align === "left" ? `left:${x + 18}px` : `right:${1200 - x + 18}px;text-align:right`};top:${y - 52}px">${label}<em>${note}</em></span>`;
+  <span class="label" style="${side};top:${y - 52}px">${label}<em>${note}</em></span>`;
+};
 
 const og = () => {
   const left = 64;
@@ -157,12 +163,13 @@ const render = async (html, width, height) => {
   await page.close();
   return png;
 };
-const icon = (size, source = favicon) =>
-  render(
-    `<body style="margin:0">${source.replace("<svg ", `<svg width="${size}" height="${size}" `)}</body>`,
-    size,
-    size
+const icon = (size, source = favicon) => {
+  const sized = source.replace(
+    "<svg ",
+    `<svg width="${size}" height="${size}" `
   );
+  return render(`<body style="margin:0">${sized}</body>`, size, size);
+};
 
 writeFileSync(statics("favicon.svg"), `${favicon}\n`);
 writeFileSync(

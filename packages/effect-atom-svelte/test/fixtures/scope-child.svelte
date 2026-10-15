@@ -3,7 +3,10 @@
   import { provideInspectorScope } from "../../src/Inspector.ts";
   import ScopeReader from "./scope-reader.svelte";
 
-  const { onscope, shown }: {
+  const {
+    onscope,
+    shown,
+  }: {
     readonly onscope: (scope: InspectorScope) => void;
     readonly shown: boolean;
   } = $props();

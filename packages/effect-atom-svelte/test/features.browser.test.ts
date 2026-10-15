@@ -21,7 +21,7 @@ const successOr = <A>(
   });
 
 class TheNumber extends Context.Service<TheNumber, { readonly n: number }>()(
-  "test/TheNumber"
+  "effect-atom-svelte/test/features.browser.test/TheNumber"
 ) {
   static readonly layer = Layer.succeed(TheNumber, { n: 42 });
 }
@@ -67,8 +67,8 @@ describe("Atom.fn", () => {
     const second = run(2);
     // Promise modes wait for the atom's next settled result, as in @effect/atom-react, so the
     // superseded call resolves with the call that replaced it.
-    expect(await first).toMatchObject({ _tag: "Success", value: 2 });
-    expect(await second).toMatchObject({ _tag: "Success", value: 2 });
+    await expect(first).resolves.toMatchObject({ _tag: "Success", value: 2 });
+    await expect(second).resolves.toMatchObject({ _tag: "Success", value: 2 });
     await expect.poll(text(screen)).toBe("2");
     set(Atom.Reset);
     await expect.poll(text(screen)).toBe("initial");
@@ -101,7 +101,7 @@ describe("lifetimes", () => {
     const screen = await render(Toggle, { registry, setup, show: true });
     await screen.rerender({ show: false });
     await sleep("50 millis");
-    expect(log).toEqual(["start"]);
+    expect(log).toStrictEqual(["start"]);
   });
 
   test("setIdleTTL keeps the atom for the TTL after unmount, then disposes it", async () => {
@@ -115,8 +115,10 @@ describe("lifetimes", () => {
     const screen = await render(Toggle, { registry, setup, show: true });
     await screen.rerender({ show: false });
     await sleep("50 millis");
-    expect(log).toEqual(["start"]);
-    await expect.poll(() => log, { timeout: 2000 }).toEqual(["start", "stop"]);
+    expect(log).toStrictEqual(["start"]);
+    await expect
+      .poll(() => log, { timeout: 2000 })
+      .toStrictEqual(["start", "stop"]);
   });
 });
 
@@ -159,9 +161,9 @@ describe("derived atoms", () => {
         return () => `[${value.current}]`;
       },
     });
-    registry.set(input, "a");
-    registry.set(input, "ab");
-    registry.set(input, "abc");
+    for (const value of ["a", "ab", "abc"]) {
+      registry.set(input, value);
+    }
     await sleep("30 millis");
     expect(text(screen)()).toBe("[]");
     await expect.poll(text(screen)).toBe("[abc]");
@@ -185,9 +187,9 @@ describe("derived atoms", () => {
 describe("browser-backed atoms", () => {
   test("kvs persists through a KeyValueStore", async () => {
     const store = Effect.runSync(
-      Effect.gen(function* getStore() {
-        return yield* KeyValueStore.KeyValueStore;
-      }).pipe(Effect.provide(KeyValueStore.layerMemory))
+      Effect.service(KeyValueStore.KeyValueStore).pipe(
+        Effect.provide(KeyValueStore.layerMemory)
+      )
     );
     const runtime = Atom.runtime(
       Layer.succeed(KeyValueStore.KeyValueStore, store)

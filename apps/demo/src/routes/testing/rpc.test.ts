@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 import { RegistryProvider } from "effect-atom-svelte";
 import { Reactivity } from "effect/reactivity";
 import { RpcTest } from "effect/rpc";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import { TodosRpc } from "#lib/clients.ts";
@@ -49,21 +49,25 @@ const renderTodos = (todos: Todo[]) =>
     }
   );
 
-test("adding a todo refreshes the list", async () => {
-  const screen = await renderTodos([
-    new Todo({ done: false, id: 1, title: "Write tests" }),
-  ]);
-  await expect.element(screen.getByText("Write tests")).toBeVisible();
+describe(TodosRpc, () => {
+  test("adding a todo refreshes the list", async () => {
+    const screen = await renderTodos([
+      new Todo({ done: false, id: 1, title: "Write tests" }),
+    ]);
+    await expect.element(screen.getByText("Write tests")).toBeVisible();
 
-  await screen.getByPlaceholder("New todo").fill("Ship it");
-  await screen.getByRole("button", { name: "Add" }).click();
-  await expect.element(screen.getByText("Ship it")).toBeVisible();
-});
+    await screen.getByPlaceholder("New todo").fill("Ship it");
+    await screen.getByRole("button", { name: "Add" }).click();
+    await expect.element(screen.getByText("Ship it")).toBeVisible();
+  });
 
-test("a typed error reaches the component", async () => {
-  const screen = await renderTodos([]);
+  test("a typed error reaches the component", async () => {
+    const screen = await renderTodos([]);
 
-  await screen.getByPlaceholder("New todo").fill("A title far too long to fit");
-  await screen.getByRole("button", { name: "Add" }).click();
-  await expect.element(screen.getByText(/TitleTooLong/u)).toBeVisible();
+    await screen
+      .getByPlaceholder("New todo")
+      .fill("A title far too long to fit");
+    await screen.getByRole("button", { name: "Add" }).click();
+    await expect.element(screen.getByText(/TitleTooLong/u)).toBeVisible();
+  });
 });

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Random } from "effect";
 import { Atom } from "effect/reactivity";
 
 import { runs } from "./rate-log.ts";
@@ -7,7 +7,7 @@ import { runs } from "./rate-log.ts";
 const fetchRate = Effect.gen(function* fetchRate() {
   runs.add("effect started", { tone: "running" });
   yield* Effect.sleep("1 second");
-  const rate = (1.05 + Math.random() / 10).toFixed(4);
+  const rate = (1.05 + (yield* Random.next) / 10).toFixed(4);
   runs.add(`effect returned ${rate}`, { tone: "success" });
   return rate;
 });

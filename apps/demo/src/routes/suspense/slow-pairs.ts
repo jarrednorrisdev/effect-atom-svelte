@@ -2,6 +2,7 @@ import { Data, Effect } from "effect";
 import { Atom } from "effect/reactivity";
 
 import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
+import type { Tone } from "#lib/docs/kit/tone.ts";
 
 /**
  * The loads behind the "Awaiting more than one atom" example, each taking 1.5 s, with a log
@@ -21,13 +22,11 @@ export const setTodosFail = (fail: boolean) => {
 const side = () => {
   const log = new EventLogState();
   // Logged from a new task: a load can start while Svelte has an update in flight.
-  const mark = (
-    lane: string,
-    label: string,
-    tone: "failure" | "interrupted" | "running" | "success"
-  ) =>
+  const mark = (lane: string, label: string, tone: Tone) =>
     Effect.sync(() => {
-      setTimeout(() => log.add(label, { lane, tone }), 0);
+      setTimeout(() => {
+        log.add(label, { lane, tone });
+      }, 0);
     });
   const load = (name: string) =>
     mark(name, `${name} started`, "running").pipe(

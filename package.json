@@ -13,16 +13,21 @@
     "version-packages": "changeset version && bun install --lockfile-only",
     "check": "turbo run check",
     "test": "turbo run test",
-    "lint": "ultracite check",
-    "format": "ultracite fix"
+    "lint": "oxfmt --check && oxlint --deny-warnings",
+    "fix": "oxlint --fix && oxfmt",
+    "prepare": "effect-tsgo patch --typescript --oxlint"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "oxfmt": "^0.68.0",
-    "oxlint": "^1.86.0",
-    "turbo": "^2.11.6",
-    "typescript": "^6.0.3",
-    "ultracite": "7.12.2"
+    "@effect/tsgo": "0.53.1",
+    "@types/bun": "^1.4.2",
+    "eslint-plugin-github": "6.1.2",
+    "eslint-plugin-sonarjs": "^4.2.1",
+    "oxfmt": "^0.73.0",
+    "oxlint": "1.88.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "turbo": "^2.11.8",
+    "typescript": "7.0.2"
   },
   "packageManager": "bun@1.4.2"
 }

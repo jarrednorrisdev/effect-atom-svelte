@@ -26,17 +26,22 @@
     model.atoms
       .filter(
         (view) =>
-          (view.live || view.id === selected) &&
-          (showPlumbing || !view.plumbing || view.id === selected)
+          view.id === selected ||
+          (view.live && (showPlumbing || !view.plumbing))
       )
       .toSorted(
         (a, b) =>
-          Number(a.plumbing) - Number(b.plumbing) || a.name.localeCompare(b.name)
+          Number(a.plumbing) - Number(b.plumbing) ||
+          a.name.localeCompare(b.name)
       )
   );
-  const current = $derived(selected === undefined ? undefined : byId.get(selected));
+  const current = $derived(
+    selected === undefined ? undefined : byId.get(selected)
+  );
   const number = $derived(
-    current === undefined ? 0 : sheets.findIndex((view) => view.id === current.id) + 1
+    current === undefined
+      ? 0
+      : sheets.findIndex((view) => view.id === current.id) + 1
   );
   const recent = $derived(
     current === undefined
@@ -55,7 +60,9 @@
     if (view.idleTTL === undefined || view.idleTTL === 0) {
       return "none";
     }
-    return view.idleTTL >= 1000 ? `${view.idleTTL / 1000} s` : `${view.idleTTL} ms`;
+    return view.idleTTL >= 1000
+      ? `${view.idleTTL / 1000} s`
+      : `${view.idleTTL} ms`;
   };
   const time = (entry: TimelineEntry) => `${(entry.time / 1000).toFixed(3)} s`;
   const verbs: Record<TimelineEntry["tag"], string> = {
@@ -68,24 +75,43 @@
     Updated: "updated",
   };
   const states = $derived(
-    Object.entries(model.totals.states).toSorted(([a], [b]) => a.localeCompare(b))
+    Object.entries(model.totals.states).toSorted(([a], [b]) =>
+      a.localeCompare(b)
+    )
   );
 </script>
 
 {#snippet link(id: number)}
   {@const view = byId.get(id)}
-  <button class="link" class:plumbing={view?.plumbing} onclick={() => onselect(id)} type="button">
+  <button
+    class="link"
+    class:plumbing={view?.plumbing}
+    onclick={() => onselect(id)}
+    type="button"
+  >
     {view?.name ?? `atom #${id}`}
   </button>
 {/snippet}
 
 <div class="set">
   <nav aria-label="Sheets" class="index">
-    <button class="entry" class:current={current === undefined} onclick={() => onselect(undefined)} type="button">
+    <button
+      class="entry"
+      class:current={current === undefined}
+      onclick={() => onselect(undefined)}
+      type="button"
+    >
       <span class="no">00</span> Cover sheet
     </button>
     {#each sheets as view, index (view.id)}
-      <button class="entry" class:current={current?.id === view.id} class:plumbing={view.plumbing} class:gone={!view.live} onclick={() => onselect(view.id)} type="button">
+      <button
+        class="entry"
+        class:current={current?.id === view.id}
+        class:plumbing={view.plumbing}
+        class:gone={!view.live}
+        onclick={() => onselect(view.id)}
+        type="button"
+      >
         <span class="no">{pad(index + 1)}</span>
         {view.name}
       </button>
@@ -99,40 +125,66 @@
         <span>COVER · THE REGISTRY</span>
       </header>
       <div class="totals">
-        <div class="total"><b>{pad(model.totals.atoms)}</b><span>atoms</span></div>
-        <div class="total"><b>{pad(model.totals.readers)}</b><span>readers</span></div>
-        <div class="total"><b>{pad(model.totals.builds)}</b><span>computations</span></div>
-        <div class="total"><b>{pad(model.totals.updates)}</b><span>updates</span></div>
-        <div class="total"><b>{pad(model.totals.interruptions)}</b><span>interruptions</span></div>
-        <div class="total"><b>{pad(model.totals.finalizers)}</b><span>finalizers run</span></div>
+        <div class="total">
+          <b>{pad(model.totals.atoms)}</b><span>atoms</span>
+        </div>
+        <div class="total">
+          <b>{pad(model.totals.readers)}</b><span>readers</span>
+        </div>
+        <div class="total">
+          <b>{pad(model.totals.builds)}</b><span>computations</span>
+        </div>
+        <div class="total">
+          <b>{pad(model.totals.updates)}</b><span>updates</span>
+        </div>
+        <div class="total">
+          <b>{pad(model.totals.interruptions)}</b><span>interruptions</span>
+        </div>
+        <div class="total">
+          <b>{pad(model.totals.finalizers)}</b><span>finalizers run</span>
+        </div>
       </div>
       <section class="block">
         <h3 class="key">VALUES</h3>
         <p class="states">
           {#each states as [state, count] (state)}
-            <span><b>{count}</b> {state === "Value" ? "plain values" : state}</span>
+            <span
+              ><b>{count}</b> {state === "Value" ? "plain values" : state}</span
+            >
           {/each}
         </p>
         <p class="caption">
-          {model.totals.plumbing} of the {model.totals.atoms} atoms are plumbing: made by a runtime, a
-          mutation or a store rather than declared by the app. They have no label, and the sheets
-          and graph {showPlumbing ? "show them, last" : "leave them out"}.
-          Counts of computations and updates start when the panel does.
+          {model.totals.plumbing} of the {model.totals.atoms} atoms are plumbing:
+          made by a runtime, a mutation or a store rather than declared by the app.
+          They have no label, and the sheets and graph {showPlumbing
+            ? "show them, last"
+            : "leave them out"}. Counts of computations and updates start when
+          the panel does.
         </p>
       </section>
     {:else}
       <header class="strip">
         <span><b>SHEET {pad(number)}</b> OF {pad(sheets.length)}</span>
-        <span>{current.live ? (current.plumbing ? "PLUMBING" : "ATOM") : "REMOVED"}</span>
+        <span
+          >{current.live
+            ? current.plumbing
+              ? "PLUMBING"
+              : "ATOM"
+            : "REMOVED"}</span
+        >
       </header>
 
-      <section class="block value">
+      <section class="value block">
         <h3 class="key">
           VALUE{#if current.state._tag !== "Value"}<span
-            class="badge"
-            class:failure={current.state._tag === "Failure" && !current.state.waiting}
-            class:success={current.state._tag === "Success" && !current.state.waiting}
-            class:waiting={current.state.waiting}>{stateText(current.state)}</span>{/if}
+              class="badge"
+              class:failure={current.state._tag === "Failure" &&
+                !current.state.waiting}
+              class:success={current.state._tag === "Success" &&
+                !current.state.waiting}
+              class:waiting={current.state.waiting}
+              >{stateText(current.state)}</span
+            >{/if}
         </h3>
         {#if current.hasValue}
           <pre>{detail(current.value)}</pre>
@@ -148,7 +200,9 @@
             <p class="caption">Nothing: it is a source.</p>
           {:else}
             <ul>
-              {#each current.parents as id (id)}<li>{@render link(id)}</li>{/each}
+              {#each current.parents as id (id)}<li>
+                  {@render link(id)}
+                </li>{/each}
             </ul>
           {/if}
         </section>
@@ -158,14 +212,19 @@
             <p class="caption">No atom reads it.</p>
           {:else}
             <ul>
-              {#each current.children as id (id)}<li>{@render link(id)}</li>{/each}
+              {#each current.children as id (id)}<li>
+                  {@render link(id)}
+                </li>{/each}
             </ul>
           {/if}
         </section>
       </div>
 
       <section class="block">
-        <h3 class="key">LATELY · {current.builds} COMPUTATIONS, {current.updates} UPDATES, {current.interruptions} INTERRUPTIONS</h3>
+        <h3 class="key">
+          LATELY · {current.builds} COMPUTATIONS, {current.updates} UPDATES, {current.interruptions}
+          INTERRUPTIONS
+        </h3>
         {#if recent.length === 0}
           <p class="caption">Nothing since the panel started.</p>
         {:else}
@@ -174,7 +233,10 @@
               <li class:alert={entry.tag === "Interrupted"}>
                 <span class="when">{time(entry)}</span>
                 <span class="what">{verbs[entry.tag]}</span>
-                <span class="detail">{entry.detail}{#if entry.source} ({entry.source}){/if}</span>
+                <span class="detail"
+                  >{entry.detail}{#if entry.source}
+                    ({entry.source}){/if}</span
+                >
               </li>
             {/each}
           </ol>
@@ -189,7 +251,12 @@
             {@const place = current.identity.place}
             <!-- Only the dev server can open a file in the editor. -->
             {#if DEV}
-              <button class="link" onclick={() => void openInEditor(place)} title="Open {place.file}:{place.line} in the editor" type="button">{shortPlace(place)}</button>
+              <button
+                class="link"
+                onclick={() => void openInEditor(place)}
+                title="Open {place.file}:{place.line} in the editor"
+                type="button">{shortPlace(place)}</button
+              >
             {:else}
               <span title="{place.file}:{place.line}">{shortPlace(place)}</span>
             {/if}
@@ -197,11 +264,17 @@
             —
           {/if}
         </div>
-        <div class="cell"><span class="key">KEEP-ALIVE</span>{current.keepAlive ? "yes" : "no"}</div>
+        <div class="cell">
+          <span class="key">KEEP-ALIVE</span>{current.keepAlive ? "yes" : "no"}
+        </div>
         <div class="cell"><span class="key">IDLE TTL</span>{ttl(current)}</div>
-        <div class="cell"><span class="key">READERS</span>{current.readers}</div>
+        <div class="cell">
+          <span class="key">READERS</span>{current.readers}
+        </div>
         {#if current.identity.key && current.identity.key !== current.name}
-          <div class="cell wide"><span class="key">KEY</span>{current.identity.key}</div>
+          <div class="cell wide">
+            <span class="key">KEY</span>{current.identity.key}
+          </div>
         {/if}
       </footer>
     {/if}
@@ -387,7 +460,10 @@
   .title-block {
     border-top: 1px solid var(--line);
     display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.6fr) repeat(
+        3,
+        minmax(0, 1fr)
+      );
     margin-top: auto;
   }
   .cell {

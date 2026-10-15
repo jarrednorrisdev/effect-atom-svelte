@@ -11,7 +11,8 @@
 
   const { entries }: Props = $props();
 
-  const at = (label: string) => entries.find((entry) => entry.label === label)?.at;
+  const at = (label: string) =>
+    entries.find((entry) => entry.label === label)?.at;
   const started = $derived(at("script started"));
   const continued = $derived(at("script continued after the await"));
 
@@ -25,7 +26,7 @@
 
   const steps = $derived([
     {
-      code: "script.add(\"script started\")",
+      code: 'script.add("script started")',
       state: started === undefined ? "todo" : "done",
       time: started,
     },
@@ -35,7 +36,7 @@
       time: continued,
     },
     {
-      code: "script.add(\"script continued after the await\")",
+      code: 'script.add("script continued after the await")',
       state: continued === undefined ? "todo" : "done",
       time: continued,
     },

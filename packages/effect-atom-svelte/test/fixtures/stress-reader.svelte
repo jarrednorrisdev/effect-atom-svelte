@@ -19,5 +19,7 @@
   const summary = $derived(`${label.current} ${doubled.current}`);
 </script>
 
-<span data-testid="sync-{id}">{summary} {plusOne.current} {forCount.current}</span>
+<span data-testid="sync-{id}"
+  >{summary} {plusOne.current} {forCount.current}</span
+>
 <span data-testid="clicks-{id}">{clicks.current}</span>

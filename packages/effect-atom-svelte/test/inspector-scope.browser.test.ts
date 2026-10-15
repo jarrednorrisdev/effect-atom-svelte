@@ -35,7 +35,7 @@ const mount = async (shown = true) => {
 /** A new atom object for one serializable key, as a hot reload makes. */
 const sharedAtom = () =>
   Atom.make(1).pipe(
-    Atom.serializable({ key: "shared-key", schema: Schema.Number }),
+    Atom.serializable({ key: "shared-key", schema: Schema.Finite }),
     Atom.withLabel("shared")
   );
 
@@ -46,7 +46,7 @@ const names = (snapshot: ScopeSnapshot) =>
 const mountReading = async (
   atom: Atom.Atom<number>,
   shown: string,
-  prepare: (registry: AtomRegistry.AtomRegistry) => void = () => undefined
+  prepare: (registry: AtomRegistry.AtomRegistry) => void = () => {}
 ) => {
   let scope: InspectorScope | undefined;
   let registry: AtomRegistry.AtomRegistry | undefined;
@@ -66,14 +66,14 @@ const mountReading = async (
   return { registry, scope, screen };
 };
 
-describe("provideInspectorScope", () => {
+describe(provideInspectorScope, () => {
   test("shows the atoms read below it and those upstream, linked through plumbing", async () => {
     const { scope, screen } = await mount();
     const snapshot = scope.snapshot();
-    expect(names(snapshot)).toEqual(new Set(["countAtom", "totalAtom"]));
+    expect(names(snapshot)).toStrictEqual(new Set(["countAtom", "totalAtom"]));
     const id = (label: string) =>
       snapshot.nodes.find((node) => node.label === label)?.id;
-    expect(snapshot.edges).toEqual([
+    expect(snapshot.edges).toStrictEqual([
       { from: id("countAtom"), to: id("totalAtom") },
     ]);
     expect(
@@ -81,7 +81,7 @@ describe("provideInspectorScope", () => {
         (reader) =>
           `${reader.component} ${reader.kind} ${reader.atom === id("totalAtom") ? "total" : "count"}`
       )
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         "ScopeReader read total",
         "ScopeReader write count",
@@ -120,7 +120,7 @@ describe("provideInspectorScope", () => {
     await expect
       .poll(() => events.some((event) => event._tag === "ScopeChanged"))
       .toBe(true);
-    expect(scope.snapshot().readers).toEqual([]);
+    expect(scope.snapshot().readers).toStrictEqual([]);
     stop();
     await screen.unmount();
   });
@@ -163,13 +163,17 @@ describe("provideInspectorScope", () => {
     );
     const events: ScopeEvent[] = [];
     const stop = scope.subscribe((event) => events.push(event));
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "a"])
+    );
     registry.set(flag, false);
     await expect.poll(() => screen.container.textContent).toContain("2");
     await expect
       .poll(() => events.some((event) => event._tag === "ScopeChanged"))
       .toBe(true);
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "b"])
+    );
     stop();
     await screen.unmount();
   });
@@ -182,16 +186,22 @@ describe("provideInspectorScope", () => {
       Atom.withLabel("child")
     );
     const { registry, scope, screen } = await mountReading(child, "1");
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "a"])
+    );
     registry.set(flag, false);
     await expect.poll(() => screen.container.textContent).toContain("2");
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "b"])
+    );
     // A listener that comes and goes, then a switch back while nobody listens.
-    scope.subscribe(() => undefined)();
+    scope.subscribe(() => {})();
     registry.set(flag, true);
     await expect.poll(() => screen.container.textContent).toContain("1");
-    const stop = scope.subscribe(() => undefined);
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "a"]));
+    const stop = scope.subscribe(() => {});
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "a"])
+    );
     stop();
     await screen.unmount();
   });
@@ -206,7 +216,7 @@ describe("provideInspectorScope", () => {
     );
     const { registry, scope, screen } = await mountReading(child, "1");
     // While listening, any change to the graph makes the scope work its nodes out again.
-    const first = scope.subscribe(() => undefined);
+    const first = scope.subscribe(() => {});
     const release = registry.mount(other);
     await sleep("10 millis");
     first();
@@ -214,7 +224,9 @@ describe("provideInspectorScope", () => {
     await expect.poll(() => screen.container.textContent).toContain("2");
     const events: ScopeEvent[] = [];
     const stop = scope.subscribe((event) => events.push(event));
-    expect(names(scope.snapshot())).toEqual(new Set(["child", "flag", "b"]));
+    expect(names(scope.snapshot())).toStrictEqual(
+      new Set(["child", "flag", "b"])
+    );
     registry.set(a, 5);
     await sleep("10 millis");
     const ids = new Set(
@@ -223,7 +235,7 @@ describe("provideInspectorScope", () => {
     // `a` was written, but the scope no longer reads it.
     expect(
       events.filter((event) => "id" in event && !ids.has(event.id))
-    ).toEqual([]);
+    ).toStrictEqual([]);
     stop();
     release();
     await screen.unmount();

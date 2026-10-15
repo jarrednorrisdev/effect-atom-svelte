@@ -5,7 +5,9 @@
   class TodoNotFound extends Data.TaggedError("TodoNotFound")<{
     readonly message: string;
   }> {}
-  class Timeout extends Data.TaggedError("Timeout")<{ readonly message: string }> {}
+  class Timeout extends Data.TaggedError("Timeout")<{
+    readonly message: string;
+  }> {}
 
   type Ask = "found" | "missing" | "slow" | "broken";
   const askAtom = Atom.make<Ask>("found");
@@ -31,7 +33,9 @@
 
 <script lang="ts">
   import { useAtom, useAtomSuspense } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
+
   // Shows the App.Error the failed snippet receives.
   import ErrorBody from "./error-body.svelte";
 
@@ -68,7 +72,9 @@
     <span data-testid="boundary-todo">{await todo.current}</span>
   </ResultChip>
   {#snippet pending()}
-    <ResultChip kind="message" label="todoAtom" tone="running">Loading…</ResultChip>
+    <ResultChip kind="message" label="todoAtom" tone="running"
+      >Loading…</ResultChip
+    >
   {/snippet}
   {#snippet failed(error)}
     {@const { message, tag } = error as App.Error}

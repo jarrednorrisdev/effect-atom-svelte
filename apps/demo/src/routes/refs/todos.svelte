@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useAtomRef } from "effect-atom-svelte";
   import { AtomRef } from "effect/reactivity";
+
   import Part from "#lib/docs/kit/part.svelte";
 
   import TodoItem from "./todo-item.svelte";

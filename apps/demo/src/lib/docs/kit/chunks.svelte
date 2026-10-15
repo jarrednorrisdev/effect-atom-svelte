@@ -34,7 +34,8 @@
   let wasEnded = false;
 
   const track = (now: readonly unknown[], ending: string | undefined) => {
-    const grew = now.length > seen.length && seen.every((item, i) => now[i] === item);
+    const grew =
+      now.length > seen.length && seen.every((item, i) => now[i] === item);
     if (grew) {
       pulls += 1;
       chunks.push({ items: now.slice(seen.length), pull: pulls });

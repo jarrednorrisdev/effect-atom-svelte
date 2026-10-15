@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { AsyncResult } from "effect/reactivity";
   import { useAtomValue } from "effect-atom-svelte";
+  import type { AsyncResult } from "effect/reactivity";
+
   import Origin from "#lib/docs/kit/origin.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   // What the server's HTML had in the same place.

@@ -36,7 +36,7 @@
   // While the story plays, the play icon beats, so a disabled Play still says "running".
   const beat = (icon: HTMLElement) => {
     if (!playing || reducedMotion()) {
-      return undefined;
+      return;
     }
     const pulse = animate(
       icon,
@@ -59,8 +59,16 @@
 </script>
 
 <span class="controls">
-  <button class="control" data-cue="start" disabled={playing} onclick={onplay} type="button">
-    <span class="icon-box" {@attach beat}><PlayIcon aria-hidden="true" class="icon" /></span>
+  <button
+    class="control"
+    data-cue="start"
+    disabled={playing}
+    onclick={onplay}
+    type="button"
+  >
+    <span class="icon-box" {@attach beat}
+      ><PlayIcon aria-hidden="true" class="icon" /></span
+    >
     {playLabel}
   </button>
   <button class="control" data-cue="reset" onclick={restart} type="button">

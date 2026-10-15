@@ -22,7 +22,7 @@ class TodoStore extends Context.Service<
     readonly toggle: (id: number) => Effect.Effect<Todo, TodoNotFound>;
     readonly remove: (id: number) => Effect.Effect<void, TodoNotFound>;
   }
->()("demo/TodoStore") {
+>()("@demo/domain/server/TodoStore") {
   static readonly layer = (options: ServerOptions) =>
     Layer.sync(TodoStore, () => {
       const todos = new Map<number, Todo>([
@@ -43,43 +43,40 @@ class TodoStore extends Context.Service<
       );
       const find = (id: number): Effect.Effect<Todo, TodoNotFound> => {
         const todo = todos.get(id);
-        return todo
-          ? Effect.succeed(todo)
-          : Effect.fail(new TodoNotFound({ id }));
+        return todo === undefined
+          ? Effect.fail(new TodoNotFound({ id }))
+          : Effect.succeed(todo);
       };
       return TodoStore.of({
-        create: (title) =>
-          (title.length > TITLE_MAX_LENGTH
-            ? Effect.fail(new TitleTooLong({ maxLength: TITLE_MAX_LENGTH }))
-            : Effect.sync(() => {
-                const todo = new Todo({ done: false, id: nextId, title });
-                nextId += 1;
-                todos.set(todo.id, todo);
-                return todo;
-              })
-          ).pipe(delay),
-        get: (id) => find(id).pipe(delay),
-        list: (done) =>
-          Effect.sync(() =>
-            [...todos.values()].filter(
-              (todo) => done === undefined || todo.done === done
-            )
-          ).pipe(delay),
-        remove: (id) =>
-          find(id).pipe(
-            Effect.andThen(Effect.sync(() => todos.delete(id))),
-            Effect.asVoid,
-            delay
-          ),
-        toggle: (id) =>
-          find(id).pipe(
-            Effect.map((todo) => {
-              const next = new Todo({ ...todo, done: !todo.done });
-              todos.set(id, next);
-              return next;
-            }),
-            delay
-          ),
+        create: Effect.fn("TodoStore.create")(function* create(title) {
+          if (title.length > TITLE_MAX_LENGTH) {
+            return yield* new TitleTooLong({ maxLength: TITLE_MAX_LENGTH });
+          }
+          const todo = new Todo({ done: false, id: nextId, title });
+          nextId += 1;
+          todos.set(todo.id, todo);
+          return todo;
+        }, delay),
+        get: Effect.fn("TodoStore.get")(find, delay),
+        list: Effect.fn("TodoStore.list")(
+          (done) =>
+            Effect.sync(() =>
+              [...todos.values()].filter(
+                (todo) => done === undefined || todo.done === done
+              )
+            ),
+          delay
+        ),
+        remove: Effect.fn("TodoStore.remove")(function* remove(id) {
+          yield* find(id);
+          todos.delete(id);
+        }, delay),
+        toggle: Effect.fn("TodoStore.toggle")(function* toggle(id) {
+          const todo = yield* find(id);
+          const next = new Todo({ done: !todo.done, id, title: todo.title });
+          todos.set(id, next);
+          return next;
+        }, delay),
       });
     });
 }
@@ -125,9 +122,10 @@ const accountHandlers = (options: ServerOptions) =>
         ? Effect.succeed(new Account({ name: "Ada" }))
         : Effect.fail(
             new Unauthorized({
-              message: request.headers.authorization
-                ? "That token isn't valid."
-                : "This route needs an Authorization header.",
+              message:
+                (request.headers.authorization ?? "") === ""
+                  ? "This route needs an Authorization header."
+                  : "That token isn't valid.",
             })
           )
       ).pipe(Effect.delay(Duration.fromInputUnsafe(options.latency ?? 0)))

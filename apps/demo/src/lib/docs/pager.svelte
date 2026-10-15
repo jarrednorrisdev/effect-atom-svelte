@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
-  import { page } from "$app/state";
+
   import { neighbors } from "#lib/docs/nav.ts";
 
   const links = $derived(neighbors(page.url.pathname));

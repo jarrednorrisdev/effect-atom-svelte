@@ -10,9 +10,15 @@
 
 <a class="logo" href="/">
   <span aria-hidden="true" class="mark"
-    ><i class="effect"></i><i class="line"></i><i class="atom"></i><i class="line"></i><i class="component"></i></span
+    ><i class="effect"></i><i class="line"></i><i class="atom"></i><i
+      class="line"
+    ></i><i class="component"></i></span
   >
-  <span class="name"><span class="effect">effect-</span><span class="atom">atom</span><span class="svelte">-svelte</span></span>
+  <span class="name"
+    ><span class="effect">effect-</span><span class="atom">atom</span><span
+      class="svelte">-svelte</span
+    ></span
+  >
 </a>
 
 <style>

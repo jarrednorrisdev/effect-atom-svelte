@@ -70,6 +70,6 @@ export const streamAtom = (
 ).pipe(
   Atom.serializable({
     key: "unsent-stream",
-    schema: AsyncResult.Schema({ success: Schema.Number }),
+    schema: AsyncResult.Schema({ success: Schema.Finite }),
   })
 );

@@ -1,8 +1,7 @@
 <script module lang="ts">
+  import { browser } from "$app/env";
   import { Effect, Schema } from "effect";
   import { AsyncResult, Atom } from "effect/reactivity";
-
-  import { browser } from "$app/env";
 
   // Two atoms that record where they ran, each sent with the page.
   const whereAtom = (key: string) =>
@@ -11,7 +10,10 @@
         Effect.delay("800 millis")
       )
     ).pipe(
-      Atom.serializable({ key, schema: AsyncResult.Schema({ success: Schema.String }) })
+      Atom.serializable({
+        key,
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
     );
 
   const keptAtom = whereAtom("revalidate-kept");
@@ -20,6 +22,7 @@
 
 <script lang="ts">
   import { useAtomResult } from "effect-atom-svelte";
+
   // Each atom's result and history, side by side.
   import RevalidateParts from "./revalidate-parts.svelte";
 

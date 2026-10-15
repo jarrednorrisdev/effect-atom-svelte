@@ -21,9 +21,11 @@
   data-testid="chat-messages"
 >
   {#each messages.current as message, index (index)}
-    <li class="m-0 rounded-2xl rounded-br-sm bg-brand/20 px-3 py-1.5">{message}</li>
+    <li class="bg-brand/20 m-0 rounded-2xl rounded-br-sm px-3 py-1.5">
+      {message}
+    </li>
   {:else}
-    <li class="m-0 self-center text-muted-foreground">No messages yet.</li>
+    <li class="text-muted-foreground m-0 self-center">No messages yet.</li>
   {/each}
 </ul>
 <form class="mt-3 flex gap-2" onsubmit={send}>

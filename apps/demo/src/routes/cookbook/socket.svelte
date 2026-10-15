@@ -15,11 +15,7 @@
     {connected ? "Disconnect" : "Connect"}
   </button>
 </p>
-<Part
-  dashed={!connected}
-  label="Reader"
-  tone={connected ? "running" : "idle"}
->
+<Part dashed={!connected} label="Reader" tone={connected ? "running" : "idle"}>
   {#if connected}
     <Messages />
   {:else}

@@ -22,7 +22,7 @@ const keep = (code: string) =>
 const kept = (code: string, file?: string) =>
   transform(code, file)?.includes('"keep"');
 
-describe("labelAtoms", () => {
+describe(labelAtoms, () => {
   test("wraps a top-level declaration made by a call, with its name and place", () => {
     expect(transform("export const countAtom = Atom.make(load);")).toBe(
       `${header}export const countAtom = __effectAtomSvelteLabel(Atom.make(load), "countAtom", "/src/lib/atoms.ts:1:14");`
@@ -179,11 +179,14 @@ describe("labelAtoms", () => {
     expect(keep("const a = { b: Atom.make(0) };")).toBeDefined();
   });
 
-  test("keeps only state atoms, and only those that run once per module", () => {
+  test("keeps only state atoms", () => {
     expect(kept("const a = Atom.make(() => 0);")).toBe(false);
     expect(kept("const a = Atom.make(Effect.succeed(0));")).toBe(false);
     expect(kept("const a = Atom.make(initial);")).toBe(false);
     expect(kept("const a = runtime.atom(0);")).toBe(false);
+  });
+
+  test("keeps only the state atoms that run once per module", () => {
     expect(kept("function f() { const a = Atom.make(0); }")).toBe(false);
     expect(
       kept("<script>const a = Atom.make(0);</script>", "/app/A.svelte")

@@ -19,9 +19,10 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import type { Attachment } from "svelte/attachments";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
-  import type { Attachment } from "svelte/attachments";
 
   const feed = useAtomValue(feedAtom);
   const loadMore = useAtomSet(feedAtom);
@@ -45,7 +46,9 @@
   <span>
     <FlashValue
       data-testid="feed-count"
-      value={feed.current._tag === "Success" ? feed.current.value.items.length : 0}
+      value={feed.current._tag === "Success"
+        ? feed.current.value.items.length
+        : 0}
     />
     of {total} entries loaded
   </span>

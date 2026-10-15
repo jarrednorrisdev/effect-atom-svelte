@@ -67,7 +67,7 @@ declare module "vitest/browser" {
 }
 
 const countAtom = Atom.make(0).pipe(
-  Atom.serializable({ key: "count", schema: Schema.Number })
+  Atom.serializable({ key: "count", schema: Schema.Finite })
 );
 
 /** Simulates the server: computes atoms in a registry and dehydrates it through JSON. */
@@ -94,9 +94,11 @@ describe("HydrationBoundary", () => {
     // oxlint-disable-next-line unicorn/prefer-structured-clone -- the JSON round trip simulates the wire, which structuredClone would not
     const state = JSON.parse(
       JSON.stringify(
-        serverState([countAtom], (registry) => registry.set(countAtom, 42))
+        serverState([countAtom], (registry) => {
+          registry.set(countAtom, 42);
+        })
       )
-    );
+    ) as Hydration.DehydratedAtom[];
     const screen = await render(Hydrate, {
       registry: AtomRegistry.make(),
       setup: readCount,
@@ -110,11 +112,15 @@ describe("HydrationBoundary", () => {
     const screen = await render(Hydrate, {
       registry,
       setup: readCount,
-      state: serverState([countAtom], (server) => server.set(countAtom, 1)),
+      state: serverState([countAtom], (server) => {
+        server.set(countAtom, 1);
+      }),
     });
     await expect.poll(text(screen)).toBe("1");
     await screen.rerender({
-      state: serverState([countAtom], (server) => server.set(countAtom, 2)),
+      state: serverState([countAtom], (server) => {
+        server.set(countAtom, 2);
+      }),
     });
     await expect.poll(text(screen)).toBe("2");
   });
@@ -139,9 +145,9 @@ describe("HydrationBoundary", () => {
     registry.mount(countAtom);
     registry.set(countAtom, 1);
     const seen: number[] = [];
-    const state = serverState([countAtom], (server) =>
-      server.set(countAtom, 2)
-    );
+    const state = serverState([countAtom], (server) => {
+      server.set(countAtom, 2);
+    });
     const screen = await render(Hydrate, {
       registry,
       setup: () => {
@@ -163,7 +169,9 @@ describe("HydrationBoundary", () => {
     const screen = await render(Hydrate, {
       registry,
       setup: () => () => "not read",
-      state: serverState([countAtom], (server) => server.set(countAtom, 42)),
+      state: serverState([countAtom], (server) => {
+        server.set(countAtom, 42);
+      }),
     });
     await screen.unmount();
     // Kept, the value would wait in the registry for whoever reads the atom next, however late.
@@ -173,9 +181,9 @@ describe("HydrationBoundary", () => {
 
   test("keeps a value another boundary queued with the same state when it is destroyed", async () => {
     const registry = AtomRegistry.make();
-    const state = serverState([countAtom], (server) =>
-      server.set(countAtom, 42)
-    );
+    const state = serverState([countAtom], (server) => {
+      server.set(countAtom, 42);
+    });
     const screen = await render(TwoBoundaries, {
       atom: countAtom,
       readSecond: false,
@@ -197,12 +205,16 @@ describe("HydrationBoundary", () => {
     const first = await render(Hydrate, {
       registry,
       setup: () => () => "not read",
-      state: serverState([countAtom], (server) => server.set(countAtom, 1)),
+      state: serverState([countAtom], (server) => {
+        server.set(countAtom, 1);
+      }),
     });
     await render(Hydrate, {
       registry,
       setup: () => () => "not read",
-      state: serverState([countAtom], (server) => server.set(countAtom, 2)),
+      state: serverState([countAtom], (server) => {
+        server.set(countAtom, 2);
+      }),
     });
     await first.unmount();
     expect(registry.get(countAtom)).toBe(2);
@@ -217,7 +229,7 @@ describe("HydrationBoundary", () => {
         schema: AsyncResult.Schema({ success: Schema.String }),
       })
     );
-    const state = serverState([slowAtom], () => undefined, {
+    const state = serverState([slowAtom], () => {}, {
       encodeInitialAs: "promise",
     });
     const screen = await render(Hydrate, {
@@ -342,6 +354,7 @@ describe("HydrationBoundary destroyed before a promise-encoded value lands", () 
 
   test("hands the late value to a reader above it that already held the atom", async () => {
     const schema = AsyncResult.Schema({ success: Schema.String });
+    // oxlint-disable-next-line effecttsgo/schema-sync -- encodes fixture values outside any Effect; a throw fails the test, as it should
     const encode = Schema.encodeSync(schema);
     const slowAtom = Atom.make(Effect.never as Effect.Effect<string>).pipe(
       Atom.serializable({ key: "slow-above", schema })
@@ -416,6 +429,7 @@ const hydrateFromServer = async <Props extends Record<string, unknown>>(
   if (caller.finished) {
     throw new Error(`The test finished before ${path} rendered on the server`);
   }
+  // oxlint-disable-next-line github/no-dynamic-script-tag -- stands in for the hydratable script SvelteKit puts in the server's <head>
   const script = document.createElement("script");
   script.textContent =
     new DOMParser().parseFromString(head, "text/html").querySelector("script")
@@ -423,6 +437,7 @@ const hydrateFromServer = async <Props extends Record<string, unknown>>(
   document.head.append(script);
   beforeHydrate?.();
   const target = document.createElement("div");
+  // oxlint-disable-next-line github/no-inner-html -- the server's own rendered HTML, which hydrate() expects to find in the DOM
   target.innerHTML = body;
   document.body.append(target);
   const cleanUp = () => {
@@ -463,10 +478,10 @@ describe("hydrating server output", () => {
 
     await expect.poll(output).toBe("a from the server");
     // The seed is the only source for "a": the browser must not compute it (JND-23).
-    expect(computed).toEqual([]);
+    expect(computed).toStrictEqual([]);
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
-    expect(computed).toEqual(["b"]);
+    expect(computed).toStrictEqual(["b"]);
   });
 
   test("revalidateOnHydrate fetches an atom without reactivity keys again too (JND-19)", async () => {
@@ -480,7 +495,7 @@ describe("hydrating server output", () => {
     const output = () => target.querySelector("output")?.textContent;
 
     await expect.poll(output).toBe("a from the browser");
-    expect(computed).toEqual(["a"]);
+    expect(computed).toStrictEqual(["a"]);
   });
 
   describe("revalidateOnHydrate (JND-85)", () => {
@@ -491,12 +506,12 @@ describe("hydrating server output", () => {
         SsrRevalidate
       );
 
-      await expect.poll(outputs(target)).toEqual(["browser", "browser"]);
-      expect(revalidateSeen).toEqual({
+      await expect.poll(outputs(target)).toStrictEqual(["browser", "browser"]);
+      expect(revalidateSeen).toStrictEqual({
         result: ["server (waiting)", "browser"],
         suspense: ["server (waiting)", "browser"],
       });
-      expect(new Set(revalidateComputed)).toEqual(
+      expect(new Set(revalidateComputed)).toStrictEqual(
         new Set(["result", "suspense"])
       );
     });
@@ -508,10 +523,10 @@ describe("hydrating server output", () => {
     // warns, once per key, and not for a later render that reads the same keys (JND-96).
     test("a hook called after a top-level await gets no seed, and warns", async () => {
       resetRevalidate();
-      const warn = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => undefined);
-      onTestFinished(() => warn.mockRestore());
+      const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+      onTestFinished(() => {
+        warn.mockRestore();
+      });
       const missed = () =>
         warn.mock.calls.filter(([message]) =>
           String(message).includes("got no value from the server")
@@ -521,12 +536,12 @@ describe("hydrating server output", () => {
         SsrAfterAwait
       );
 
-      await expect.poll(outputs(target)).toEqual(["server", "browser"]);
-      expect(revalidateSeen).toEqual({
+      await expect.poll(outputs(target)).toStrictEqual(["server", "browser"]);
+      expect(revalidateSeen).toStrictEqual({
         "after-await": ["browser"],
         kept: ["server"],
       });
-      expect(revalidateComputed).toEqual(["after-await"]);
+      expect(revalidateComputed).toStrictEqual(["after-await"]);
       expect(missed()).toHaveLength(1);
       expect(String(missed()[0]?.[0])).toContain('"revalidate-after-await"');
 
@@ -539,7 +554,7 @@ describe("hydrating server output", () => {
             (o) => o.textContent
           )
         )
-        .toEqual(["browser", "browser"]);
+        .toStrictEqual(["browser", "browser"]);
       expect(missed()).toHaveLength(1);
     });
   });
@@ -553,10 +568,10 @@ describe("hydrating server output", () => {
     const output = () => target.querySelector("output")?.textContent;
 
     await expect.poll(output).toBe("a from the server");
-    expect(computed).toEqual([]);
+    expect(computed).toStrictEqual([]);
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("b from the browser");
-    expect(computed).toEqual(["b"]);
+    expect(computed).toStrictEqual(["b"]);
   });
 
   test("useAtomResult destroyed before its seed lands computes nothing", async () => {
@@ -573,10 +588,10 @@ describe("hydrating server output", () => {
       }
     );
     click(target, "hide");
-    await expect.poll(outputs(target)).toEqual([]);
+    await expect.poll(outputs(target)).toStrictEqual([]);
     Deferred.doneUnsafe(seed, Effect.succeed(value));
     await sleep(afterSweep);
-    expect(computed).toEqual([]);
+    expect(computed).toStrictEqual([]);
   });
 
   test("atoms with a server value hydrate without a seed, then compute in the browser (JND-58)", async () => {
@@ -588,8 +603,8 @@ describe("hydrating server output", () => {
 
     await expect
       .poll(outputs(target))
-      .toEqual(["result from the browser", "suspense from the browser"]);
-    expect(new Set(serverValueComputed)).toEqual(
+      .toStrictEqual(["result from the browser", "suspense from the browser"]);
+    expect(new Set(serverValueComputed)).toStrictEqual(
       new Set(["result", "suspense"])
     );
   });
@@ -603,39 +618,48 @@ describe("hydrating server output", () => {
 
     await expect
       .poll(outputs(target))
-      .toEqual(["defect from the browser", "unencodable from the browser"]);
-    expect(new Set(unsentComputed)).toEqual(new Set(["defect", "unencodable"]));
+      .toStrictEqual([
+        "defect from the browser",
+        "unencodable from the browser",
+      ]);
+    expect(new Set(unsentComputed)).toStrictEqual(
+      new Set(["defect", "unencodable"])
+    );
   });
 
   test("a hook after a top-level await doesn't warn about a seed the server didn't send", async () => {
     resetUnsent();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const target = await hydrateFromServer(
       "/test/fixtures/ssr-unsent-after-await.svelte",
       SsrUnsentAfterAwait
     );
     await expect
       .poll(outputs(target))
-      .toEqual(["server", "defect from the browser"]);
+      .toStrictEqual(["server", "defect from the browser"]);
     await sleep("20 millis");
     const missed = warn.mock.calls.filter(([message]) =>
       String(message).includes("got no value from the server")
     );
-    expect(missed).toEqual([]);
+    expect(missed).toStrictEqual([]);
   });
 
   test("a seed the browser can't decode is dropped, so the browser computes the atom", async () => {
     skewComputed.length = 0;
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const target = await hydrateFromServer(
       "/test/fixtures/ssr-skew-seed.svelte",
       SsrSkewSeed
     );
     // As for a result the server can't encode: the browser computes it, with nothing unhandled.
-    await expect.poll(outputs(target)).toEqual(["skew from the browser"]);
-    expect(skewComputed).toEqual(["skew"]);
+    await expect.poll(outputs(target)).toStrictEqual(["skew from the browser"]);
+    expect(skewComputed).toStrictEqual(["skew"]);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("doesn't decode with its schema"),
       expect.anything()
@@ -650,7 +674,7 @@ describe("hydrating server output", () => {
     );
 
     // The server's run ended with the render, so left as it came, it would wait forever.
-    await expect.poll(outputs(target)).toEqual(["20"]);
+    await expect.poll(outputs(target)).toStrictEqual(["20"]);
     expect(streamSeen[0]).toBe("3 (waiting)");
     expect(streamSeen).not.toContain("Initial");
   });
@@ -674,7 +698,7 @@ describe("hydrating server output", () => {
       .toBe("b");
     await expect.poll(output).toBe("b from the browser");
     // "a" came from the seed.
-    expect(computed).toEqual(["b"]);
+    expect(computed).toStrictEqual(["b"]);
     await sleep(afterSweep);
     expect(registry.getNodes().has("seeded-list-a")).toBe(false);
   });
@@ -688,10 +712,10 @@ describe("hydrating server output", () => {
     const output = () => target.querySelector("output")?.textContent;
 
     await expect.poll(output).toBe("a from the server");
-    expect(computed).toEqual([]);
+    expect(computed).toStrictEqual([]);
     target.querySelector("button")?.click();
     await expect.poll(output).toBe("a from the browser");
-    expect(computed).toEqual(["a"]);
+    expect(computed).toStrictEqual(["a"]);
   });
 
   describe("two components sharing a serialization key", () => {
@@ -708,25 +732,25 @@ describe("hydrating server output", () => {
         store.set("seeded-list-a", Effect.runPromise(Deferred.await(seed)));
       });
       click(target, "hide first");
-      await expect.poll(outputs(target)).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual([]);
       Deferred.doneUnsafe(seed, Effect.succeed(value));
       await sleep(afterSweep);
       click(target, "show second");
-      await expect.poll(outputs(target)).toEqual(["a from the server"]);
-      expect(computed).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual(["a from the server"]);
+      expect(computed).toStrictEqual([]);
     });
 
     test("the second keeps the seed when the first is destroyed after it lands (JND-36)", async () => {
       computed.length = 0;
       const target = await hydrateFromServer(path, SsrSharedSeed);
-      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      await expect.poll(outputs(target)).toStrictEqual(["a from the server"]);
       await sleep(afterSweep);
       click(target, "hide first");
-      await expect.poll(outputs(target)).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual([]);
       await sleep(afterSweep);
       click(target, "show second");
-      await expect.poll(outputs(target)).toEqual(["a from the server"]);
-      expect(computed).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual(["a from the server"]);
+      expect(computed).toStrictEqual([]);
     });
 
     test("a seed that lands after every user is destroyed is dropped (JND-37)", async () => {
@@ -740,13 +764,13 @@ describe("hydrating server output", () => {
       });
       click(target, "hide first");
       click(target, "remove second");
-      await expect.poll(outputs(target)).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual([]);
       Deferred.doneUnsafe(seed, Effect.succeed(value));
       await sleep(afterSweep);
       // Kept, it would be applied whenever the atom is next used, however old by then.
       click(target, "show first");
-      await expect.poll(outputs(target)).toEqual(["a from the browser"]);
-      expect(computed).toEqual(["a"]);
+      await expect.poll(outputs(target)).toStrictEqual(["a from the browser"]);
+      expect(computed).toStrictEqual(["a"]);
     });
 
     test("a seed that lands after every reader is destroyed computes nothing for them (JND-37)", async () => {
@@ -761,10 +785,10 @@ describe("hydrating server output", () => {
       // The first read the atom before its seed landed, then went away.
       click(target, "hide first");
       click(target, "remove second");
-      await expect.poll(outputs(target)).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual([]);
       Deferred.doneUnsafe(seed, Effect.succeed(value));
       await sleep(afterSweep);
-      expect(computed).toEqual([]);
+      expect(computed).toStrictEqual([]);
     });
 
     test("a seed that lands after every user is destroyed leaves an atom others hold alone (JND-37)", async () => {
@@ -784,7 +808,7 @@ describe("hydrating server output", () => {
       );
       click(target, "hide first");
       click(target, "remove second");
-      await expect.poll(outputs(target)).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual([]);
       // Something outside the components holds the atom, and has computed it here.
       const release = registry.mount(listFor("a"));
       onTestFinished(release);
@@ -805,18 +829,18 @@ describe("hydrating server output", () => {
       const first = await hydrateFromServer(path, SsrSharedSeed, undefined, {
         registry,
       });
-      await expect.poll(outputs(first)).toEqual(["a from the server"]);
+      await expect.poll(outputs(first)).toStrictEqual(["a from the server"]);
       click(first, "hide first");
       click(first, "remove second");
-      await expect.poll(outputs(first)).toEqual([]);
+      await expect.poll(outputs(first)).toStrictEqual([]);
       await sleep(afterSweep);
       expect(registry.getNodes().has("seeded-list-a")).toBe(false);
       // The page still holds the server's value, however old by now.
       const second = await hydrateFromServer(path, SsrSharedSeed, undefined, {
         registry,
       });
-      await expect.poll(outputs(second)).toEqual(["a from the browser"]);
-      expect(computed).toEqual(["a"]);
+      await expect.poll(outputs(second)).toStrictEqual(["a from the browser"]);
+      expect(computed).toStrictEqual(["a"]);
     });
   });
 
@@ -831,9 +855,9 @@ describe("hydrating server output", () => {
       const target = await hydrateFromServer(path, SsrMixedRevalidate);
       await expect
         .poll(outputs(target))
-        .toEqual(["a from the browser", "a from the browser"]);
+        .toStrictEqual(["a from the browser", "a from the browser"]);
       await sleep(afterFetch);
-      expect(computed).toEqual(["a"]);
+      expect(computed).toStrictEqual(["a"]);
     });
 
     test("the atom isn't fetched again when the one that asked is destroyed before the seed lands", async () => {
@@ -847,10 +871,10 @@ describe("hydrating server output", () => {
       });
       click(target, "hide first");
       Deferred.doneUnsafe(seed, Effect.succeed(value));
-      await expect.poll(outputs(target)).toEqual(["a from the server"]);
+      await expect.poll(outputs(target)).toStrictEqual(["a from the server"]);
       await sleep(afterFetch);
-      expect(outputs(target)()).toEqual(["a from the server"]);
-      expect(computed).toEqual([]);
+      expect(outputs(target)()).toStrictEqual(["a from the server"]);
+      expect(computed).toStrictEqual([]);
     });
   });
 
@@ -862,18 +886,20 @@ describe("hydrating server output", () => {
     test("keeps the server's value instead of fetching again", async () => {
       queryFetches.count = 0;
       const target = await hydrateFromServer(path, SsrReactive);
-      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      await expect.poll(outputs(target)).toStrictEqual(["server", "server"]);
       await sleep(afterFetch);
-      expect(outputs(target)()).toEqual(["server", "server"]);
+      expect(outputs(target)()).toStrictEqual(["server", "server"]);
       expect(queryFetches.count).toBe(0);
     });
 
     test("still fetches again after a mutation on its keys", async () => {
       queryFetches.count = 0;
       const target = await hydrateFromServer(path, SsrReactive);
-      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      await expect.poll(outputs(target)).toStrictEqual(["server", "server"]);
       click(target, "mutate");
-      await expect.poll(outputs(target)).toEqual(["browser 1", "browser 1"]);
+      await expect
+        .poll(outputs(target))
+        .toStrictEqual(["browser 1", "browser 1"]);
       expect(queryFetches.count).toBe(1);
     });
 
@@ -890,7 +916,9 @@ describe("hydrating server output", () => {
           undefined,
           props
         );
-        await expect.poll(outputs(target)).toEqual(["browser 1", "browser 1"]);
+        await expect
+          .poll(outputs(target))
+          .toStrictEqual(["browser 1", "browser 1"]);
         await sleep(afterFetch);
         expect(queryFetches.count).toBe(1);
       }
@@ -902,7 +930,7 @@ describe("hydrating server output", () => {
         hook: false,
         provider: true,
       });
-      await expect.poll(outputs(target)).toEqual(["server", "server"]);
+      await expect.poll(outputs(target)).toStrictEqual(["server", "server"]);
       await sleep(afterFetch);
       expect(queryFetches.count).toBe(0);
     });
@@ -916,8 +944,8 @@ describe("hydrating server output", () => {
         SsrPendingBoundary
       );
 
-      await expect.poll(outputs(target)).toEqual(["from the server"]);
-      expect(pendingBoundaryComputed).toEqual([]);
+      await expect.poll(outputs(target)).toStrictEqual(["from the server"]);
+      expect(pendingBoundaryComputed).toStrictEqual([]);
     });
 
     test("with the hook in a component inside the boundary, the browser fetches it", async () => {
@@ -927,8 +955,8 @@ describe("hydrating server output", () => {
         SsrPendingBoundaryChild
       );
 
-      await expect.poll(outputs(target)).toEqual(["from the browser"]);
-      expect(pendingBoundaryComputed).toEqual(["browser"]);
+      await expect.poll(outputs(target)).toStrictEqual(["from the browser"]);
+      expect(pendingBoundaryComputed).toStrictEqual(["browser"]);
     });
   });
 
@@ -939,7 +967,9 @@ describe("hydrating server output", () => {
       errors.push(event.error ?? event.message);
     };
     window.addEventListener("error", onError);
-    onTestFinished(() => window.removeEventListener("error", onError));
+    onTestFinished(() => {
+      window.removeEventListener("error", onError);
+    });
     const target = await hydrateFromServer(
       "/test/fixtures/ssr-awaited-boundary.svelte",
       SsrAwaitedBoundary
@@ -947,12 +977,12 @@ describe("hydrating server output", () => {
 
     // HydrationBoundary keeps Effect's Hydration.hydrate behavior: a query wrapped by withReactivity
     // runs again in the browser, building its outer atom as the child first reads it.
-    await expect.poll(outputs(target)).toEqual(["browser 1"]);
+    await expect.poll(outputs(target)).toStrictEqual(["browser 1"]);
     expect(queryFetches.count).toBe(1);
     // Long enough for Svelte to commit the hydration and everything it scheduled. Its dev build used
     // to throw "Batch has scheduled effects" while committing the update that first build announced.
     await sleep("100 millis");
-    expect(errors).toEqual([]);
+    expect(errors).toStrictEqual([]);
   });
 
   describe("a getter that picks a different atom in the browser (JND-24)", () => {
@@ -977,7 +1007,7 @@ describe("hydrating server output", () => {
 
       await expect.poll(output).toBe("b from the browser");
       // "a" came from the seed; only the browser's own choice was fetched.
-      expect(computed).toEqual(["b"]);
+      expect(computed).toStrictEqual(["b"]);
     });
   });
 });
@@ -995,7 +1025,7 @@ const counted = () => {
   ).pipe(
     Atom.serializable({
       key: "fetches",
-      schema: AsyncResult.Schema({ success: Schema.Number }),
+      schema: AsyncResult.Schema({ success: Schema.Finite }),
     })
   );
 };
@@ -1048,7 +1078,7 @@ describe("seeding after client-side navigation", () => {
     const screen = await render(SsrScriptRead, { registry });
     const output = () => screen.container.querySelector("output")?.textContent;
     await expect.poll(output).toBe("a from the browser");
-    click(screen.container as HTMLElement, "b");
+    click(screen.container, "b");
     await expect.poll(output).toBe("b from the browser");
     await sleep(afterSweep);
     expect(registry.getNodes().has("seeded-list-a")).toBe(false);
@@ -1075,14 +1105,14 @@ describe("RegistryProvider initialValues with a HydrationBoundary", () => {
       .poll(() => target.querySelector("output")?.textContent)
       .toBe("2");
     // Hydration must start from the server's markup, not flash the provider's default.
-    expect(providerSeedSeen).toEqual([2]);
+    expect(providerSeedSeen).toStrictEqual([2]);
   }, 120_000);
 
   test("rendered in the browser alone, the boundary's value replaces an unread initial value before the children render", async () => {
     providerSeedSeen.length = 0;
     const screen = await render(SsrProviderSeed);
     await expect.poll(text(screen)).toBe("2");
-    expect(providerSeedSeen).toEqual([2]);
+    expect(providerSeedSeen).toStrictEqual([2]);
   });
 
   test("rendered in the browser alone, an initial value already read above the boundary is updated after the children render", async () => {
@@ -1094,7 +1124,7 @@ describe("RegistryProvider initialValues with a HydrationBoundary", () => {
           (output) => output.textContent
         )
       )
-      .toEqual(["above 2", "2"]);
+      .toStrictEqual(["above 2", "2"]);
     // What is on the page already doesn't jump to the incoming value mid-render.
     expect(providerSeedSeen[0]).toBe(1);
   });
@@ -1136,12 +1166,12 @@ describe("RegistryProvider initialValues with a HydrationBoundary", () => {
         .parseFromString(body, "text/html")
         .querySelectorAll("output"),
     ].map((output) => output.textContent);
-    expect(server).toEqual(["above 0", "2"]);
+    expect(server).toStrictEqual(["above 0", "2"]);
     const target = await hydrateFromServer(
       "/test/fixtures/ssr-boundary-read-above.svelte",
       SsrBoundaryReadAbove
     );
-    await expect.poll(outputs(target)).toEqual(["above 2", "2"]);
-    expect(providerSeedSeen).toEqual([2]);
+    await expect.poll(outputs(target)).toStrictEqual(["above 2", "2"]);
+    expect(providerSeedSeen).toStrictEqual([2]);
   }, 120_000);
 });

@@ -14,14 +14,16 @@ export const resetRevalidate = (): void => {
   revalidateComputed.length = 0;
 };
 
-const describe = (result: AsyncResult.AsyncResult<string, never>): string =>
-  result._tag === "Success"
-    ? `${result.value}${result.waiting ? " (waiting)" : ""}`
-    : result._tag;
+const describe = (result: AsyncResult.AsyncResult<string>): string => {
+  if (result._tag !== "Success") {
+    return result._tag;
+  }
+  return result.waiting ? `${result.value} (waiting)` : result.value;
+};
 
 export const record = (
   name: string,
-  result: AsyncResult.AsyncResult<string, never>
+  result: AsyncResult.AsyncResult<string>
 ): void => {
   const seen = revalidateSeen[name] ?? [];
   revalidateSeen[name] = seen;

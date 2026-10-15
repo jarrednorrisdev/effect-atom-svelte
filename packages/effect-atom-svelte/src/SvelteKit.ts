@@ -66,13 +66,12 @@ export interface EffectErrorBodyWithMessage extends EffectErrorBody {
   readonly message: string;
 }
 
-const tagOf = (error: unknown): string | undefined =>
-  typeof error === "object" &&
-  error !== null &&
-  "_tag" in error &&
-  typeof error._tag === "string"
-    ? error._tag
-    : undefined;
+const tagOf = (error: unknown): string | undefined => {
+  if (typeof error !== "object" || error === null || !("_tag" in error)) {
+    return undefined;
+  }
+  return typeof error._tag === "string" ? error._tag : undefined;
+};
 
 const messageOf = (error: unknown): string | undefined => {
   if (error instanceof Error) {
@@ -92,10 +91,16 @@ const body = (
   message: string | undefined,
   tag: string | undefined
 ): EffectErrorBody | undefined => {
-  if (!(message || tag)) {
-    return undefined;
+  const fields: { message?: string; tag?: string } = {};
+  if (message !== undefined && message !== "") {
+    fields.message = message;
   }
-  return { ...(message ? { message } : {}), ...(tag ? { tag } : {}) };
+  if (tag !== undefined && tag !== "") {
+    fields.tag = tag;
+  }
+  return fields.message === undefined && fields.tag === undefined
+    ? undefined
+    : fields;
 };
 
 /**
@@ -131,8 +136,12 @@ export function handleClientError(
     return undefined;
   }
   console.error(error);
-  // `||`, not `??`: an error with an empty message gets SvelteKit 2's instead.
-  return body(messageOf(error) || fallbackMessage(input), tagOf(error));
+  // An error with an empty message gets SvelteKit 2's instead.
+  const message = messageOf(error);
+  return body(
+    message === undefined || message === "" ? fallbackMessage(input) : message,
+    tagOf(error)
+  );
 }
 
 /**

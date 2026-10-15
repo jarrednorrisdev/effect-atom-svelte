@@ -48,9 +48,14 @@ const documentCookieStore = KeyValueStore.makeStringOnly({
     }
   }),
   get: (key) => Effect.sync(() => readDocumentCookies().get(key)),
-  remove: (key) => Effect.sync(() => writeDocumentCookie(key, "", 0)),
+  remove: (key) =>
+    Effect.sync(() => {
+      writeDocumentCookie(key, "", 0);
+    }),
   set: (key, value) =>
-    Effect.sync(() => writeDocumentCookie(key, value, 60 * 60 * 24 * 365)),
+    Effect.sync(() => {
+      writeDocumentCookie(key, value, 60 * 60 * 24 * 365);
+    }),
   size: Effect.sync(() => readDocumentCookies().size),
 });
 
@@ -61,7 +66,9 @@ const documentCookieStore = KeyValueStore.makeStringOnly({
 const requestCookieStore = (cookies: Readonly<Record<string, string>>) => {
   const values = new Map(Object.entries(cookies));
   return KeyValueStore.makeStringOnly({
-    clear: Effect.sync(() => values.clear()),
+    clear: Effect.sync(() => {
+      values.clear();
+    }),
     get: (key) => Effect.sync(() => values.get(key)),
     remove: (key) => Effect.sync(() => values.delete(key)),
     set: (key, value) => Effect.sync(() => values.set(key, value)),

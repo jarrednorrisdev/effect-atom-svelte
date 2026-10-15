@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
-import { describe, expect, test } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import {
@@ -61,7 +61,9 @@ const trackedWritable = (log: string[], name = "") =>
       get.addFinalizer(() => log.push(name ? `stop ${name}` : "stop"));
       return 1;
     },
-    (ctx, value: number) => ctx.setSelf(value)
+    (ctx, value: number) => {
+      ctx.setSelf(value);
+    }
   );
 
 /** An effect atom that logs when it is computed and when it is disposed. */
@@ -75,7 +77,7 @@ const trackedEffect = (log: string[], name = "") =>
 /** Wraps a ref to count its live subscriptions, since an `AtomRef` lives outside any registry. */
 const countSubscriptions = <A>(ref: AtomRef.ReadonlyRef<A>) => {
   const counter = { active: 0, total: 0 };
-  const counted: AtomRef.ReadonlyRef<A> = Object.create(ref, {
+  const counted = Object.create(ref, {
     subscribe: {
       value: (f: (a: A) => void) => {
         counter.active += 1;
@@ -87,8 +89,38 @@ const countSubscriptions = <A>(ref: AtomRef.ReadonlyRef<A>) => {
         };
       },
     },
-  });
+  }) as AtomRef.ReadonlyRef<A>;
   return { counted, counter };
+};
+
+/**
+ * Spies on the abort listeners added to and removed from signals, for the rest of the test.
+ * `mostAttached` is the most that any one signal still holds.
+ */
+const spyOnAbortListeners = () => {
+  const add = vi.spyOn(AbortSignal.prototype, "addEventListener");
+  const remove = vi.spyOn(AbortSignal.prototype, "removeEventListener");
+  onTestFinished(() => {
+    add.mockRestore();
+    remove.mockRestore();
+  });
+  const added = () =>
+    add.mock.calls.filter(([type]) => type === "abort").length;
+  const mostAttached = () => {
+    const attached = new Map<AbortSignal, number>();
+    const tally = (spy: typeof add | typeof remove, delta: number) => {
+      for (const [index, [type]] of spy.mock.calls.entries()) {
+        const signal = spy.mock.contexts[index];
+        if (type === "abort" && signal instanceof AbortSignal) {
+          attached.set(signal, (attached.get(signal) ?? 0) + delta);
+        }
+      }
+    };
+    tally(add, 1);
+    tally(remove, -1);
+    return Math.max(...attached.values());
+  };
+  return { added, mostAttached };
 };
 
 describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
@@ -106,7 +138,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "2 2",
     });
-    expect(log).toEqual(startStop(cycles));
+    expect(log).toStrictEqual(startStop(cycles));
   });
 
   test("useAtomSet", async () => {
@@ -123,7 +155,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "set",
     });
-    expect(log).toEqual(startStop(cycles));
+    expect(log).toStrictEqual(startStop(cycles));
   });
 
   test("useAtomSuspense", async () => {
@@ -139,43 +171,29 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "value",
     });
-    expect(log).toEqual(startStop(cycles));
+    expect(log).toStrictEqual(startStop(cycles));
   });
 
   test("useAtomSuspense read again and again outside a reaction holds its wait once (JND-59)", async () => {
     const registry = AtomRegistry.make();
     const atom = trackedEffect([]);
-    const add = AbortSignal.prototype.addEventListener;
-    let listeners = 0;
-    AbortSignal.prototype.addEventListener = function addEventListener(
-      this: AbortSignal,
-      ...args: Parameters<AbortSignal["addEventListener"]>
-    ) {
-      if (args[0] === "abort") {
-        listeners += 1;
-      }
-      add.apply(this, args);
-    };
-    try {
-      const screen = await render(Toggle, {
-        async: true,
-        registry,
-        setup: () => {
-          const value = useAtomSuspense(atom);
-          // Script reads have no reaction to say when they are done, so the component holds them.
-          for (let index = 0; index < 50; index += 1) {
-            void value.current;
-          }
-          return () => value.current;
-        },
-        show: true,
-      });
-      await expect.poll(text(screen)).toBe("value");
-      expect(listeners).toBeLessThan(10);
-      await screen.unmount();
-    } finally {
-      AbortSignal.prototype.addEventListener = add;
-    }
+    const { added } = spyOnAbortListeners();
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        // Script reads have no reaction to say when they are done, so the component holds them.
+        for (let index = 0; index < 50; index += 1) {
+          void value.current;
+        }
+        return () => value.current;
+      },
+      show: true,
+    });
+    await expect.poll(text(screen)).toBe("value");
+    expect(added()).toBeLessThan(10);
+    await screen.unmount();
   });
 
   test("useAtomSuspense read outside a reaction lets go of each settled result's abort listener", async () => {
@@ -183,53 +201,25 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     const atom = Atom.make<AsyncResult.AsyncResult<number>>(
       AsyncResult.success(0)
     );
-    const add = AbortSignal.prototype.addEventListener;
-    const remove = AbortSignal.prototype.removeEventListener;
-    // Abort listeners still attached, per signal.
-    const attached = new Map<AbortSignal, number>();
-    const count = (signal: AbortSignal, delta: number) =>
-      attached.set(signal, (attached.get(signal) ?? 0) + delta);
-    AbortSignal.prototype.addEventListener = function addEventListener(
-      this: AbortSignal,
-      ...args: Parameters<AbortSignal["addEventListener"]>
-    ) {
-      if (args[0] === "abort") {
-        count(this, 1);
-      }
-      add.apply(this, args);
-    };
-    AbortSignal.prototype.removeEventListener = function removeEventListener(
-      this: AbortSignal,
-      ...args: Parameters<AbortSignal["removeEventListener"]>
-    ) {
-      if (args[0] === "abort") {
-        count(this, -1);
-      }
-      remove.apply(this, args);
-    };
-    try {
-      let read: (() => unknown) | undefined;
-      const screen = await render(Toggle, {
-        registry,
-        setup: () => {
-          const value = useAtomSuspense(atom);
-          read = () => value.current;
-          return () => "";
-        },
-        show: true,
-      });
-      // As an event handler would: each read outside a reaction, of a new result, holds a wait on the
-      // component's lifetime signal.
-      for (let index = 1; index <= 50; index += 1) {
-        registry.set(atom, AsyncResult.success(index));
-        read?.();
-      }
-      await expect.poll(() => Math.max(...attached.values())).toBeLessThan(5);
-      await screen.unmount();
-    } finally {
-      AbortSignal.prototype.addEventListener = add;
-      AbortSignal.prototype.removeEventListener = remove;
+    const { mostAttached } = spyOnAbortListeners();
+    let read: (() => unknown) | undefined;
+    const screen = await render(Toggle, {
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        read = () => value.current;
+        return () => "";
+      },
+      show: true,
+    });
+    // As an event handler would: each read outside a reaction, of a new result, holds a wait on the
+    // component's lifetime signal.
+    for (let index = 1; index <= 50; index += 1) {
+      registry.set(atom, AsyncResult.success(index));
+      read?.();
     }
+    await expect.poll(mostAttached).toBeLessThan(5);
+    await screen.unmount();
   });
 
   test("useAtomSuspense read outside a reaction after the markup's wait settled adds no abort listener", async () => {
@@ -237,56 +227,28 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     const atom = Atom.make<AsyncResult.AsyncResult<number>>(
       AsyncResult.success(0)
     );
-    const add = AbortSignal.prototype.addEventListener;
-    const remove = AbortSignal.prototype.removeEventListener;
-    // Abort listeners still attached, per signal.
-    const attached = new Map<AbortSignal, number>();
-    const count = (signal: AbortSignal, delta: number) =>
-      attached.set(signal, (attached.get(signal) ?? 0) + delta);
-    AbortSignal.prototype.addEventListener = function addEventListener(
-      this: AbortSignal,
-      ...args: Parameters<AbortSignal["addEventListener"]>
-    ) {
-      if (args[0] === "abort") {
-        count(this, 1);
-      }
-      add.apply(this, args);
-    };
-    AbortSignal.prototype.removeEventListener = function removeEventListener(
-      this: AbortSignal,
-      ...args: Parameters<AbortSignal["removeEventListener"]>
-    ) {
-      if (args[0] === "abort") {
-        count(this, -1);
-      }
-      remove.apply(this, args);
-    };
-    try {
-      let read: (() => Promise<unknown>) | undefined;
-      const screen = await render(Toggle, {
-        async: true,
-        registry,
-        setup: () => {
-          const value = useAtomSuspense(atom);
-          read = () => value.current;
-          return () => value.current;
-        },
-        show: true,
-      });
-      let index = 0;
-      await repeat(50, async () => {
-        index += 1;
-        registry.set(atom, AsyncResult.success(index));
-        // The markup's wait for this result has settled before the event handler's read.
-        await expect.poll(text(screen)).toBe(String(index));
-        await read?.();
-      });
-      expect(Math.max(...attached.values())).toBeLessThan(5);
-      await screen.unmount();
-    } finally {
-      AbortSignal.prototype.addEventListener = add;
-      AbortSignal.prototype.removeEventListener = remove;
-    }
+    const { mostAttached } = spyOnAbortListeners();
+    let read: (() => Promise<unknown>) | undefined;
+    const screen = await render(Toggle, {
+      async: true,
+      registry,
+      setup: () => {
+        const value = useAtomSuspense(atom);
+        read = () => value.current;
+        return () => value.current;
+      },
+      show: true,
+    });
+    let index = 0;
+    await repeat(50, async () => {
+      index += 1;
+      registry.set(atom, AsyncResult.success(index));
+      // The markup's wait for this result has settled before the event handler's read.
+      await expect.poll(text(screen)).toBe(String(index));
+      await read?.();
+    });
+    expect(mostAttached()).toBeLessThan(5);
+    await screen.unmount();
   });
 
   test("useAtomResult", async () => {
@@ -302,7 +264,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "Success",
     });
-    expect(log).toEqual(startStop(cycles));
+    expect(log).toStrictEqual(startStop(cycles));
   });
 
   test("useAtomRef", async () => {
@@ -317,7 +279,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "1",
     });
-    expect(counter).toEqual({ active: 0, total: cycles });
+    expect(counter).toStrictEqual({ active: 0, total: cycles });
   });
 
   test("an atom held outside the component is not disposed by its readers", async () => {
@@ -333,9 +295,9 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       },
       shows: "1",
     });
-    expect(log).toEqual(["start"]);
+    expect(log).toStrictEqual(["start"]);
     release();
-    await expect.poll(() => log).toEqual(["start", "stop"]);
+    await expect.poll(() => log).toStrictEqual(["start", "stop"]);
     await expect.poll(() => registry.getNodes().size).toBe(0);
   });
 
@@ -368,7 +330,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     const started = log.filter((entry) => entry.startsWith("start"));
     const stopped = log.filter((entry) => entry.startsWith("stop"));
     expect(started).toHaveLength(cycles + 1);
-    expect(new Set(stopped)).toEqual(
+    expect(new Set(stopped)).toStrictEqual(
       new Set(started.map((entry) => entry.replace("start", "stop")))
     );
     expect(stopped).toHaveLength(started.length);
@@ -417,7 +379,7 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       await screen.unmount();
       await expect.poll(() => registry.getNodes().size).toBe(0);
       const started = log.filter((entry) => entry.startsWith("start"));
-      expect(new Set(log)).toEqual(
+      expect(new Set(log)).toStrictEqual(
         new Set([
           ...started,
           ...started.map((entry) => entry.replace("start", "stop")),
@@ -438,9 +400,9 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
     const screen = await render(ToggleScriptAwait, {
       registry,
       setup: async () => {
-        const suspended = useAtomSuspense(slow);
+        useAtomSuspense(slow);
         const result = await useAtomResult(slow);
-        return `${result.current._tag} ${String(suspended)}`;
+        return result.current._tag;
       },
       show: false,
     });
@@ -451,6 +413,6 @@ describe("mount and unmount cycles leave nothing behind (JND-21)", () => {
       await expect.poll(() => registry.getNodes().size).toBe(0);
     });
     await screen.unmount();
-    expect(log).toEqual(startStop(cycles));
+    expect(log).toStrictEqual(startStop(cycles));
   });
 });

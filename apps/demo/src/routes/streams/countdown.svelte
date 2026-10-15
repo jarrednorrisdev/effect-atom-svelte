@@ -6,9 +6,10 @@
 
   // 3, 2, 1, half a second apart.
   const countdown = Stream.paginate(3, (n) =>
-    Effect.succeed([[n], n > 1 ? Option.some(n - 1) : Option.none()] as const).pipe(
-      Effect.delay("500 millis")
-    )
+    Effect.succeed([
+      [n],
+      n > 1 ? Option.some(n - 1) : Option.none(),
+    ] as const).pipe(Effect.delay("500 millis"))
   );
 
   // Three ways for the stream to finish.
@@ -21,17 +22,21 @@
   // One atom per ending, so each starts with no earlier value.
   const countdownAtom = Atom.family((ending: string) =>
     // Kept off the server, which would otherwise run it until the render ended.
-    Atom.make(endings.get(ending) ?? countdown).pipe(Atom.withServerValueInitial)
+    Atom.make(endings.get(ending) ?? countdown).pipe(
+      Atom.withServerValueInitial
+    )
   );
 </script>
 
 <script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
   import { useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
+
   import Emitted from "./emitted.svelte";
 
   let ending = $state("Ends");
@@ -40,7 +45,11 @@
 </script>
 
 <p class="flex flex-wrap items-center gap-4">
-  <span aria-label="How the stream finishes" class="flex flex-wrap gap-2" role="group">
+  <span
+    aria-label="How the stream finishes"
+    class="flex flex-wrap gap-2"
+    role="group"
+  >
     {#each [...endings.keys()] as name (name)}
       <button aria-pressed={ending === name} onclick={() => (ending = name)}>
         {name}

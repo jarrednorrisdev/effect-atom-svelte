@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Match } from "effect";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
@@ -13,27 +13,22 @@ const name = (node: AtomRegistry.Node<unknown>) => node.atom.label?.[0] ?? "?";
 
 /** One line per event, enough to tell what happened to which atom. */
 const describeEvent = (event: Event): string => {
-  switch (event._tag) {
-    case "Built": {
-      const cause =
-        event.cause._tag === "ParentChanged"
-          ? `ParentChanged(${event.cause.parents.map(name).join(", ")})`
-          : event.cause._tag;
-      return `Built ${name(event.node)} ${cause}`;
-    }
-    case "Updated": {
-      return `Updated ${name(event.node)} ${String(event.previous)} -> ${String(event.value)} (${event.source})`;
-    }
-    case "ReadersChanged": {
-      return `ReadersChanged ${name(event.node)} ${event.readers}`;
-    }
-    case "Finalized": {
-      return `Finalized ${name(event.node)} ${event.finalizers}`;
-    }
-    default: {
-      return `${event._tag} ${name(event.node)}`;
-    }
-  }
+  const node = name(event.node);
+  return Match.valueTags(event, {
+    Built: ({ cause }) =>
+      `Built ${node} ${
+        cause._tag === "ParentChanged"
+          ? `ParentChanged(${cause.parents.map(name).join(", ")})`
+          : cause._tag
+      }`,
+    Finalized: ({ finalizers }) => `Finalized ${node} ${finalizers}`,
+    Interrupted: () => `Interrupted ${node}`,
+    NodeAdded: () => `NodeAdded ${node}`,
+    NodeRemoved: () => `NodeRemoved ${node}`,
+    ReadersChanged: ({ readers }) => `ReadersChanged ${node} ${readers}`,
+    Updated: ({ previous, source, value }) =>
+      `Updated ${node} ${String(previous)} -> ${String(value)} (${source})`,
+  });
 };
 
 const record = (registry: AtomRegistry.AtomRegistry) => {
@@ -42,7 +37,7 @@ const record = (registry: AtomRegistry.AtomRegistry) => {
   return log;
 };
 
-describe("inspect", () => {
+describe(inspect, () => {
   test("reports nodes added, computed and updated, with why and from where", () => {
     const registry = AtomRegistry.make();
     const count = Atom.make(1).pipe(Atom.withLabel("count"));
@@ -52,7 +47,7 @@ describe("inspect", () => {
     const log = record(registry);
 
     const release = registry.mount(double);
-    expect(log).toEqual([
+    expect(log).toStrictEqual([
       "NodeAdded double",
       "Built double FirstRead",
       "NodeAdded count",
@@ -64,7 +59,7 @@ describe("inspect", () => {
 
     log.length = 0;
     registry.set(count, 5);
-    expect(log).toEqual([
+    expect(log).toStrictEqual([
       "Updated count 1 -> 5 (write)",
       "Built double ParentChanged(count)",
       "Updated double 2 -> 10 (build)",
@@ -83,7 +78,7 @@ describe("inspect", () => {
     const release = registry.mount(counter);
     const log = record(registry);
     registry.refresh(counter);
-    expect(log).toEqual([
+    expect(log).toStrictEqual([
       "Built counter Refreshed",
       "Updated counter 1 -> 2 (build)",
     ]);
@@ -97,7 +92,7 @@ describe("inspect", () => {
     registry.get(count);
     const log = record(registry);
     registry.set(count, 2);
-    expect(log).toEqual(["Updated count 1 -> 2 (write)"]);
+    expect(log).toStrictEqual(["Updated count 1 -> 2 (write)"]);
     registry.dispose();
   });
 
@@ -106,10 +101,12 @@ describe("inspect", () => {
     const count = Atom.make(1).pipe(Atom.withLabel("count"));
     const log = record(registry);
     const first = registry.mount(count);
-    const second = registry.subscribe(count, () => undefined);
+    const second = registry.subscribe(count, () => {});
     second();
     first();
-    expect(log.filter((line) => line.startsWith("ReadersChanged"))).toEqual([
+    expect(
+      log.filter((line) => line.startsWith("ReadersChanged"))
+    ).toStrictEqual([
       "ReadersChanged count 1",
       "ReadersChanged count 2",
       "ReadersChanged count 1",
@@ -130,7 +127,7 @@ describe("inspect", () => {
       }
     });
     const release = registry.mount(slow);
-    await expect.poll(() => updates).toEqual(["build", "async"]);
+    await expect.poll(() => updates).toStrictEqual(["build", "async"]);
     release();
     registry.dispose();
   });
@@ -143,7 +140,7 @@ describe("inspect", () => {
     release();
     await expect
       .poll(() => log)
-      .toEqual([
+      .toStrictEqual([
         "ReadersChanged forever 0",
         "Interrupted forever",
         "Finalized forever 2",
@@ -174,7 +171,7 @@ describe("inspect", () => {
     release();
     await expect.poll(() => log).toContain("NodeRemoved debounced");
     await expect.poll(() => log).toContain("NodeRemoved slow");
-    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toStrictEqual([
       "Interrupted slow",
     ]);
     registry.dispose();
@@ -194,7 +191,7 @@ describe("inspect", () => {
     release();
     await expect.poll(() => log).toContain("NodeRemoved wrapped");
     await expect.poll(() => log).toContain("NodeRemoved slow");
-    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toStrictEqual([
       "Interrupted slow",
     ]);
     registry.dispose();
@@ -207,7 +204,7 @@ describe("inspect", () => {
     const release = registry.mount(same);
     const log = record(registry);
     registry.refresh(slow);
-    expect(log.filter((line) => line.startsWith("Interrupted"))).toEqual([
+    expect(log.filter((line) => line.startsWith("Interrupted"))).toStrictEqual([
       "Interrupted slow",
     ]);
     release();
@@ -229,7 +226,9 @@ describe("inspect", () => {
         )
       )
       .toBe(true);
-    expect(events.filter((event) => event._tag === "Interrupted")).toEqual([]);
+    expect(
+      events.filter((event) => event._tag === "Interrupted")
+    ).toStrictEqual([]);
     registry.dispose();
   });
 
@@ -246,7 +245,7 @@ describe("inspect", () => {
       .poll(() => log, { timeout: 3000 })
       .toContain("NodeRemoved forever");
     await sleep(20);
-    expect(log).toEqual([
+    expect(log).toStrictEqual([
       "ReadersChanged forever 0",
       "Interrupted forever",
       "Finalized forever 2",
@@ -287,7 +286,7 @@ describe("inspect", () => {
     log.length = 0;
     registry.set(d, 2);
     registry.get(a);
-    expect(log.filter((line) => line.startsWith("Built"))).toEqual([
+    expect(log.filter((line) => line.startsWith("Built"))).toStrictEqual([
       "Built a ParentChanged(d)",
     ]);
     registry.dispose();
@@ -298,17 +297,23 @@ describe("inspect", () => {
     const registry = AtomRegistry.make({ initialValues: [[count, 5]] });
     const log = record(registry);
     expect(registry.get(count)).toBe(5);
-    expect(log.filter((line) => line.startsWith("Built"))).toEqual([
+    expect(log.filter((line) => line.startsWith("Built"))).toStrictEqual([
       "Built count FirstRead",
     ]);
     registry.dispose();
   });
 
-  test("returns one inspector per registry, and gives idle TTLs", () => {
+  test("returns one inspector per registry", () => {
     const registry = AtomRegistry.make({ defaultIdleTTL: 400 });
     const inspector = inspect(registry);
     expect(inspect(registry)).toBe(inspector);
     expect(inspector.complete).toBe(true);
+    registry.dispose();
+  });
+
+  test("gives idle TTLs", () => {
+    const registry = AtomRegistry.make({ defaultIdleTTL: 400 });
+    const inspector = inspect(registry);
     expect(inspector.idleTTL(Atom.make(0))).toBe(400);
     expect(inspector.idleTTL(Atom.make(0).pipe(Atom.setIdleTTL(50)))).toBe(50);
     expect(
@@ -329,7 +334,7 @@ describe("inspect", () => {
     const registry = AtomRegistry.make();
     const count = Atom.make(1);
     const original = console.error;
-    console.error = () => undefined;
+    console.error = () => {};
     try {
       inspect(registry).subscribe(() => {
         throw new Error("listener");
@@ -354,7 +359,7 @@ describe("inspect", () => {
     registry.refresh(double);
     log.length = 0;
     registry.set(base, 5);
-    expect(log).toEqual([
+    expect(log).toStrictEqual([
       "Updated base 1 -> 5 (write)",
       "Built double ParentChanged(base)",
       "Updated double 2 -> 10 (build)",
@@ -364,7 +369,7 @@ describe("inspect", () => {
   });
 });
 
-describe("registries", () => {
+describe(registries, () => {
   test("lists a provider's registry while it is mounted", async () => {
     let provided: AtomRegistry.AtomRegistry | undefined;
     const seen: number[] = [];

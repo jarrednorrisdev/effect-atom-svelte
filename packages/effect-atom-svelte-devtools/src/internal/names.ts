@@ -78,6 +78,7 @@ export const shortPlace = (place: Place): string =>
  * relative to the project's root or a full one: `/src/a.ts` becomes `src/a.ts`, and
  * `/@fs/home/me/a.ts` or `/@fs/C:/a.ts` the full path after `/@fs`.
  */
+// oxlint-disable-next-line effecttsgo/async-function -- a click handler in the panel, outside any Effect program
 export const openInEditor = async (place: Place): Promise<void> => {
   const full = place.file.startsWith("/@fs/")
     ? place.file.slice("/@fs".length)
@@ -86,10 +87,10 @@ export const openInEditor = async (place: Place): Promise<void> => {
   if (full !== undefined) {
     file = /^\/[a-z]:\//iu.test(full) ? full.slice(1) : full;
   }
+  const target = encodeURIComponent(`${file}:${place.line}:${place.column}`);
   try {
-    await fetch(
-      `/__open-in-editor?file=${encodeURIComponent(`${file}:${place.line}:${place.column}`)}`
-    );
+    // oxlint-disable-next-line effecttsgo/global-fetch -- one request to the Vite dev server, from the panel, outside any Effect program
+    await fetch(`/__open-in-editor?file=${target}`);
   } catch {
     // Not a Vite dev server, or it isn't running: there is no editor to open.
   }

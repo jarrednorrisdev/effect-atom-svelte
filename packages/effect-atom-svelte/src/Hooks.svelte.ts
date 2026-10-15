@@ -54,6 +54,7 @@ export interface AtomValue<A> {
  * @category models
  */
 export interface AtomState<R, W = R> {
+  // oxlint-disable-next-line typescript/related-getter-setter-pairs -- reads a result and writes a value: an async atom reads an AsyncResult and is written its input
   get current(): R;
   set current(value: W);
 }
@@ -78,10 +79,11 @@ export interface WriteOptions {
   readonly signal?: AbortSignal | undefined;
 }
 
+const isGetter = <A>(input: AtomInput<A>): input is () => A =>
+  typeof input === "function" && !Atom.isAtom(input);
+
 const toGetter = <A>(input: AtomInput<A>): (() => A) =>
-  typeof input === "function" && !Atom.isAtom(input)
-    ? (input as () => A)
-    : () => input as A;
+  isGetter(input) ? input : () => input;
 
 // The registry notifies subscribers synchronously while it computes an atom, and Svelte throws
 // state_unsafe_mutation if state changes while a template or $derived is evaluating. Reads are
@@ -98,7 +100,9 @@ const afterReads = (update: () => void): void => {
   }
 };
 
-const notifyAfterReads = (update: () => void) => () => afterReads(update);
+const notifyAfterReads = (update: () => void) => () => {
+  afterReads(update);
+};
 
 const duringRead = <A>(f: () => A): A => {
   activeReads += 1;
@@ -119,6 +123,7 @@ class AtomCell<R, W> {
     this.#write = write;
   }
 
+  // oxlint-disable-next-line typescript/related-getter-setter-pairs -- implements AtomState, whose read and write types differ
   get current(): R {
     return this.#read();
   }
@@ -156,34 +161,28 @@ const notStarted = (
 const hasServerValue = (atom: Atom.Atom<unknown>): boolean =>
   Atom.ServerValueTypeId in atom;
 
-/** The parts of the registry implementation's nodes the hooks use. */
-interface RegistryNode {
-  readonly canBeRemoved: boolean;
+/** The parts of the registry implementation's nodes the hooks use beyond Effect's `Node`. */
+interface RegistryNode<A> extends AtomRegistry.Node<A> {
   /** Whether the node holds an initial value its first build will keep. */
   preserveInitialValueOnBuild: boolean;
-  readonly _value: unknown;
-  readonly setValue: (value: unknown) => void;
-  readonly setInitialValue: (value: unknown) => void;
-  readonly currentState: () => string;
+  readonly _value: A;
+  readonly setValue: (value: A) => void;
   readonly failed: boolean;
-  readonly subscribe: (listener: () => void) => () => void;
 }
 
-/** The parts of the registry implementation the hooks use. */
-interface RegistryInternals {
-  readonly ensureNode: (atom: Atom.Atom<unknown>) => RegistryNode;
-  readonly scheduleNodeRemoval: (node: RegistryNode) => void;
-}
-
-// SAFETY: ensureNode and scheduleNodeRemoval are on the registry implementation, not the interface
-// (Effect 4.0.0); @effect/atom-react uses ensureNode the same way. Of the node's parts,
-// preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
-// are on its implementation too; the rest, currentState included, are on Effect's Node interface.
-const internals = (registry: AtomRegistry.AtomRegistry): RegistryInternals =>
-  registry as unknown as RegistryInternals;
+/** The atom's node, created if the registry has none yet. */
+const nodeOf = <A>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<A>
+): RegistryNode<A> =>
+  // SAFETY: ensureNode returns the implementation's node (Effect 4.0.5), which has
+  // preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
+  // beside the Node interface; @effect/atom-react calls its setValue the same way.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- those members are on the implementation only, which Effect doesn't export
+  registry.ensureNode(atom) as RegistryNode<A>;
 
 /** The atom that holds a value given to `atom`: a wrapper such as `withRefresh` passes it on. */
-const initialValueTarget = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> => {
+const initialValueTarget = <A>(atom: Atom.Atom<A>): Atom.Atom<A> => {
   let target = atom;
   while (target.initialValueTarget) {
     target = target.initialValueTarget;
@@ -198,10 +197,12 @@ const initialValueTarget = (atom: Atom.Atom<unknown>): Atom.Atom<unknown> => {
  * set, so holds sharing one would all end with the first to let go.
  */
 const holdNode = (
-  registry: RegistryInternals,
-  node: RegistryNode
+  registry: AtomRegistry.AtomRegistry,
+  node: AtomRegistry.Node<unknown>
 ): (() => void) => {
-  const unsubscribe = node.subscribe(() => undefined);
+  const unsubscribe = node.subscribe(() => {
+    // Only there to hold the node.
+  });
   return () => {
     unsubscribe();
     if (node.canBeRemoved) {
@@ -227,7 +228,7 @@ const dropInitialValueMark = (
 ): void => {
   let current: Atom.Atom<unknown> | undefined = atom;
   while (current) {
-    const node = internals(registry).ensureNode(current);
+    const node = nodeOf(registry, current);
     if (node.currentState() === "valid") {
       node.preserveInitialValueOnBuild = false;
     }
@@ -246,14 +247,14 @@ const dropInitialValueMark = (
  * `initialValueTarget` does. A user's `Atom.transform` given `initialValueTarget` that changes the
  * value would render its source's value on the server, where Effect computes the transform.
  */
-const initialNodeOnServer = (
+const initialNodeOnServer = <A>(
   registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<unknown>
-): RegistryNode | undefined => {
+  atom: Atom.Atom<A>
+): RegistryNode<A> | undefined => {
   if (BROWSER) {
     return undefined;
   }
-  const node = internals(registry).ensureNode(initialValueTarget(atom));
+  const node = nodeOf(registry, initialValueTarget(atom));
   return node.preserveInitialValueOnBuild ? node : undefined;
 };
 
@@ -269,7 +270,7 @@ const serverMount = (
   atom: Atom.Atom<unknown>
 ): (() => void) => {
   const node = initialNodeOnServer(registry, atom);
-  return node ? holdNode(internals(registry), node) : registry.mount(atom);
+  return node ? holdNode(registry, node) : registry.mount(atom);
 };
 
 /** Reads an atom without building it on the server while it renders an initial value. */
@@ -278,14 +279,14 @@ const serverGet = <A>(
   atom: Atom.Atom<A>
 ): A => {
   const node = initialNodeOnServer(registry, atom);
-  return node ? (node._value as A) : registry.get(atom);
+  return node ? node._value : registry.get(atom);
 };
 
 const awaitResult = <A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
   options?: { readonly suspendOnWaiting?: boolean | undefined },
-  signal?: AbortSignal | undefined
+  signal?: AbortSignal
 ): Promise<Exit.Exit<A, E>> =>
   Effect.runPromiseExit(AtomRegistry.getResult(registry, atom, options), {
     signal,
@@ -335,17 +336,17 @@ const awaitSettled = <A, E>(
  * or an `Atom.fn`'s `initialValue`), ends it as interrupted. The reset interrupts the call, so
  * otherwise the wait would hang until the next call, or settle with the initial value.
  */
-const awaitWrite = (
+const awaitWrite = <A, E>(
   registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<AsyncResult.AsyncResult<unknown, unknown>>,
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
   start: number,
   signal: AbortSignal
-): Promise<Exit.Exit<unknown, unknown>> =>
+): Promise<Exit.Exit<A, E | Cause.NoSuchElementError>> =>
   Effect.runPromiseExit(
-    Effect.callback<unknown, unknown>((resume) => {
+    Effect.callback<A, E | Cause.NoSuchElementError>((resume) => {
       const first = registry.get(atom);
       if (first._tag !== "Initial" && !first.waiting) {
-        resume(AsyncResult.toExit(first) as Exit.Exit<unknown, unknown>);
+        resume(AsyncResult.toExit(first));
         return;
       }
       const cancel = registry.subscribe(atom, (result) => {
@@ -356,11 +357,7 @@ const awaitWrite = (
         const reset =
           result._tag === "Initial" ||
           (result._tag === "Success" && result.timestamp < start);
-        resume(
-          reset
-            ? Exit.interrupt()
-            : (AsyncResult.toExit(result) as Exit.Exit<unknown, unknown>)
-        );
+        resume(reset ? Exit.interrupt() : AsyncResult.toExit(result));
       });
       return Effect.sync(cancel);
     }),
@@ -617,7 +614,7 @@ const subscribedReader = <A>(
         // After mount, only a first build is dropped: a stale node rebuilt here, as after a failed
         // rebuild, announces a change other reads of this reader have not seen. A node whose first
         // build failed is still uninitialized, but the page has shown that failure, so it counts too.
-        const node = internals(registry).ensureNode(current);
+        const node = nodeOf(registry, current);
         if (node.currentState() === "uninitialized" && !node.failed) {
           reading = current;
         }
@@ -695,7 +692,9 @@ export const useAtom = <R, W>(
   const getAtom = toGetter(input);
   return new AtomCell<R, W>(
     subscribedReader(registry, getAtom, "useAtom"),
-    (value) => registry.set(getAtom(), value)
+    (value) => {
+      registry.set(getAtom(), value);
+    }
   );
 };
 
@@ -803,12 +802,14 @@ export function useAtomSet(
   if (mode === "value") {
     return (value: unknown) => {
       const atom = getAtom();
-      registry.set(
-        atom,
-        typeof value === "function"
-          ? (value as (current: unknown) => unknown)(registry.get(atom))
-          : value
-      );
+      if (typeof value !== "function") {
+        registry.set(atom, value);
+        return;
+      }
+      // SAFETY: the overloads type a function value as an update from the current value.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a typeof check can't recover the function's signature
+      const updateFrom = value as (current: unknown) => unknown;
+      registry.set(atom, updateFrom(registry.get(atom)));
     };
   }
   return async (value: unknown, writeOptions?: WriteOptions) => {
@@ -819,6 +820,8 @@ export function useAtomSet(
         `useAtomSet's ${mode} mode cannot wait for Atom.Reset; reset with a value mode setter`
       );
     }
+    // SAFETY: the overloads offer the promise modes only for an atom that holds an AsyncResult.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the implementation signature can't carry the overloads' atom type
     const atom = getAtom() as Atom.Writable<
       AsyncResult.AsyncResult<unknown, unknown>,
       unknown
@@ -827,15 +830,18 @@ export function useAtomSet(
     // skips the wait too: Effect checks the signal only after a first run, which would return a
     // result the atom already holds from an earlier call.
     let exit: Exit.Exit<unknown, unknown>;
-    if (writeOptions?.signal?.aborted) {
+    if (writeOptions?.signal?.aborted === true) {
       exit = Exit.interrupt();
     } else {
+      // oxlint-disable-next-line effecttsgo/global-date -- compared with an AsyncResult's timestamp, which Effect takes from Date.now
       const start = Date.now();
       registry.set(atom, value);
       // A provider disposing of its registry ends the call without a last result, so the wait ends
       // there too, as interrupted.
       const controller = new AbortController();
-      const abort = () => controller.abort();
+      const abort = () => {
+        controller.abort();
+      };
       writeOptions?.signal?.addEventListener("abort", abort, { once: true });
       const cancel = onDispose(registry, abort);
       try {
@@ -872,7 +878,9 @@ export const useAtomRefresh = (
   const registry = getRegistry();
   const getAtom = toGetter(input);
   useAtomMount(getAtom);
-  return () => registry.refresh(getAtom());
+  return () => {
+    registry.refresh(getAtom());
+  };
 };
 
 /**
@@ -885,12 +893,13 @@ const orderedDelivery = <A>(
 ): ((value: A) => void) & { readonly stop: () => void } => {
   let live = true;
   let flushing = false;
-  const queue: A[] = [];
+  // Boxed, so an empty queue is told apart from a queued undefined.
+  const queue: { readonly value: A }[] = [];
   // Stopping empties the queue, which ends a flush in progress.
   const flush = () => {
     try {
-      while (queue.length > 0) {
-        f(queue.shift() as A);
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        f(next.value);
       }
     } finally {
       // Still queued only if `f` threw: the rest goes out on the next microtask.
@@ -905,7 +914,7 @@ const orderedDelivery = <A>(
       return;
     }
     if (flushing || activeReads > 0) {
-      queue.push(value);
+      queue.push({ value });
       if (!flushing) {
         flushing = true;
         queueMicrotask(flush);
@@ -986,17 +995,17 @@ const setNodeValue = (
   atom: Atom.Atom<unknown>,
   value: unknown
 ): void => {
-  internals(registry).ensureNode(atom).setValue(value);
+  nodeOf(registry, atom).setValue(value);
   dropInitialValueMark(registry, atom);
 };
 
 // The nodes given a value by useAtomInitialValues. A node belongs to one registry, and a node the
 // registry sweeps is gone from here too, so the next component to start it gives it the value again.
-const initialValuesApplied = new WeakSet<RegistryNode>();
+const initialValuesApplied = new WeakSet<AtomRegistry.Node<unknown>>();
 
 // On the server, how many renders hold each applied node. The value applies again only once none
 // does, so a request ending doesn't let a request starting overwrite the value another still renders.
-const serverHolders = new WeakMap<RegistryNode, number>();
+const serverHolders = new WeakMap<AtomRegistry.Node<unknown>, number>();
 
 /**
  * Sets starting values as `AtomRegistry.make({ initialValues })` would: on the atom that receives it
@@ -1034,7 +1043,7 @@ const serverHolders = new WeakMap<RegistryNode, number>();
 export const useAtomInitialValues = (
   initialValues: Iterable<readonly [Atom.Atom<unknown>, unknown]>
 ): void => {
-  const registry = internals(getRegistry());
+  const registry = getRegistry();
   const releases: (() => void)[] = [];
   // Registered before the loop: an entry that throws midway leaves the earlier ones held otherwise.
   onTeardown(() => {
@@ -1065,15 +1074,19 @@ export const useAtomInitialValues = (
   }
 };
 
+const isWritableRef = <A>(
+  ref: AtomRef.ReadonlyRef<A>
+): ref is AtomRef.AtomRef<A> => "set" in ref;
+
 /** Writes a ref that has `set`; a read-only ref, as from `map`, throws as `useAtomValue` would. */
 const writeRef =
   <A>(getRef: () => AtomRef.ReadonlyRef<A>) =>
   (value: A): void => {
     const ref = getRef();
-    if (!("set" in ref)) {
-      readOnly();
+    if (!isWritableRef(ref)) {
+      return readOnly();
     }
-    (ref as AtomRef.AtomRef<A>).set(value);
+    ref.set(value);
   };
 
 /**
@@ -1258,7 +1271,7 @@ const seedOnServer = (
   atom: ResultAtom<unknown, unknown>,
   key: string,
   encode: (value: AsyncResult.AsyncResult<unknown, unknown>) => unknown,
-  suspendOnWaiting?: boolean | undefined
+  suspendOnWaiting = false
 ): Promise<void> => {
   // Mounted until the render ends, so the settled node is what the render reads.
   const release = serverMount(registry, atom);
@@ -1278,7 +1291,7 @@ const seedOnServer = (
   const claim: { first?: Promise<unknown>; own?: Promise<unknown> } = {};
   const encoded = hydratable(key, () => {
     claim.own = (async () => {
-      await undefined;
+      await Promise.resolve();
       if (ended) {
         return noSeed;
       }
@@ -1289,7 +1302,7 @@ const seedOnServer = (
       // waits, so with suspendOnWaiting the seed is the settled result the render shows, not one the
       // browser would run again because it was still waiting.
       if (!initialOnServer(registry, atom) && !notStarted(registry.get(atom))) {
-        let settled = suspendOnWaiting === true;
+        let settled = suspendOnWaiting;
         await awaitResult(registry, atom, { suspendOnWaiting: settled });
         // A later reader of the key may want the settled result once this one's wait has begun.
         if (!settled && claim.first && settledSeeds.has(claim.first)) {
@@ -1305,7 +1318,7 @@ const seedOnServer = (
     return claim.own;
   });
   claim.first = encoded;
-  if (suspendOnWaiting === true) {
+  if (suspendOnWaiting) {
     settledSeeds.add(encoded);
   }
   const claimed = serverSeeds.get(encoded);
@@ -1345,7 +1358,14 @@ const claimedKeys = new WeakMap<object, Set<string>>();
 // The store is not public API, so a Svelte that changes its shape or drops it turns the warning off
 // rather than throwing.
 const serverValues = (): ReadonlyMap<string, unknown> | undefined => {
-  const store = (globalThis as { __svelte?: { h?: unknown } }).__svelte?.h;
+  const svelte: unknown = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "__svelte"
+  )?.value;
+  const store =
+    typeof svelte === "object" && svelte !== null && "h" in svelte
+      ? svelte.h
+      : undefined;
   return store instanceof Map ? store : undefined;
 };
 
@@ -1404,8 +1424,9 @@ const claimServerValue = (key: string, missed: boolean): void => {
 const seedFromServer = (
   registry: AtomRegistry.AtomRegistry,
   getAtom: () => ResultAtom<unknown, unknown>,
+  // oxlint-disable-next-line sonarjs/bool-param-default -- undefined is "the hook gave no option", so the provider's default applies
   revalidateOption: boolean | undefined,
-  suspendOnWaiting?: boolean | undefined
+  suspendOnWaiting = false
 ): SeedWait | undefined => {
   const atom = getAtom();
   // The server never computes an atom with a server value, so it has no value to pass on, and the
@@ -1668,9 +1689,9 @@ const fromSettled = <A, E>(
   options: SuspenseOptions
 ): unknown => {
   if (current._tag === "Success") {
-    return options.includeFailure ? current : current.value;
+    return options.includeFailure === true ? current : current.value;
   }
-  if (current._tag === "Failure" && !options.includeFailure) {
+  if (current._tag === "Failure" && options.includeFailure !== true) {
     throw Cause.squash(current.cause);
   }
   return current;
@@ -1695,6 +1716,7 @@ const fromServerValue = <A, E>(
   try {
     return Promise.resolve(fromSettled(current, options));
   } catch (error) {
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- rejects with the atom's squashed error, as awaiting the atom would, whatever its type
     return Promise.reject(error);
   }
 };
@@ -1821,7 +1843,9 @@ const sharedWait = (
       }
       held.add(signal);
       holders += 1;
-      const listener = () => release(signal.reason);
+      const listener = () => {
+        release(signal.reason);
+      };
       signal.addEventListener("abort", listener, { once: true });
       listeners.push([signal, listener]);
     },
@@ -1939,7 +1963,7 @@ export function useAtomSuspense<A, E>(
       combined = controller.signal;
       bounded.set(signal, combined);
       // The reaction's reason, such as Svelte's STALE_REACTION, which it ignores (JND-22).
-      const reason = () =>
+      const reason = (): unknown =>
         signal.aborted ? signal.reason : lifetime.signal.reason;
       if (signal.aborted || lifetime.signal.aborted) {
         controller.abort(reason());
@@ -2011,9 +2035,10 @@ export function useAtomSuspense<A, E>(
       // settles, as nothing could let go of it. Handled here, so a read nobody awaits isn't reported
       // as unhandled.
       const last = lastWaits.get(getAtom());
-      if (last?.settled()) {
+      if (last?.settled() === true) {
         return last.promise;
       }
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- rejects with the reader's abort reason, such as Svelte's STALE_REACTION, which Svelte recognises
       const gone = Promise.reject(holder.reason);
       void (async () => {
         try {
@@ -2038,7 +2063,7 @@ export function useAtomSuspense<A, E>(
           // reading would compute the atom for nobody.
           const live = [...readers].filter((reader) => !reader.aborted);
           if (live.length === 0) {
-            return undefined;
+            return;
           }
           // A read outside any reaction can't say when it is done, so it doesn't hold the atom: held
           // by the component's lifetime, the atom would stay mounted after the getter moves on.
@@ -2053,7 +2078,7 @@ export function useAtomSuspense<A, E>(
           for (const reader of live) {
             waited = settle(atom, current, reader);
           }
-          return waited;
+          return await waited;
         })();
         pending = { promise, readers };
         afterSeed.set(atom, pending);

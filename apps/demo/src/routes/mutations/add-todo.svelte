@@ -27,6 +27,7 @@
 <script lang="ts">
   import { Exit } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import EffectType from "#lib/docs/kit/effect-type.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";

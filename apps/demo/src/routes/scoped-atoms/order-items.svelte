@@ -8,7 +8,12 @@
 <!-- An order's line items: a table inside the Orders table, with state of its own.
      Its parts call the same Table.use(), and find the nearest table's state. -->
 {#snippet lineItems(order: Row)}
-  <DataTable columns={itemColumns} name="Line items" rows={itemsOf(order)} sort="name" />
+  <DataTable
+    columns={itemColumns}
+    name="Line items"
+    rows={itemsOf(order)}
+    sort="name"
+  />
 {/snippet}
 
 <Site address="example.app/admin/orders">

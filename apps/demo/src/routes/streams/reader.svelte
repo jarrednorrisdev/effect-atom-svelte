@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
   import { useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 

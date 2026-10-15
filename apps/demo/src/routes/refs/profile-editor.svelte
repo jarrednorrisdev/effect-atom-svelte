@@ -1,5 +1,6 @@
 <script lang="ts">
   import { AtomRef } from "effect/reactivity";
+
   import Part from "#lib/docs/kit/part.svelte";
 
   import ProfileCard from "./profile-card.svelte";

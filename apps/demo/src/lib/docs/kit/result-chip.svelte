@@ -20,13 +20,13 @@
 -->
 <script lang="ts">
   import { animate } from "motion";
-  import { untrack } from 'svelte';
-import type { Snippet } from 'svelte';
+  import { untrack } from "svelte";
+  import type { Snippet } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
 
   import { jitter, reducedMotion, shake, springs } from "./motion.ts";
-  import { getExampleState } from './tone.ts';
-import type { Tone } from './tone.ts';
+  import { getExampleState } from "./tone.ts";
+  import type { Tone } from "./tone.ts";
 
   interface Props extends HTMLAttributes<HTMLSpanElement> {
     /** True while a new result is on its way and this one is kept (`waiting`). */
@@ -79,9 +79,12 @@ import type { Tone } from './tone.ts';
     const was = before;
     before = now;
     untrack(() => {
+      if (now.busy) {
+        return;
+      }
       const arrived = was
-        ? !now.busy && (now.tone !== was.tone || was.busy)
-        : example?.touched === true && !now.busy && now.tone !== "running";
+        ? now.tone !== was.tone || was.busy
+        : example?.touched === true && now.tone !== "running";
       if (arrived) {
         land(chip, now.tone);
       }
@@ -90,11 +93,11 @@ import type { Tone } from './tone.ts';
 
   // Jitters while working, as a running effect does; the cleanup settles it when the work ends.
   const run = (chip: HTMLElement) => {
-    if (busy || tone === "running") {
-      // A wide tile tilts far at its ends, so a sentence only shakes.
-      return jitter(chip, kind === "message" ? { angle: 0 } : undefined);
+    if (!busy && tone !== "running") {
+      return;
     }
-    return undefined;
+    // A wide tile tilts far at its ends, so a sentence only shakes.
+    return jitter(chip, kind === "message" ? { angle: 0 } : undefined);
   };
 </script>
 
@@ -110,7 +113,8 @@ import type { Tone } from './tone.ts';
   >
     <span class="content">{@render children()}</span>
     {#if duration !== undefined && tone === "running"}
-      <span aria-hidden="true" class="progress" style:--duration="{duration}ms"></span>
+      <span aria-hidden="true" class="progress" style:--duration="{duration}ms"
+      ></span>
     {/if}
   </span>
   {#if label}

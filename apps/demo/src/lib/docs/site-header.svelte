@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
   import MenuIcon from "@lucide/svelte/icons/menu";
-  import { page } from "$app/state";
+
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
 
   import GitHubButton from "./github-button.svelte";
@@ -35,7 +36,10 @@
   carry on the page's own. On the landing page those are the hero frame's sides and middle; on a docs
   page, the sidebar's edge. Each control has a square cell of its own.
 -->
-<header class="sticky top-0 z-20 h-14 shrink-0 border-b bg-background" class:landing>
+<header
+  class="bg-background sticky top-0 z-20 h-14 shrink-0 border-b"
+  class:landing
+>
   <div class="cells">
     <!-- The name, then a cell of its own saying it's a community project. On the landing page the
          two share the frame's left half. -->
@@ -53,7 +57,7 @@
         <SiteLogo />
       </div>
       <div
-        class="cell note font-mono text-[0.6875rem] tracking-wider whitespace-nowrap text-muted-foreground uppercase"
+        class="cell note text-muted-foreground font-mono text-[0.6875rem] tracking-wider whitespace-nowrap uppercase"
       >
         Community project
       </div>
@@ -61,7 +65,9 @@
     <div class="tools">
       <!-- The landing page's way into the docs, beside the search. -->
       {#if landing}
-        <a class="cell docs-link" href="/introduction">Docs <ArrowRightIcon aria-hidden="true" class="size-3.5" /></a>
+        <a class="cell docs-link" href="/introduction"
+          >Docs <ArrowRightIcon aria-hidden="true" class="size-3.5" /></a
+        >
       {/if}
       <div class="cell search">
         <SearchButton />

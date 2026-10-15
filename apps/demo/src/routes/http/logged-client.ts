@@ -25,11 +25,11 @@ export const loggedHttpClient: Layer.Layer<HttpClient.HttpClient> =
               tone: "running",
             });
             return Effect.tap(response, ({ status }) =>
-              Effect.sync(() =>
+              Effect.sync(() => {
                 wire.add(`${status}`, {
                   tone: status < 400 ? "success" : "failure",
-                })
-              )
+                });
+              })
             );
           })
       );

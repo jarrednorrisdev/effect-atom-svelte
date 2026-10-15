@@ -8,7 +8,10 @@
 // edge's line, that line breaks, so a crossing doesn't read as a junction. A family's or factory's
 // atoms, named `draftAtom(…)` by the atomLabels plugin, share a row of dots when there are three or
 // more and only one is read at a time.
-import type { GraphEdge, GraphNode } from "./frame-graph.svelte";
+import type { GraphEdge, GraphNode } from "./graph-types.ts";
+
+/** Still held but read by nothing in view, or just removed. */
+type AtomStatus = "live" | "held" | "removed";
 
 /** An atom to draw. */
 export interface GraphAtom {
@@ -18,7 +21,7 @@ export interface GraphAtom {
   /** The line under its name: its result, or why it's still held. */
   readonly note?: string | undefined;
   /** Still held but read by nothing in view (`held`), or just removed (`removed`, drawn crossed). */
-  readonly status?: "live" | "held" | "removed" | undefined;
+  readonly status?: AtomStatus | undefined;
   /** Read by something, when there are no component readers to say so (the devtools panel). */
   readonly read?: boolean | undefined;
 }
@@ -119,7 +122,7 @@ interface Component {
 const keyOf = (args: string) => {
   try {
     const value: unknown = JSON.parse(args);
-    if (value && typeof value === "object") {
+    if (typeof value === "object" && value !== null) {
       return Object.values(value).map(String).join(" · ");
     }
     return String(value);
@@ -192,7 +195,7 @@ const parentsOf = (
       from !== to &&
       atoms.has(from) &&
       atoms.has(to) &&
-      !parents.get(to)?.includes(from)
+      parents.get(to)?.includes(from) !== true
     ) {
       append(parents, to, from);
     }
@@ -243,7 +246,7 @@ const componentsOf = (
       continue;
     }
     const key = `${reader.name}#${reader.instance ?? 0}`;
-    const instance = instances.get(key) ?? {
+    const instance: Component = instances.get(key) ?? {
       count: 1,
       key,
       label: reader.name,
@@ -252,7 +255,7 @@ const componentsOf = (
     instances.set(key, instance);
     instance.uses.set(
       atom,
-      (instance.uses.get(atom) ?? new Set()).add(reader.kind)
+      (instance.uses.get(atom) ?? new Set<string>()).add(reader.kind)
     );
   }
   const components = new Map<string, Component>();
@@ -436,11 +439,12 @@ const groupNode = (
 ): GraphNode => {
   const repeats = group.dots.filter((dot) => dot.repeat).length;
   const keys = `${group.keys} ${group.keys === 1 ? "key" : "keys"}`;
+  const repeated = repeats > 0 ? ` · ${repeats} repeat a key` : "";
   return {
     id: `g${id}`,
     kind: "junction",
     label: `${group.name}(…)`,
-    note: `${group.dots.length} atoms for ${keys}${repeats > 0 ? ` · ${repeats} repeat a key` : ""}`,
+    note: `${group.dots.length} atoms for ${keys}${repeated}`,
     side: "ne",
     x,
     y,
@@ -452,7 +456,7 @@ const componentNote = (component: Component) => {
     [...component.uses.values()].flatMap((uses) => [...uses])
   );
   if (!kinds.has("write")) {
-    return undefined;
+    return;
   }
   return kinds.size === 1 ? "writes" : "reads, writes";
 };
@@ -626,9 +630,9 @@ const routeEdges = ({ at, lastRow, nodes, shape, trackY }: Router) => {
 
 /** An edge's runs, as pairs of points. */
 const runsOf = (points: readonly Point[]): [Point, Point][] =>
-  points.slice(1).flatMap((end, index) => {
+  points.slice(1).flatMap((end, index): [Point, Point][] => {
     const start = points[index];
-    return start ? [[start, end] as [Point, Point]] : [];
+    return start ? [[start, end]] : [];
   });
 
 /**

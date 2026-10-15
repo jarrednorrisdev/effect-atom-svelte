@@ -23,8 +23,11 @@ export const stateText = (state: ValueState): string => {
   return state.waiting ? `${state._tag}, waiting` : state._tag;
 };
 
-const hasToJSON = (value: object): value is { toJSON: () => unknown } =>
-  typeof (value as { toJSON?: unknown }).toJSON === "function";
+const hasToJSON = (value: unknown): value is { toJSON: () => unknown } =>
+  typeof value === "object" &&
+  value !== null &&
+  "toJSON" in value &&
+  typeof value.toJSON === "function";
 
 // How much of a value is written out: deeper or longer parts are cut short.
 const maxDepth = 5;
@@ -113,7 +116,7 @@ const plainResult = (
         waiting: result.waiting,
       };
     }
-    default: {
+    case "Failure": {
       // What it failed with, fields and all, as the graph's note promises; then the whole cause.
       // oxlint-disable-next-line eslint/sort-keys -- what it failed with reads before the whole cause
       return {
@@ -135,13 +138,14 @@ const listed = <A>(items: readonly A[], inner: (item: A) => unknown) => {
 };
 
 /** An object cut to `maxItems` entries, saying how many more there are. */
-const withMore = (object: Record<string, unknown>, count: number) =>
+const withMore = <A>(object: Readonly<Record<string, A>>, count: number) =>
   count > maxItems ? { ...object, "…": `${count - maxItems} more` } : object;
 
 const isPrimitive = (value: unknown) =>
   value === null || (typeof value !== "object" && typeof value !== "function");
 
 const plainObject = (
+  // oxlint-disable-next-line anti-slop/no-object-parameters -- any value an atom holds that isn't a primitive: there is no narrower type
   value: object,
   inner: (value: unknown) => unknown
 ): unknown => {
@@ -156,7 +160,8 @@ const plainObject = (
     return errorText(value, (field) => json(inner(field)));
   }
   if (value instanceof Map) {
-    const entries = [...value];
+    const map: ReadonlyMap<unknown, unknown> = value;
+    const entries = [...map];
     // Primitive keys that stay distinct as strings make an object; any other keys would collide
     // or lose themselves as strings, so those maps are written as `[key, value]` pairs.
     const keys = entries.map(([key]) => key);
@@ -222,11 +227,12 @@ export const plain = (
     case "undefined": {
       return depth === 0 ? value : bare("undefined");
     }
+    case "boolean":
+    case "string": {
+      return value;
+    }
     case "object": {
       break;
-    }
-    default: {
-      return value;
     }
   }
   if (value === null) {

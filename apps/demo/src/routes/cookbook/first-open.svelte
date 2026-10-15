@@ -14,7 +14,7 @@
       const todos = yield* get.result(todosAtom, { suspendOnWaiting: true });
       const open = todos.find((todo) => !todo.done);
       if (open === undefined) {
-        return undefined;
+        return;
       }
       return yield* get.result(TodosRpc.query("getTodo", { id: open.id }));
     })
@@ -24,6 +24,7 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 

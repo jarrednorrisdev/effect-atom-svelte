@@ -2,7 +2,15 @@
   import { Effect, Option, Stream } from "effect";
   import { Atom } from "effect/reactivity";
 
-  const fruit = ["apple", "banana", "cherry", "damson", "elderberry", "fig", "grape"];
+  const fruit = [
+    "apple",
+    "banana",
+    "cherry",
+    "damson",
+    "elderberry",
+    "fig",
+    "grape",
+  ];
 
   // Pages of up to three, each taking a moment to arrive, as from a paginated API.
   const fruitStream = Stream.paginate(0, (start) =>
@@ -19,8 +27,9 @@
 </script>
 
 <script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Chunks from "#lib/docs/kit/chunks.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
@@ -35,8 +44,12 @@
 
   // The latest items, kept through a failure. With disableAccumulation, the pull
   // that finds the end fails with NoSuchElementError instead of setting done.
-  const latest = $derived(AsyncResult.getOrElse(page.current, () => undefined));
-  const ended = $derived(page.current._tag === "Failure" || latest?.done === true);
+  const latest = $derived(
+    Option.getOrUndefined(AsyncResult.value(page.current))
+  );
+  const ended = $derived(
+    page.current._tag === "Failure" || latest?.done === true
+  );
   // How the pull that found the end ended, for the chunks.
   const ending = $derived.by(() => {
     if (page.current._tag === "Failure") {
@@ -46,10 +59,14 @@
   });
 
   // For the history under the example.
-  const describe = (value: unknown) => {
-    const { done, items } = value as { done: boolean; items: string[] };
-    return `${items.length} ${items.length === 1 ? "item" : "items"}, done: ${done}`;
-  };
+  const describe = ({
+    done,
+    items,
+  }: {
+    readonly done: boolean;
+    readonly items: readonly string[];
+  }) =>
+    `${items.length} ${items.length === 1 ? "item" : "items"}, done: ${done}`;
 </script>
 
 <p>

@@ -3,12 +3,15 @@
   result, labelled, as a state badge. Not part of the example's code.
 -->
 <script lang="ts">
-  import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import type { AsyncResult } from "effect/reactivity";
+
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   interface Props {
     /** Each result by the name the component reads it under. */
-    readonly results: Readonly<Record<string, AsyncResult.AsyncResult<unknown, unknown>>>;
+    readonly results: Readonly<
+      Record<string, AsyncResult.AsyncResult<unknown, unknown>>
+    >;
     /** How long the script waited, in seconds. */
     readonly seconds: string;
     readonly testid: string;

@@ -61,10 +61,11 @@ export class EventLogState {
    * rejects a tracked state change there (`state_unsafe_mutation`).
    */
   #write(change: (entries: readonly LogEntry[]) => readonly LogEntry[]) {
-    const write = () =>
+    const write = () => {
       untrack(() => {
         this.entries = change(this.entries);
       });
+    };
     if (this.#separate) {
       setTimeout(write, 0);
     } else {
@@ -81,8 +82,8 @@ export class EventLogState {
       at: Math.round(now - this.#start),
       id: this.#nextId,
       label,
+      lane,
       tone,
-      ...(lane === undefined ? {} : { lane }),
     };
     this.#write((entries) => [...entries, entry].slice(-this.#limit));
   }

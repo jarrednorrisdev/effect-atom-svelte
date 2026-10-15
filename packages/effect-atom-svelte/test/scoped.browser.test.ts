@@ -33,12 +33,14 @@ const click = (target: HTMLElement, label: string) =>
 /** Hydrates a fixture over its real server output, as hydration.browser.test.ts does. */
 const hydrateFromServer = async (path: string, component: Component) => {
   const { body, head } = await commands.renderOnServer(path);
+  // oxlint-disable-next-line github/no-dynamic-script-tag -- stands in for the hydratable script SvelteKit puts in the server's <head>
   const script = document.createElement("script");
   script.textContent =
     new DOMParser().parseFromString(head, "text/html").querySelector("script")
       ?.textContent ?? "";
   document.head.append(script);
   const target = document.createElement("div");
+  // oxlint-disable-next-line github/no-inner-html -- the server's own rendered HTML, which hydrate() expects to find in the DOM
   target.innerHTML = body;
   document.body.append(target);
   const app = hydrate(component, { props: {}, target });
@@ -64,53 +66,57 @@ describe("ScopedAtom with server rendering", () => {
     );
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the server", "b from the server"]);
-    expect(scopedComputed).toEqual([]);
+      .toStrictEqual(["a from the server", "b from the server"]);
+    expect(scopedComputed).toStrictEqual([]);
 
     click(target, "remount");
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the server", "b from the server"]);
+      .toStrictEqual(["a from the server", "b from the server"]);
     // The new provider's atom reads the value the old one left under the key: nothing ran again.
     await sleep("50 millis");
-    expect(outputs(target)()).toEqual([
+    expect(outputs(target)()).toStrictEqual([
       "a from the server",
       "b from the server",
     ]);
-    expect(scopedComputed).toEqual([]);
+    expect(scopedComputed).toStrictEqual([]);
   });
 
   test("without server rendering, remounting the provider of a serializable scoped atom neither throws nor warns", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const screen = await render(SsrScopedRemount);
-    const target = screen.container as HTMLElement;
+    const target = screen.container;
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the browser", "b from the browser"]);
+      .toStrictEqual(["a from the browser", "b from the browser"]);
     click(target, "remount");
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the browser", "b from the browser"]);
+      .toStrictEqual(["a from the browser", "b from the browser"]);
     // The old provider is gone once the remount commits, so nothing holds the key twice.
     await sleep("50 millis");
     expect(warn).not.toHaveBeenCalled();
   });
 
   test("a remounted provider whose old branch is still fading out renders the new one", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const screen = await render(ScopedRemountFade);
-    const target = screen.container as HTMLElement;
-    await expect.poll(outputs(target)).toEqual(["a from the browser"]);
+    const target = screen.container;
+    await expect.poll(outputs(target)).toStrictEqual(["a from the browser"]);
     click(target, "remount");
     // Both branches are alive while the old one fades out, then only the new one is left.
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the browser", "a from the browser"]);
+      .toStrictEqual(["a from the browser", "a from the browser"]);
     await expect
       .poll(outputs(target), { timeout: 5000 })
-      .toEqual(["a from the browser"]);
+      .toStrictEqual(["a from the browser"]);
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -142,7 +148,7 @@ describe("a family for data that belongs to an id", () => {
     const { body } = await commands.renderOnServer(
       "/test/fixtures/ssr-family-thread.svelte"
     );
-    expect(serverOutputs(body)).toEqual([
+    expect(serverOutputs(body)).toStrictEqual([
       "a from the server",
       "b from the server",
       "a from the server",
@@ -153,8 +159,12 @@ describe("a family for data that belongs to an id", () => {
     );
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the server", "b from the server", "a from the server"]);
-    expect(familyComputed).toEqual([]);
+      .toStrictEqual([
+        "a from the server",
+        "b from the server",
+        "a from the server",
+      ]);
+    expect(familyComputed).toStrictEqual([]);
   });
 });
 
@@ -168,7 +178,7 @@ describe("ScopedAtom providing a family's atom", () => {
     const { body } = await commands.renderOnServer(
       "/test/fixtures/ssr-scoped-family.svelte"
     );
-    expect(serverOutputs(body)).toEqual([
+    expect(serverOutputs(body)).toStrictEqual([
       "a from the server",
       "a from the server",
       "b from the server",
@@ -179,17 +189,21 @@ describe("ScopedAtom providing a family's atom", () => {
     );
     await expect
       .poll(outputs(target))
-      .toEqual(["a from the server", "a from the server", "b from the server"]);
-    expect(familyComputed).toEqual([]);
+      .toStrictEqual([
+        "a from the server",
+        "a from the server",
+        "b from the server",
+      ]);
+    expect(familyComputed).toStrictEqual([]);
 
     // The remounted provider gets the same atom from the family, still holding the server's value.
     click(target, "remount");
     await sleep("50 millis");
-    expect(outputs(target)()).toEqual([
+    expect(outputs(target)()).toStrictEqual([
       "a from the server",
       "a from the server",
       "b from the server",
     ]);
-    expect(familyComputed).toEqual([]);
+    expect(familyComputed).toStrictEqual([]);
   });
 });

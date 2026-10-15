@@ -27,7 +27,11 @@
             aria-expanded={open}
             aria-label={`${open ? "Hide" : "Show"} ${row.id}`}
             class="expand"
-            onclick={() => (table.current = { ...table.current, expanded: open ? undefined : row.id })}
+            onclick={() =>
+              (table.current = {
+                ...table.current,
+                expanded: open ? undefined : row.id,
+              })}
           >
             {open ? "▾" : "▸"}
           </button>
@@ -43,7 +47,9 @@
       </td>
       {#each table.current.columns as column (column.key)}
         <td class={column.format ? "text-right font-mono" : undefined}>
-          {column.format ? column.format(row[column.key] ?? "") : row[column.key]}
+          {column.format
+            ? column.format(row[column.key] ?? "")
+            : row[column.key]}
         </td>
       {/each}
     </tr>

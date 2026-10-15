@@ -49,7 +49,7 @@ Follow step 4 of `improve-docs-page` (one commit per finding, no test runs, reco
 
 - `bun .claude/skills/improve-docs-page/scripts/check-links.mjs`: every page and section link, the API reference's guide links, and the READMEs.
 - `scripts/check-pages.mjs`, then with `--phone --light`. Report wide pages you didn't cause as found, not fixed.
-- `bun run format`, `bun run lint`, `bun run check`. `check` restores the library build, so restart dev afterwards.
+- `bun run fix`, `bun run lint`, `bun run check`. `check` restores the library build, so restart dev afterwards.
 - Report by area: what changed, the judgment calls Jarred should look at, and anything you found but left alone. Ask them to review it on :5180.
 
 ## 7. Ship, once Jarred is happy

@@ -7,11 +7,14 @@ import { identify } from "../src/internal/names.ts";
 
 const f = () => 1;
 
-describe("label", () => {
+describe(label, () => {
   test("labels an atom in place, with a stack frame for where it is declared", () => {
     const atom = Atom.make(0);
     expect(label(atom, "countAtom", "/src/a.ts:1:14")).toBe(atom);
-    expect(atom.label).toEqual(["countAtom", "at countAtom (/src/a.ts:1:14)"]);
+    expect(atom.label).toStrictEqual([
+      "countAtom",
+      "at countAtom (/src/a.ts:1:14)",
+    ]);
     expect(AtomRegistry.make().get(atom)).toBe(0);
   });
 
@@ -30,7 +33,7 @@ describe("label", () => {
 
   test("replaces the label a serializable atom takes from its key", () => {
     const atom = Atom.make(0).pipe(
-      Atom.serializable({ key: "count", schema: Schema.Number })
+      Atom.serializable({ key: "count", schema: Schema.Finite })
     );
     expect(atom.label?.[0]).toBe("count");
     label(atom, "countAtom", "/src/a.ts:1:14");
@@ -69,7 +72,7 @@ const reload = (
   return atom;
 };
 
-describe("keepAcrossReloads", () => {
+describe(keepAcrossReloads, () => {
   test("gives the new atom the value of the one it replaces", () => {
     const registry = AtomRegistry.make();
     const before = reload(registry, "/a.ts#count", "same");
@@ -109,10 +112,10 @@ interface Key {
 const newDraft = () => Atom.make("").pipe(Atom.keepAlive);
 const at = "/src/same-key.svelte:9:3";
 
-describe("call", () => {
+describe(call, () => {
   test("names a factory's new atom after the call and its arguments", () => {
     const draftAtom = call((_key: Key) => newDraft(), "mapDraftAtom", at);
-    expect(draftAtom({ doc: 1, lang: "en" }).label).toEqual([
+    expect(draftAtom({ doc: 1, lang: "en" }).label).toStrictEqual([
       'mapDraftAtom({"doc":1,"lang":"en"})',
       `at mapDraftAtom({"doc":1,"lang":"en"}) (${at})`,
     ]);
@@ -183,7 +186,7 @@ describe("where an atom was declared", () => {
   test("reads a place in a SvelteKit route group, whose folder has parentheses", () => {
     const atom = Atom.make(0);
     label(atom, "countAtom", "/src/routes/(app)/+page.svelte:5:9");
-    expect(identify(atom).place).toEqual({
+    expect(identify(atom).place).toStrictEqual({
       column: 9,
       file: "/src/routes/(app)/+page.svelte",
       line: 5,

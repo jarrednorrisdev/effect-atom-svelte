@@ -1,13 +1,27 @@
 {
   "extends": "$app/tsconfig",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    // As in tsconfig.base.json: $app/tsconfig replaces the base, so the
+    // Effect language service's options are repeated here.
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": false,
+        "barrelImportPackages": ["effect"],
+        "effectFn": ["span", "inferred-span", "suggested-span"]
+      }
+    ]
   },
   "include": [
     "src",
     "vite",
     "vite.config.ts",
     "vitest.config.ts",
-    "alchemy.run.ts"
+    "alchemy.run.ts",
+    "e2e",
+    "e2e-hosted",
+    "playwright.config.ts",
+    "playwright.hosted.config.ts"
   ]
 }

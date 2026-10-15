@@ -46,29 +46,29 @@
 </script>
 
 <figure
-  class="mt-6 mb-0 rounded-xl border bg-background p-4"
+  class="bg-background mt-6 mb-0 rounded-xl border p-4"
   data-testid="chain"
   {@attach play}
 >
   {#key run}
-  <ol class="chain m-0 list-none p-0" data-played={played || undefined}>
-    {#each chain as step, index (step.name)}
-      <li style:--step={index}>
-        <span aria-hidden="true" class="node"></span>
-        <code class="step font-mono text-xs">{step.name}</code>
-        <span class="text-xs text-muted-foreground">{step.note}</span>
-      </li>
-    {/each}
-  </ol>
+    <ol class="chain m-0 list-none p-0" data-played={played || undefined}>
+      {#each chain as step, index (step.name)}
+        <li style:--step={index}>
+          <span aria-hidden="true" class="node"></span>
+          <code class="step font-mono text-xs">{step.name}</code>
+          <span class="text-muted-foreground text-xs">{step.note}</span>
+        </li>
+      {/each}
+    </ol>
   {/key}
-  <figcaption class="mt-3 flex items-start gap-3 text-xs text-muted-foreground">
+  <figcaption class="text-muted-foreground mt-3 flex items-start gap-3 text-xs">
     <span class="flex-1">
-      What one successful createTodo sets off: the key it names, the query tagged with that key, and
-      the atom derived from the query.
+      What one successful createTodo sets off: the key it names, the query
+      tagged with that key, and the atom derived from the query.
     </span>
     <button
       aria-label="Replay"
-      class="replay -mt-1 -mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
+      class="replay hover:bg-muted hover:text-foreground -mt-1 -mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md"
       onclick={replay}
       title="Replay"
       type="button"

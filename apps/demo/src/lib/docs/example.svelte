@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { provideInspectorScope } from "effect-atom-svelte/inspector";
+  import type { Snippet } from "svelte";
+
   import * as Tabs from "#lib/components/ui/tabs/index.ts";
   import Hint from "#lib/docs/kit/hint.svelte";
   import { refuse } from "#lib/docs/kit/motion.ts";
   import { play, warm } from "#lib/docs/kit/sound.ts";
   import type { Cue } from "#lib/docs/kit/sound.ts";
   import { setExampleState } from "#lib/docs/kit/tone.ts";
-  import type { Snippet } from "svelte";
-  import { provideInspectorScope } from "effect-atom-svelte/inspector";
 
   import ExampleGraph from "./example-graph.svelte";
 
@@ -59,8 +60,11 @@
 
   // Whether the example's code uses atoms at all, read from its highlighted source with the markup
   // taken out. An example that doesn't gets no graph.
-  const atomic = /\bAtom\.|\buseAtom(?!Ref)\w*|\bAtom(?:Rpc|HttpApi)\b|\.(?:query|mutation)\(/u;
-  const usesAtoms = $derived(files.some((file) => atomic.test(file.html.replaceAll(/<[^>]*>/gu, ""))));
+  const atomic =
+    /\bAtom\.|\buseAtom(?!Ref)\w*|\bAtom(?:Rpc|HttpApi)\b|\.(?:query|mutation)\(/u;
+  const usesAtoms = $derived(
+    files.some((file) => atomic.test(file.html.replaceAll(/<[^>]*>/gu, "")))
+  );
 
   const cues = new Set<string>([
     "blocked",
@@ -98,7 +102,10 @@
     example.touched = true;
     // A press on a control is about to play a cue: start loading the synthesizer now, inside the
     // gesture, so the click's own sound isn't late.
-    const presses = !(event instanceof KeyboardEvent) || event.key === "Enter" || event.key === " ";
+    const presses =
+      !(event instanceof KeyboardEvent) ||
+      event.key === "Enter" ||
+      event.key === " ";
     if (presses && cueOf(event)) {
       warm();
     }
@@ -132,7 +139,9 @@
 
   // svelte-ignore state_referenced_locally
   let selected = $state(files[0]?.name ?? "");
-  const file = $derived(files.find((entry) => entry.name === selected) ?? files[0]);
+  const file = $derived(
+    files.find((entry) => entry.name === selected) ?? files[0]
+  );
 
   /**
    * A long source shows its first lines, which usually define the atoms, and a button for the
@@ -156,7 +165,7 @@
   <!-- Scrolls sideways when the file names are wider than a phone. -->
   <div
     class={[
-      "not-prose flex items-end overflow-x-auto border bg-muted/40",
+      "not-prose bg-muted/40 flex items-end overflow-x-auto border",
       children ? "rounded-none" : "rounded-t-lg",
     ]}
   >
@@ -165,9 +174,14 @@
 {/snippet}
 
 {#snippet tabList()}
-  <Tabs.List class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto" variant="line">
+  <Tabs.List
+    class="w-max items-end gap-0 p-0 group-data-horizontal/tabs:h-auto"
+    variant="line"
+  >
     {#each files as entry (entry.name)}
-      <Tabs.Trigger class="example-tab after:hidden" value={entry.name}>{entry.name}</Tabs.Trigger>
+      <Tabs.Trigger class="example-tab after:hidden" value={entry.name}
+        >{entry.name}</Tabs.Trigger
+      >
     {/each}
   </Tabs.List>
 {/snippet}

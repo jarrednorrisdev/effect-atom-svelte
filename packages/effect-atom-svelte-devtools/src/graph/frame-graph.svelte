@@ -13,36 +13,8 @@
   rounds a 1px line to whole device pixels; drawn the same way from the same coordinate, the graph
   rounds the same way, so it stays on its line. Edges must be horizontal or vertical.
 -->
-<script module lang="ts">
-  export type Kind = "effect" | "atom" | "component" | "junction" | "gone";
-
-  export interface GraphNode {
-    readonly x: number;
-    readonly y: number;
-    readonly kind: Kind;
-    readonly label?: string | undefined;
-    readonly note?: string | undefined;
-    /** Which side of the node its label sits: north-east (the default), south-east, and so on. */
-    readonly side?: "ne" | "se" | "nw" | "sw" | undefined;
-    /** The step at which it appears, with the edge that reaches it. */
-    readonly step?: number | undefined;
-    /** Names the node, for a live graph to find it again (`data-node`) and pulse it. */
-    readonly id?: string | undefined;
-  }
-
-  export interface GraphEdge {
-    readonly points: readonly (readonly [x: number, y: number])[];
-    readonly lit?: boolean | undefined;
-    readonly dashed?: boolean | undefined;
-    readonly step?: number | undefined;
-    /** The node it leads to (`data-to`), so a live graph can light the edges into a node. */
-    readonly to?: string | undefined;
-    /** Keeps an edge's element across redraws of a live graph. */
-    readonly id?: string | undefined;
-  }
-</script>
-
 <script lang="ts">
+  import type { GraphEdge, GraphNode, Kind } from "./graph-types.ts";
   /**
    * Where the frame's lines start, from the graph's box: `left` is the left edge of the line at
    * x = 0, `right` that of the line at x = 1 less the box's width, and `top` is added to every y.
@@ -57,7 +29,11 @@
     /** Whether atoms take clicks (atom-graph.svelte selects them); the rest stays inert. */
     interactive?: boolean;
     nodes: readonly GraphNode[];
-    origin?: { readonly left: number; readonly right: number; readonly top: number };
+    origin?: {
+      readonly left: number;
+      readonly right: number;
+      readonly top: number;
+    };
   } = $props();
 
   // contentRect keeps fractions of a pixel, which clientWidth would round away.
@@ -173,7 +149,11 @@
   /* A run of an edge: a 1px border, like the frame's own lines. */
   /* Solid, mixed with what's behind the graph: a translucent line brightens where two runs overlap. */
   .edge {
-    --edge: color-mix(in oklab, var(--foreground, #18181b) 30%, var(--graph-background, var(--background, #fff)));
+    --edge: color-mix(
+      in oklab,
+      var(--foreground, #18181b) 30%,
+      var(--graph-background, var(--background, #fff))
+    );
     position: absolute;
   }
   .edge.horizontal {
@@ -205,7 +185,8 @@
     pointer-events: auto;
   }
   .node:global(.selected) i {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #d97706) 40%, transparent);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklab, var(--brand, #d97706) 40%, transparent);
   }
   /* Above every edge, so labels and marks are never crossed. */
   .node {
@@ -253,15 +234,32 @@
   }
   .node.gone i {
     background:
-      linear-gradient(45deg, transparent 45%, var(--brand-text, #b45309) 45% 55%, transparent 55%),
-      linear-gradient(-45deg, transparent 45%, var(--brand-text, #b45309) 45% 55%, transparent 55%);
+      linear-gradient(
+        45deg,
+        transparent 45%,
+        var(--brand-text, #b45309) 45% 55%,
+        transparent 55%
+      ),
+      linear-gradient(
+        -45deg,
+        transparent 45%,
+        var(--brand-text, #b45309) 45% 55%,
+        transparent 55%
+      );
     border: 0;
   }
   /* Backed with what's behind the graph (--graph-background), so a label hides the lines under it. */
   .label {
     background: var(--graph-background, var(--background, #fff));
     color: var(--foreground, #18181b);
-    font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+    font-family: var(
+      --font-mono,
+      ui-monospace,
+      "SF Mono",
+      Menlo,
+      Consolas,
+      monospace
+    );
     font-size: 0.7rem;
     line-height: 1.3;
     padding: 0 0.3rem;
@@ -383,8 +381,18 @@
     0%,
     60% {
       background:
-        linear-gradient(45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%),
-        linear-gradient(-45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%);
+        linear-gradient(
+          45deg,
+          transparent 42%,
+          var(--brand-text, #b45309) 42% 58%,
+          transparent 58%
+        ),
+        linear-gradient(
+          -45deg,
+          transparent 42%,
+          var(--brand-text, #b45309) 42% 58%,
+          transparent 58%
+        );
       border-color: var(--brand-text, #b45309);
       scale: 1.4;
     }

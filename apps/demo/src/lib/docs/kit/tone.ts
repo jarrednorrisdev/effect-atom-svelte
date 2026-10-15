@@ -5,7 +5,7 @@
  */
 
 import { Cause } from "effect";
-import type { AsyncResult } from "effect/reactivity";
+import { AsyncResult } from "effect/reactivity";
 import { getContext, setContext } from "svelte";
 
 export type Tone = "failure" | "idle" | "interrupted" | "running" | "success";
@@ -16,19 +16,13 @@ export type Tone = "failure" | "idle" | "interrupted" | "running" | "success";
  */
 export const toneOf = (
   result: AsyncResult.AsyncResult<unknown, unknown>
-): Tone => {
-  switch (result._tag) {
-    case "Success": {
-      return "success";
-    }
-    case "Failure": {
-      return Cause.hasInterruptsOnly(result.cause) ? "interrupted" : "failure";
-    }
-    default: {
-      return result.waiting ? "running" : "idle";
-    }
-  }
-};
+): Tone =>
+  AsyncResult.match(result, {
+    onFailure: ({ cause }): Tone =>
+      Cause.hasInterruptsOnly(cause) ? "interrupted" : "failure",
+    onInitial: ({ waiting }): Tone => (waiting ? "running" : "idle"),
+    onSuccess: (): Tone => "success",
+  });
 
 /** What a live example knows about the reader, shared with the kit components inside it. */
 export interface ExampleState {

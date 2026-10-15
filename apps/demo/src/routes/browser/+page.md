@@ -75,7 +75,9 @@ export const load = ({ cookies }) => ({
   const { children, data } = $props();
 </script>
 
-<RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
+<RegistryProvider
+  initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}
+>
   {@render children()}
 </RegistryProvider>
 ```

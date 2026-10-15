@@ -9,7 +9,7 @@
   <ResultHistory data-testid="die-history" result={die.current} />
   ```
 -->
-<script lang="ts">
+<script lang="ts" generics="A">
   import type { AsyncResult } from "effect/reactivity";
   import type { HTMLAttributes } from "svelte/elements";
 
@@ -19,19 +19,25 @@
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     /** Turns a success value into text; `String` by default. */
-    readonly format?: (value: unknown) => string;
+    readonly format?: (value: A) => string;
     /** The caption; "History" by default. */
     readonly label?: string;
     /** How many recent states to show; 6 by default. */
     readonly max?: number;
-    readonly result: AsyncResult.AsyncResult<unknown, unknown>;
+    readonly result: AsyncResult.AsyncResult<A, unknown>;
   }
 
-  const { format = String, label = "History", max = 6, result, ...rest }: Props = $props();
+  const {
+    format = String,
+    label = "History",
+    max = 6,
+    result,
+    ...rest
+  }: Props = $props();
 
   const log = new EventLogState({ limit: 20 });
 
-  const describe = (current: AsyncResult.AsyncResult<unknown, unknown>) => {
+  const describe = (current: AsyncResult.AsyncResult<A, unknown>) => {
     const value = current._tag === "Success" ? ` ${format(current.value)}` : "";
     return `${current._tag}${value}${current.waiting ? ", waiting" : ""}`;
   };

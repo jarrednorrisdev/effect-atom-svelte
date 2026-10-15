@@ -12,7 +12,7 @@ export class TodosApiGroup extends HttpApiGroup.make("todos")
     }),
     HttpApiEndpoint.get("get", "/:id", {
       error: TodoNotFound,
-      params: { id: Schema.NumberFromString },
+      params: { id: Schema.FiniteFromString },
       success: Todo,
     }),
     HttpApiEndpoint.post("create", "/", {
@@ -22,12 +22,12 @@ export class TodosApiGroup extends HttpApiGroup.make("todos")
     }),
     HttpApiEndpoint.patch("toggle", "/:id/toggle", {
       error: TodoNotFound,
-      params: { id: Schema.NumberFromString },
+      params: { id: Schema.FiniteFromString },
       success: Todo,
     }),
     HttpApiEndpoint.delete("remove", "/:id", {
       error: TodoNotFound,
-      params: { id: Schema.NumberFromString },
+      params: { id: Schema.FiniteFromString },
     })
   )
   .prefix("/todos") {}

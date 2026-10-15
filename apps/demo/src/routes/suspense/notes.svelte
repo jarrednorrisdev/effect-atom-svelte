@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { Effect } from "effect";
   import { Atom } from "effect/reactivity";
+
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   // What the component's script did, for the log beside the example.
@@ -15,6 +16,7 @@
 
 <script lang="ts">
   import { useAtomRefresh, useAtomResult } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 

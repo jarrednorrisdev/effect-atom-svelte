@@ -4,10 +4,10 @@
   effect is interrupted or an atom removed. Clicking an atom opens its sheet.
 -->
 <script lang="ts">
-  import { AtomGraph, toneOf } from "../graph/index.ts";
-  import type { GraphAtom, GraphInput } from "../graph/index.ts";
   import { AsyncResult } from "effect/reactivity";
 
+  import { AtomGraph, toneOf } from "../graph/index.ts";
+  import type { GraphAtom, GraphInput } from "../graph/index.ts";
   import { failureText, preview, stateText } from "./format.ts";
   import type { AtomView } from "./model.svelte.ts";
   import { lingerFor } from "./model.svelte.ts";
@@ -23,10 +23,11 @@
 
   let graph = $state<AtomGraph>();
 
+  const lingering = (view: AtomView) =>
+    view.removedAt !== undefined &&
+    performance.now() - view.removedAt < lingerFor;
   const shown = (view: AtomView) =>
-    (showPlumbing || !view.plumbing) &&
-    (view.live ||
-      (view.removedAt !== undefined && performance.now() - view.removedAt < lingerFor));
+    (showPlumbing || !view.plumbing) && (view.live || lingering(view));
 
   /** Why the registry holds an atom nothing reads. */
   const heldBecause = (view: AtomView) => {
@@ -52,10 +53,16 @@
     const state = stateText(view.state);
     let value = view.hasValue ? preview(view.value, 26) : "";
     // A failure shows what it failed with, by name: its fields are on its sheet.
-    if (AsyncResult.isAsyncResult(view.value) && AsyncResult.isFailure(view.value)) {
+    if (
+      AsyncResult.isAsyncResult(view.value) &&
+      AsyncResult.isFailure(view.value)
+    ) {
       value = failureText(view.value.cause);
     }
-    const withValue = state === "" || view.state._tag === "Success" || view.state._tag === "Failure";
+    const withValue =
+      state === "" ||
+      view.state._tag === "Success" ||
+      view.state._tag === "Failure";
     const parts = [state, withValue ? value : ""];
     if (view.readers === 0 && view.children.length === 0) {
       parts.push(heldBecause(view));
@@ -83,16 +90,16 @@
       return found;
     };
     return {
-      atoms: visible.map(
-        (view): GraphAtom => ({
-          id: view.id,
-          label: view.name,
-          note: note(view),
-          read: view.readers > 0,
-          status: statusOf(view),
-        })
+      atoms: visible.map((view): GraphAtom => ({
+        id: view.id,
+        label: view.name,
+        note: note(view),
+        read: view.readers > 0,
+        status: statusOf(view),
+      })),
+      links: visible.flatMap((view) =>
+        [...parentsOf(view)].map((from) => ({ from, to: view.id }))
       ),
-      links: visible.flatMap((view) => [...parentsOf(view)].map((from) => ({ from, to: view.id }))),
     };
   });
 

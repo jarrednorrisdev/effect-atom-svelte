@@ -26,17 +26,6 @@ const onError = (event: ErrorEvent) => pageErrors.push(event.error);
 const onRejection = (event: PromiseRejectionEvent) =>
   pageErrors.push(event.reason);
 
-beforeEach(() => {
-  pageErrors = [];
-  window.addEventListener("error", onError);
-  window.addEventListener("unhandledrejection", onRejection);
-});
-
-afterEach(() => {
-  window.removeEventListener("error", onError);
-  window.removeEventListener("unhandledrejection", onRejection);
-});
-
 const setup = async () => {
   const registry = AtomRegistry.make();
   const atoms = makeStressAtoms();
@@ -80,7 +69,7 @@ const settledOn = async (
       errors: [...errors, ...pageErrors].map(String),
       sync: byPrefix("sync"),
     }))
-    .toEqual({
+    .toStrictEqual({
       async: everyReader(async),
       errors: [],
       sync: everyReader(sync),
@@ -88,6 +77,17 @@ const settledOn = async (
 };
 
 describe("notification deferral under load", () => {
+  beforeEach(() => {
+    pageErrors = [];
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+  });
+
+  afterEach(() => {
+    window.removeEventListener("error", onError);
+    window.removeEventListener("unhandledrejection", onRejection);
+  });
+
   test("bursts of timer and click writes leave every reader consistent, with no errors", async () => {
     const stress = await setup();
     const { atoms, button, byPrefix, errors, registry } = stress;
@@ -96,17 +96,26 @@ describe("notification deferral under load", () => {
     // Timers write the count at staggered times, some in the same macrotask, while clicks write
     // another atom the same readers show.
     for (let index = 0; index < writes; index += 1) {
-      setTimeout(() => registry.update(atoms.count, (n) => n + 1), index % 20);
-      setTimeout(() => button.click(), (index * 7) % 20);
+      // oxlint-disable-next-line effecttsgo/global-timers -- the writes must come from timer macrotasks, some sharing one, which Effect's scheduler would not reproduce
+      setTimeout(() => {
+        registry.update(atoms.count, (n) => n + 1);
+      }, index % 20);
+      // oxlint-disable-next-line effecttsgo/global-timers -- clicks from timer macrotasks, interleaved with the writes above
+      setTimeout(
+        () => {
+          button.click();
+        },
+        (index * 7) % 20
+      );
     }
     await sleep("40 millis");
 
     await settledOn(stress, writes);
     await expect
       .poll(() => byPrefix("clicks"))
-      .toEqual(everyReader(`c${writes}`));
-    expect(errors).toEqual([]);
-    expect(pageErrors).toEqual([]);
+      .toStrictEqual(everyReader(`c${writes}`));
+    expect(errors).toStrictEqual([]);
+    expect(pageErrors).toStrictEqual([]);
   });
 
   test("a click shows its write in the DOM as soon as Svelte flushes, in the same tick", async () => {
@@ -118,9 +127,9 @@ describe("notification deferral under load", () => {
     for (let index = 1; index <= 5; index += 1) {
       button.click();
       flushSync();
-      expect(byPrefix("clicks")).toEqual(everyReader(`c${index}`));
+      expect(byPrefix("clicks")).toStrictEqual(everyReader(`c${index}`));
     }
-    expect(errors).toEqual([]);
-    expect(pageErrors).toEqual([]);
+    expect(errors).toStrictEqual([]);
+    expect(pageErrors).toStrictEqual([]);
   });
 });

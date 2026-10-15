@@ -30,7 +30,7 @@
         {#if reading[name]}
           <Reader {name} />
         {:else}
-          <p class="m-0 text-muted-foreground">Not reading.</p>
+          <p class="text-muted-foreground m-0">Not reading.</p>
         {/if}
       </div>
     </Part>

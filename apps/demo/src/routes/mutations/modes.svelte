@@ -25,6 +25,7 @@
 <script lang="ts">
   import { Cause, Exit } from "effect";
   import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -38,11 +39,12 @@
   const fail = useAtom(failAtom);
 
   // What each call gave back, one list per way of calling.
-  const results = $state({
-    exit: [] as string[],
-    promise: [] as string[],
-    value: [] as string[],
-  });
+  interface Results {
+    readonly exit: string[];
+    readonly promise: string[];
+    readonly value: string[];
+  }
+  const results: Results = $state({ exit: [], promise: [], value: [] });
   let draft = 0;
 
   const calls = {
@@ -102,7 +104,7 @@
         {#each results[site.mode].slice(-5) as line, index (index)}
           <li class="m-0">{line}</li>
         {:else}
-          <li class="m-0 text-muted-foreground">Not called yet.</li>
+          <li class="text-muted-foreground m-0">Not called yet.</li>
         {/each}
       </ol>
     </Part>

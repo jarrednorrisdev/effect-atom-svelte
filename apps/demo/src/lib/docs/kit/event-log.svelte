@@ -51,7 +51,10 @@
   {:else}
     <ol aria-labelledby="{id}-label">
       {#each shown as entry (entry.id)}
-        <li data-tone={entry.tone} {@attach enter({ opacity: [0, 1], x: [-8, 0] })}>
+        <li
+          data-tone={entry.tone}
+          {@attach enter({ opacity: [0, 1], x: [-8, 0] })}
+        >
           <span class="time">{entry.at} ms</span>
           <span aria-hidden="true" class="dot"></span>
           <span class="label">

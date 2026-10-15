@@ -35,7 +35,8 @@ const importPagefind = async (): Promise<Pagefind | undefined> => {
   // A variable, so Vite leaves the import alone: the file only exists after a build.
   const path = "/pagefind/pagefind.js";
   try {
-    // oxlint-disable-next-line eslint/no-inline-comments -- Vite reads this comment inside import()
+    // SAFETY: pagefind.js is the script Pagefind writes into every index, with the API above.
+    // oxlint-disable-next-line eslint/no-inline-comments, typescript/no-unsafe-type-assertion -- Vite reads this comment inside import(); a dynamic import of a runtime path is typed any
     return (await import(/* @vite-ignore */ path)) as Pagefind;
   } catch {
     return undefined;

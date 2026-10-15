@@ -32,6 +32,7 @@
   import type { Account } from "@demo/domain";
   import { Cause, Option } from "effect";
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";

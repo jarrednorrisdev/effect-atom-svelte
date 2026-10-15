@@ -131,8 +131,11 @@ describe("AtomDevtools", () => {
     press({ altKey: true, code: "KeyA", key: "A", shiftKey: true });
     await sleep(50);
     expect(
-      JSON.parse(localStorage.getItem("effect-atom-svelte-devtools") ?? "{}")
-        .shortcut
+      (
+        JSON.parse(
+          localStorage.getItem("effect-atom-svelte-devtools") ?? "{}"
+        ) as { readonly shortcut?: string }
+      ).shortcut
     ).toBe("alt+shift+a");
     await first.unmount();
 

@@ -21,22 +21,27 @@
 
 <Tabs.Root bind:value={view} class="min-w-0 gap-2">
   <Tabs.List aria-label="Hero view">
-    <Tabs.Trigger class="px-3" value="table">When to reach for atoms</Tabs.Trigger>
+    <Tabs.Trigger class="px-3" value="table"
+      >When to reach for atoms</Tabs.Trigger
+    >
     <Tabs.Trigger class="px-3" value="code">Code</Tabs.Trigger>
   </Tabs.List>
 
   <div class="hero-views">
-  <Tabs.Content data-hero-view value="code">
-    <!-- Both files at once: the atom in a module, and a component that reads it. -->
-    <div class="hero-code grid grid-cols-1 gap-2" data-testid="hero-code">
-      <Example files={[{ html: userSource, name: "user.ts" }]} />
-      <Example cap={30} files={[{ html: userBadgeSource, name: "user-badge.svelte" }]} />
-    </div>
-  </Tabs.Content>
+    <Tabs.Content data-hero-view value="code">
+      <!-- Both files at once: the atom in a module, and a component that reads it. -->
+      <div class="hero-code grid grid-cols-1 gap-2" data-testid="hero-code">
+        <Example files={[{ html: userSource, name: "user.ts" }]} />
+        <Example
+          cap={30}
+          files={[{ html: userBadgeSource, name: "user-badge.svelte" }]}
+        />
+      </div>
+    </Tabs.Content>
 
-  <Tabs.Content data-hero-view value="table">
-    <AtomsGuide />
-  </Tabs.Content>
+    <Tabs.Content data-hero-view value="table">
+      <AtomsGuide />
+    </Tabs.Content>
   </div>
 </Tabs.Root>
 

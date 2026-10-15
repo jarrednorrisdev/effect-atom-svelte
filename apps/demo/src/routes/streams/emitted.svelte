@@ -7,8 +7,13 @@
   import { AsyncResult } from "effect/reactivity";
   import { untrack } from "svelte";
 
+  // The stream's errors are all tagged: the example's own, or NoSuchElementError.
+  interface Tagged {
+    readonly _tag: string;
+  }
+
   interface Props {
-    readonly result: AsyncResult.AsyncResult<number, unknown>;
+    readonly result: AsyncResult.AsyncResult<number, Tagged>;
   }
 
   interface Ending {
@@ -22,12 +27,7 @@
   let ending = $state<Ending>();
   let wasWaiting = false;
 
-  const tagOf = (error: unknown) =>
-    typeof error === "object" && error !== null && "_tag" in error
-      ? String(error._tag)
-      : "failed";
-
-  const track = (now: AsyncResult.AsyncResult<number, unknown>) => {
+  const track = (now: AsyncResult.AsyncResult<number, Tagged>) => {
     const started = now.waiting && !wasWaiting;
     wasWaiting = now.waiting;
     if (started) {
@@ -37,13 +37,16 @@
       return;
     }
     // A failure keeps the last item, so an item that arrived just before it is still seen.
-    const item = AsyncResult.getOrElse(now, () => undefined);
+    const item = Option.getOrUndefined(AsyncResult.value(now));
     if (item !== undefined && item !== items.at(-1)) {
       items.push(item);
     }
     if (now._tag === "Failure") {
       const error = Cause.findErrorOption(now.cause);
-      ending = { failed: true, text: Option.isSome(error) ? tagOf(error.value) : "failed" };
+      ending = {
+        failed: true,
+        text: Option.isSome(error) ? error.value._tag : "failed",
+      };
     } else if (now._tag === "Success" && !now.waiting) {
       ending = { failed: false, text: "ended" };
     }

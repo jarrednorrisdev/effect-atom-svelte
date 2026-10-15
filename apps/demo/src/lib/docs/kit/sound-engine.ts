@@ -31,13 +31,13 @@ const chordWindowMs = 100;
 const triad = [0, 4, 7] as const;
 
 const synth = (
-  oscillator: Tone.ToneOscillatorType,
+  oscillator: Exclude<OscillatorType, "custom">,
   envelope: Partial<Tone.EnvelopeOptions>
 ) =>
   new Tone.PolySynth(Tone.Synth, {
     envelope,
     oscillator: { type: oscillator },
-  } as Partial<Tone.SynthOptions>);
+  });
 
 /**
  * Builds the synths on the context that `sound.ts` started inside the first gesture, or, without
@@ -120,7 +120,7 @@ export const createEngine = (context?: AudioContext): Engine => {
   let chordOctave = baseOctave;
 
   const enterChord = (octave: number) => {
-    const now = Date.now();
+    const now = performance.now();
     if (chordStart === undefined || now - chordStart > chordWindowMs) {
       chordStart = now;
       chordStep = 0;

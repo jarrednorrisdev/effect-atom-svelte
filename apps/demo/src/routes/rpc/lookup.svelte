@@ -1,9 +1,9 @@
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
-  import CauseView from "#lib/docs/kit/cause-view.svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosRpc } from "#lib/clients.ts";
+  import CauseView from "#lib/docs/kit/cause-view.svelte";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   let id = $state(1);
 
@@ -35,13 +35,20 @@
     {:else}
       <!-- Todo 99 doesn't exist: the procedure fails with its typed TodoNotFound. -->
       <div aria-busy={busy}>
-        <CauseView cause={result.cause} code data-testid="rpc-selected" label={call} />
+        <CauseView
+          cause={result.cause}
+          code
+          data-testid="rpc-selected"
+          label={call}
+        />
       </div>
     {/if}
   </div>
   {#snippet pending()}
     <p>
-      <ResultChip kind="message" label="getTodo" tone="running">Loading…</ResultChip>
+      <ResultChip kind="message" label="getTodo" tone="running"
+        >Loading…</ResultChip
+      >
     </p>
   {/snippet}
 </svelte:boundary>

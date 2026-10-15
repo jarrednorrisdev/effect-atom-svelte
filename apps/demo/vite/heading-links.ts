@@ -1,12 +1,24 @@
+import { Schema } from "effect";
+
+/** A HAST property's value, as `@types/hast` types it. */
+type PropertyValue =
+  | boolean
+  | number
+  | string
+  | null
+  | undefined
+  | readonly (number | string)[];
+
 /** The parts of a HAST node this plugin reads; mdsvex's own types are older than `@types/hast`. */
 interface Node {
   children?: Node[];
-  properties?: Record<string, unknown>;
+  properties?: Record<string, PropertyValue>;
   tagName?: string;
   type: string;
 }
 
 const linked = new Set(["h2", "h3"]);
+const isId = Schema.is(Schema.String);
 
 const cross = (side: string): Node => ({
   children: [],
@@ -18,7 +30,7 @@ const cross = (side: string): Node => ({
 const link = (node: Node) => {
   if (node.type === "element" && linked.has(node.tagName ?? "")) {
     const id = node.properties?.id;
-    if (typeof id === "string") {
+    if (isId(id)) {
       node.children = [
         {
           children: node.children ?? [],

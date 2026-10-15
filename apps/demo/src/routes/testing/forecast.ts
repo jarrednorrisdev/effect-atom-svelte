@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+import { FetchHttpClient, HttpClient } from "effect/http";
 import { Atom } from "effect/reactivity";
 
 export class Weather extends Context.Service<
@@ -7,12 +8,17 @@ export class Weather extends Context.Service<
 >()("app/Weather") {}
 
 // The real service calls a weather API.
-const WeatherLayer = Layer.succeed(Weather)({
-  today: Effect.promise(async () => {
-    const response = await fetch("/api/weather");
-    return response.text();
-  }),
-});
+const WeatherLayer = Layer.effect(Weather)(
+  Effect.gen(function* makeWeather() {
+    const client = yield* HttpClient.HttpClient;
+    return {
+      today: client.get("/api/weather").pipe(
+        Effect.flatMap((response) => response.text),
+        Effect.orDie
+      ),
+    };
+  })
+).pipe(Layer.provide(FetchHttpClient.layer));
 
 export const runtime = Atom.runtime(WeatherLayer);
 

@@ -9,13 +9,23 @@
   const { error }: { error: unknown } = $props();
 
   const fields = $derived.by(() => {
+    // SAFETY: the site's handleError hook (hooks.client.ts) turns every error a
+    // boundary receives into an App.Error.
     const { message, tag } = error as App.Error;
-    return [`message: ${JSON.stringify(message)}`, ...(tag ? [`tag: ${JSON.stringify(tag)}`] : [])];
+    return [
+      `message: ${JSON.stringify(message)}`,
+      ...(tag ? [`tag: ${JSON.stringify(tag)}`] : []),
+    ];
   });
 </script>
 
 <div class="bodies not-prose">
-  <Part code data-testid="error-body" label="error, from handleClientError" tone="failure">
+  <Part
+    code
+    data-testid="error-body"
+    label="error, from handleClientError"
+    tone="failure"
+  >
     <code class="body">{`{ ${fields.join(", ")} }`}</code>
   </Part>
   <Part code dashed label="SvelteKit's default hook">

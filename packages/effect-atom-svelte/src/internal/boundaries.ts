@@ -16,4 +16,6 @@ export const queuedBy = new WeakMap<
 export const queuedByBoundary = (
   registry: AtomRegistry.AtomRegistry,
   key: string
-): boolean => queuedBy.get(registry)?.has(key) === true;
+): boolean =>
+  // oxlint-disable-next-line sonarjs/no-empty-collection -- HydrationBoundary.svelte fills it; this module only declares it
+  queuedBy.get(registry)?.has(key) === true;

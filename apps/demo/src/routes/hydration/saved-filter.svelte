@@ -1,9 +1,8 @@
 <script module lang="ts">
+  import { browser } from "$app/env";
   import { Effect, Schema } from "effect";
   import { KeyValueStore } from "effect/persistence";
   import { AsyncResult, Atom } from "effect/reactivity";
-
-  import { browser } from "$app/env";
 
   const FilterSchema = Schema.Literals(["all", "open", "done"]);
   type Filter = typeof FilterSchema.Type;
@@ -35,7 +34,9 @@
     Atom.make(
       Effect.sync((): typeof Todos.Type => ({
         titles: todos
-          .filter(({ done }) => filter === "all" || done === (filter === "done"))
+          .filter(
+            ({ done }) => filter === "all" || done === (filter === "done")
+          )
           .map(({ title }) => title),
         where: browser ? "browser" : "server",
       })).pipe(Effect.delay("500 millis"))
@@ -51,6 +52,7 @@
 <script lang="ts">
   import { useAtom, useAtomResult } from "effect-atom-svelte";
   import { onMount } from "svelte";
+
   import Origin from "#lib/docs/kit/origin.svelte";
   // What the server's HTML had in the same place.
   import ServerHtml from "#lib/docs/kit/server-html.svelte";
@@ -62,7 +64,9 @@
   let mounted = $state(false);
   onMount(() => (mounted = true));
 
-  const list = await useAtomResult(() => todosFor(mounted ? saved.current : "all"));
+  const list = await useAtomResult(() =>
+    todosFor(mounted ? saved.current : "all")
+  );
 </script>
 
 <p class="flex flex-wrap items-center gap-2">

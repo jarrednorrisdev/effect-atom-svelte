@@ -9,5 +9,13 @@
   ]);
 </script>
 
-<output>{defect.current._tag === "Success" ? defect.current.value : defect.current._tag}</output>
-<output>{unencodable.current._tag === "Success" ? unencodable.current.value : unencodable.current._tag}</output>
+<output
+  >{defect.current._tag === "Success"
+    ? defect.current.value
+    : defect.current._tag}</output
+>
+<output
+  >{unencodable.current._tag === "Success"
+    ? unencodable.current.value
+    : unencodable.current._tag}</output
+>

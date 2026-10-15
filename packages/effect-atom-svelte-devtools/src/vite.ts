@@ -125,7 +125,7 @@ export const atomLabels = (options: AtomLabelsOptions = {}): Plugin => {
         !filter(id) ||
         packages.some((directory) => id.startsWith(directory))
       ) {
-        return undefined;
+        return;
       }
       return labelAtoms(code, id, root, { keep: serving });
     },

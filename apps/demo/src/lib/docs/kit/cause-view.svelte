@@ -14,10 +14,10 @@
   the wrapper.
 -->
 <script lang="ts">
-  import AlertIcon from "@lucide/svelte/icons/circle-alert";
   import BugIcon from "@lucide/svelte/icons/bug";
+  import AlertIcon from "@lucide/svelte/icons/circle-alert";
   import StopIcon from "@lucide/svelte/icons/octagon-x";
-  import { Cause } from "effect";
+  import { Cause, Predicate } from "effect";
   import type { HTMLAttributes } from "svelte/elements";
 
   import { enter } from "./motion.ts";
@@ -37,15 +37,23 @@
    * `NotFound { id: 99 }`, anything else as its string.
    */
   const show = (value: unknown): string => {
-    if (typeof value !== "object" || value === null || !("_tag" in value)) {
+    if (!Predicate.hasProperty(value, "_tag")) {
       return String(value);
     }
-    if ("message" in value && typeof value.message === "string" && value.message !== "") {
+    if (
+      Predicate.hasProperty(value, "message") &&
+      Predicate.isString(value.message) &&
+      value.message !== ""
+    ) {
       return `${String(value._tag)}: ${value.message}`;
     }
     const fields = Object.entries(value).filter(([key]) => key !== "_tag");
-    const body = fields.map(([key, field]) => `${key}: ${JSON.stringify(field)}`);
-    return body.length > 0 ? `${value._tag} { ${body.join(", ")} }` : String(value._tag);
+    const body = fields.map(
+      ([key, field]) => `${key}: ${JSON.stringify(field)}`
+    );
+    return body.length > 0
+      ? `${value._tag} { ${body.join(", ")} }`
+      : String(value._tag);
   };
 
   interface Row {
@@ -57,13 +65,22 @@
   const rows = $derived(
     (cause?.reasons ?? []).map((reason): Row => {
       if (Cause.isFailReason(reason)) {
-        return { kind: "typed error", reason: "Fail", text: show(reason.error) };
+        return {
+          kind: "typed error",
+          reason: "Fail",
+          text: show(reason.error),
+        };
       }
       if (Cause.isDieReason(reason)) {
         return { kind: "defect", reason: "Die", text: show(reason.defect) };
       }
-      const fiber = reason.fiberId === undefined ? "" : ` by fiber #${reason.fiberId}`;
-      return { kind: "interruption", reason: "Interrupt", text: `interrupted${fiber}` };
+      const fiber =
+        reason.fiberId === undefined ? "" : ` by fiber #${reason.fiberId}`;
+      return {
+        kind: "interruption",
+        reason: "Interrupt",
+        text: `interrupted${fiber}`,
+      };
     })
   );
 
@@ -79,7 +96,10 @@
     {#key cause}
       <ul aria-labelledby="{id}-label">
         {#each rows as row}
-          <li data-reason={row.reason} {@attach enter({ opacity: [0, 1], x: [-8, 0] })}>
+          <li
+            data-reason={row.reason}
+            {@attach enter({ opacity: [0, 1], x: [-8, 0] })}
+          >
             <span class="tag">
               {#if row.reason === "Fail"}
                 <AlertIcon aria-hidden="true" class="icon" />
@@ -92,7 +112,9 @@
             </span>
             <span class="text">{row.text}</span>
             <span class="kind">
-              {row.kind}, {row.reason === "Fail" ? "in the error type" : "not in the type"}
+              {row.kind}, {row.reason === "Fail"
+                ? "in the error type"
+                : "not in the type"}
             </span>
           </li>
         {/each}

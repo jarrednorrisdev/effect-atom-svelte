@@ -2,7 +2,11 @@
 <script lang="ts">
   import { BROWSER } from "esm-env";
 
-  import { HydrationBoundary, RegistryProvider, useAtomValue } from "../../src/index.ts";
+  import {
+    HydrationBoundary,
+    RegistryProvider,
+    useAtomValue,
+  } from "../../src/index.ts";
   import {
     providerSeedAtom,
     providerSeedSeen,

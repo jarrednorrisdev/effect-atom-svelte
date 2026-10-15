@@ -17,12 +17,14 @@
   // value and sets celsiusAtom.
   const fahrenheitAtom = Atom.writable(
     (get) => (get(celsiusAtom) * 9) / 5 + 32,
-    (ctx, fahrenheit: number) => ctx.set(celsiusAtom, ((fahrenheit - 32) * 5) / 9)
+    (ctx, fahrenheit: number) =>
+      ctx.set(celsiusAtom, ((fahrenheit - 32) * 5) / 9)
   );
 </script>
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
@@ -33,20 +35,26 @@
   const feel = useAtomValue(feelAtom);
 
   // A change of feel flashes blue when cold and red when hot.
-  const tints: Record<string, string> = {
-    cold: "var(--color-sky-500)",
-    hot: "var(--color-red-500)",
-  };
+  const tints = new Map([
+    ["cold", "var(--color-sky-500)"],
+    ["hot", "var(--color-red-500)"],
+  ]);
 </script>
 
 <div class="flex flex-col gap-3 sm:flex-row">
   <div class="sm:self-center">
     <Part code label="celsiusAtom">
-      <Stepper bind:value={celsius.current} data-testid="celsius" label="Celsius" />
-      <p class="mt-2 text-xs text-muted-foreground">Holds the value, in °C.</p>
+      <Stepper
+        bind:value={celsius.current}
+        data-testid="celsius"
+        label="Celsius"
+      />
+      <p class="text-muted-foreground mt-2 text-xs">Holds the value, in °C.</p>
     </Part>
   </div>
-  <div class="grid flex-1 grid-cols-[2.5rem_1fr] gap-3 sm:grid-cols-[4.5rem_1fr]">
+  <div
+    class="grid flex-1 grid-cols-[2.5rem_1fr] gap-3 sm:grid-cols-[4.5rem_1fr]"
+  >
     <span class="flex justify-center">
       <Arrow both label="get, set" pulse={celsius.current} />
     </span>
@@ -56,7 +64,7 @@
         data-testid="fahrenheit"
         label="Fahrenheit"
       />
-      <p class="mt-2 text-xs text-muted-foreground">
+      <p class="text-muted-foreground mt-2 text-xs">
         Holds nothing: °C × 9 / 5 + 32, and a write sets celsiusAtom.
       </p>
     </Part>
@@ -67,10 +75,12 @@
       It feels
       <FlashValue
         data-testid="feel"
-        tint={tints[feel.current]}
+        tint={tints.get(feel.current)}
         value={feel.current}
       />.
-      <p class="mt-2 text-xs text-muted-foreground">Read-only, computed from °C.</p>
+      <p class="text-muted-foreground mt-2 text-xs">
+        Read-only, computed from °C.
+      </p>
     </Part>
   </div>
 </div>

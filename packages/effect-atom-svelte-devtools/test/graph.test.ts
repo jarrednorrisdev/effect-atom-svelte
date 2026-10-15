@@ -15,7 +15,7 @@ const must = <T>(value: T | undefined): T => {
 const nodeOf = (input: GraphInput, label: string) =>
   layoutGraph(input, width)?.nodes.find((node) => node.label === label);
 
-describe("layoutGraph", () => {
+describe(layoutGraph, () => {
   test("draws nothing for no atoms", () => {
     expect(layoutGraph({ atoms: [], links: [] }, width)).toBeUndefined();
   });
@@ -91,9 +91,13 @@ describe("layoutGraph", () => {
       links: [],
     };
     const layout = must(layoutGraph(input, width));
-    expect(layout.nodes.map((node) => node.label)).toEqual(["draftAtom(…)"]);
+    expect(layout.nodes.map((node) => node.label)).toStrictEqual([
+      "draftAtom(…)",
+    ]);
     expect(layout.nodes[0]?.note).toBe("3 atoms for 2 keys · 1 repeat a key");
-    expect(layout.dots[0]?.dots.map((dot) => [dot.key, dot.repeat])).toEqual([
+    expect(
+      layout.dots[0]?.dots.map((dot) => [dot.key, dot.repeat])
+    ).toStrictEqual([
       ["1", false],
       ["2", false],
       ["1", true],
@@ -109,7 +113,7 @@ describe("layoutGraph", () => {
       })),
       links: [],
     };
-    expect(layoutGraph(input, width)?.dots).toEqual([]);
+    expect(layoutGraph(input, width)?.dots).toStrictEqual([]);
   });
 
   test("breaks a line where another edge crosses it, but not where lines join", () => {
@@ -130,7 +134,7 @@ describe("layoutGraph", () => {
     };
     const { edges } = must(layoutGraph(input, width));
     const pieces = (from: string) =>
-      edges.filter((edge) => edge.id?.startsWith(`${from}>`));
+      edges.filter((edge) => edge.id?.startsWith(`${from}>`) === true);
     // bAtom's line is crossed, so it's in two pieces; aAtom's and cAtom's join on the collector and
     // are whole.
     expect(pieces("a1")).toHaveLength(2);

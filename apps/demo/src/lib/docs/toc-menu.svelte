@@ -1,6 +1,6 @@
 <script lang="ts">
-  import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import { afterNavigate } from "$app/navigation";
+  import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 
   import Toc from "./toc.svelte";
   import type { TableOfContents } from "./toc.svelte.ts";
@@ -12,7 +12,9 @@
   const { toc }: { toc: TableOfContents } = $props();
 
   let open = $state(false);
-  const current = $derived(toc.entries.find((entry) => entry.id === toc.active)?.title);
+  const current = $derived(
+    toc.entries.find((entry) => entry.id === toc.active)?.title
+  );
 
   afterNavigate(() => (open = false));
 </script>
@@ -20,14 +22,22 @@
 {#if toc.entries.length > 0}
   <details
     bind:open
-    class="toc-menu sticky top-14 z-[16] -mt-10 mb-8 border-b bg-background text-sm xl:hidden"
+    class="toc-menu bg-background sticky top-14 z-[16] -mt-10 mb-8 border-b text-sm xl:hidden"
   >
     <summary class="flex h-11 cursor-pointer list-none items-center gap-2">
-      <span class="font-semibold whitespace-nowrap text-navigation-heading">On this page</span>
-      <ChevronRightIcon class="toc-menu-chevron size-4 shrink-0 text-muted-foreground transition-transform" />
-      {#if current}<span class="truncate text-muted-foreground">{current}</span>{/if}
+      <span class="text-navigation-heading font-semibold whitespace-nowrap"
+        >On this page</span
+      >
+      <ChevronRightIcon
+        class="toc-menu-chevron text-muted-foreground size-4 shrink-0 transition-transform"
+      />
+      {#if current}<span class="text-muted-foreground truncate">{current}</span
+        >{/if}
     </summary>
-    <nav aria-label="On this page" class="max-h-[60svh] overflow-y-auto pt-1 pb-4">
+    <nav
+      aria-label="On this page"
+      class="max-h-[60svh] overflow-y-auto pt-1 pb-4"
+    >
       <Toc onnavigate={() => (open = false)} {toc} />
     </nav>
   </details>

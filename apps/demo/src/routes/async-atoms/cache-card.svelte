@@ -5,12 +5,13 @@
   never holds the atom itself.
 -->
 <script lang="ts">
+  import { getRegistry } from "effect-atom-svelte";
+  import type { Atom } from "effect/reactivity";
+
   import Part from "#lib/docs/kit/part.svelte";
   import { play } from "#lib/docs/kit/sound.ts";
   import { exampleTouched, getExampleState } from "#lib/docs/kit/tone.ts";
   import type { Tone } from "#lib/docs/kit/tone.ts";
-  import type { Atom } from "effect/reactivity";
-  import { getRegistry } from "effect-atom-svelte";
 
   interface Props {
     readonly atom: Atom.Atom<unknown>;
@@ -48,7 +49,7 @@
   let idleMs = $state(0);
   $effect(() => {
     if (read || !held || ttl === undefined) {
-      return undefined;
+      return;
     }
     const start = performance.now();
     idleMs = 0;
@@ -58,7 +59,9 @@
 
   const status = $derived.by(() => {
     if (!held) {
-      return runs === 0 ? "nothing yet" : "disposed: the next read runs it again";
+      return runs === 0
+        ? "nothing yet"
+        : "disposed: the next read runs it again";
     }
     if (read) {
       return "held, read by the dashboard";

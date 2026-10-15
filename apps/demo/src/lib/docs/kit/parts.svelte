@@ -29,7 +29,12 @@
     readonly stack?: boolean;
   }
 
-  const { children, class: className, stack = false, ...rest }: Props = $props();
+  const {
+    children,
+    class: className,
+    stack = false,
+    ...rest
+  }: Props = $props();
 </script>
 
 <div class={["parts not-prose", className]} {...rest}>

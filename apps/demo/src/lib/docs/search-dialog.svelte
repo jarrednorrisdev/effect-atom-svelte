@@ -1,6 +1,7 @@
 <script lang="ts">
-  import FileTextIcon from "@lucide/svelte/icons/file-text";
   import { goto } from "$app/navigation";
+  import FileTextIcon from "@lucide/svelte/icons/file-text";
+
   import * as Command from "#lib/components/ui/command/index.ts";
   import { pages } from "#lib/docs/nav.ts";
   import { loadPagefind, routeUrl } from "#lib/docs/search.ts";
@@ -15,7 +16,9 @@
 
   const term = $derived(query.trim());
   const matchingPages = $derived(
-    pages.filter((page) => page.title.toLowerCase().includes(term.toLowerCase()))
+    pages.filter((page) =>
+      page.title.toLowerCase().includes(term.toLowerCase())
+    )
   );
 
   $effect(() => {
@@ -32,7 +35,9 @@
       }
       const search = await pagefind.debouncedSearch(current);
       if (search && current === term) {
-        results = await Promise.all(search.results.slice(0, 8).map((result) => result.data()));
+        results = await Promise.all(
+          search.results.slice(0, 8).map((result) => result.data())
+        );
       }
     })();
   });
@@ -44,13 +49,19 @@
   };
 </script>
 
-<Command.Dialog bind:open description="Search the docs" shouldFilter={false} title="Search">
+<Command.Dialog
+  bind:open
+  description="Search the docs"
+  shouldFilter={false}
+  title="Search"
+>
   <Command.Input bind:value={query} placeholder="Search the docs" />
   <Command.List>
     {#if term === "" || available === false}
       {#if available === false && term !== ""}
-        <p class="px-3 pt-3 text-xs text-muted-foreground">
-          Full-text search needs a build (<code>vite build</code>); matching page titles only.
+        <p class="text-muted-foreground px-3 pt-3 text-xs">
+          Full-text search needs a build (<code>vite build</code>); matching
+          page titles only.
         </p>
       {/if}
       <Command.Empty>No pages found.</Command.Empty>
@@ -66,15 +77,27 @@
       <Command.Empty>No results for “{term}”.</Command.Empty>
       {#each results as result (result.url)}
         <Command.Group heading={result.meta.title ?? routeUrl(result.url)}>
-          <Command.Item onSelect={() => select(routeUrl(result.url))} value={result.url}>
+          <Command.Item
+            onSelect={() => select(routeUrl(result.url))}
+            value={result.url}
+          >
             <!-- Pagefind's excerpts are escaped page text with the matches wrapped in <mark>. -->
-            <span class="search-excerpt line-clamp-2">{@html result.excerpt}</span>
+            <span class="search-excerpt line-clamp-2"
+              >{@html result.excerpt}</span
+            >
           </Command.Item>
-          {#each result.sub_results.filter((sub) => sub.url !== result.url).slice(0, 3) as sub (sub.url)}
-            <Command.Item onSelect={() => select(routeUrl(sub.url))} value={sub.url}>
+          {#each result.sub_results
+            .filter((sub) => sub.url !== result.url)
+            .slice(0, 3) as sub (sub.url)}
+            <Command.Item
+              onSelect={() => select(routeUrl(sub.url))}
+              value={sub.url}
+            >
               <span class="flex flex-col gap-0.5">
                 <span class="font-medium">{sub.title}</span>
-                <span class="search-excerpt line-clamp-1 text-muted-foreground">{@html sub.excerpt}</span>
+                <span class="search-excerpt text-muted-foreground line-clamp-1"
+                  >{@html sub.excerpt}</span
+                >
               </span>
             </Command.Item>
           {/each}

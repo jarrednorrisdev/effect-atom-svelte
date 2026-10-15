@@ -19,7 +19,12 @@ A refreshing `Success` resolving straight away is the point of the default: the 
 </script>
 
 {#snippet failed(error, reset)}
-  <button onclick={() => { refresh(); reset(); }}>Try again</button>
+  <button
+    onclick={() => {
+      refresh();
+      reset();
+    }}>Try again</button
+  >
 {/snippet}
 ```
 

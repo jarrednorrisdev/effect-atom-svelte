@@ -2,15 +2,15 @@ import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
+import { Schema } from "effect";
 import { Marked } from "marked";
-import type { Tokens } from "marked";
 import { format } from "oxfmt";
 import ts from "typescript";
 import type { Plugin } from "vite";
 
 import { pages } from "../src/lib/docs/nav.ts";
 import { headingId } from "./heading-links.ts";
-import { highlight } from "./highlight.ts";
+import { highlight, highlightCode } from "./highlight.ts";
 
 /**
  * The API reference, read from the library's source at build time the way Effect's `docgen` reads
@@ -108,74 +108,85 @@ const packageName = "effect-atom-svelte";
 const moduleName = (file: string) => file.replace(/(?:\.svelte)?\.ts$/u, "");
 
 /**
- * The guide page that teaches each export, by module and name, so two modules can export the same
+ * The guide page that teaches each export, by module and page, so two modules can export the same
  * name. An export missing here gets no guide link; a page missing from the sidebar, or a section
  * missing from its page, fails the build.
  */
-const guides: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+const guides = {
   Hooks: {
-    AtomInput: "/reading-and-writing#following-a-different-atom",
-    AtomState: "/reading-and-writing",
-    AtomValue: "/reading-and-writing",
-    ResultOptions: "/suspense#awaiting-in-the-script",
-    SuspenseOptions: "/suspense",
-    WriteMode: "/mutations",
-    WriteOptions: "/mutations",
-    useAtom: "/reading-and-writing#reading-and-writing",
-    useAtomInitialValues: "/sveltekit#starting-values-from-a-component",
-    useAtomMount: "/lifetimes#holding-an-atom-from-a-component",
-    useAtomRef: "/refs#reading-a-ref-in-a-component",
-    useAtomRefProp: "/refs#reading-a-ref-in-a-component",
-    useAtomRefPropValue: "/refs#reading-a-ref-in-a-component",
-    useAtomRefresh: "/async-atoms#running-it-again",
-    useAtomResult: "/suspense#awaiting-in-the-script",
-    useAtomSet: "/reading-and-writing#writing",
-    useAtomSubscribe: "/reading-and-writing#running-code-on-every-change",
-    useAtomSuspense: "/suspense",
-    useAtomValue: "/reading-and-writing#reading",
+    "/async-atoms#running-it-again": ["useAtomRefresh"],
+    "/lifetimes#holding-an-atom-from-a-component": ["useAtomMount"],
+    "/mutations": ["WriteMode", "WriteOptions"],
+    "/reading-and-writing": ["AtomState", "AtomValue"],
+    "/reading-and-writing#following-a-different-atom": ["AtomInput"],
+    "/reading-and-writing#reading": ["useAtomValue"],
+    "/reading-and-writing#reading-and-writing": ["useAtom"],
+    "/reading-and-writing#running-code-on-every-change": ["useAtomSubscribe"],
+    "/reading-and-writing#writing": ["useAtomSet"],
+    "/refs#reading-a-ref-in-a-component": [
+      "useAtomRef",
+      "useAtomRefProp",
+      "useAtomRefPropValue",
+    ],
+    "/suspense": ["SuspenseOptions", "useAtomSuspense"],
+    "/suspense#awaiting-in-the-script": ["ResultOptions", "useAtomResult"],
+    "/sveltekit#starting-values-from-a-component": ["useAtomInitialValues"],
   },
   RegistryContext: {
-    ProvideExistingRegistry: "/installation#registry-options",
-    ProvideNewRegistry: "/installation#registry-options",
-    ProvideRegistryCommon: "/installation#registry-options",
-    ProvideRegistryOptions: "/installation#registry-options",
-    RegistryOptions: "/installation#registry-options",
-    getRegistry: "/cookbook#write-atoms-from-a-plain-function",
-    provideRegistry: "/installation#registry-options",
+    "/cookbook#write-atoms-from-a-plain-function": ["getRegistry"],
+    "/installation#registry-options": [
+      "ProvideExistingRegistry",
+      "ProvideNewRegistry",
+      "ProvideRegistryCommon",
+      "ProvideRegistryOptions",
+      "RegistryOptions",
+      "provideRegistry",
+    ],
   },
   ScopedAtom: {
-    MakeOptions: "/scoped-atoms#providing-and-using-it",
-    ScopedAtom: "/scoped-atoms",
-    TypeId: "/scoped-atoms",
-    make: "/scoped-atoms",
+    "/scoped-atoms": ["ScopedAtom", "TypeId", "make"],
+    "/scoped-atoms#providing-and-using-it": ["MakeOptions"],
   },
   SvelteKit: {
-    CaughtError: "/sveltekit#errors-in-boundaries",
-    EffectErrorBody: "/sveltekit#errors-in-boundaries",
-    handleClientError: "/sveltekit#errors-in-boundaries",
-    handleServerError: "/sveltekit#errors-in-boundaries",
+    "/sveltekit#errors-in-boundaries": [
+      "CaughtError",
+      "EffectErrorBody",
+      "handleClientError",
+      "handleServerError",
+    ],
   },
   index: {
-    AsyncResult: "/async-atoms#asyncresult",
-    Atom: "/first-atom",
-    AtomHttpApi: "/http",
-    AtomRef: "/refs",
-    AtomRegistry: "/installation#add-a-registry",
-    AtomRpc: "/rpc",
-    Hooks: "/reading-and-writing",
-    Hydration: "/hydration",
-    HydrationBoundary: "/hydration#hydrationboundary",
-    Reactivity: "/mutations#refreshing-what-changed",
-    RegistryContext: "/installation#add-a-registry",
-    RegistryProvider: "/installation#add-a-registry",
-    ScopedAtom: "/scoped-atoms",
+    "/async-atoms#asyncresult": ["AsyncResult"],
+    "/first-atom": ["Atom"],
+    "/http": ["AtomHttpApi"],
+    "/hydration": ["Hydration"],
+    "/hydration#hydrationboundary": ["HydrationBoundary"],
+    "/installation#add-a-registry": [
+      "AtomRegistry",
+      "RegistryContext",
+      "RegistryProvider",
+    ],
+    "/mutations#refreshing-what-changed": ["Reactivity"],
+    "/reading-and-writing": ["Hooks"],
+    "/refs": ["AtomRef"],
+    "/rpc": ["AtomRpc"],
+    "/scoped-atoms": ["ScopedAtom"],
   },
-};
+} satisfies Record<string, Record<string, readonly string[]>>;
+
+/** Each export's guide, by `Module.name`. */
+const guideHrefs = new Map(
+  Object.entries(guides).flatMap(([module, byHref]) =>
+    Object.entries(byHref).flatMap(([href, names]) =>
+      names.map((name) => [`${module}.${name}`, href] as const)
+    )
+  )
+);
 
 /** The guide for an export of a module, titled from the sidebar. */
 const guideOf = (file: string, name: string): ApiGuide | undefined => {
   const module = moduleName(file);
-  const href = guides[module]?.[name];
+  const href = guideHrefs.get(`${module}.${name}`);
   if (href === undefined) {
     return undefined;
   }
@@ -270,8 +281,11 @@ const docOf = (node: ts.Node, source: ts.SourceFile): Doc | undefined => {
 /** The comment at the very top of a module, which describes the module. */
 const moduleDoc = (source: ts.SourceFile): Doc | undefined => {
   const [range] = ts.getLeadingCommentRanges(source.text, 0) ?? [];
-  const text = range && source.text.slice(range.pos, range.end);
-  return text?.startsWith("/**") ? parseDoc(text) : undefined;
+  if (range === undefined) {
+    return undefined;
+  }
+  const text = source.text.slice(range.pos, range.end);
+  return text.startsWith("/**") ? parseDoc(text) : undefined;
 };
 
 const isExported = (node: ts.Node) =>
@@ -339,22 +353,39 @@ const readComponent = async (file: string) => {
   };
 };
 
+/** A module's entry in `package.json` `exports`; "./package.json" maps straight to a file. */
+const ModuleExport = Schema.Struct({ default: Schema.String });
+const isModuleExport = Schema.is(ModuleExport);
+
+const PackageManifest = Schema.fromJsonString(
+  Schema.Struct({
+    exports: Schema.Record(
+      Schema.String,
+      Schema.Union([Schema.String, ModuleExport])
+    ),
+  })
+);
+const decodeManifest = Schema.decodeUnknownPromise(PackageManifest);
+
+const decodeVersion = Schema.decodeUnknownPromise(
+  Schema.fromJsonString(Schema.Struct({ version: Schema.String }))
+);
+
 /** `package.json` `exports` by source file: `SvelteKit.ts` is `effect-atom-svelte/sveltekit`. */
 const readEntryPoints = async (packageDir: string) => {
-  const manifest = JSON.parse(
+  const manifest = await decodeManifest(
     await readFile(path.join(packageDir, "package.json"), "utf-8")
-  ) as { exports: Record<string, string | { readonly default: string }> };
+  );
   return new Map(
     Object.entries(manifest.exports).flatMap(([subpath, target]) =>
-      // Only the modules: "./package.json" maps straight to a file.
-      typeof target === "string"
-        ? []
-        : [
+      isModuleExport(target)
+        ? [
             [
               path.basename(target.default).replace(/\.js$/u, ".ts"),
               path.posix.join(packageName, subpath),
             ] as const,
           ]
+        : []
     )
   );
 };
@@ -364,9 +395,7 @@ const readEffectVersion = async (packageDir: string) => {
   const manifest = createRequire(path.join(packageDir, "package.json")).resolve(
     "effect/package.json"
   );
-  const { version } = JSON.parse(await readFile(manifest, "utf-8")) as {
-    readonly version: string;
-  };
+  const { version } = await decodeVersion(await readFile(manifest, "utf-8"));
   return version;
 };
 
@@ -696,23 +725,7 @@ export interface ApiModuleHtml extends Omit<
   readonly reExports: readonly ApiReExportsHtml[];
 }
 
-/** A code token with its highlighted HTML, added before rendering. */
-interface HighlightedCode extends Tokens.Code {
-  html?: string;
-}
-
-const markdown = new Marked({
-  async: true,
-  renderer: {
-    code: (token: HighlightedCode) => token.html ?? "",
-  },
-  async walkTokens(token) {
-    if (token.type === "code") {
-      const code = token as HighlightedCode;
-      code.html = await highlight(code.text, code.lang || "ts");
-    }
-  },
-});
+const markdown = new Marked(highlightCode());
 
 const renderMarkdown = (text: string) => markdown.parse(text);
 const renderInline = (text: string) => markdown.parseInline(text);
@@ -727,7 +740,7 @@ const formatSignature = async (signature: string) => {
 };
 
 const renderSignature = async (signature: string) =>
-  highlight(await formatSignature(signature), "ts");
+  await highlight(await formatSignature(signature), "ts");
 
 const renderExport = async (entry: ApiExport): Promise<ApiExportHtml> => ({
   ...entry,
@@ -774,7 +787,49 @@ const capitalize = (text: string) =>
 
 /** The version that added an export, and its stability, as the page's footnote says them. */
 const sinceLine = (entry: { since: string; stability?: string | undefined }) =>
-  `Since v${entry.since}${entry.stability ? ` · ${capitalize(entry.stability)}` : ""}`;
+  entry.stability === undefined || entry.stability === ""
+    ? `Since v${entry.since}`
+    : `Since v${entry.since} · ${capitalize(entry.stability)}`;
+
+/** An export's section of its module's Markdown, under its category's heading. */
+const exportMarkdown = (entry: ApiExport, signature: string | undefined) => [
+  `### ${entry.name}`,
+  entry.description,
+  ...(entry.guide === undefined
+    ? []
+    : [`Guide: [${entry.guide.title}](${entry.guide.href})`]),
+  // An `export *` has no signature worth showing, only its module's page.
+  entry.module === undefined || entry.module === ""
+    ? ["```ts", signature, "```"].join("\n")
+    : `See [${entry.name}](${entry.module}) for what it exports.`,
+  ...entry.examples.flatMap((example) => [
+    example.title === undefined || example.title === ""
+      ? "**Example**"
+      : `**Example** (${example.title})`,
+    example.code,
+  ]),
+  sinceLine(entry),
+];
+
+/** A guide link for a table cell, or nothing. */
+const guideLink = (guide: ApiGuide | undefined) =>
+  guide === undefined ? "" : `[${guide.title}](${guide.href})`;
+
+/** A group of re-exported modules as Markdown: a table linking each to its guide and source. */
+const reExportsMarkdown = (group: ApiReExports) => [
+  `## ${capitalize(group.category)}`,
+  group.description,
+  `Re-exported from \`${group.from}\`. Each links to the guide that teaches it, and to its source in Effect, where it is documented.`,
+  [
+    "| Module | Guide | Source |",
+    "| --- | --- | --- |",
+    ...group.modules.map(
+      (entry) =>
+        `| \`${entry.name}\` | ${guideLink(entry.guide)} | [${group.from}/${entry.name}.ts](${entry.source}) |`
+    ),
+  ].join("\n"),
+  sinceLine(group),
+];
 
 /**
  * A module's page as Markdown, for `/llms-full.txt`: what `src/lib/docs/api-module.svelte` shows,
@@ -784,9 +839,9 @@ const apiModuleMarkdown = async (module: ApiModule) => {
   // The title is left to the page that includes it, as the sidebar names it.
   const blocks = [
     module.description,
-    module.import.namespace
-      ? `Import it as the \`${module.import.namespace}\` namespace from \`${module.import.from}\`.`
-      : `Import from \`${module.import.from}\`.`,
+    module.import.namespace === undefined || module.import.namespace === ""
+      ? `Import from \`${module.import.from}\`.`
+      : `Import it as the \`${module.import.namespace}\` namespace from \`${module.import.from}\`.`,
   ];
   if (module.entryPoints) {
     blocks.push(
@@ -810,44 +865,12 @@ const apiModuleMarkdown = async (module: ApiModule) => {
   for (const title of titles) {
     blocks.push(`## ${capitalize(title)}`);
     for (const [index, entry] of module.exports.entries()) {
-      if (entry.category !== title) {
-        continue;
+      if (entry.category === title) {
+        blocks.push(...exportMarkdown(entry, signatures[index]));
       }
-      blocks.push(`### ${entry.name}`, entry.description);
-      if (entry.guide) {
-        blocks.push(`Guide: [${entry.guide.title}](${entry.guide.href})`);
-      }
-      // An `export *` has no signature worth showing, only its module's page.
-      blocks.push(
-        entry.module
-          ? `See [${entry.name}](${entry.module}) for what it exports.`
-          : `\`\`\`ts\n${signatures[index]}\n\`\`\``
-      );
-      for (const example of entry.examples) {
-        blocks.push(
-          `**Example**${example.title ? ` (${example.title})` : ""}`,
-          example.code
-        );
-      }
-      blocks.push(sinceLine(entry));
     }
   }
-  for (const group of module.reExports) {
-    blocks.push(
-      `## ${capitalize(group.category)}`,
-      group.description,
-      `Re-exported from \`${group.from}\`. Each links to the guide that teaches it, and to its source in Effect, where it is documented.`,
-      [
-        "| Module | Guide | Source |",
-        "| --- | --- | --- |",
-        ...group.modules.map(
-          (entry) =>
-            `| \`${entry.name}\` | ${entry.guide ? `[${entry.guide.title}](${entry.guide.href})` : ""} | [${group.from}/${entry.name}.ts](${entry.source}) |`
-        ),
-      ].join("\n"),
-      sinceLine(group)
-    );
-  }
+  blocks.push(...module.reExports.flatMap(reExportsMarkdown));
   return blocks.filter((block) => block !== "").join("\n\n");
 };
 
@@ -864,7 +887,7 @@ const checkGuideSections = async (
   ]);
   const sections = new Set(
     guidesUsed.flatMap((guide) =>
-      guide?.href.includes("#") ? [guide.href] : []
+      guide !== undefined && guide.href.includes("#") ? [guide.href] : []
     )
   );
   for (const href of sections) {

@@ -26,6 +26,7 @@ declare const save: Atom.Writable<
 >;
 declare const query: Atom.Atom<AsyncResult.AsyncResult<string, Error>>;
 declare const registry: AtomRegistry.AtomRegistry;
+declare const onCount: (value: number) => void;
 
 // Options typed as wider values, or explicitly undefined, are accepted under
 // exactOptionalPropertyTypes (JND-57).
@@ -46,7 +47,7 @@ export const optionTypes = (mode: WriteMode, includeFailure: boolean) => {
       >
     >
   >();
-  useAtomSubscribe(count, () => undefined, { immediate: undefined });
+  useAtomSubscribe(count, onCount, { immediate: undefined });
 };
 
 declare const mutation: Atom.AtomResultFn<number, string, Error>;

@@ -6,6 +6,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomSubscribe } from "effect-atom-svelte";
+
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 

@@ -17,12 +17,15 @@ export const logged =
   (name: string) =>
   (get: Atom.AtomContext): string => {
     // Finalizers run after the atom is disposed, so write through the registry.
-    const log = (event: LifeEvent["event"]) =>
+    const log = (event: LifeEvent["event"]) => {
       get.registry.update(logAtom, (events) => [
         ...events,
         { atom: name, event },
       ]);
+    };
     log("computed");
-    get.addFinalizer(() => log("disposed"));
+    get.addFinalizer(() => {
+      log("disposed");
+    });
     return name;
   };

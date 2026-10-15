@@ -12,6 +12,17 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        /* Oxlint reports Effect's diagnostics (see oxlint.config.ts), so the
+           language service keeps only its quick fixes and refactors. Oxlint
+           reads the rule options below from here. */
+        "diagnostics": false,
+        "barrelImportPackages": ["effect"],
+        "effectFn": ["span", "inferred-span", "suggested-span"]
+      }
+    ]
   }
 }

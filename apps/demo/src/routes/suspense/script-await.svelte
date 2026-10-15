@@ -1,6 +1,7 @@
 <script lang="ts">
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
+
   import Notes, { script } from "./notes.svelte";
   import ScriptSteps from "./script-steps.svelte";
 

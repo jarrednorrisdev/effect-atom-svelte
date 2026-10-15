@@ -5,7 +5,7 @@
 
 export { default as AtomGraph } from "./atom-graph.svelte";
 export { default as FrameGraph } from "./frame-graph.svelte";
-export type { GraphEdge, GraphNode, Kind } from "./frame-graph.svelte";
+export type { GraphEdge, GraphNode, Kind } from "./graph-types.ts";
 export { layoutGraph, toneOf } from "./layout.ts";
 export type {
   GraphAtom,

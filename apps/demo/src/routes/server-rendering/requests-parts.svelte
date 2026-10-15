@@ -5,10 +5,11 @@
   Presentation only: requests.svelte and request.svelte hold the example's logic.
 -->
 <script lang="ts">
+  import type { Snippet } from "svelte";
+
   import Arrow from "#lib/docs/kit/arrow.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import type { Snippet } from "svelte";
 
   interface Props {
     /** addedRef's value. */
@@ -26,7 +27,10 @@
     <Arrow both direction="down" label="every request" pulse={added} />
     <Part code data-testid="module-state" label="addedRef" tone="idle">
       <p class="m-0">
-        Module state: <FlashValue aria-label="Added in all requests" value={added} />
+        Module state: <FlashValue
+          aria-label="Added in all requests"
+          value={added}
+        />
         added in all requests
       </p>
     </Part>

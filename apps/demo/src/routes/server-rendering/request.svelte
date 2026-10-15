@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import { useAtom } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
 
@@ -29,6 +30,8 @@
     cartAtom: <FlashValue aria-label="Request {id} cart" value={cart.current} />
   </p>
   <p class="mt-2 mb-0">
-    <button aria-label="Add to cart in Request {id}" data-cue="up" onclick={add}>Add to cart</button>
+    <button aria-label="Add to cart in Request {id}" data-cue="up" onclick={add}
+      >Add to cart</button
+    >
   </p>
 </Part>

@@ -53,8 +53,14 @@
 </script>
 
 <div class="flex flex-wrap items-center gap-2">
-  <button aria-pressed={shown} onclick={() => (shown = !shown)}>Show the clock</button>
-  <div aria-label="tickIntervalAtom" class="flex items-center gap-2" role="group">
+  <button aria-pressed={shown} onclick={() => (shown = !shown)}
+    >Show the clock</button
+  >
+  <div
+    aria-label="tickIntervalAtom"
+    class="flex items-center gap-2"
+    role="group"
+  >
     <code class="text-xs">tickIntervalAtom</code>
     <button
       aria-pressed={tickInterval.current === 1000}

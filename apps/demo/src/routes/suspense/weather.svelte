@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
+
   import BoundaryFrame from "#lib/docs/kit/boundary-frame.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
 
@@ -40,7 +41,7 @@
         <p class="m-0" data-testid="weather">{await weather.current}</p>
         {#if $effect.pending() > 0}
           <p
-            class="m-0 text-sm text-muted-foreground"
+            class="text-muted-foreground m-0 text-sm"
             data-updating={$effect.pending()}
           >
             Updating…

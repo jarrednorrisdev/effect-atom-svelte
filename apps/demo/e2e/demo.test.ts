@@ -12,7 +12,7 @@ const pages = navPages.map((page) => page.href);
 /** The server's HTML for `path`, requested with the page's cookies, before any script runs. */
 const serverHtml = async (page: Page, path: string) => {
   const response = await page.request.get(path);
-  return response.text();
+  return await response.text();
 };
 
 /** Records page errors and RPC/HTTP API calls for the life of the page. */
@@ -24,14 +24,17 @@ const watch = (page: Page) => {
   page.on("console", (message) => {
     if (message.type() === "error") {
       // Firefox's text for a logged Error is just "Error", so read the logged values themselves.
-      logged.push(
-        Promise.all(
-          message.args().map((arg) => arg.evaluate((value) => `${value}`))
-        ).then(
-          (values) => values.join(" "),
-          () => message.text()
-        )
-      );
+      const read = async () => {
+        try {
+          const values = await Promise.all(
+            message.args().map((arg) => arg.evaluate((value) => `${value}`))
+          );
+          return values.join(" ");
+        } catch {
+          return message.text();
+        }
+      };
+      logged.push(read());
     }
   });
   page.on("request", (request) => {
@@ -105,7 +108,7 @@ test.describe("RPC page", () => {
     // The demo API runs without latency in e2e; hold the request here instead.
     const held = Promise.withResolvers<undefined>();
     await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"createTodo"')) {
+      if ((route.request().postData() ?? "").includes('"tag":"createTodo"')) {
         await held.promise;
       }
       await route.continue();
@@ -156,7 +159,7 @@ test.describe("RPC page", () => {
     // Hold the list's refetch, so its waiting state stays on screen.
     const held = Promise.withResolvers<undefined>();
     await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"listTodos"')) {
+      if ((route.request().postData() ?? "").includes('"tag":"listTodos"')) {
         await held.promise;
       }
       await route.continue();

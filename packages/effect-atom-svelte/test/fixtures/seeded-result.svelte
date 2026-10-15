@@ -7,4 +7,8 @@
 </script>
 
 <button onclick={() => (filter.current = "b")}>b</button>
-<output>{list.current._tag === "Success" ? list.current.value : list.current._tag}</output>
+<output
+  >{list.current._tag === "Success"
+    ? list.current.value
+    : list.current._tag}</output
+>

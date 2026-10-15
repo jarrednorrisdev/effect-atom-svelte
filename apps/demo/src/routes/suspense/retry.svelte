@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
+
   import BoundaryFrame from "#lib/docs/kit/boundary-frame.svelte";
 
   import FailSwitch from "./fail-switch.svelte";
@@ -35,7 +36,7 @@
         <!-- While a reload is in flight, the old forecast stays on screen. -->
         {#if $effect.pending() > 0}
           <p
-            class="m-0 text-sm text-muted-foreground"
+            class="text-muted-foreground m-0 text-sm"
             data-testid="retry-updating"
             data-updating={$effect.pending()}
           >
@@ -51,7 +52,9 @@
       {#snippet failed(error, reset)}
         <div data-branch="failed">
           <!-- App.Error: SvelteKit's error type, what handleError returns. -->
-          <p class="m-0" data-testid="retry-failed">{(error as App.Error).message}</p>
+          <p class="m-0" data-testid="retry-failed">
+            {(error as App.Error).message}
+          </p>
           <button
             onclick={() => {
               refresh();

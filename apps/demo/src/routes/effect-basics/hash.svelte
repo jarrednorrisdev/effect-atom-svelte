@@ -31,6 +31,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import EffectType from "#lib/docs/kit/effect-type.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
@@ -57,7 +58,7 @@
       {name}
     </button>
   {/each}
-  <span class="text-xs text-muted-foreground">MD5 isn't in Web Crypto.</span>
+  <span class="text-muted-foreground text-xs">MD5 isn't in Web Crypto.</span>
 </div>
 <p class="mt-4 mb-3 flex flex-wrap items-center gap-3">
   <EffectType

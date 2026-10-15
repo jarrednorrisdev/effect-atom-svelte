@@ -4,12 +4,13 @@
   outside, every 100 ms, so it never holds the atom itself.
 -->
 <script lang="ts">
+  import { getRegistry } from "effect-atom-svelte";
+
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import Part from "#lib/docs/kit/part.svelte";
   import { play } from "#lib/docs/kit/sound.ts";
   import { exampleTouched, getExampleState } from "#lib/docs/kit/tone.ts";
-  import { getRegistry } from "effect-atom-svelte";
 
   import { messagesAtom } from "./chat.ts";
 
@@ -61,7 +62,7 @@
     label="messagesAtom"
     tone={inRegistry ? "success" : "idle"}
   >
-    <p class="m-0 text-xs text-muted-foreground">
+    <p class="text-muted-foreground m-0 text-xs">
       {inRegistry ? "In the registry, held by:" : "Not in the registry."}
     </p>
     {#if holders.length > 0}

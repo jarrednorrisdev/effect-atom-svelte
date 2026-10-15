@@ -6,7 +6,12 @@
   const repositoryUrl = "https://github.com/jarrednorrisdev/effect-atom-svelte";
 </script>
 
-<Button aria-label="GitHub repository" href={repositoryUrl} size="icon-sm" variant="ghost">
+<Button
+  aria-label="GitHub repository"
+  href={repositoryUrl}
+  size="icon-sm"
+  variant="ghost"
+>
   <!-- Lucide dropped brand icons, so this is GitHub's mark. -->
   <svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
     <path

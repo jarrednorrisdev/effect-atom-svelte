@@ -33,7 +33,11 @@
   const flash = onChange(
     () => where,
     (element) => {
-      animate(element, { "--flash": [1, 0] }, { duration: 1.2, ease: "easeOut" });
+      animate(
+        element,
+        { "--flash": [1, 0] },
+        { duration: 1.2, ease: "easeOut" }
+      );
       if (!reducedMotion()) {
         animate(element, { scale: [0.94, 1] }, springs.bouncy);
       }
@@ -41,7 +45,12 @@
   );
 </script>
 
-<output class={["origin not-prose", className]} data-where={where} {...rest} {@attach flash}>
+<output
+  class={["origin not-prose", className]}
+  data-where={where}
+  {...rest}
+  {@attach flash}
+>
   {#if where === "server"}
     <ServerIcon aria-hidden="true" class="icon" />
     Computed on the server
@@ -61,7 +70,11 @@
     --text: var(--tone-idle-text);
     align-items: center;
     /* --flash (0 to 1, animated) brightens the tint when the value changes. */
-    background: color-mix(in oklab, var(--mark) calc(10% + var(--flash) * 35%), var(--background));
+    background: color-mix(
+      in oklab,
+      var(--mark) calc(10% + var(--flash) * 35%),
+      var(--background)
+    );
     border: 1.5px solid color-mix(in oklab, var(--mark) 60%, transparent);
     border-radius: 999px;
     color: var(--text);

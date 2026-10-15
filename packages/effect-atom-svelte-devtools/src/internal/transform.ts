@@ -32,13 +32,51 @@ export const componentName = (file: string): string =>
 
 const parser = Parser.extend(tsPlugin());
 
-/** The few ESTree and TypeScript node shapes the transform looks at. */
+/**
+ * The few ESTree and TypeScript node shapes the transform looks at. Each field it reads is
+ * `unknown` and checked where it is read: `child`, `children` and `identifierName`.
+ */
 interface Node {
   readonly type: string;
   readonly start: number;
   readonly end: number;
-  readonly [key: string]: unknown;
+  readonly arguments?: unknown;
+  readonly body?: unknown;
+  readonly callee?: unknown;
+  readonly computed?: unknown;
+  readonly declaration?: unknown;
+  readonly declarations?: unknown;
+  readonly expression?: unknown;
+  readonly id?: unknown;
+  readonly init?: unknown;
+  readonly key?: unknown;
+  readonly name?: unknown;
+  readonly object?: unknown;
+  readonly properties?: unknown;
+  readonly property?: unknown;
+  readonly value?: unknown;
 }
+
+// The parser gives every node a type, a start and an end; a type is what tells one from data.
+const isNode = (value: unknown): value is Node =>
+  typeof value === "object" &&
+  value !== null &&
+  "type" in value &&
+  typeof value.type === "string";
+
+/** The node a field holds, if it holds one. */
+const child = (value: unknown): Node | undefined =>
+  isNode(value) ? value : undefined;
+
+/** The nodes a list field holds. */
+const children = (value: unknown): Node[] =>
+  Array.isArray(value) ? value.filter(isNode) : [];
+
+/** An identifier's name: `todosAtom`. */
+const identifierName = (node: Node | undefined): string | undefined =>
+  node?.type === "Identifier" && typeof node.name === "string"
+    ? node.name
+    : undefined;
 
 /** A call to wrap: the source range of the call, the name it is labelled with, and its place. */
 interface Site {
@@ -71,18 +109,32 @@ const wrappers = new Set([
   "ParenthesizedExpression",
 ]);
 
-const unwrap = (node: Node): Node =>
-  wrappers.has(node.type) ? unwrap(node.expression as Node) : node;
+const unwrap = (node: Node): Node => {
+  const inner = wrappers.has(node.type) ? child(node.expression) : undefined;
+  return inner === undefined ? node : unwrap(inner);
+};
+
+/** The node a field holds, with its type annotations looked through. */
+const unwrapped = (value: unknown): Node | undefined => {
+  const node = child(value);
+  return node === undefined ? undefined : unwrap(node);
+};
+
+/** The next node down a callee chain: a member's object, a call's callee, an annotation's expression. */
+const chainNext = (node: Node): Node | undefined => {
+  if (node.type === "MemberExpression") {
+    return child(node.object);
+  }
+  if (node.type === "CallExpression") {
+    return child(node.callee);
+  }
+  return wrappers.has(node.type) ? child(node.expression) : undefined;
+};
 
 /** The identifier a callee chain starts from: `Atom` in `Atom.make(...).pipe(...)`. */
 const chainStart = (node: Node): Node => {
-  if (node.type === "MemberExpression") {
-    return chainStart(node.object as Node);
-  }
-  if (node.type === "CallExpression") {
-    return chainStart(node.callee as Node);
-  }
-  return wrappers.has(node.type) ? chainStart(node.expression as Node) : node;
+  const next = chainNext(node);
+  return next === undefined ? node : chainStart(next);
 };
 
 /**
@@ -90,18 +142,12 @@ const chainStart = (node: Node): Node => {
  * they are, and hooks (`useAtomValue(...)`) never return an atom, so both are left be.
  */
 const call = (init: unknown): Node | undefined => {
-  if (init === null || init === undefined) {
+  const node = unwrapped(init);
+  if (node?.type !== "CallExpression") {
     return undefined;
   }
-  const node = unwrap(init as Node);
-  if (node.type !== "CallExpression") {
-    return undefined;
-  }
-  const start = chainStart(node.callee as Node);
-  if (
-    start.type === "Identifier" &&
-    /^(?:\$|use[A-Z])/u.test(String(start.name))
-  ) {
+  const start = identifierName(chainStart(node));
+  if (start !== undefined && /^(?:\$|use[A-Z])/u.test(start)) {
     return undefined;
   }
   return node;
@@ -109,10 +155,20 @@ const call = (init: unknown): Node | undefined => {
 
 /** Whether the call is `Atom.family(...)` (or a bare `family(...)`), whose members are labelled. */
 const isFamily = (node: Node): boolean => {
-  const callee = node.callee as Node;
+  const callee = child(node.callee);
   const property =
-    callee.type === "MemberExpression" ? (callee.property as Node) : callee;
-  return property.type === "Identifier" && property.name === "family";
+    callee?.type === "MemberExpression" ? child(callee.property) : callee;
+  return identifierName(property) === "family";
+};
+
+/** The method a member expression takes from `Atom`: `make` in `Atom.make`. */
+const atomMethod = (node: Node | undefined): string | undefined => {
+  if (node?.type !== "MemberExpression") {
+    return undefined;
+  }
+  return identifierName(child(node.object)) === "Atom"
+    ? identifierName(child(node.property))
+    : undefined;
 };
 
 // The arguments `Atom.make` takes as a plain value, rather than a function or an effect.
@@ -142,14 +198,9 @@ const stateKeeping = new Set([
 /** Whether `Atom.keepAlive`, `Atom.setIdleTTL(...)` or the like: one of `stateKeeping`. */
 const keepsState = (argument: Node): boolean => {
   const node = unwrap(argument);
-  const callee =
-    node.type === "CallExpression" ? unwrap(node.callee as Node) : node;
+  const callee = node.type === "CallExpression" ? unwrapped(node.callee) : node;
   return (
-    callee.type === "MemberExpression" &&
-    !callee.computed &&
-    (callee.object as Node).type === "Identifier" &&
-    (callee.object as Node).name === "Atom" &&
-    stateKeeping.has(String((callee.property as Node).name))
+    callee?.computed !== true && stateKeeping.has(atomMethod(callee) ?? "")
   );
 };
 
@@ -158,25 +209,22 @@ const keepsState = (argument: Node): boolean => {
  * that holds what is written to it, which a hot reload can carry over.
  */
 const isState = (node: Node): boolean => {
-  const callee = node.callee as Node;
-  if (callee.type !== "MemberExpression") {
+  const callee = child(node.callee);
+  if (callee?.type !== "MemberExpression") {
     return false;
   }
-  const object = callee.object as Node;
-  const property = callee.property as Node;
-  if (property.type === "Identifier" && property.name === "pipe") {
+  const args = children(node.arguments);
+  if (identifierName(child(callee.property)) === "pipe") {
+    const object = child(callee.object);
     return (
-      object.type === "CallExpression" &&
+      object?.type === "CallExpression" &&
       isState(object) &&
-      (node.arguments as Node[]).every(keepsState)
+      args.every(keepsState)
     );
   }
-  const [argument] = node.arguments as Node[];
+  const [argument] = args;
   return (
-    object.type === "Identifier" &&
-    object.name === "Atom" &&
-    property.type === "Identifier" &&
-    property.name === "make" &&
+    atomMethod(callee) === "make" &&
     argument !== undefined &&
     plainValues.has(unwrap(argument).type)
   );
@@ -184,26 +232,27 @@ const isState = (node: Node): boolean => {
 
 /** A property's name, when it is written out: `todosAtom` in `{ todosAtom: ... }`. */
 const propertyName = (property: Node): string | undefined => {
-  const key = property.key as Node;
-  if (property.computed) {
+  if (property.computed === true) {
     return undefined;
   }
-  if (key.type === "Identifier") {
-    return String(key.name);
+  const key = child(property.key);
+  if (key?.type === "Identifier") {
+    return identifierName(key);
   }
-  return key.type === "Literal" && typeof key.value === "string"
+  return key?.type === "Literal" && typeof key.value === "string"
     ? key.value
     : undefined;
 };
 
 /** Every node below `node`, depth first. */
 const descendants = (node: Node, found: Node[] = []): Node[] => {
-  for (const value of Object.values(node)) {
-    const children = Array.isArray(value) ? value : [value];
-    for (const child of children) {
-      if (typeof child === "object" && child !== null && "type" in child) {
-        found.push(child as Node);
-        descendants(child as Node, found);
+  const values: readonly unknown[] = Object.values(node);
+  for (const value of values) {
+    const below: readonly unknown[] = Array.isArray(value) ? value : [value];
+    for (const item of below) {
+      if (isNode(item)) {
+        found.push(item);
+        descendants(item, found);
       }
     }
   }
@@ -238,18 +287,19 @@ const sites = (
     });
   };
   const members = (object: Node, prefix: string) => {
-    for (const property of object.properties as Node[]) {
-      const key =
+    for (const property of children(object.properties)) {
+      const key = child(property.key);
+      const name =
         property.type === "Property" ? propertyName(property) : undefined;
-      if (key === undefined) {
+      const value = unwrapped(property.value);
+      if (key === undefined || name === undefined || value === undefined) {
         continue;
       }
-      const value = unwrap(property.value as Node);
       const node = call(value);
       if (node) {
-        add(node, `${prefix}.${key}`, (property.key as Node).start);
+        add(node, `${prefix}.${name}`, key.start);
       } else if (value.type === "ObjectExpression") {
-        members(value, `${prefix}.${key}`);
+        members(value, `${prefix}.${name}`);
       }
     }
   };
@@ -257,26 +307,27 @@ const sites = (
     if (declaration.type !== "VariableDeclaration") {
       return;
     }
-    for (const declarator of declaration.declarations as Node[]) {
+    for (const declarator of children(declaration.declarations)) {
       handled.add(declarator);
-      const id = declarator.id as Node;
-      if (id.type !== "Identifier" || !declarator.init) {
+      const id = child(declarator.id);
+      const name = identifierName(id);
+      const init = unwrapped(declarator.init);
+      if (id === undefined || name === undefined || init === undefined) {
         continue;
       }
-      const init = unwrap(declarator.init as Node);
       const node = call(init);
       if (node) {
-        add(node, String(id.name), id.start);
+        add(node, name, id.start);
       } else if (init.type === "ObjectExpression") {
-        members(init, String(id.name));
+        members(init, name);
       }
     }
   };
-  for (const statement of program.body as Node[]) {
+  for (const statement of children(program.body)) {
     if (statement.type === "ExportNamedDeclaration") {
-      const { declaration } = statement;
+      const declaration = child(statement.declaration);
       if (declaration) {
-        declare(declaration as Node);
+        declare(declaration);
       }
     } else if (statement.type === "ExportDefaultDeclaration") {
       const node = call(statement.declaration);
@@ -291,16 +342,16 @@ const sites = (
     if (node.type !== "VariableDeclarator" || handled.has(node)) {
       continue;
     }
-    const id = node.id as Node;
-    const init = node.init ? call(node.init) : undefined;
-    const start = init ? chainStart(init.callee as Node) : undefined;
+    const id = child(node.id);
+    const name = identifierName(id);
+    const init = call(node.init);
     if (
-      id.type === "Identifier" &&
-      init &&
-      start?.type === "Identifier" &&
-      start.name === "Atom"
+      id !== undefined &&
+      name !== undefined &&
+      init !== undefined &&
+      identifierName(chainStart(init)) === "Atom"
     ) {
-      add(init, String(id.name), id.start, false);
+      add(init, name, id.start, false);
     }
   }
   return found;
@@ -318,14 +369,14 @@ const factoryName = /^(?!use[A-Z]|is[A-Z])[\w$]+Atom$/u;
 const factoryCalls = (program: Node, base: number): FactoryCall[] =>
   descendants(program).flatMap((node) => {
     const callee =
-      node.type === "CallExpression" ? (node.callee as Node) : undefined;
-    return callee?.type === "Identifier" &&
-      factoryName.test(String(callee.name))
+      node.type === "CallExpression" ? child(node.callee) : undefined;
+    const name = identifierName(callee);
+    return callee !== undefined && name !== undefined && factoryName.test(name)
       ? [
           {
             calleeEnd: base + callee.end,
             calleeStart: base + callee.start,
-            name: String(callee.name),
+            name,
           },
         ]
       : [];
@@ -335,7 +386,7 @@ const parse = (code: string): Node =>
   parser.parse(code, {
     ecmaVersion: "latest",
     sourceType: "module",
-  }) as unknown as Node;
+  });
 
 // Svelte's own pattern for finding scripts to preprocess (svelte/src/compiler/preprocess).
 const scriptPattern =
@@ -402,14 +453,10 @@ const scripts = (source: string) => {
     .map((m) => [m.index, m.index + m[0].length] as const);
   for (const match of matches) {
     const { attributes, code } = match.groups ?? {};
-    if (attributes === undefined || code === undefined) {
-      continue;
-    }
-    if (
-      top
-        ? !top.has(match.index)
-        : heads.some(([from, to]) => match.index > from && match.index < to)
-    ) {
+    const nested = top
+      ? !top.has(match.index)
+      : heads.some(([from, to]) => match.index > from && match.index < to);
+    if (attributes === undefined || code === undefined || nested) {
       continue;
     }
     found.push({
@@ -472,12 +519,17 @@ const wrap = (
   where: (offset: number) => string
 ): void => {
   for (const site of found) {
-    const options = {
-      ...(site.family ? { family: true } : {}),
+    const options: { family?: true; keep?: string; local?: true } = {};
+    if (site.family) {
+      options.family = true;
+    }
+    if (site.keep) {
       // The declaration's source, hashed: an edit to it means the old value no longer applies.
-      ...(site.keep ? { keep: hash(code.slice(site.start, site.end)) } : {}),
-      ...(site.local ? { local: true } : {}),
-    };
+      options.keep = hash(code.slice(site.start, site.end));
+    }
+    if (site.local) {
+      options.local = true;
+    }
     const args = [
       JSON.stringify(site.name),
       JSON.stringify(where(site.at)),

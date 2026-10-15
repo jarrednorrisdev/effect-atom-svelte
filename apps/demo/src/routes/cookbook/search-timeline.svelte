@@ -43,7 +43,7 @@
   };
 
   // Runs a callback each time a value changes, but not for the value it starts with.
-  const onEachChange = <T,>(read: () => T, react: (value: T) => void) => {
+  const onEachChange = <T>(read: () => T, react: (value: T) => void) => {
     let first = true;
     $effect(() => {
       const value = read();
@@ -87,7 +87,8 @@
     (value) => {
       if (searching && !value.waiting && value._tag !== "Initial") {
         searching = false;
-        const found = value._tag === "Success" ? `${value.value.length} found` : "failed";
+        const found =
+          value._tag === "Success" ? `${value.value.length} found` : "failed";
         note(found, "search", value._tag === "Success" ? "success" : "failure");
       }
     }
@@ -96,8 +97,12 @@
 
 <div class="search-timeline">
   <p class="counts">
-    <span><FlashValue data-testid="search-keys" value={keys} /> key presses</span>
-    <span><FlashValue data-testid="search-runs" value={searches} /> searches</span>
+    <span
+      ><FlashValue data-testid="search-keys" value={keys} /> key presses</span
+    >
+    <span
+      ><FlashValue data-testid="search-runs" value={searches} /> searches</span
+    >
   </p>
   <Timeline
     data-testid="search-timeline"

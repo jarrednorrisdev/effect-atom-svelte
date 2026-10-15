@@ -13,7 +13,7 @@ const press = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;
 describe("shortcut", () => {
   test("reads a shortcut and writes it back", () => {
     const shortcut = parseShortcut("Alt+Shift+A");
-    expect(shortcut).toEqual({
+    expect(shortcut).toStrictEqual({
       alt: true,
       code: "KeyA",
       ctrl: false,

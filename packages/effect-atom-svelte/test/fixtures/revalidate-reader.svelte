@@ -16,5 +16,11 @@
   $effect.pre(() => record("suspense", suspended));
 </script>
 
-<output>{result.current._tag === "Success" ? result.current.value : result.current._tag}</output>
-<output>{suspended._tag === "Success" ? suspended.value : suspended._tag}</output>
+<output
+  >{result.current._tag === "Success"
+    ? result.current.value
+    : result.current._tag}</output
+>
+<output
+  >{suspended._tag === "Success" ? suspended.value : suspended._tag}</output
+>

@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import Part from "#lib/docs/kit/part.svelte";
 
@@ -41,6 +42,9 @@
       class="w-32"
       data-testid="name"
     />
-    <FlashValue data-testid="greeting" value="Hello, {name.current || 'nobody'}!" />
+    <FlashValue
+      data-testid="greeting"
+      value="Hello, {name.current || 'nobody'}!"
+    />
   </Part>
 </div>

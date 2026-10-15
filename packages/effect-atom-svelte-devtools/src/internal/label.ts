@@ -17,10 +17,6 @@ export const component = (name: string, file: string): void => {
   nameComponent(name, file);
 };
 
-interface Labelled {
-  label?: readonly [name: string, stack: string];
-}
-
 /**
  * Where a label of the plugin's came from: a top-level `declaration`, a `local` one inside a
  * function, a `family`'s member, or a `call` to an atom factory.
@@ -62,12 +58,10 @@ const setLabel = (
   if (!free && !(previous !== undefined && replaces[kind].includes(previous))) {
     return;
   }
-  try {
-    // The second element is a stack frame, as Effect's own labels hold.
-    (atom as Labelled).label = [text, `at ${text} (${at})`];
+  // The second element is a stack frame, as Effect's own labels hold. A frozen atom keeps the
+  // label it has.
+  if (Reflect.set(atom, "label", [text, `at ${text} (${at})`])) {
     kinds.set(atom, kind);
-  } catch {
-    // A frozen atom keeps the label it has.
   }
 };
 
@@ -126,9 +120,15 @@ export const keepAcrossReloads = (
     }
     const release = registry.mount(atom);
     registry.set(atom, node.value());
+    // oxlint-disable-next-line effecttsgo/global-timers -- runs in the app's page, outside any Effect program
     setTimeout(release, holdFor);
   }
 };
+
+// A function the plugin wrapped can take anything and return anything: `label` and `call` only
+// pass its arguments through and look at what it returns.
+const isFunction = (value: unknown): value is (...args: unknown[]) => unknown =>
+  typeof value === "function";
 
 /** What the plugin knows about a declaration besides its name and place. */
 interface LabelOptions {
@@ -152,7 +152,7 @@ export const label = <T>(
   options: LabelOptions = {}
 ): T => {
   if (Atom.isAtom(value)) {
-    setLabel(value, text, at, options.local ? "local" : "declaration");
+    setLabel(value, text, at, options.local === true ? "local" : "declaration");
     if (options.keep !== undefined) {
       keepAcrossReloads(
         value,
@@ -160,15 +160,18 @@ export const label = <T>(
         options.keep
       );
     }
-  } else if (options.family && typeof value === "function") {
-    const members = value as (arg: unknown) => unknown;
-    return ((arg: unknown) => {
-      const member = members(arg);
+  } else if (options.family === true && isFunction(value)) {
+    const labelled = (arg: unknown): unknown => {
+      const member = value(arg);
       if (Atom.isAtom(member)) {
         setLabel(member, `${text}(${formatArg(arg)})`, at, "family");
       }
       return member;
-    }) as T;
+    };
+    // SAFETY: `value` is an `Atom.family`, a function of one argument; `labelled` takes the same
+    // argument and returns the same member, so it stands in for it.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a wrapper can't be typed as the generic it wraps
+    return labelled as T;
   }
   return value;
 };
@@ -179,13 +182,12 @@ export const label = <T>(
  * two atoms made for equal keys get the same name; an atom returned again keeps the name it has.
  */
 export const call = <F>(f: F, name: string, at: string): F => {
-  if (typeof f !== "function") {
+  if (!isFunction(f)) {
     // Calling it fails as the code would have without the plugin.
     return f;
   }
-  const factory = f as (...args: unknown[]) => unknown;
-  return ((...args: unknown[]) => {
-    const result = factory(...args);
+  const labelled = (...args: unknown[]): unknown => {
+    const result = f(...args);
     if (Atom.isAtom(result)) {
       setLabel(
         result,
@@ -195,5 +197,8 @@ export const call = <F>(f: F, name: string, at: string): F => {
       );
     }
     return result;
-  }) as F;
+  };
+  // SAFETY: `f` is a function; `labelled` takes the same arguments and returns what `f` does.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a wrapper can't be typed as the generic it wraps
+  return labelled as F;
 };

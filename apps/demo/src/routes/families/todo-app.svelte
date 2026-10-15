@@ -31,7 +31,12 @@
   <Part code label="todo-list.svelte">
     <TodoList bind:selected {todos} />
     <form class="mt-3 flex" onsubmit={add}>
-      <input aria-label="New todo" bind:value={draft} class="min-w-0 flex-1" placeholder="New todo" />
+      <input
+        aria-label="New todo"
+        bind:value={draft}
+        class="min-w-0 flex-1"
+        placeholder="New todo"
+      />
       <button>Add</button>
     </form>
   </Part>

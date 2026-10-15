@@ -1,8 +1,9 @@
 <script module lang="ts">
   import { Context, Effect, Layer } from "effect";
   import { Atom } from "effect/reactivity";
-  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import { untrack } from "svelte";
+
+  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   // When the pool was built and released, for the log under the example.
   const log = new EventLogState();
@@ -24,10 +25,9 @@
     });
 
   // A service that is costly to build, such as a database connection pool.
-  class Pool extends Context.Service<
-    Pool,
-    { readonly id: number }
-  >()("demo/Pool") {}
+  class Pool extends Context.Service<Pool, { readonly id: number }>()(
+    "demo/Pool"
+  ) {}
 
   // The layer releases the pool when its scope closes.
   const PoolLayer = Layer.effect(
@@ -47,6 +47,7 @@
 <script lang="ts">
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+
   import Reader from "./pool-reader.svelte";
 
   // Whether each atom has a reader on the page.
@@ -79,7 +80,8 @@
   >
     <p class="m-0" data-testid="pool-status">
       {#if pools.open !== undefined}
-        Holds pool {pools.open}, shared by {inUse} {inUse === 1 ? "atom" : "atoms"}
+        Holds pool {pools.open}, shared by {inUse}
+        {inUse === 1 ? "atom" : "atoms"}
       {:else}
         No pool open
       {/if}

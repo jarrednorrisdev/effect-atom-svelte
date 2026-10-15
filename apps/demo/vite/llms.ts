@@ -43,12 +43,12 @@ const guideTable = [
   ...guide.map((row) => `| ${row.need} | **${row.tool}**: ${row.why} |`),
 ].join("\n");
 
-const asideLabels: Readonly<Record<string, string>> = {
-  caution: "Caution",
-  danger: "Danger",
-  note: "Note",
-  tip: "Tip",
-};
+const asideLabels = new Map([
+  ["caution", "Caution"],
+  ["danger", "Danger"],
+  ["note", "Note"],
+  ["tip", "Tip"],
+]);
 
 /**
  * A component's tag left in the prose, which the page would render but the text can't. Code
@@ -144,8 +144,8 @@ const readPage = async (
   };
 
   const aside = (type: string, asideTitle: string, content: string) => {
-    const label = asideLabels[type];
-    if (!label) {
+    const label = asideLabels.get(type);
+    if (label === undefined) {
       throw new Error(`${file}: an aside of unknown type ${type}`);
     }
     const heading = asideTitle ? `**${label}: ${asideTitle}**` : `**${label}**`;

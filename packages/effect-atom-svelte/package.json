@@ -45,7 +45,7 @@
   },
   "scripts": {
     "build": "svelte-package -i src -o dist",
-    "check": "svelte-check --tsconfig ./tsconfig.json && bun scripts/check-docs.ts",
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p scripts && bun scripts/check-docs.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -55,6 +55,7 @@
     "@demo/domain": "workspace:*",
     "@sveltejs/package": "^3.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/bun": "^1.4.2",
     "@vitest/browser": "^5.0.3",
     "@vitest/browser-playwright": "^5.0.3",
     "effect": "4.0.5",

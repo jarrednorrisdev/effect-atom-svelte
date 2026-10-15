@@ -72,7 +72,9 @@ The example under [Waiting for the result](#waiting-for-the-result) reads its **
   const saving = useAtomValue(saveAtom);
 </script>
 
-<button disabled={saving.current.waiting} onclick={() => save(todo)}>Save</button>
+<button disabled={saving.current.waiting} onclick={() => save(todo)}
+  >Save</button
+>
 ```
 
 `useAtomSet` [holds](/lifetimes#held-atoms) the mutation for as long as the component lives, so its result is still there when you read it.

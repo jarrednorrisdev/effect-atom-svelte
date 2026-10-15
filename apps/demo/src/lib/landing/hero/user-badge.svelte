@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Option } from "effect";
-  import { AsyncResult } from "effect/reactivity";
   import { useAtomResult } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
 
   import { userAtom } from "./user.ts";
 

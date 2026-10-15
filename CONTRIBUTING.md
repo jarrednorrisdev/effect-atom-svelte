@@ -23,7 +23,9 @@ bun run --cwd apps/demo-api dev     # in one shell
 bun run --cwd apps/demo dev         # in another
 ```
 
-`bun run check`, `bun run test` and `bun run lint` run across the workspace. Run all three before you commit.
+`bun run check`, `bun run test` and `bun run lint` run across the workspace. Run all three before you commit; `bun run fix` applies oxlint's fixes and oxfmt's formatting first.
+
+Lint is oxlint, type-aware, with Effect's language-service checks as `effecttsgo/*` rules (`oxlint.config.ts`, presets in `lint/`); warnings fail it. Lint reads the libraries' types from their build, so build them first (`bunx turbo run build --filter='./packages/*'`).
 
 ## Docs site
 
@@ -39,7 +41,7 @@ The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](
 
 Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy` passes it). The stack refuses any other profile, and Cloudflare variables in the environment, outside CI.
 
-Deploys from Windows fail: Alchemy's SvelteKit integration (2.0.0-beta.80) looks for the entry module as `server\index.js` while the modules are named with `/`, so it uploads a chunk as the main module and Cloudflare rejects the script ("no registered event handlers"). Deploy through CI, which runs on Linux.
+Deploys from Windows are untested (Alchemy's SvelteKit integration mishandled `\` paths before 2.0.0-beta.83); deploy through CI, which runs on Linux.
 
 The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the visitor's tab and in the build (`src/lib/in-tab-api.ts`), so every page except `/browser`, whose cookie example reads the request, is prerendered. `/browser` is rendered by the site's Worker. `bun run test` also runs `playwright.hosted.config.ts`, which builds the site that way and checks it with no demo API running.
 

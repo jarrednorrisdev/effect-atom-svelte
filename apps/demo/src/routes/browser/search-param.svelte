@@ -15,6 +15,10 @@
 
 <label>
   Filter
-  <input bind:value={filter.current} data-testid="filter" placeholder="Type a word" />
+  <input
+    bind:value={filter.current}
+    data-testid="filter"
+    placeholder="Type a word"
+  />
 </label>
 <UrlTimeline name="filter" value={filter.current} />

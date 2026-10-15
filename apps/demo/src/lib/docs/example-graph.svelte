@@ -12,21 +12,24 @@
 -->
 <script lang="ts">
   import { getRegistry } from "effect-atom-svelte";
+  import { AtomGraph, toneOf } from "effect-atom-svelte-devtools/graph";
+  import type { GraphInput } from "effect-atom-svelte-devtools/graph";
   import type {
     InspectorScope,
     ScopeEdge,
     ScopeNode,
     ScopeSnapshot,
   } from "effect-atom-svelte/inspector";
-  import { AtomGraph, toneOf } from "effect-atom-svelte-devtools/graph";
-  import type { GraphInput } from "effect-atom-svelte-devtools/graph";
   import { onMount, tick } from "svelte";
 
   /**
    * `expected`: whether the example's code uses atoms at all. If not, there's no strip, unless atoms
    * turn up in the scope anyway; if so, the strip keeps its place before they do.
    */
-  const { expected = true, scope }: { expected?: boolean; scope: InspectorScope } = $props();
+  const {
+    expected = true,
+    scope,
+  }: { expected?: boolean; scope: InspectorScope } = $props();
 
   const registry = getRegistry();
 
@@ -36,7 +39,9 @@
    * still holds, a keepAlive atom or one waiting out its idle TTL, and, briefly, ones it has just
    * removed. The scope only follows what the example's hooks use, so the graph keeps these itself.
    */
-  let lingering = $state.raw<readonly { node: ScopeNode; removed: boolean }[]>([]);
+  let lingering = $state.raw<readonly { node: ScopeNode; removed: boolean }[]>(
+    []
+  );
   let lingeringEdges = $state.raw<readonly ScopeEdge[]>([]);
   let graph = $state<AtomGraph>();
   // The server renders the strip empty; only once the scope is read does "nothing yet" mean it.
@@ -169,7 +174,9 @@
     if (node.atom.keepAlive) {
       return "no readers · kept alive";
     }
-    return node.atom.idleTTL === undefined ? "no readers" : "no readers · idle, removed soon";
+    return node.atom.idleTTL === undefined
+      ? "no readers"
+      : "no readers · idle, removed soon";
   };
 
   // The scope, and what lingers from it, as the shared graph takes it.
@@ -180,7 +187,11 @@
     const present = new Set(snapshot.nodes.map((node) => node.id));
     return {
       atoms: [
-        ...snapshot.nodes.map((node) => ({ id: node.id, label: node.label, note: noteOf(node) })),
+        ...snapshot.nodes.map((node) => ({
+          id: node.id,
+          label: node.label,
+          note: noteOf(node),
+        })),
         ...lingering
           .filter(({ node }) => !present.has(node.id))
           .map(({ node, removed }) => ({
@@ -195,7 +206,9 @@
         atom: reader.atom,
         instance: reader.instance,
         kind: reader.kind,
-        name: reader.file ? basename(reader.file) : (reader.component ?? "component"),
+        name: reader.file
+          ? basename(reader.file)
+          : (reader.component ?? "component"),
       })),
     };
   });

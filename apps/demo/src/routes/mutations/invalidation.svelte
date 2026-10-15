@@ -6,9 +6,10 @@
 -->
 <script lang="ts">
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
-  import type { AsyncResult } from "effect/reactivity";
   import { useAtomValue } from "effect-atom-svelte";
+  import type { AsyncResult } from "effect/reactivity";
   import { untrack } from "svelte";
+
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
   import Part from "#lib/docs/kit/part.svelte";
@@ -46,7 +47,9 @@
       } else if (creating.current._tag === "Success") {
         invalidations += 1;
         keyTone = "success";
-        log.add('createTodo succeeded: "todos" invalidated', { tone: "success" });
+        log.add('createTodo succeeded: "todos" invalidated', {
+          tone: "success",
+        });
       } else if (creating.current._tag === "Failure") {
         keyTone = "idle";
         log.add("createTodo failed: nothing invalidated", { tone: "failure" });
@@ -56,13 +59,18 @@
       if (todos.current.waiting) {
         log.add("listTodos runs again", { tone: "running" });
       } else if (todos.current._tag === "Success") {
-        log.add(`listTodos: ${todos.current.value.length} todos`, { tone: "success" });
+        log.add(`listTodos: ${todos.current.value.length} todos`, {
+          tone: "success",
+        });
       }
     }
   };
 
   $effect(() => {
-    const now = { create: describe(creating.current), list: describe(todos.current) };
+    const now = {
+      create: describe(creating.current),
+      list: describe(todos.current),
+    };
     const was = before;
     before = now;
     if (was) {
@@ -87,7 +95,7 @@
     </Part>
     <ArrowRightIcon
       aria-hidden="true"
-      class="rotate-90 self-center text-muted-foreground sm:rotate-0"
+      class="text-muted-foreground rotate-90 self-center sm:rotate-0"
     />
     <Part
       code
@@ -101,11 +109,11 @@
     </Part>
     <ArrowRightIcon
       aria-hidden="true"
-      class="rotate-90 self-center text-muted-foreground sm:rotate-0"
+      class="text-muted-foreground rotate-90 self-center sm:rotate-0"
     />
     <Part
       code
-      count={count}
+      {count}
       countLabel="todos"
       data-testid="part-list"
       label="todosAtom"

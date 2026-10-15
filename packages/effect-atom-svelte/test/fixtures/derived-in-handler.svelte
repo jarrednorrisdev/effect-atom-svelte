@@ -21,5 +21,7 @@
   let shown = $state("");
 </script>
 
-<button onclick={() => (shown = `${plainDerived} ${mappedDerived}`)}>read</button>
+<button onclick={() => (shown = `${plainDerived} ${mappedDerived}`)}
+  >read</button
+>
 <output>{shown}</output>

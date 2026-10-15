@@ -30,7 +30,14 @@
     readonly used?: number;
   }
 
-  const { capacity, items = [], label, tone = "success", used, ...rest }: Props = $props();
+  const {
+    capacity,
+    items = [],
+    label,
+    tone = "success",
+    used,
+    ...rest
+  }: Props = $props();
 
   const filled = $derived(Math.min(capacity, used ?? items.length));
 
@@ -49,7 +56,11 @@
             animate(slot, { scale: [0.6, 1] }, springs.bouncy);
           }
         } else if (!now.full && before.full) {
-          animate(slot, { "--evicted": [1, 0] }, { duration: 0.6, ease: "easeOut" });
+          animate(
+            slot,
+            { "--evicted": [1, 0] },
+            { duration: 0.6, ease: "easeOut" }
+          );
           if (!still) {
             animate(slot, { scale: [1.1, 1] }, springs.snappy);
           }

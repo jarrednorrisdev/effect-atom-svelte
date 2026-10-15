@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
+
   import BoundaryFrame from "#lib/docs/kit/boundary-frame.svelte";
 
   const forecast = useAtomSuspense(forecastAtom);

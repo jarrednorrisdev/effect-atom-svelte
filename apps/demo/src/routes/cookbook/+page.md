@@ -248,11 +248,10 @@ To send the visitor to a sign-in page whenever any request comes back `401 Unaut
 **Example** (Going to sign-in on a 401)
 
 ```ts
-import { Effect } from "effect";
-import { HttpClient } from "effect/http";
-
 import { browser } from "$app/env";
 import { goto } from "$app/navigation";
+import { Effect } from "effect";
+import { HttpClient } from "effect/http";
 
 const signInOn401 = HttpClient.tap((response) =>
   Effect.sync(() => {

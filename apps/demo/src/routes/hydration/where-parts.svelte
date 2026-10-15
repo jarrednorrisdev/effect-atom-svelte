@@ -7,6 +7,7 @@
   import ArrowIcon from "@lucide/svelte/icons/arrow-right";
   import MonitorIcon from "@lucide/svelte/icons/monitor";
   import ServerIcon from "@lucide/svelte/icons/server";
+
   import Part from "#lib/docs/kit/part.svelte";
   import type { Tone } from "#lib/docs/kit/tone.ts";
 
@@ -36,7 +37,9 @@
   >
     <p class="line">
       <ServerIcon aria-hidden="true" class="icon" />
-      <strong>{fromServer ? "Rendered on the server" : "Not this result"}</strong>
+      <strong
+        >{fromServer ? "Rendered on the server" : "Not this result"}</strong
+      >
     </p>
     <p class="note">
       {fromServer

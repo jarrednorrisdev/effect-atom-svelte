@@ -24,6 +24,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -35,7 +36,10 @@
 
 <p>
   <button onclick={roll}>Roll again</button>
-  <button aria-pressed={fail.current} onclick={() => (fail.current = !fail.current)}>
+  <button
+    aria-pressed={fail.current}
+    onclick={() => (fail.current = !fail.current)}
+  >
     Drop the die
   </button>
 </p>
@@ -54,7 +58,9 @@
       <span data-testid="die-failure">The die fell off the table.</span>
     </ResultChip>
   {:else}
-    <ResultChip kind="message" label="dieAtom" tone="running">Rolling…</ResultChip>
+    <ResultChip kind="message" label="dieAtom" tone="running"
+      >Rolling…</ResultChip
+    >
   {/if}
   <StateBadge data-testid="die-state" result={die.current} />
 </div>

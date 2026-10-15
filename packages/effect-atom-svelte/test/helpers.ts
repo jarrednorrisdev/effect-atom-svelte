@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import type { Duration } from "effect";
 import { Atom } from "effect/reactivity";
 import type { render } from "vitest-browser-svelte";
@@ -6,6 +6,11 @@ import type { render } from "vitest-browser-svelte";
 /** Trimmed text of a rendered component, as a function for expect.poll. */
 export const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
   screen.container.textContent?.trim();
+
+/** A typed failure with a message, for tests that show or match one. */
+export class TestError extends Schema.TaggedError<TestError>()("TestError", {
+  message: Schema.String,
+}) {}
 
 export const sleep = (duration: Duration.Input) =>
   Effect.runPromise(Effect.sleep(duration));

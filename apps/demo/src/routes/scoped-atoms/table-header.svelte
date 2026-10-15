@@ -50,7 +50,9 @@
       >
         <button class="sort" onclick={() => sortBy(column.key)}>
           {column.label}
-          {#if table.current.sort === column.key}{table.current.descending ? "↓" : "↑"}{/if}
+          {#if table.current.sort === column.key}{table.current.descending
+              ? "↓"
+              : "↑"}{/if}
         </button>
       </th>
     {/each}

@@ -2,13 +2,18 @@
   import { Data, Effect } from "effect";
   import { Atom } from "effect/reactivity";
 
-  class NotFound extends Data.TaggedError("NotFound")<{ readonly id: number }> {}
+  class NotFound extends Data.TaggedError("NotFound")<{
+    readonly id: number;
+  }> {}
   class Forbidden extends Data.TaggedError("Forbidden") {}
 
   type Outcome = "success" | "notFound" | "forbidden" | "defect" | "interrupt";
 
   // Stand-ins for a request, one for each way it can end.
-  const requests: Record<Outcome, Effect.Effect<string, NotFound | Forbidden>> = {
+  const requests: Record<
+    Outcome,
+    Effect.Effect<string, NotFound | Forbidden>
+  > = {
     defect: Effect.die(new Error("todos is undefined")),
     forbidden: Effect.fail(new Forbidden()),
     interrupt: Effect.interrupt,
@@ -30,8 +35,9 @@
 
 <script lang="ts">
   import { Match } from "effect";
-  import { AsyncResult } from "effect/reactivity";
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
