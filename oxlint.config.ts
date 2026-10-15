@@ -290,16 +290,19 @@ export default defineConfig({
     "effecttsgo/prefer-schema-type-property": "warn",
     "effecttsgo/process-env": "warn",
     "effecttsgo/process-env-in-effect": "warn",
-    // Our Schema classes are tagged errors, which their `_tag` already keeps
-    // apart, so a brand adds nothing.
+    // A brand keeps two Schema classes of the same shape apart. Errors are
+    // kept apart by their `_tag`, and the demo domain's two value classes
+    // have different shapes.
     "effecttsgo/schema-class-missing-brand": "off",
     "effecttsgo/schema-sync": "warn",
     "effecttsgo/service-not-as-class": "warn",
     // Services provide their layers once, when their own layer is built.
     "effecttsgo/strict-effect-provide": "warn",
     "effecttsgo/unsafe-effect-type-assertion": "error",
+    // Effect marks its platform, reactivity and HTTP modules unstable, and
+    // this library is built on them.
     "effecttsgo/unstable-api-usage": "off",
-    // Both misread Effect.forEach(items, f) as Array#forEach.
+    // Misreads Effect.forEach(items, f) as Array#forEach.
     "github/array-foreach": "off",
     // Fires on a preventDefault() that runs before the handler's first await.
     "github/async-preventdefault": "off",
@@ -308,17 +311,20 @@ export default defineConfig({
     "github/filenames-match-regex": "off",
     // Window size and scroll position have no observer to watch them.
     "github/prefer-observers": "off",
+    // Effect's data types are tagged unions with many members, such as the
+    // inspector's Event.
+    "sonarjs/max-union-size": "off",
     // Effect models absence as undefined (Option.getOrUndefined, optional
     // fields), not null.
-    // Effect's modules are tagged unions, read through namespace imports
-    // (import * as Option) and re-exported with export * as.
-    "sonarjs/max-union-size": "off",
     "sonarjs/no-undefined-assignment": "off",
+    // Effect's modules are read through namespace imports (import * as
+    // Option) and re-exported with export * as.
     "sonarjs/no-wildcard-import": "off",
     "typescript/switch-exhaustiveness-check": [
       "error",
       { requireDefaultForNonUnion: true },
     ],
+    // Misreads Effect.forEach(items, f) as Array#forEach with a thisArg.
     "unicorn/no-array-method-this-argument": "off",
     // Effect requires an explicit undefined for a void argument, such as an
     // RPC with no payload; the autofix deletes it and breaks the types.

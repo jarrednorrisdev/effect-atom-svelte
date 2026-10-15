@@ -21,7 +21,7 @@ Wait for its report. The step is done when you hold the report.
 - **nit**: make it, or rebut it in one line.
 - **decide**: leave the code as it is; these are for Jarred, in step 4.
 
-When you changed anything, run `bun run format`, `bun run lint` and `bun run check`, commit and push. CI runs the test suites on the PR; don't run them locally first. The step is done when every **fix** and **nit** is either fixed in a pushed commit or rebutted.
+When you changed anything, run `bun run fix`, `bun run lint` and `bun run check`, commit and push. CI runs the test suites on the PR; don't run them locally first. The step is done when every **fix** and **nit** is either fixed in a pushed commit or rebutted.
 
 ## 3. Update the review comment
 

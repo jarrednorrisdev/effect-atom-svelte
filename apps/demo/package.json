@@ -39,7 +39,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24",
-    "@vitest/browser-playwright": "^5.0.3",
+    "@vitest/browser-playwright": "^5.0.5",
     "alchemy": "2.0.0-beta.83",
     "bits-ui": "^2.18.0",
     "cn": "^0.3.0",

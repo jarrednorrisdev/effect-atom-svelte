@@ -36,7 +36,7 @@ One PR per area, so CI runs once per batch. For each PR:
 
 - Bring each red test into the existing test file for its area, named by the behaviour it checks, not as a repro or with a hunt prefix. Tests ship in the PR that fixes them.
 - Make the fix. Check every new test fails without it and passes with it (copy `src` aside, `git checkout -- src`, run, restore).
-- Run `cd packages/effect-atom-svelte && bunx vitest run --project "browser (chromium)" --project server`, the devtools package's `bunx vitest run`, root `bun run format`, `bun run lint` and `bun run check`. Firefox fails locally; leave it to CI. Build the library first (`bun run --cwd packages/effect-atom-svelte build`): the devtools tests and `test/devtools-panel.browser.test.ts` import its `dist`, and without it the browser run fails in confusing ways.
+- Run `cd packages/effect-atom-svelte && bunx vitest run --project "browser (chromium)" --project server`, the devtools package's `bunx vitest run`, root `bun run fix`, `bun run lint` and `bun run check`. Firefox fails locally; leave it to CI. Build the library first (`bun run --cwd packages/effect-atom-svelte build`): the devtools tests and `test/devtools-panel.browser.test.ts` import its `dist`, and without it the browser run fails in confusing ways.
 - Add a changeset (`bun run changeset`), user-facing. A PR that only adds tests to a package still needs one: `bunx changeset add --empty`.
 - Commit, then push only after reading the test totals. Gate the push on them; a `grep` that matched in a `&&` chain says nothing about whether tests passed.
 - `gh pr create --draft`, with the body written per the `pr` skill and the PR rules in `.claude/CLAUDE.md`. Then `link_pull_request` and `watch_pull_request`.
