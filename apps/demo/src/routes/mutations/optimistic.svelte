@@ -45,6 +45,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
@@ -99,7 +100,7 @@
               {todo.title}
             </label>
             {#if serverDone.get(todo.id) !== todo.done}
-              <span class="text-xs text-muted-foreground">provisional</span>
+              <span class="text-muted-foreground text-xs">provisional</span>
             {/if}
           </li>
         {/each}

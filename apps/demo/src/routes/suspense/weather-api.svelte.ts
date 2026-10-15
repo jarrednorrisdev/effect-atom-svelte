@@ -11,14 +11,16 @@ export class WeatherUnavailable extends Data.TaggedError("WeatherUnavailable")<{
   readonly message: string;
 }> {}
 
-const forecasts: Record<string, string> = {
-  Lima: "21 °C, misty",
-  Paris: "18 °C, cloudy",
-  Tokyo: "24 °C, sunny",
-};
+const forecasts = new Map([
+  ["Lima", "21 °C, misty"],
+  ["Paris", "18 °C, cloudy"],
+  ["Tokyo", "24 °C, sunny"],
+]);
 
 const load = (city: string) =>
-  Effect.sleep("1500 millis").pipe(Effect.as(forecasts[city] ?? "No forecast"));
+  Effect.sleep("1500 millis").pipe(
+    Effect.as(forecasts.get(city) ?? "No forecast")
+  );
 
 /** A city's forecast, logged under the getter example. */
 export const fetchForecast = (city: string) => traced(city, load(city));
@@ -33,8 +35,8 @@ export const setFailNext = (on: boolean) => {
 };
 
 /** A city's forecast, failing once after `setFailNext(true)`, as a flaky API would. */
-export const fetchFlakyForecast = (city: string) =>
-  Effect.gen(function* flakyLoad() {
+export const fetchFlakyForecast = Effect.fn("fetchFlakyForecast")(
+  function* flakyLoad(city: string) {
     yield* Effect.sleep("1500 millis");
     if (failNext) {
       failNext = false;
@@ -44,5 +46,6 @@ export const fetchFlakyForecast = (city: string) =>
         message: `No weather for ${city} right now`,
       });
     }
-    return forecasts[city] ?? "No forecast";
-  });
+    return forecasts.get(city) ?? "No forecast";
+  }
+);

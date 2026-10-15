@@ -1,38 +1,42 @@
 import { RegistryProvider } from "effect-atom-svelte";
 import { AtomRegistry } from "effect/reactivity";
-import { expect, onTestFinished, test } from "vitest";
+import { describe, expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import Counter from "./counter.svelte";
 import { countAtom } from "./counter.ts";
 
-test("a click writes to the registry", async () => {
-  const registry = AtomRegistry.make();
-  // Disposed even when an assertion fails.
-  onTestFinished(() => registry.dispose());
-  const screen = await render(
-    Counter,
-    {},
-    { wrapper: RegistryProvider, wrapperProps: { registry } }
-  );
+describe("counter.svelte", () => {
+  test("a click writes to the registry", async () => {
+    const registry = AtomRegistry.make();
+    // Disposed even when an assertion fails.
+    onTestFinished(() => {
+      registry.dispose();
+    });
+    const screen = await render(
+      Counter,
+      {},
+      { wrapper: RegistryProvider, wrapperProps: { registry } }
+    );
 
-  await screen.getByRole("button").click();
-  expect(registry.get(countAtom)).toBe(1);
+    await screen.getByRole("button").click();
+    expect(registry.get(countAtom)).toBe(1);
 
-  // Writes from the test reach the component too.
-  registry.set(countAtom, 5);
-  await expect.element(screen.getByText("Doubled: 10")).toBeVisible();
-});
+    // Writes from the test reach the component too.
+    registry.set(countAtom, 5);
+    await expect.element(screen.getByText("Doubled: 10")).toBeVisible();
+  });
 
-test("initialValues start the component in a given state", async () => {
-  const screen = await render(
-    Counter,
-    {},
-    {
-      wrapper: RegistryProvider,
-      wrapperProps: { initialValues: [[countAtom, 20]] },
-    }
-  );
+  test("initialValues start the component in a given state", async () => {
+    const screen = await render(
+      Counter,
+      {},
+      {
+        wrapper: RegistryProvider,
+        wrapperProps: { initialValues: [[countAtom, 20]] },
+      }
+    );
 
-  await expect.element(screen.getByText("Doubled: 40")).toBeVisible();
+    await expect.element(screen.getByText("Doubled: 40")).toBeVisible();
+  });
 });

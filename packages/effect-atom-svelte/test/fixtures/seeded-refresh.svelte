@@ -7,4 +7,8 @@
 </script>
 
 <button onclick={refresh}>refresh</button>
-<output>{list.current._tag === "Success" ? list.current.value : list.current._tag}</output>
+<output
+  >{list.current._tag === "Success"
+    ? list.current.value
+    : list.current._tag}</output
+>

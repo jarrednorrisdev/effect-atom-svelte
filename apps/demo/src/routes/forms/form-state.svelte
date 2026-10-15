@@ -7,6 +7,7 @@
 <script lang="ts">
   import { Option } from "effect";
   import type { AsyncResult } from "effect/reactivity";
+
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
   interface Props {
@@ -29,10 +30,13 @@
     <dd class={dirty ? "bad" : "ok"} data-testid="state-dirty">{dirty}</dd>
     <dt><code>form.lastSubmitted</code></dt>
     <dd data-testid="state-last">
-      {Option.match(lastSubmitted, { onNone: () => "none", onSome: (last) => show(last.encoded) })}
+      {Option.match(lastSubmitted, {
+        onNone: () => "none",
+        onSome: (last) => show(last.encoded),
+      })}
     </dd>
     <dt><code>form.submitResult</code></dt>
-    <dd><StateBadge data-testid="state-result" result={result} /></dd>
+    <dd><StateBadge data-testid="state-result" {result} /></dd>
   </dl>
 </section>
 

@@ -13,6 +13,7 @@
 <script lang="ts">
   import { Exit } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
@@ -36,7 +37,10 @@
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     // Invalidating "todos" makes todosAtom fetch the list again.
-    const exit = await create({ payload: { title: draft }, reactivityKeys: ["todos"] });
+    const exit = await create({
+      payload: { title: draft },
+      reactivityKeys: ["todos"],
+    });
     if (Exit.isSuccess(exit)) {
       draft = "";
     }
@@ -44,8 +48,17 @@
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2">
-  <Part code count={requests.current} countLabel="requests" label="query listTodos">
-    <StateBadge data-testid="rpc-todos-state" result={todos.current} sound={false} />
+  <Part
+    code
+    count={requests.current}
+    countLabel="requests"
+    label="query listTodos"
+  >
+    <StateBadge
+      data-testid="rpc-todos-state"
+      result={todos.current}
+      sound={false}
+    />
     {#if todos.current._tag === "Success"}
       <ul
         aria-busy={todos.current.waiting}
@@ -61,7 +74,10 @@
                 checked={todo.done}
                 onclick={(event) => {
                   event.preventDefault();
-                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] });
+                  toggle({
+                    payload: { id: todo.id },
+                    reactivityKeys: ["todos"],
+                  });
                 }}
                 type="checkbox"
               />
@@ -83,7 +99,9 @@
         data-testid="rpc-draft"
         placeholder="New todo"
       />
-      <button data-testid="rpc-add" disabled={creating.current.waiting}>Add</button>
+      <button data-testid="rpc-add" disabled={creating.current.waiting}
+        >Add</button
+      >
     </form>
     <p class="flex flex-wrap items-center gap-2">
       <button onclick={() => (draft = "x".repeat(70))} type="button">

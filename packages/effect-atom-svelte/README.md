@@ -64,7 +64,9 @@ On the server, the provider creates a registry for each request, so visitors nev
   const greeting = useAtomSuspense(greetingAtom);
 </script>
 
-<button onclick={() => (count.current += 1)}>{count.current} × 2 = {doubled.current}</button>
+<button onclick={() => (count.current += 1)}
+  >{count.current} × 2 = {doubled.current}</button
+>
 
 <svelte:boundary>
   <p>{await greeting.current}</p>

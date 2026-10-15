@@ -10,8 +10,8 @@ import { Schema } from "effect";
 import { KeyValueStore } from "effect/persistence";
 import { Atom } from "effect/reactivity";
 
-export const themeChoices = ["dark", "light", "system"] as const;
-export type ThemeChoice = (typeof themeChoices)[number];
+export const ThemeChoice = Schema.Literals(["dark", "light", "system"]);
+export type ThemeChoice = typeof ThemeChoice.Type;
 export type Theme = "dark" | "light";
 
 // localStorage only exists in the browser; the server renders the default.
@@ -26,7 +26,7 @@ export const themeChoiceAtom = Atom.kvs({
   defaultValue: (): ThemeChoice => "dark",
   key: "theme",
   runtime: storage,
-  schema: Schema.Literals(themeChoices),
+  schema: ThemeChoice,
 });
 
 /** Whether the system prefers dark, following changes while something reads it. */
@@ -35,9 +35,13 @@ const systemDarkAtom = Atom.make((get) => {
     return true;
   }
   const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const onChange = () => get.setSelf(query.matches);
+  const onChange = () => {
+    get.setSelf(query.matches);
+  };
   query.addEventListener("change", onChange);
-  get.addFinalizer(() => query.removeEventListener("change", onChange));
+  get.addFinalizer(() => {
+    query.removeEventListener("change", onChange);
+  });
   return query.matches;
 });
 

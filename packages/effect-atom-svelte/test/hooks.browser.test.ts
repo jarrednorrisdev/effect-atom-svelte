@@ -1,4 +1,4 @@
-import { Cause, Deferred, Effect, Exit, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Stream } from "effect";
 import { AsyncResult, Atom, AtomRef, AtomRegistry } from "effect/reactivity";
 import { onDestroy, onMount } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
@@ -29,7 +29,7 @@ import Run from "./fixtures/run.svelte";
 import SubscribeIntoState from "./fixtures/subscribe-into-state.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
-import { sleep, text } from "./helpers.ts";
+import { TestError, sleep, text } from "./helpers.ts";
 
 const output = (screen: Awaited<ReturnType<typeof render>>) =>
   screen.locator.getByRole("status");
@@ -38,7 +38,7 @@ const output = (screen: Awaited<ReturnType<typeof render>>) =>
 const show = (result: AsyncResult.AsyncResult<string, unknown>) =>
   AsyncResult.isSuccess(result) ? result.value : result._tag;
 
-describe("useAtomValue", () => {
+describe(useAtomValue, () => {
   test("reads a simple atom", async () => {
     const atom = Atom.make(1);
     const screen = await render(Harness, {
@@ -192,7 +192,7 @@ describe("useAtomValue", () => {
     await expect.element(output(screen)).toHaveTextContent("2");
     await expect
       .poll(() => log)
-      .toEqual(["start first", "start second", "stop first"]);
+      .toStrictEqual(["start first", "start second", "stop first"]);
   });
 
   test("does not throw state_unsafe_mutation when many readers compute the same atom", async () => {
@@ -229,7 +229,7 @@ describe("useAtomValue", () => {
   });
 });
 
-describe("useAtom", () => {
+describe(useAtom, () => {
   test("writes through .current", async () => {
     const atom = Atom.make(0);
     let state!: { current: number };
@@ -247,7 +247,25 @@ describe("useAtom", () => {
 /** A function for an atom to hold as its value. */
 const storedHandler = () => "b";
 
-describe("useAtomSet", () => {
+/** In promise mode, an interrupted call rejects with the same error an abort during the wait gives. */
+const expectRejectedAsInterrupted = async (settled: Promise<unknown>) => {
+  await expect(settled).rejects.toThrow("All fibers interrupted without error");
+};
+
+/** In promiseExit mode, an interrupted call resolves with a failure of interrupts only. */
+const expectExitInterrupted = async (settled: Promise<unknown>) => {
+  const exit = (await settled) as Exit.Exit<unknown>;
+  expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+    true
+  );
+};
+
+const interruptedIn = [
+  { expectInterrupted: expectRejectedAsInterrupted, mode: "promise" },
+  { expectInterrupted: expectExitInterrupted, mode: "promiseExit" },
+] as const;
+
+describe(useAtomSet, () => {
   test("sets a value or applies an updater", async () => {
     const atom = Atom.make(1);
     let set!: (value: number | ((current: number) => number)) => void;
@@ -266,7 +284,9 @@ describe("useAtomSet", () => {
 
   test("promise mode resolves with the result and rejects with the error", async () => {
     const double = Atom.fn((n: number) =>
-      n < 0 ? Effect.fail(new Error("negative")) : Effect.succeed(n * 2)
+      n < 0
+        ? Effect.fail(new TestError({ message: "negative" }))
+        : Effect.succeed(n * 2)
     );
     let run!: (n: number) => Promise<number>;
     await render(Harness, {
@@ -335,15 +355,15 @@ describe("useAtomSet", () => {
       Exit.isFailure(settled) && Cause.hasInterruptsOnly(settled.cause)
     ).toBe(true);
     // The component still holds the fn, which finishes once let through.
-    Deferred.doneUnsafe(gate, Effect.succeed(undefined));
+    Deferred.doneUnsafe(gate, Effect.undefined);
     await expect
       .poll(() => registry.get(save))
       .toMatchObject({ _tag: "Success", value: "draft" });
   });
 
-  describe.each(["promise", "promiseExit"] as const)(
-    "an already aborted signal in %s mode",
-    (mode) => {
+  describe.each(interruptedIn)(
+    "an already aborted signal in $mode mode",
+    ({ expectInterrupted, mode }) => {
       // An earlier call's settled result must not stand in for the aborted call's.
       test.each([
         { prior: false, state: "Initial" },
@@ -378,18 +398,7 @@ describe("useAtomSet", () => {
           }
           const controller = new AbortController();
           controller.abort();
-          const settled = run(2, { signal: controller.signal });
-          if (mode === "promiseExit") {
-            const exit = (await settled) as Exit.Exit<number>;
-            expect(
-              Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
-            ).toBe(true);
-          } else {
-            // The same rejection an abort during the wait gives.
-            await expect(settled).rejects.toThrow(
-              "All fibers interrupted without error"
-            );
-          }
+          await expectInterrupted(run(2, { signal: controller.signal }));
           expect(calls).toBe(prior ? 1 : 0);
           expect(registry.get(save)).toMatchObject(
             prior ? { _tag: state, value: 1 } : { _tag: state }
@@ -537,7 +546,15 @@ describe("useAtomSet", () => {
       () => AsyncResult.initial() as AsyncResult.AsyncResult<string>,
       (ctx, job: string) => {
         ctx.setSelf(AsyncResult.initial());
-        setTimeout(() => ctx.setSelf(AsyncResult.success(`done ${job}`)), 20);
+        Effect.runFork(
+          Effect.sleep("20 millis").pipe(
+            Effect.andThen(
+              Effect.sync(() => {
+                ctx.setSelf(AsyncResult.success(`done ${job}`));
+              })
+            )
+          )
+        );
       }
     );
     let run!: (job: string) => Promise<string>;
@@ -556,7 +573,9 @@ describe("useAtomSet", () => {
     // Atom.make would take a function as the atom's read, not its value.
     const handler = Atom.writable(
       (): (() => string) => () => "a",
-      (ctx, value: () => string) => ctx.setSelf(value)
+      (ctx, value: () => string) => {
+        ctx.setSelf(value);
+      }
     );
     let set!: (
       value: (() => string) | ((current: () => string) => () => string)
@@ -601,9 +620,9 @@ describe("mounting and lifecycle", () => {
       },
       show: true,
     });
-    await expect.poll(() => log).toEqual(["start"]);
+    await expect.poll(() => log).toStrictEqual(["start"]);
     await screen.rerender({ show: false });
-    await expect.poll(() => log).toEqual(["start", "stop"]);
+    await expect.poll(() => log).toStrictEqual(["start", "stop"]);
   });
 
   test("a stream atom is disposed when its reader unmounts", async () => {
@@ -629,7 +648,7 @@ describe("mounting and lifecycle", () => {
     });
     await expect.element(output(screen)).toHaveTextContent("Success");
     await screen.rerender({ show: false });
-    await expect.poll(() => log).toEqual(["start", "stop"]);
+    await expect.poll(() => log).toStrictEqual(["start", "stop"]);
   });
 
   test("useAtomRefresh recomputes the atom", async () => {
@@ -666,11 +685,11 @@ describe("mounting and lifecycle", () => {
         return () => choice.current.tag;
       },
     });
-    await expect.poll(() => seen).toEqual([0]);
+    await expect.poll(() => seen).toStrictEqual([0]);
     // Same id, so the getter returns the same atom.
     registry.set(pick, { id: 1, tag: "y" });
     await sleep("30 millis");
-    expect(seen).toEqual([0]);
+    expect(seen).toStrictEqual([0]);
   });
 
   test("useAtomSubscribe with a getter that returns the same atom again keeps a change waiting for its microtask", async () => {
@@ -700,7 +719,7 @@ describe("mounting and lifecycle", () => {
     });
     act();
     await sleep("30 millis");
-    expect(seen).toEqual([1]);
+    expect(seen).toStrictEqual([1]);
   });
 
   test("useAtomSubscribe sees every change, and the current value when immediate", async () => {
@@ -716,10 +735,11 @@ describe("mounting and lifecycle", () => {
         return () => "";
       },
     });
-    await expect.poll(() => seen).toEqual([1]);
-    registry.set(atom, 2);
-    registry.set(atom, 3);
-    await expect.poll(() => seen).toEqual([1, 2, 3]);
+    await expect.poll(() => seen).toStrictEqual([1]);
+    for (const value of [2, 3]) {
+      registry.set(atom, value);
+    }
+    await expect.poll(() => seen).toStrictEqual([1, 2, 3]);
   });
 
   test("useAtomSubscribe's immediate call does not track what the callback reads (JND-57)", async () => {
@@ -741,12 +761,12 @@ describe("mounting and lifecycle", () => {
         return () => label.current;
       },
     });
-    await expect.poll(() => seen).toEqual(["1x"]);
+    await expect.poll(() => seen).toStrictEqual(["1x"]);
     registry.set(other, "y");
     await sleep("50 millis");
-    expect(seen).toEqual(["1x"]);
+    expect(seen).toStrictEqual(["1x"]);
     registry.set(atom, 2);
-    await expect.poll(() => seen).toEqual(["1x", "2y"]);
+    await expect.poll(() => seen).toStrictEqual(["1x", "2y"]);
   });
 
   test("useAtomSubscribe computes a derived atom nothing else reads, and hears its changes", async () => {
@@ -761,9 +781,10 @@ describe("mounting and lifecycle", () => {
         return () => "";
       },
     });
-    registry.set(base, 2);
-    registry.set(base, 3);
-    await expect.poll(() => seen).toEqual([4, 6]);
+    for (const value of [2, 3]) {
+      registry.set(base, value);
+    }
+    await expect.poll(() => seen).toStrictEqual([4, 6]);
   });
 
   test("useAtomSubscribe runs an effect atom nothing else reads", async () => {
@@ -779,7 +800,7 @@ describe("mounting and lifecycle", () => {
         return () => "";
       },
     });
-    await expect.poll(() => seen).toEqual(["Success"]);
+    await expect.poll(() => seen).toStrictEqual(["Success"]);
   });
 
   test("useAtomSubscribe's callback can write $state when a read elsewhere changes the atom", async () => {
@@ -826,7 +847,7 @@ describe("mounting and lifecycle", () => {
     });
     readThenWrite?.();
     await sleep("20 millis");
-    expect(seen).toEqual([1, 2]);
+    expect(seen).toStrictEqual([1, 2]);
   });
 
   // "Still queued only if `f` threw: the rest goes out on the next microtask."
@@ -838,7 +859,9 @@ describe("mounting and lifecycle", () => {
       errors.push(event.error);
     };
     window.addEventListener("error", onError);
-    onTestFinished(() => window.removeEventListener("error", onError));
+    onTestFinished(() => {
+      window.removeEventListener("error", onError);
+    });
     const registry = AtomRegistry.make();
     const watched = Atom.make(0);
     const read = Atom.make((get) => {
@@ -860,16 +883,17 @@ describe("mounting and lifecycle", () => {
         // The read's change is deferred, and the writes after it queue behind it.
         readThenWrite = () => {
           void value.current;
-          registry.set(watched, 2);
-          registry.set(watched, 3);
+          for (const n of [2, 3]) {
+            registry.set(watched, n);
+          }
         };
         return () => "";
       },
     });
     readThenWrite?.();
     await sleep("20 millis");
-    expect(seen).toEqual([1, 2, 3]);
-    expect(errors).toEqual([new Error("callback failed")]);
+    expect(seen).toStrictEqual([1, 2, 3]);
+    expect(errors).toStrictEqual([new Error("callback failed")]);
   });
 
   test("useAtomSubscribe drops a deferred change once the component is destroyed", async () => {
@@ -893,9 +917,9 @@ describe("mounting and lifecycle", () => {
       },
     });
     readIt?.();
-    screen.unmount();
+    await screen.unmount();
     await sleep("20 millis");
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   test("useAtomInitialValues applies once per registry", async () => {
@@ -983,11 +1007,11 @@ describe("mounting and lifecycle", () => {
       show: true,
     });
     await sleep("50 millis");
-    expect(log).toEqual([]);
+    expect(log).toStrictEqual([]);
     expect(registry.getNodes().has(atom)).toBe(true);
     await screen.rerender({ show: false });
     await expect.poll(() => registry.getNodes().has(atom)).toBe(false);
-    expect(log).toEqual([]);
+    expect(log).toStrictEqual([]);
   });
 
   test("useAtomInitialValues applies again to a remounted component once its atom was disposed", async () => {
@@ -1033,7 +1057,7 @@ describe("mutations and unmounting", () => {
     await screen.rerender({ show: false });
     // The promise holds its own subscription, so leaving the page does not cancel the write.
     await expect(saved).resolves.toBe("draft");
-    expect(log).toEqual(["saved draft"]);
+    expect(log).toStrictEqual(["saved draft"]);
   });
 
   test("a settled call stops holding its atom once its component is gone", async () => {
@@ -1054,7 +1078,7 @@ describe("mutations and unmounting", () => {
     });
     await expect(run("draft")).resolves.toBe("draft");
     await screen.rerender({ show: false });
-    await expect.poll(() => log).toEqual(["released"]);
+    await expect.poll(() => log).toStrictEqual(["released"]);
   });
 
   test("a call whose wait is aborted stops holding its atom, so leaving the page interrupts it", async () => {
@@ -1085,12 +1109,13 @@ describe("mutations and unmounting", () => {
     controller.abort();
     await saved;
     await screen.rerender({ show: false });
-    await expect.poll(() => log).toEqual(["interrupted"]);
+    await expect.poll(() => log).toStrictEqual(["interrupted"]);
   });
 
-  test.each(["promise", "promiseExit"] as const)(
-    "a %s call in flight settles as interrupted when the provider's own registry is disposed of",
-    async (mode) => {
+  test.each(interruptedIn)(
+    "a $mode call in flight settles as interrupted when the provider's own registry is disposed of",
+    async ({ expectInterrupted, mode }) => {
+      expect.assertions(1);
       const save = Atom.fn((value: string) =>
         Effect.succeed(value).pipe(Effect.delay("200 millis"))
       );
@@ -1108,25 +1133,9 @@ describe("mutations and unmounting", () => {
         show: true,
       });
       // Handled from the start: the promise can reject while the provider unmounts.
-      const saved = Promise.allSettled([run("draft")]);
+      const interrupted = expectInterrupted(run("draft"));
       await screen.rerender({ show: false });
-      const [outcome] = await saved;
-      if (mode === "promiseExit") {
-        const exit =
-          outcome?.status === "fulfilled"
-            ? (outcome.value as Exit.Exit<string>)
-            : undefined;
-        expect(
-          exit !== undefined &&
-            Exit.isFailure(exit) &&
-            Cause.hasInterruptsOnly(exit.cause)
-        ).toBe(true);
-      } else {
-        expect(outcome?.status).toBe("rejected");
-        expect(
-          String(outcome?.status === "rejected" ? outcome.reason : "")
-        ).toContain("All fibers interrupted without error");
-      }
+      await interrupted;
     }
   );
 });
@@ -1148,6 +1157,7 @@ describe("registries", () => {
   });
 });
 
+// oxlint-disable-next-line vitest/prefer-describe-function-title -- a namespace, not a function
 describe("AtomRef", () => {
   test("useAtomRef updates when the ref changes", async () => {
     const ref = AtomRef.make({ count: 0, name: "a" });
@@ -1230,7 +1240,7 @@ describe("AtomRef", () => {
     if (cell) {
       cell.current = "b2";
     }
-    expect([first.value, second.value]).toEqual(["a2", "b2"]);
+    expect([first.value, second.value]).toStrictEqual(["a2", "b2"]);
   });
 
   test("assigning useAtomRefPropValue's current sets the property", async () => {
@@ -1245,7 +1255,7 @@ describe("AtomRef", () => {
     if (done) {
       done.current = true;
     }
-    expect(ref.value).toEqual({ done: true, title: "a" });
+    expect(ref.value).toStrictEqual({ done: true, title: "a" });
     await expect.element(output(screen)).toHaveTextContent("true");
   });
 
@@ -1254,7 +1264,7 @@ describe("AtomRef", () => {
     let cell: { current: number } | undefined;
     await render(Harness, {
       setup: () => {
-        cell = useAtomRef(ref.map((n) => n * 2)) as { current: number };
+        cell = useAtomRef(ref.map((n) => n * 2));
         return () => cell?.current;
       },
     });
@@ -1320,13 +1330,13 @@ describe("getter switches (JND-60)", () => {
       await expect.element(output(screen)).toHaveTextContent("b");
       await sleep("50 millis");
       // Renders with the switch rolled back read "a" again, which must not compute it again.
-      expect(log.filter((entry) => entry.startsWith("start"))).toEqual([
+      expect(log.filter((entry) => entry.startsWith("start"))).toStrictEqual([
         "start a",
         "start b",
       ]);
       await screen.rerender({ show: false });
       await expect.poll(() => registry.getNodes().size).toBe(0);
-      expect(new Set(log)).toEqual(
+      expect(new Set(log)).toStrictEqual(
         new Set(["start a", "start b", "stop a", "stop b"])
       );
     }
@@ -1350,17 +1360,19 @@ describe("getter switches (JND-60)", () => {
         const value = useAtomValue(getAtom);
         useAtomMount(getAtom);
         useAtomRefresh(getAtom);
-        useAtomSubscribe(getAtom, () => undefined);
+        useAtomSubscribe(getAtom, () => {});
         return () => value.current;
       },
     });
-    await expect.poll(() => log).toEqual(["start a"]);
+    await expect.poll(() => log).toStrictEqual(["start a"]);
     pick.set("name", "b");
-    await expect.poll(() => log).toEqual(["start a", "start b", "stop a"]);
+    await expect
+      .poll(() => log)
+      .toStrictEqual(["start a", "start b", "stop a"]);
     pick.set("name", "a");
     await expect
       .poll(() => log)
-      .toEqual(["start a", "start b", "stop a", "start a", "stop b"]);
+      .toStrictEqual(["start a", "start b", "stop a", "start a", "stop b"]);
   });
 
   test("useAtomRefPropValue follows a getter to a different ref", async () => {
@@ -1450,7 +1462,9 @@ describe("a reader's own first build after mount", () => {
     await expect.element(output(screen)).toHaveTextContent("1");
     flag.ok = false;
     flag.n = 2;
-    expect(() => registry.refresh(atom)).toThrow("broken");
+    expect(() => {
+      registry.refresh(atom);
+    }).toThrow("broken");
     flag.ok = true;
     // An imperative read, as from an event handler, rebuilds the stale node and announces it.
     expect(cell?.current).toBe(2);
@@ -1484,7 +1498,7 @@ describe("a reader's own first build after mount", () => {
     registry.set(pick, "b");
     await expect.element(output(screen)).toHaveTextContent("b");
     await sleep("50 millis");
-    expect(calls).toEqual(["a", "b"]);
+    expect(calls).toStrictEqual(["a", "b"]);
     expect(new Set(boxes).size).toBe(2);
   });
 
@@ -1500,7 +1514,7 @@ describe("a reader's own first build after mount", () => {
     });
     await expect.poll(() => seen.length).toBeGreaterThan(0);
     await sleep("50 millis");
-    expect(calls).toEqual([1]);
+    expect(calls).toStrictEqual([1]);
     expect(seen).toHaveLength(1);
   });
 
@@ -1510,7 +1524,7 @@ describe("a reader's own first build after mount", () => {
     await render(EffectValueReader, { atom: Atom.make(1), registry, seen });
     await expect.poll(() => seen.length).toBeGreaterThan(0);
     await sleep("50 millis");
-    expect(seen).toEqual([1]);
+    expect(seen).toStrictEqual([1]);
   });
 
   describe.each([false, true])("a getter switch, async: %s", (async) => {
@@ -1534,6 +1548,7 @@ describe("a reader's own first build after mount", () => {
       });
       return { pick, registry, screen };
     };
+
     test("a stream's sync emissions in the first build, then an async one, all arrive", async () => {
       const family = Atom.family((name: string) =>
         Atom.make(
@@ -1593,8 +1608,18 @@ describe("a reader's own first build after mount", () => {
       const family = Atom.family((name: string) =>
         Atom.make((get) => {
           get.setSelf(`${name}-sync`);
-          const timer = setTimeout(() => get.setSelf(`${name}-late`), 20);
-          get.addFinalizer(() => clearTimeout(timer));
+          const late = Effect.runFork(
+            Effect.sleep("20 millis").pipe(
+              Effect.andThen(
+                Effect.sync(() => {
+                  get.setSelf(`${name}-late`);
+                })
+              )
+            )
+          );
+          get.addFinalizer(() => {
+            Effect.runFork(Fiber.interrupt(late));
+          });
           return `${name}-returned`;
         })
       );
@@ -1673,9 +1698,9 @@ describe("RegistryProvider", () => {
     registry?.refresh(atom);
     await expect.element(output(screen)).toHaveTextContent("1");
     // The refresh disposed the first computation; unmounting disposes the second.
-    expect(log).toEqual(["disposed"]);
+    expect(log).toStrictEqual(["disposed"]);
     await screen.unmount();
-    expect(log).toEqual(["disposed", "disposed"]);
+    expect(log).toStrictEqual(["disposed", "disposed"]);
   });
 
   test("disposes its registry only after its children are destroyed", async () => {
@@ -1693,12 +1718,14 @@ describe("RegistryProvider", () => {
       },
     });
     await expect(screen.unmount()).resolves.toBeUndefined();
-    expect(written).toEqual([5]);
+    expect(written).toStrictEqual([5]);
   });
 
   test("reads its props once, and warns in development when one changes", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const atom = Atom.make(1);
     const first = AtomRegistry.make();
     const second = AtomRegistry.make();
@@ -1715,13 +1742,15 @@ describe("RegistryProvider", () => {
     await screen.rerender({ registry: second });
     await expect
       .poll(() => warn.mock.calls.map((call) => String(call[0])))
-      .toEqual([expect.stringContaining("reads its props once")]);
+      .toStrictEqual([expect.stringContaining("reads its props once")]);
     expect(screen.container.textContent).toContain("1");
   });
 
   test("warns once in development, for a changed revalidateOnHydrate too", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const registry = AtomRegistry.make();
     const props = {
       registry,
@@ -1733,13 +1762,14 @@ describe("RegistryProvider", () => {
     await screen.rerender({ ...props, revalidateOnHydrate: true });
     await expect
       .poll(() => warn.mock.calls.map((call) => String(call[0])))
-      .toEqual([expect.stringContaining("reads its props once")]);
+      .toStrictEqual([expect.stringContaining("reads its props once")]);
     await screen.rerender({ ...props, registry: AtomRegistry.make() });
     await sleep("20 millis");
-    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledOnce();
   });
 });
 
+// oxlint-disable-next-line vitest/prefer-describe-function-title -- a namespace, not a function
 describe("ScopedAtom", () => {
   test("throws when used without a provider", async () => {
     const Scoped = ScopedAtom.make(() => Atom.make(0));
@@ -1798,7 +1828,7 @@ describe("ScopedAtom", () => {
 /** Wraps a ref to count its live subscriptions. */
 const countSubscriptions = <A>(ref: AtomRef.ReadonlyRef<A>) => {
   const counter = { active: 0, total: 0 };
-  const counted: AtomRef.ReadonlyRef<A> = Object.create(ref, {
+  const counted = Object.create(ref, {
     subscribe: {
       value: (f: (a: A) => void) => {
         counter.active += 1;
@@ -1810,7 +1840,7 @@ const countSubscriptions = <A>(ref: AtomRef.ReadonlyRef<A>) => {
         };
       },
     },
-  });
+  }) as AtomRef.ReadonlyRef<A>;
   return { counted, counter };
 };
 
@@ -1993,7 +2023,9 @@ describe("regressions from a review of the hooks", () => {
       });
       await sleep("20 millis");
       await screen.rerender({ show: false });
-      await expect.poll(() => log, { timeout: 500 }).toEqual(["released"]);
+      await expect
+        .poll(() => log, { timeout: 500 })
+        .toStrictEqual(["released"]);
     }
   );
 });

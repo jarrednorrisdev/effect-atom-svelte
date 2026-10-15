@@ -1,9 +1,11 @@
 <script lang="ts">
   import { RegistryProvider, useAtomRef } from "effect-atom-svelte";
+
   import Part from "#lib/docs/kit/part.svelte";
+
+  import Request, { addedRef } from "./request.svelte";
   // The diagram around the requests and the module state they share.
   import RequestsParts from "./requests-parts.svelte";
-  import Request, { addedRef } from "./request.svelte";
 
   // Providers stand in for requests. On the server, the root layout's provider
   // makes a registry like these for every request.

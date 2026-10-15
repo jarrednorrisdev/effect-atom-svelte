@@ -2,24 +2,24 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { Marked } from "marked";
-import type { Tokens } from "marked";
-import * as pagefind from "pagefind";
+import { close, createIndex } from "pagefind";
 import type { Plugin } from "vite";
 
 import { pages } from "../src/lib/docs/nav.ts";
 import { headingId } from "./heading-links.ts";
-import { highlight } from "./highlight.ts";
-
-/** A code token with its highlighted HTML, added before rendering. */
-interface HighlightedCode extends Tokens.Code {
-  html?: string;
-}
+import { highlightCode } from "./highlight.ts";
 
 const escapeHtml = (text: string) =>
   text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll('"', "&quot;");
+
+/** `text` in a `tag` element, or nothing when there is no text. */
+const element = (tag: string, text: string | undefined) =>
+  text === undefined || text === ""
+    ? ""
+    : `<${tag}>${escapeHtml(text)}</${tag}>`;
 
 /** A frontmatter field, unquoted. The docs' frontmatter is one line per field. */
 export const field = (frontmatter: string, name: string) =>
@@ -44,10 +44,8 @@ export const pageFromMarkdown = async (source: string) => {
   const title = field(frontmatter, "title");
   const description = field(frontmatter, "description");
   const ids = new Map<string, number>();
-  const markdown = new Marked({
-    async: true,
+  const markdown = new Marked(highlightCode(), {
     renderer: {
-      code: (token: HighlightedCode) => token.html ?? "",
       heading({ depth, tokens }) {
         const text = this.parser.parseInline(tokens);
         // rehype-slug's rule for repeats: the second "Example" is "example-1".
@@ -58,15 +56,9 @@ export const pageFromMarkdown = async (source: string) => {
         return `<h${depth} id="${id}">${text}</h${depth}>\n`;
       },
     },
-    async walkTokens(token) {
-      if (token.type === "code") {
-        const code = token as HighlightedCode;
-        code.html = await highlight(code.text, code.lang || "ts");
-      }
-    },
   });
   const html = await markdown.parse(body);
-  return `<!doctype html><html lang="en"><head><title>${escapeHtml(title ?? "")}</title></head><body><article data-pagefind-body>${title ? `<h1>${escapeHtml(title)}</h1>` : ""}${description ? `<p>${escapeHtml(description)}</p>` : ""}${html}</article></body></html>`;
+  return `<!doctype html><html lang="en"><head><title>${escapeHtml(title ?? "")}</title></head><body><article data-pagefind-body>${element("h1", title)}${element("p", description)}${html}</article></body></html>`;
 };
 
 /** A page's prerendered file, as SvelteKit names it: `/` is `index.html`, `/streams` `streams.html`. */
@@ -97,7 +89,7 @@ export const pagefindIndex = (): Plugin => ({
     const { root } = builder.config;
     const output = path.join(root, ".svelte-kit/output");
     const prerendered = path.join(output, "prerendered/pages");
-    const { errors, index } = await pagefind.createIndex();
+    const { errors, index } = await createIndex();
     if (!index) {
       throw new Error(`Pagefind: ${errors.join(", ")}`);
     }
@@ -132,7 +124,7 @@ export const pagefindIndex = (): Plugin => ({
     if (written.errors.length > 0) {
       throw new Error(`Pagefind: ${written.errors.join(", ")}`);
     }
-    await pagefind.close();
+    await close();
   },
   name: "pagefind-index",
 });

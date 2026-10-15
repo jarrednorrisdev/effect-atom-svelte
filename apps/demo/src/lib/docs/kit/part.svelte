@@ -27,10 +27,9 @@
   Other attributes go on the box; the counter is an `<output>` named by `countLabel`.
 -->
 <script lang="ts">
+  import { animate } from "motion";
   import type { Snippet } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
-
-  import { animate } from "motion";
 
   import FlashValue from "./flash-value.svelte";
   import { onChange, reducedMotion, springs } from "./motion.ts";
@@ -80,7 +79,7 @@
   // While running, its ring breathes, like the glow of a running effect.
   const glow = (part: HTMLElement) => {
     if (tone !== "running" || reducedMotion()) {
-      return undefined;
+      return;
     }
     const pulse = animate(
       part,
@@ -138,7 +137,11 @@
     --mark: var(--tone-running);
     /* --glow (0 to 1) pulses while running; see the script. */
     box-shadow: 0 0 0 calc(1px + var(--glow, 1) * 3px)
-      color-mix(in oklab, var(--tone-running) calc(var(--glow, 1) * 25%), transparent);
+      color-mix(
+        in oklab,
+        var(--tone-running) calc(var(--glow, 1) * 25%),
+        transparent
+      );
   }
   .part[data-tone="success"] {
     --mark: var(--tone-success);

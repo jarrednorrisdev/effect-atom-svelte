@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useForm } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import AddressFields from "./address-fields.svelte";
@@ -21,21 +22,38 @@
 
 <form {...form.attrs} class="grid gap-3" data-testid="checkout">
   <div aria-label="Fulfilment" role="group">
-    <button aria-pressed={tag.value === "Delivery"} onclick={() => (tag.value = "Delivery")} type="button">Delivery</button>
-    <button aria-pressed={tag.value === "Pickup"} onclick={() => (tag.value = "Pickup")} type="button">Pickup</button>
+    <button
+      aria-pressed={tag.value === "Delivery"}
+      onclick={() => (tag.value = "Delivery")}
+      type="button">Delivery</button
+    >
+    <button
+      aria-pressed={tag.value === "Pickup"}
+      onclick={() => (tag.value = "Pickup")}
+      type="button">Pickup</button
+    >
   </div>
 
   {#if form.values.fulfilment._tag === "Delivery"}
-    <AddressFields fields={form.at(["fulfilment", "address"])} legend="Delivery address" />
+    <AddressFields
+      fields={form.at(["fulfilment", "address"])}
+      legend="Delivery address"
+    />
   {:else}
     <div aria-label="Store" role="group">
       {#each ["Soho", "Camden"] as const as name (name)}
-        <button aria-pressed={store.value === name} onclick={() => (store.value = name)} type="button">
+        <button
+          aria-pressed={store.value === name}
+          onclick={() => (store.value = name)}
+          type="button"
+        >
           {name}
         </button>
       {/each}
     </div>
-    {#if store.error}<p class="field-error" id={store.errorId}>{store.error}</p>{/if}
+    {#if store.error}<p class="field-error" id={store.errorId}>
+        {store.error}
+      </p>{/if}
   {/if}
 
   <!-- The same component, for a different part of the form. -->

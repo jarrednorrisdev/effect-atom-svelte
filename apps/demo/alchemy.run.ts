@@ -1,6 +1,6 @@
-import * as Alchemy from "alchemy";
-import * as Cloudflare from "alchemy/Cloudflare";
-import * as Effect from "effect/Effect";
+import { Stack } from "alchemy";
+import { providers, state, Website } from "alchemy/Cloudflare";
+import { Effect } from "effect";
 
 // Locally this stack only ever deploys through the `jnd` Alchemy profile (Jarred's personal
 // Cloudflare account), and in CI with the repo's Cloudflare secrets
@@ -19,7 +19,10 @@ if (process.env.CI !== "true" && !managingProfiles) {
       `Deploy the docs site with the jnd Alchemy profile (bun run deploy), not "${profile ?? "default"}".`
     );
   }
-  if (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_ACCOUNT_ID) {
+  if (
+    (process.env.CLOUDFLARE_API_TOKEN ?? "") !== "" ||
+    (process.env.CLOUDFLARE_ACCOUNT_ID ?? "") !== ""
+  ) {
     throw new Error(
       "Unset CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID: they would override the jnd profile."
     );
@@ -31,7 +34,7 @@ if (process.env.CI !== "true" && !managingProfiles) {
 process.env.VITE_DEMO_API = "in-tab";
 
 /** The docs site, on Jarred's Cloudflare account. Prerendered pages are served as static assets. */
-export const Website = Cloudflare.Website.SvelteKit("Website", {
+export const DocsSite = Website.SvelteKit("Website", {
   domain: "atom.jarrednorris.dev",
   memo: {
     // The build reads the library's and the demo domain's source too, so a change to either
@@ -47,15 +50,15 @@ export const Website = Cloudflare.Website.SvelteKit("Website", {
   },
 });
 
-export default Alchemy.Stack(
+export default Stack(
   "effect-atom-svelte",
   {
-    providers: Cloudflare.providers(),
+    providers: providers(),
     // Kept on Cloudflare, so CI's deploys share it.
-    state: Cloudflare.state(),
+    state: state(),
   },
   Effect.gen(function* deploy() {
-    const site = yield* Website;
+    const site = yield* DocsSite;
     return { url: site.url };
   })
 );

@@ -1,8 +1,7 @@
 <script module lang="ts">
+  import { browser } from "$app/env";
   import { Effect, Schema } from "effect";
   import { AsyncResult, Atom } from "effect/reactivity";
-
-  import { browser } from "$app/env";
 
   // Records where it was computed. The schema encodes its result for the trip to
   // the browser.
@@ -20,8 +19,10 @@
 
 <script lang="ts">
   import { useAtomRefresh, useAtomResult } from "effect-atom-svelte";
+
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
+
   // The two boxes in the result: the server render and the browser.
   import WhereParts from "./where-parts.svelte";
 
@@ -36,6 +37,9 @@
   <StateBadge data-testid="where-state" result={where.current} />
 </p>
 {#if where.current._tag === "Success"}
-  <WhereParts computedOn={where.current.value} waiting={where.current.waiting} />
+  <WhereParts
+    computedOn={where.current.value}
+    waiting={where.current.waiting}
+  />
 {/if}
 <ResultHistory data-testid="where-history" result={where.current} />

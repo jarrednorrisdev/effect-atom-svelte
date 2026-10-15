@@ -102,12 +102,14 @@ export const formatShortcut = (shortcut: Shortcut, mac: boolean): string =>
 export const matchesShortcut = (
   event: KeyboardEvent,
   shortcut: Shortcut
-): boolean =>
-  event.code.toLowerCase() === shortcut.code.toLowerCase() &&
-  event.altKey === shortcut.alt &&
-  event.ctrlKey === shortcut.ctrl &&
-  event.metaKey === shortcut.meta &&
-  event.shiftKey === shortcut.shift;
+): boolean => {
+  const pressed = [event.altKey, event.ctrlKey, event.metaKey, event.shiftKey];
+  const held = [shortcut.alt, shortcut.ctrl, shortcut.meta, shortcut.shift];
+  return (
+    event.code.toLowerCase() === shortcut.code.toLowerCase() &&
+    pressed.every((down, index) => down === held[index])
+  );
+};
 
 /**
  * The shortcut a key press makes, when recording a new one: `undefined` for a modifier on its own,

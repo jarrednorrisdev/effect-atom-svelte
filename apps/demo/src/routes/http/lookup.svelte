@@ -2,9 +2,9 @@
   import type { TodoNotFound } from "@demo/domain";
   import { Cause, Match, Option } from "effect";
   import { useAtomSuspense } from "effect-atom-svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { TodosHttp } from "#lib/clients.ts";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   let id = $state(2);
   // An empty box binds null, which is no id: keep the last one until a number is typed.
@@ -36,7 +36,12 @@
 <p class="flex flex-wrap items-center gap-2">
   <label>
     Todo id
-    <input bind:value={() => id, typeId} data-testid="http-id" min="1" type="number" />
+    <input
+      bind:value={() => id, typeId}
+      data-testid="http-id"
+      min="1"
+      type="number"
+    />
   </label>
   {#each [1, 2, 99] as option (option)}
     <button aria-pressed={id === option} onclick={() => (id = option)}>
@@ -51,11 +56,21 @@
   {@const busy = $effect.pending() > 0}
   <p>
     {#if result._tag === "Success"}
-      <ResultChip {busy} kind="message" label="GET /api/todos/:id" tone="success">
+      <ResultChip
+        {busy}
+        kind="message"
+        label="GET /api/todos/:id"
+        tone="success"
+      >
         <span data-testid="http-found">{result.value.title}</span>
       </ResultChip>
     {:else}
-      <ResultChip {busy} kind="message" label="GET /api/todos/:id" tone="failure">
+      <ResultChip
+        {busy}
+        kind="message"
+        label="GET /api/todos/:id"
+        tone="failure"
+      >
         <span data-testid="http-found">{describe(result.cause)}</span>
       </ResultChip>
     {/if}

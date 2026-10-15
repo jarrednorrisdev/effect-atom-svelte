@@ -1,6 +1,7 @@
 <script lang="ts">
   import EventLog from "#lib/docs/kit/event-log.svelte";
   import Part from "#lib/docs/kit/part.svelte";
+
   import Reader, { server } from "./reader.svelte";
 
   // While nothing reads requestAtom, the registry disposes of it.
@@ -16,7 +17,12 @@
     Read requestAtom
   </button>
 </p>
-<Part code dashed={!reading} label="<Reader>" tone={reading ? "success" : "idle"}>
+<Part
+  code
+  dashed={!reading}
+  label="<Reader>"
+  tone={reading ? "success" : "idle"}
+>
   {#if reading}
     <Reader />
   {:else}

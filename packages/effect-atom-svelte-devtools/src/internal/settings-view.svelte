@@ -4,7 +4,11 @@
 -->
 <script module lang="ts">
   /** Where the launcher sits. */
-  export type Corner = "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  export type Corner =
+    | "bottom-right"
+    | "bottom-left"
+    | "top-right"
+    | "top-left";
 </script>
 
 <script lang="ts">
@@ -35,7 +39,9 @@
     shortcut = $bindable(),
   }: Props = $props();
 
-  const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform);
+  const mac =
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad/u.test(navigator.platform);
   const shown = $derived.by(() => {
     const parsed = parseShortcut(shortcut);
     return parsed === undefined ? "none" : formatShortcut(parsed, mac);
@@ -74,15 +80,29 @@
   <div class="row">
     <span class="key" id="devtools-shortcut">Shortcut</span>
     <div class="value">
-      <kbd aria-labelledby="devtools-shortcut">{recording ? "Press a shortcut…" : shown}</kbd>
-      <button aria-pressed={recording} class="tool" onclick={() => (recording = !recording)} type="button">
+      <kbd aria-labelledby="devtools-shortcut"
+        >{recording ? "Press a shortcut…" : shown}</kbd
+      >
+      <button
+        aria-pressed={recording}
+        class="tool"
+        onclick={() => (recording = !recording)}
+        type="button"
+      >
         {recording ? "Cancel" : "Change"}
       </button>
-      <button class="tool" disabled={shortcut === defaultShortcut} onclick={() => (shortcut = defaultShortcut)} type="button">
+      <button
+        class="tool"
+        disabled={shortcut === defaultShortcut}
+        onclick={() => (shortcut = defaultShortcut)}
+        type="button"
+      >
         Reset
       </button>
       <p class="note">
-        Opens and closes the panel anywhere on the page. It needs Ctrl, Alt or {mac ? "⌘" : "Meta"} (or a function key), so it can't catch typing.
+        Opens and closes the panel anywhere on the page. It needs Ctrl, Alt or {mac
+          ? "⌘"
+          : "Meta"} (or a function key), so it can't catch typing.
       </p>
     </div>
   </div>
@@ -91,7 +111,12 @@
     <div class="value">
       <div aria-labelledby="devtools-corner" class="corners" role="group">
         {#each corners as item (item.id)}
-          <button aria-pressed={corner === item.id} class="tool" onclick={() => (corner = item.id)} type="button">
+          <button
+            aria-pressed={corner === item.id}
+            class="tool"
+            onclick={() => (corner = item.id)}
+            type="button"
+          >
             {item.label}
           </button>
         {/each}
@@ -104,7 +129,9 @@
     <span class="value">
       <input bind:value={opacity} max="1" min="0.2" step="0.05" type="range" />
       <output>{Math.round(opacity * 100)}%</output>
-      <span class="note">The button is opaque again while you point at it or focus it.</span>
+      <span class="note"
+        >The button is opaque again while you point at it or focus it.</span
+      >
     </span>
   </label>
   <label class="row">

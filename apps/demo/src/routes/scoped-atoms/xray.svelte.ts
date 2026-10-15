@@ -5,10 +5,16 @@ import type { Attachment } from "svelte/attachments";
 /** Whether the X-ray is on, for every example on the page. */
 export const xray = $state({ on: false });
 
-/** A mark color (outlines, dots) and a text color (tags) for a table, by its name. */
-const colorOf = (
-  name: string
-): { readonly mark: string; readonly text: string } => {
+/** A mark color (outlines, dots) and a text color (tags). */
+interface Colors {
+  readonly mark: string;
+  readonly text: string;
+}
+
+const scope = "xray-scope";
+
+/** A table's colors, by its name. */
+const colorOf = (name: string): Colors => {
   if (name === "Customers") {
     return {
       mark: "var(--color-sky-500)",
@@ -38,9 +44,11 @@ export const provides =
   (name: string): Attachment<HTMLElement> =>
   (element) => {
     // Always padded inside a transparent border, so turning the X-ray on only colors it.
-    element.classList.add("xray-scope");
+    element.classList.add(scope);
     if (!xray.on) {
-      return () => element.classList.remove("xray-scope");
+      return () => {
+        element.classList.remove(scope);
+      };
     }
     const { mark, text } = colorOf(name);
     element.classList.add("xray-provider");
@@ -48,7 +56,7 @@ export const provides =
     const label = tag("xray-tag", `${name}: Table.provide()`, text);
     element.append(label);
     return () => {
-      element.classList.remove("xray-scope", "xray-provider");
+      element.classList.remove(scope, "xray-provider");
       label.remove();
     };
   };

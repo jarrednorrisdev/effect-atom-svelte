@@ -8,7 +8,9 @@
     id,
     initialValues: { email: "", password: "" },
     mapError: (error) =>
-      error._tag === "WrongPassword" ? { form: "Wrong email or password" } : undefined,
+      error._tag === "WrongPassword"
+        ? { form: "Wrong email or password" }
+        : undefined,
     submit: { atom: signInAtom },
   });
   const email = form.field("email");

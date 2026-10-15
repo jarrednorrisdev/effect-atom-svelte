@@ -11,9 +11,9 @@
   shows at once.
 -->
 <script lang="ts">
+  import { useAtomSubscribe, useAtomSuspense } from "effect-atom-svelte";
   import type { Atom } from "effect/reactivity";
   import { AsyncResult } from "effect/reactivity";
-  import { useAtomSubscribe, useAtomSuspense } from "effect-atom-svelte";
   import type { HTMLAttributes } from "svelte/elements";
 
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
@@ -21,7 +21,11 @@
   import { play } from "#lib/docs/kit/sound.ts";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
   import Timeline from "#lib/docs/kit/timeline.svelte";
-  import { exampleTouched, getExampleState, toneOf } from "#lib/docs/kit/tone.ts";
+  import {
+    exampleTouched,
+    getExampleState,
+    toneOf,
+  } from "#lib/docs/kit/tone.ts";
 
   interface Props extends HTMLAttributes<HTMLDivElement> {
     readonly atom: Atom.Atom<AsyncResult.AsyncResult<string>>;
@@ -41,7 +45,9 @@
 
   const example = getExampleState();
   const log = new EventLogState();
-  let result = $state<AsyncResult.AsyncResult<string>>(AsyncResult.initial(true));
+  let result = $state<AsyncResult.AsyncResult<string>>(
+    AsyncResult.initial(true)
+  );
   let startedAt = performance.now();
   let now = $state<number>();
   // The last value an await resolved with since the refresh began; a second promise for the same
@@ -103,7 +109,7 @@
   $effect(() => {
     if (!result.waiting || reducedMotion()) {
       now = undefined;
-      return undefined;
+      return;
     }
     let frame = requestAnimationFrame(function tick() {
       now = performance.now() - startedAt;

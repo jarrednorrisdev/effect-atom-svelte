@@ -33,15 +33,29 @@
 </script>
 
 <span class="button-group">
-  <button aria-label="{label}: subtract 10" data-cue="down" onclick={() => (value -= 10)}>
+  <button
+    aria-label="{label}: subtract 10"
+    data-cue="down"
+    onclick={() => (value -= 10)}
+  >
     −10
   </button>
-  <button aria-label="{label}: subtract 1" data-cue="down" onclick={() => (value -= 1)}>
+  <button
+    aria-label="{label}: subtract 1"
+    data-cue="down"
+    onclick={() => (value -= 1)}
+  >
     −1
   </button>
   <FlashValue {...rest} value={format(value)} />
-  <button aria-label="{label}: add 1" data-cue="up" onclick={() => (value += 1)}>+1</button>
-  <button aria-label="{label}: add 10" data-cue="up" onclick={() => (value += 10)}>
+  <button aria-label="{label}: add 1" data-cue="up" onclick={() => (value += 1)}
+    >+1</button
+  >
+  <button
+    aria-label="{label}: add 10"
+    data-cue="up"
+    onclick={() => (value += 10)}
+  >
     +10
   </button>
 </span>

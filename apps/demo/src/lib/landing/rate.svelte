@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useAtomRefresh, useAtomSuspense } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
@@ -13,7 +14,9 @@
 </script>
 
 <svelte:boundary>
-  <p class="m-0">1 EUR = <FlashValue data-testid="{name}-rate" value={await rate.current} /> USD</p>
+  <p class="m-0">
+    1 EUR = <FlashValue data-testid="{name}-rate" value={await rate.current} /> USD
+  </p>
   <button class="mt-3" onclick={refresh}>Refresh</button>
   {#snippet pending()}
     <ResultChip kind="message" tone="running">Loading…</ResultChip>

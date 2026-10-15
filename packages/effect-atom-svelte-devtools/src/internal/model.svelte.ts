@@ -114,7 +114,7 @@ const causeText = (
     case "ParentChanged": {
       return `${cause.parents.map(nameOf).join(", ")} changed`;
     }
-    default: {
+    case "Invalidated": {
       return "invalidated";
     }
   }
@@ -164,9 +164,9 @@ export class Model {
         entry.hasValue = true;
       }
     }
-    const unsubscribe = this.#inspector.subscribe((event) =>
-      this.#receive(event)
-    );
+    const unsubscribe = this.#inspector.subscribe((event) => {
+      this.#receive(event);
+    });
     this.#schedule();
     return () => {
       unsubscribe();
@@ -218,7 +218,7 @@ export class Model {
     return entry;
   }
 
-  #nameOf = (node: AtomRegistry.Node<unknown>): string =>
+  readonly #nameOf = (node: AtomRegistry.Node<unknown>): string =>
     this.#name(this.#entry(node.atom));
 
   // Once atoms have labels, one without is plumbing; without the plugin, none has.
@@ -279,13 +279,17 @@ export class Model {
         detail = `${event.finalizers} ${event.finalizers === 1 ? "finalizer" : "finalizers"} ran`;
         break;
       }
-      default: {
+      case "NodeRemoved": {
         entry.node = undefined;
         entry.removedAt = event.time;
         detail = "removed";
         // Again once it has lingered, to take it off the graph.
-        setTimeout(() => this.#schedule(), lingerFor + 50);
+        // oxlint-disable-next-line effecttsgo/global-timers -- the panel's UI scheduling, outside any Effect program
+        setTimeout(() => {
+          this.#schedule();
+        }, lingerFor + 50);
         this.#prune();
+        break;
       }
     }
     this.#seq += 1;
@@ -329,6 +333,37 @@ export class Model {
     });
   }
 
+  #view(entry: Entry, plumbing: boolean, state: ValueState): AtomView {
+    const { node } = entry;
+    return {
+      atom: entry.atom,
+      builds: entry.builds,
+      children:
+        node === undefined
+          ? []
+          : [...node.children].map((child) => this.#entry(child.atom).id),
+      hasValue: entry.hasValue,
+      id: entry.id,
+      identity: entry.identity,
+      idleTTL: this.#inspector.idleTTL(entry.atom),
+      interruptedAt: entry.interruptedAt,
+      interruptions: entry.interruptions,
+      keepAlive: entry.atom.keepAlive,
+      live: node !== undefined,
+      name: this.#name(entry),
+      parents:
+        node === undefined
+          ? []
+          : [...node.parents].map((parent) => this.#entry(parent.atom).id),
+      plumbing,
+      readers: node?.listeners.size ?? 0,
+      removedAt: entry.removedAt,
+      state,
+      updates: entry.updates,
+      value: entry.value,
+    };
+  }
+
   #publish(): void {
     const now = performance.now();
     const views: AtomView[] = [];
@@ -362,33 +397,7 @@ export class Model {
         const stateKey = state._tag === "Value" ? "Value" : state._tag;
         states[stateKey] = (states[stateKey] ?? 0) + 1;
       }
-      views.push({
-        atom: entry.atom,
-        builds: entry.builds,
-        children:
-          node === undefined
-            ? []
-            : [...node.children].map((child) => this.#entry(child.atom).id),
-        hasValue: entry.hasValue,
-        id: entry.id,
-        identity: entry.identity,
-        idleTTL: this.#inspector.idleTTL(entry.atom),
-        interruptedAt: entry.interruptedAt,
-        interruptions: entry.interruptions,
-        keepAlive: entry.atom.keepAlive,
-        live: node !== undefined,
-        name: this.#name(entry),
-        parents:
-          node === undefined
-            ? []
-            : [...node.parents].map((parent) => this.#entry(parent.atom).id),
-        plumbing: isPlumbing,
-        readers: node?.listeners.size ?? 0,
-        removedAt: entry.removedAt,
-        state,
-        updates: entry.updates,
-        value: entry.value,
-      });
+      views.push(this.#view(entry, isPlumbing, state));
     }
     this.atoms = views;
     this.totals = {

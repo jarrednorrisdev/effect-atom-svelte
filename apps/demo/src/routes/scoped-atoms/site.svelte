@@ -18,7 +18,9 @@
 </script>
 
 <div class="flex justify-end">
-  <button aria-pressed={xray.on} onclick={() => (xray.on = !xray.on)}>X-ray</button>
+  <button aria-pressed={xray.on} onclick={() => (xray.on = !xray.on)}
+    >X-ray</button
+  >
 </div>
 <div class="mt-2">
   <BrowserFrame {address}>

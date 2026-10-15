@@ -150,7 +150,10 @@ Call every `useAtomResult` and `useAtomSuspense` before the script's first `awai
   import { useAtomResult } from "effect-atom-svelte";
 
   // Both get the server's result.
-  const [todos, user] = await Promise.all([useAtomResult(todosAtom), useAtomResult(userAtom)]);
+  const [todos, user] = await Promise.all([
+    useAtomResult(todosAtom),
+    useAtomResult(userAtom),
+  ]);
 
   // Not like this: userAtom runs again in the browser.
   // const todos = await useAtomResult(todosAtom);
@@ -205,7 +208,9 @@ This happens when the choice depends on state only the browser has, such as a fi
   let mounted = $state(false);
   onMount(() => (mounted = true));
 
-  const todos = useAtomSuspense(() => todosFor(mounted ? saved.current : "all"));
+  const todos = useAtomSuspense(() =>
+    todosFor(mounted ? saved.current : "all")
+  );
 </script>
 ```
 

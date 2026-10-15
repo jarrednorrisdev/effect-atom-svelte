@@ -32,6 +32,8 @@
 <svelte:boundary>
   <output>{last} {shown}</output>
   {#snippet failed(error)}
-    <output>failed: {error instanceof Error ? error.message : String(error)}</output>
+    <output
+      >failed: {error instanceof Error ? error.message : String(error)}</output
+    >
   {/snippet}
 </svelte:boundary>

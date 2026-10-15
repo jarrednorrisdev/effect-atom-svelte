@@ -89,7 +89,9 @@
     {/if}
   </span>
   {#if result.waiting}
-    <span aria-hidden="true" class="spinner"><LoaderIcon strokeWidth={2.5} /></span>
+    <span aria-hidden="true" class="spinner"
+      ><LoaderIcon strokeWidth={2.5} /></span
+    >
   {/if}
   <span
     >{result._tag}{tone === "interrupted" ? ", interrupted" : ""}{result.waiting

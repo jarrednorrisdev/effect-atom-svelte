@@ -13,14 +13,21 @@
 
 <Parts>
   {#each names as name (name)}
-    <Part dashed={!shown[name]} label={name} tone={shown[name] ? "success" : "idle"}>
+    <Part
+      dashed={!shown[name]}
+      label={name}
+      tone={shown[name] ? "success" : "idle"}
+    >
       {#if shown[name]}
         <Rate {name} />
       {:else}
-        <p class="m-0 text-muted-foreground">Not shown</p>
+        <p class="text-muted-foreground m-0">Not shown</p>
       {/if}
       {#snippet actions()}
-        <button aria-pressed={shown[name]} onclick={() => (shown[name] = !shown[name])}>
+        <button
+          aria-pressed={shown[name]}
+          onclick={() => (shown[name] = !shown[name])}
+        >
           Show the {name}
         </button>
       {/snippet}

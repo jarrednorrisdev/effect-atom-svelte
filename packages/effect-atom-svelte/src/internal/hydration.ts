@@ -17,8 +17,10 @@ export const setRevalidateOnHydrate = (value: boolean): void => {
  * Whether a hook runs its atom again once the page has hydrated: its own option, else the nearest
  * provider's, else no (JND-19). Call during component init.
  */
-export const revalidatesOnHydrate = (option: boolean | undefined): boolean =>
-  option ?? (hasDefault() ? getDefault() : false);
+export const revalidatesOnHydrate = (
+  // oxlint-disable-next-line sonarjs/bool-param-default -- undefined is "the hook gave no option", which a default would erase
+  option: boolean | undefined
+): boolean => option ?? (hasDefault() ? getDefault() : false);
 
 /**
  * What the server sends for a result it doesn't pass on, so the browser computes the atom itself.

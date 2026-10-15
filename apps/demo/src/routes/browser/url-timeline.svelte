@@ -82,10 +82,18 @@
     <code data-testid="filter-url">{search || "(no query string)"}</code>
   </p>
   <p class="counts">
-    <span><FlashValue data-testid="filter-writes" value={writes} /> atom writes</span>
-    <span><FlashValue data-testid="filter-updates" value={updates} /> URL updates</span>
+    <span
+      ><FlashValue data-testid="filter-writes" value={writes} /> atom writes</span
+    >
+    <span
+      ><FlashValue data-testid="filter-updates" value={updates} /> URL updates</span
+    >
   </p>
-  <Timeline data-testid="filter-timeline" entries={log.entries} lanes={["atom", "URL"]} />
+  <Timeline
+    data-testid="filter-timeline"
+    entries={log.entries}
+    lanes={["atom", "URL"]}
+  />
 </div>
 
 <style>

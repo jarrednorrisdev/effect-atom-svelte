@@ -4,13 +4,14 @@
   example's log. Not part of the example's code.
 -->
 <script lang="ts">
+  import { useAtomValue } from "effect-atom-svelte";
+  import type { Atom } from "effect/reactivity";
+  import type { Snippet } from "svelte";
+
   import Part from "#lib/docs/kit/part.svelte";
   import { play } from "#lib/docs/kit/sound.ts";
   import { exampleTouched, getExampleState } from "#lib/docs/kit/tone.ts";
   import type { Tone } from "#lib/docs/kit/tone.ts";
-  import type { Atom } from "effect/reactivity";
-  import { useAtomValue } from "effect-atom-svelte";
-  import type { Snippet } from "svelte";
 
   import { logAtom } from "./lifecycle-log.ts";
 
@@ -47,11 +48,13 @@
   const ttl = $derived(atom.keepAlive ? undefined : atom.idleTTL);
 
   // How long the atom has had no reader while it still holds its value.
-  const idle = $derived(last === "computed" && readers === 0 && ttl !== undefined);
+  const idle = $derived(
+    last === "computed" && readers === 0 && ttl !== undefined
+  );
   let idleMs = $state(0);
   $effect(() => {
     if (!idle) {
-      return undefined;
+      return;
     }
     const start = performance.now();
     idleMs = 0;
@@ -108,7 +111,8 @@
     <div class="state">
       <p class="status" data-testid="lifetimes-{name}-status">
         {status}
-        {#if ttl !== undefined}<span class="ttl">idle TTL {ttl / 1000} s</span>{/if}
+        {#if ttl !== undefined}<span class="ttl">idle TTL {ttl / 1000} s</span
+          >{/if}
       </p>
       {#if idle && ttl !== undefined}
         <div class="bar" style:--ttl="{ttl}ms"></div>

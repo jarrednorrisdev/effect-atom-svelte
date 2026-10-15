@@ -6,5 +6,9 @@
   const suspense = useAtomSuspense(valueOnServer);
 </script>
 
-<output>{result.current._tag === "Success" ? result.current.value : result.current._tag}</output>
+<output
+  >{result.current._tag === "Success"
+    ? result.current.value
+    : result.current._tag}</output
+>
 <output>{await suspense.current}</output>

@@ -1,14 +1,18 @@
 <script lang="ts">
   import { Equal } from "effect";
   import { AtomRef } from "effect/reactivity";
+
   import Part from "#lib/docs/kit/part.svelte";
 
-  import ProfileField from "./profile-field.svelte";
   import { saveProfile } from "./profile-api.ts";
   import type { Profile } from "./profile-api.ts";
+  import ProfileField from "./profile-field.svelte";
 
   // The form's draft.
-  const profile = AtomRef.make<Profile>({ name: "Ada Lovelace", role: "Engineer" });
+  const profile = AtomRef.make<Profile>({
+    name: "Ada Lovelace",
+    role: "Engineer",
+  });
 
   interface Request {
     readonly sent: Profile;
@@ -50,7 +54,10 @@
     <ProfileField label="Role" ref={profile.prop("role")} />
   </Part>
   <Part code count={requests.length} countLabel="requests" label="PUT /profile">
-    <ol aria-label="Requests" class="m-0 flex list-none flex-col gap-1 p-0 text-sm">
+    <ol
+      aria-label="Requests"
+      class="m-0 flex list-none flex-col gap-1 p-0 text-sm"
+    >
       {#each requests.slice(-5) as { sent, status }, index (index)}
         <li class="m-0 flex items-baseline justify-between gap-2">
           <code class="truncate">"{sent.name}", "{sent.role}"</code>
@@ -62,11 +69,17 @@
               status === "tidied" && "text-(--tone-running-text)",
             ]}
           >
-            {status === "sending" ? "saving…" : status === "saved" ? "saved" : "saved, tidied"}
+            {status === "sending"
+              ? "saving…"
+              : status === "saved"
+                ? "saved"
+                : "saved, tidied"}
           </span>
         </li>
       {:else}
-        <li class="m-0 text-muted-foreground">No requests yet. Edit the form.</li>
+        <li class="text-muted-foreground m-0">
+          No requests yet. Edit the form.
+        </li>
       {/each}
     </ol>
   </Part>

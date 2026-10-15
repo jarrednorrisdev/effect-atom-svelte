@@ -4,7 +4,9 @@
 
   import { useAtomValue } from "../../src/index.ts";
 
-  const outside = useAtomValue(Atom.make("outside").pipe(Atom.withLabel("outsideAtom")));
+  const outside = useAtomValue(
+    Atom.make("outside").pipe(Atom.withLabel("outsideAtom"))
+  );
 </script>
 
 <span>{outside.current}</span>

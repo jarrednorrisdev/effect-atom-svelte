@@ -1,10 +1,11 @@
 <script lang="ts">
   import Volume2Icon from "@lucide/svelte/icons/volume-2";
   import VolumeXIcon from "@lucide/svelte/icons/volume-x";
+  import { onMount } from "svelte";
+
   import { Button } from "#lib/components/ui/button/index.ts";
   import { play } from "#lib/docs/kit/sound.ts";
   import { isSoundOn, setSoundOn } from "#lib/docs/sound-preference.ts";
-  import { onMount } from "svelte";
 
   // The server can't see localStorage, so this starts at the default, off, and reads the stored
   // choice once mounted. The icon doesn't wait: app.html's inline script marks

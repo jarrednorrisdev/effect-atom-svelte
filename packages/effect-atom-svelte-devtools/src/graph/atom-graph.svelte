@@ -59,7 +59,9 @@
       mark.dataset.tone = tone;
       replay(mark, "pulse");
     }
-    for (const edge of host?.querySelectorAll<HTMLElement>(`[data-to="a${id}"]`) ?? []) {
+    for (const edge of host?.querySelectorAll<HTMLElement>(
+      `[data-to="a${id}"]`
+    ) ?? []) {
       edge.dataset.tone = tone;
       replay(edge, "flash");
     }
@@ -74,7 +76,10 @@
   };
 
   const click = (event: MouseEvent) => {
-    const target = (event.target as Element | null)?.closest<HTMLElement>("[data-node]");
+    const target =
+      event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-node]")
+        : null;
     const id = target?.dataset.node;
     if (onselect && id?.startsWith("a")) {
       onselect(Number(id.slice(1)));
@@ -85,11 +90,14 @@
     // Again after each new layout: a node whose kind or side changes has its classes written over,
     // and a node drawn later has none.
     void layout;
-    for (const element of host?.querySelectorAll("[data-node].selected") ?? []) {
+    for (const element of host?.querySelectorAll("[data-node].selected") ??
+      []) {
       element.classList.remove("selected");
     }
     if (selected !== undefined) {
-      host?.querySelector(`[data-node="a${selected}"]`)?.classList.add("selected");
+      host
+        ?.querySelector(`[data-node="a${selected}"]`)
+        ?.classList.add("selected");
     }
   });
 </script>
@@ -104,13 +112,22 @@
   onclick={onselect ? click : undefined}
 >
   {#if layout}
-    <FrameGraph edges={layout.edges} interactive={onselect !== undefined} nodes={layout.nodes} />
+    <FrameGraph
+      edges={layout.edges}
+      interactive={onselect !== undefined}
+      nodes={layout.nodes}
+    />
     {#each layout.dots as row, index (index)}
       {#each row.dots as dot (dot.id)}
         <span
           style:left="{dot.x * width}px"
           style:top="{dot.y}px"
-          class={["dot", dot.read && "read", dot.repeat && "repeat", dot.removed && "removed"]}
+          class={[
+            "dot",
+            dot.read && "read",
+            dot.repeat && "repeat",
+            dot.removed && "removed",
+          ]}
           data-node="a{dot.id}"
           title={dot.label}
         >
@@ -183,15 +200,26 @@
   }
   .dot.removed i {
     background:
-      linear-gradient(45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%),
-      linear-gradient(-45deg, transparent 42%, var(--brand-text, #b45309) 42% 58%, transparent 58%);
+      linear-gradient(
+        45deg,
+        transparent 42%,
+        var(--brand-text, #b45309) 42% 58%,
+        transparent 58%
+      ),
+      linear-gradient(
+        -45deg,
+        transparent 42%,
+        var(--brand-text, #b45309) 42% 58%,
+        transparent 58%
+      );
     border: 0;
   }
   .dot:global(.pulse) i {
     animation: dot-mark 0.9s ease-out;
   }
   .dot:global(.selected) i {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #d97706) 40%, transparent);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklab, var(--brand, #d97706) 40%, transparent);
   }
   .key {
     color: var(--muted-foreground, #52525b);

@@ -6,11 +6,11 @@
     readonly city: string;
   }> {}
 
-  const forecasts: Record<string, string> = {
-    London: "14 °C, drizzle",
-    Paris: "19 °C, sunny",
-    Tokyo: "23 °C, humid",
-  };
+  const forecasts = new Map([
+    ["London", "14 °C, drizzle"],
+    ["Paris", "19 °C, sunny"],
+    ["Tokyo", "23 °C, humid"],
+  ]);
 
   const cityAtom = Atom.make("London");
 
@@ -19,7 +19,7 @@
     const city = get(cityAtom);
     return Effect.gen(function* loadForecast() {
       yield* Effect.sleep("1500 millis");
-      const forecast = forecasts[city];
+      const forecast = forecasts.get(city);
       if (forecast === undefined) {
         return yield* new CityNotFound({ city });
       }
@@ -30,6 +30,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";

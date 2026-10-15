@@ -6,7 +6,9 @@
 
   const plainAtom = Atom.make(logged("plain"));
   const keptAtom = Atom.make(logged("keepAlive")).pipe(Atom.keepAlive);
-  const idleAtom = Atom.make(logged("idle TTL")).pipe(Atom.setIdleTTL("3 seconds"));
+  const idleAtom = Atom.make(logged("idle TTL")).pipe(
+    Atom.setIdleTTL("3 seconds")
+  );
 
   const atoms = [
     { atom: plainAtom, name: "plain" },
@@ -31,7 +33,8 @@
         <button
           aria-label="{name}: add a reader"
           data-cue="up"
-          onclick={() => (readers[name] += 1)}>
+          onclick={() => (readers[name] += 1)}
+        >
           + Reader
         </button>
         <button

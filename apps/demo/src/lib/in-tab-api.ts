@@ -10,7 +10,7 @@ import { FetchHttpClient, HttpClient } from "effect/http";
 export const inTabApi = import.meta.env.VITE_DEMO_API === "in-tab";
 
 /** Requests never leave the page, so any absolute origin works; `.invalid` can never resolve. */
-export const inTabOrigin = "http://demo-api.invalid";
+export const inTabOrigin = "https://demo-api.invalid";
 
 type Handler = (request: Request) => Promise<Response>;
 
@@ -27,7 +27,7 @@ let handler: Promise<Handler> | undefined;
 const inTabFetch: typeof fetch = async (input, init) => {
   handler ??= loadHandler();
   const handle = await handler;
-  return handle(new Request(input, init));
+  return await handle(new Request(input, init));
 };
 
 /**
@@ -114,7 +114,7 @@ class InTabEventSource extends EventTarget {
         .join("\n");
       this.dispatchEvent(new MessageEvent("message", { data }));
     }
-    return this.#read(reader, rest);
+    await this.#read(reader, rest);
   }
 }
 
@@ -125,8 +125,7 @@ class InTabEventSource extends EventTarget {
  */
 export const installInTabEventSource = (): void => {
   if (inTabApi && typeof window !== "undefined") {
-    globalThis.EventSource =
-      InTabEventSource as unknown as typeof globalThis.EventSource;
+    Object.assign(globalThis, { EventSource: InTabEventSource });
   }
 };
 

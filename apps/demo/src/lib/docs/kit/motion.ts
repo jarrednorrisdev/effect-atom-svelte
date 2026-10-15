@@ -79,7 +79,9 @@ export const onChange = <T, E extends Element = HTMLElement>(
     }
     const was = before;
     before = now;
-    untrack(() => react(element, now, was));
+    untrack(() => {
+      react(element, now, was);
+    });
   };
 };
 
@@ -184,7 +186,9 @@ export const jitter = (
   { angle = 2, offset = 1 } = {}
 ): (() => void) => {
   if (reducedMotion()) {
-    return () => undefined;
+    return () => {
+      // Nothing moved, so nothing settles.
+    };
   }
   const stopped = new AbortController();
   let current: AnimationPlaybackControls | undefined;
@@ -200,7 +204,7 @@ export const jitter = (
         { duration: 0.1 + Math.random() * 0.1, ease: "easeInOut" }
       );
       // oxlint-disable-next-line no-await-in-loop -- each tilt starts where the last one ended
-      await current;
+      await current.finished;
     }
   };
   void loop();

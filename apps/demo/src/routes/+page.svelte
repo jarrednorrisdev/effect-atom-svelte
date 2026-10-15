@@ -1,32 +1,33 @@
 <script lang="ts">
   import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
   import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
+  import { FrameGraph } from "effect-atom-svelte-devtools/graph";
+
   import { Button } from "#lib/components/ui/button/index.ts";
   import Example from "#lib/docs/example.svelte";
   import InstallCommand from "#lib/docs/install-command.svelte";
   import { reducedMotion } from "#lib/docs/kit/motion.ts";
   import { nav } from "#lib/docs/nav.ts";
   import PageDescription from "#lib/docs/page-description.svelte";
+  // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
+  import exchangeRateSource from "#lib/landing/exchange-rate.ts?highlight";
+  import HeroFrame from "#lib/landing/hero-frame.svelte";
   import HeroPanel from "#lib/landing/hero-panel.svelte";
   import MutationChain from "#lib/landing/mutation-chain.svelte";
+  import rateSource from "#lib/landing/rate.svelte?highlight";
   // Each example twice: the component, and its source from a ?highlight import.
   /* oxlint-disable import/no-duplicates */
   import Report from "#lib/landing/report.svelte";
-  import SharedRate from "#lib/landing/shared-rate.svelte";
-  import TodoList from "#lib/landing/todo-list.svelte";
-  import TodoLookup from "#lib/landing/todo-lookup.svelte";
-  // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
-  import exchangeRateSource from "#lib/landing/exchange-rate.ts?highlight";
-  import rateSource from "#lib/landing/rate.svelte?highlight";
   import reportSource from "#lib/landing/report.svelte?highlight";
-  import sharedRateSource from "#lib/landing/shared-rate.svelte?highlight";
-  import todoListSource from "#lib/landing/todo-list.svelte?highlight";
-  import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
-  /* oxlint-enable import/no-duplicates */
-  import HeroFrame from "#lib/landing/hero-frame.svelte";
   import { reveal } from "#lib/landing/reveal.ts";
   import { sectionGraphs } from "#lib/landing/section-graphs.ts";
-  import { FrameGraph } from "effect-atom-svelte-devtools/graph";
+  import SharedRate from "#lib/landing/shared-rate.svelte";
+  import sharedRateSource from "#lib/landing/shared-rate.svelte?highlight";
+  import TodoList from "#lib/landing/todo-list.svelte";
+  import todoListSource from "#lib/landing/todo-list.svelte?highlight";
+  import TodoLookup from "#lib/landing/todo-lookup.svelte";
+  import todoLookupSource from "#lib/landing/todo-lookup.svelte?highlight";
+
   // oxlint-disable-next-line import/default -- the linter resolves the .ts file, not the ?highlight import
   import rpcSource from "../../../../packages/demo-domain/src/rpc.ts?highlight";
 
@@ -52,14 +53,17 @@
   description="Svelte 5 bindings for Effect Atom. Share the results of your Effect code across components, typed, cleaned up and refreshed, and talk to an Effect RPC or HttpApi backend."
 />
 
-{#snippet links(items: readonly { readonly href: string; readonly title: string }[])}
+{#snippet links(
+  items: readonly { readonly href: string; readonly title: string }[]
+)}
   <p class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
     {#each items as item (item.href)}
       <a
-        class="inline-flex items-center gap-1 py-0.5 font-medium text-brand-text hover:underline hover:underline-offset-4"
+        class="text-brand-text inline-flex items-center gap-1 py-0.5 font-medium hover:underline hover:underline-offset-4"
         href={item.href}
       >
-        {item.title} <ArrowRightIcon class="size-3.5" />
+        {item.title}
+        <ArrowRightIcon class="size-3.5" />
       </a>
     {/each}
   </p>
@@ -70,46 +74,65 @@
 {#snippet sectionGraph(id: string)}
   <i class="rule-cross" style:left="0" style:top="-1px"></i>
   <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
-  {#if sectionGraphs[id]}
+  {@const graph = sectionGraphs.get(id)}
+  {#if graph}
     <div class="hidden lg:contents">
       <!-- The reason's top border sits just above the graph's box. -->
-      <FrameGraph {...sectionGraphs[id]} origin={{ left: 0, right: -1, top: -1 }} />
+      <FrameGraph {...graph} origin={{ left: 0, right: -1, top: -1 }} />
     </div>
   {/if}
 {/snippet}
 
 {#snippet heading(number: string, title: string, id: string)}
-  <p class="font-mono text-sm text-brand-text">{number}</p>
-  <h3 class="mt-2 font-mono text-2xl font-semibold tracking-tighter text-balance" {id}>{title}</h3>
+  <p class="text-brand-text font-mono text-sm">{number}</p>
+  <h3
+    class="mt-2 font-mono text-2xl font-semibold tracking-tighter text-balance"
+    {id}
+  >
+    {title}
+  </h3>
 {/snippet}
 
 {#snippet heroCopy()}
-      <p
-        style:--rise="0"
-        class="rise mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
-      >
-        <span class="size-1.5 rounded-full bg-brand"></span>
-        Effect Atom for Svelte 5 · community project at 0.x
-      </p>
-      <h1 style:--rise="1" class="rise font-mono text-[2.1rem] leading-tight font-semibold tracking-tighter sm:text-[2.6rem]">
-        <span class="text-balance">Write it in Effect.</span><br />
-        <span class="text-balance text-brand-text">Read it in any component.</span>
-      </h1>
-      <p style:--rise="2" class="rise mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
-        Share the results of your Effect code across components: typed, cleaned up and refreshed,
-        with no context or cache to write. Plus a typed client for your Effect backend.
-      </p>
-      <div style:--rise="3" class="rise mt-8 flex flex-wrap gap-3">
-        <Button class="px-4" href="/introduction" size="lg">
-          Get started <ArrowRightIcon />
-        </Button>
-        <Button class="px-4" href="#where-atoms-fit" onclick={seeItRun} size="lg" variant="outline">
-          See it run <ArrowDownIcon />
-        </Button>
-      </div>
-      <div style:--rise="4" class="rise mt-8 max-w-xl">
-        <InstallCommand />
-      </div>
+  <p
+    style:--rise="0"
+    class="rise bg-background/70 text-muted-foreground mb-6 inline-flex flex-wrap items-center gap-x-2 rounded-full border px-3 py-1 text-xs backdrop-blur"
+  >
+    <span class="bg-brand size-1.5 rounded-full"></span>
+    Effect Atom for Svelte 5 · community project at 0.x
+  </p>
+  <h1
+    style:--rise="1"
+    class="rise font-mono text-[2.1rem] leading-tight font-semibold tracking-tighter sm:text-[2.6rem]"
+  >
+    <span class="text-balance">Write it in Effect.</span><br />
+    <span class="text-brand-text text-balance">Read it in any component.</span>
+  </h1>
+  <p
+    style:--rise="2"
+    class="rise text-muted-foreground mt-6 max-w-xl text-lg text-pretty"
+  >
+    Share the results of your Effect code across components: typed, cleaned up
+    and refreshed, with no context or cache to write. Plus a typed client for
+    your Effect backend.
+  </p>
+  <div style:--rise="3" class="rise mt-8 flex flex-wrap gap-3">
+    <Button class="px-4" href="/introduction" size="lg">
+      Get started <ArrowRightIcon />
+    </Button>
+    <Button
+      class="px-4"
+      href="#where-atoms-fit"
+      onclick={seeItRun}
+      size="lg"
+      variant="outline"
+    >
+      See it run <ArrowDownIcon />
+    </Button>
+  </div>
+  <div style:--rise="4" class="rise mt-8 max-w-xl">
+    <InstallCommand />
+  </div>
 {/snippet}
 
 {#snippet heroPanel()}
@@ -119,27 +142,42 @@
 <HeroFrame copy={heroCopy} panel={heroPanel} {seeItRun} />
 
 <div class="rails mx-auto w-full max-w-7xl px-6 lg:px-10">
-  <section aria-labelledby="where-atoms-fit" class="scroll-mt-20 pt-20" {@attach reveal}>
-    <h2 class="font-mono text-3xl font-semibold tracking-tighter" id="where-atoms-fit">Where atoms fit</h2>
-    <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
-      Runes handle what belongs to one component. When your logic is written in Effect, atoms hold
-      the rest: shared state, backend data, and everything derived from them. Each example below
-      runs on this page, and the code under it is the file that runs.
+  <section
+    aria-labelledby="where-atoms-fit"
+    class="scroll-mt-20 pt-20"
+    {@attach reveal}
+  >
+    <h2
+      class="font-mono text-3xl font-semibold tracking-tighter"
+      id="where-atoms-fit"
+    >
+      Where atoms fit
+    </h2>
+    <p class="text-muted-foreground mt-4 max-w-2xl text-lg">
+      Runes handle what belongs to one component. When your logic is written in
+      Effect, atoms hold the rest: shared state, backend data, and everything
+      derived from them. Each example below runs on this page, and the code
+      under it is the file that runs.
     </p>
   </section>
 
   <section aria-labelledby="shared-effect" class="reason" {@attach reveal}>
     <div class="min-w-0">
-      {@render heading("01", "One Effect, shared by every component that reads it", "shared-effect")}
-      <p class="mt-4 text-muted-foreground">
-        In one component, <code class="font-mono text-[0.9em]">Effect.runPromise</code> is enough.
-        Once a second component needs the result, you want one run, shared, and a way to run it
-        again for both.
+      {@render heading(
+        "01",
+        "One Effect, shared by every component that reads it",
+        "shared-effect"
+      )}
+      <p class="text-muted-foreground mt-4">
+        In one component, <code class="font-mono text-[0.9em]"
+          >Effect.runPromise</code
+        > is enough. Once a second component needs the result, you want one run, shared,
+        and a way to run it again for both.
       </p>
-      <p class="mt-4 text-muted-foreground">
-        An atom gives you that. It's defined once, in a plain module, and any component reads it.
-        One provider in your root layout gives each
-        request its own values.
+      <p class="text-muted-foreground mt-4">
+        An atom gives you that. It's defined once, in a plain module, and any
+        component reads it. One provider in your root layout gives each request
+        its own values.
       </p>
       {@render links([
         { href: "/why-atoms", title: "Why atoms" },
@@ -167,15 +205,18 @@
   <section aria-labelledby="typed-errors" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("02", "Errors you can match on", "typed-errors")}
-      <p class="mt-4 text-muted-foreground">
-        <code class="font-mono text-[0.9em]">Effect.runPromise</code> throws, so a component gets an <code class="font-mono text-[0.9em]">unknown</code>. An atom holds an
-        <code class="font-mono text-[0.9em]">AsyncResult</code> instead, with the error typed by the
-        effect.
+      <p class="text-muted-foreground mt-4">
+        <code class="font-mono text-[0.9em]">Effect.runPromise</code> throws, so
+        a component gets an <code class="font-mono text-[0.9em]">unknown</code>.
+        An atom holds an
+        <code class="font-mono text-[0.9em]">AsyncResult</code> instead, with the
+        error typed by the effect.
       </p>
-      <p class="mt-4 text-muted-foreground">
-        Here the type comes from the server's RPC schema, so the component matches on
-        <code class="font-mono text-[0.9em]">TodoNotFound</code> instead of guessing from whatever was
-        thrown.
+      <p class="text-muted-foreground mt-4">
+        Here the type comes from the server's RPC schema, so the component
+        matches on
+        <code class="font-mono text-[0.9em]">TodoNotFound</code> instead of guessing
+        from whatever was thrown.
       </p>
       {@render links([
         { href: "/errors", title: "Errors" },
@@ -202,14 +243,17 @@
   <section aria-labelledby="cleanup" class="reason" {@attach reveal}>
     <div class="min-w-0">
       {@render heading("03", "Interrupted when nothing reads it", "cleanup")}
-      <p class="mt-4 text-muted-foreground">
-        When the last component reading an atom goes away, its finalizers run, and its effect is
-        interrupted if it is still running: a request is canceled, a stream stops, a socket closes. With one component,
-        an <code class="font-mono text-[0.9em]">$effect</code>'s teardown does this. When several
-        share the work, the registry counts the readers for you.
+      <p class="text-muted-foreground mt-4">
+        When the last component reading an atom goes away, its finalizers run,
+        and its effect is interrupted if it is still running: a request is
+        canceled, a stream stops, a socket closes. With one component, an <code
+          class="font-mono text-[0.9em]">$effect</code
+        >'s teardown does this. When several share the work, the registry counts
+        the readers for you.
       </p>
-      <p class="mt-4 text-muted-foreground">
-        The trade-off: an atom nothing reads loses its value, unless you keep it alive.
+      <p class="text-muted-foreground mt-4">
+        The trade-off: an atom nothing reads loses its value, unless you keep it
+        alive.
       </p>
       {@render links([
         { href: "/lifetimes", title: "Lifetimes" },
@@ -231,19 +275,28 @@
 
   <section aria-labelledby="typed-backend" class="reason" {@attach reveal}>
     <div class="min-w-0">
-      {@render heading("04", "Your Effect backend, refreshed by key", "typed-backend")}
-      <p class="mt-4 text-muted-foreground">
-        If your server speaks Effect RPC or <code class="font-mono text-[0.9em]">HttpApi</code>,
+      {@render heading(
+        "04",
+        "Your Effect backend, refreshed by key",
+        "typed-backend"
+      )}
+      <p class="text-muted-foreground mt-4">
+        If your server speaks Effect RPC or <code class="font-mono text-[0.9em]"
+          >HttpApi</code
+        >,
         <code class="font-mono text-[0.9em]">AtomRpc</code> and
-        <code class="font-mono text-[0.9em]">AtomHttpApi</code> turn it into atoms for queries and
-        mutations, using the server's own schemas, with no fetch layer to write.
+        <code class="font-mono text-[0.9em]">AtomHttpApi</code> turn it into atoms
+        for queries and mutations, using the server's own schemas, with no fetch layer
+        to write.
       </p>
-      <p class="mt-4 text-muted-foreground">
-        Tag a query with a key such as <code class="font-mono text-[0.9em]">"todos"</code>. When a
-        mutation with the same key succeeds, the query fetches again, and every atom derived from it
-        follows, here <code class="font-mono text-[0.9em]">openCountAtom</code>. The registry tracks
-        those links for you: the mutation names only its key, not the queries or what derives from
-        them.
+      <p class="text-muted-foreground mt-4">
+        Tag a query with a key such as <code class="font-mono text-[0.9em]"
+          >"todos"</code
+        >. When a mutation with the same key succeeds, the query fetches again,
+        and every atom derived from it follows, here
+        <code class="font-mono text-[0.9em]">openCountAtom</code>. The registry
+        tracks those links for you: the mutation names only its key, not the
+        queries or what derives from them.
       </p>
       <MutationChain />
       {@render links([
@@ -258,7 +311,7 @@
         graph={false}
         cap={17}
         files={[{ html: todoListSource, name: "todo-list.svelte" }]}
-        hint={"Add a todo, or click a todo's checkbox: the mutation invalidates \"todos\", todosAtom fetches again, and openCountAtom, derived from it, follows."}
+        hint={'Add a todo, or click a todo\'s checkbox: the mutation invalidates "todos", todosAtom fetches again, and openCountAtom, derived from it, follows.'}
       >
         <TodoList />
       </Example>
@@ -272,36 +325,51 @@
     class="ruled-cells mt-20 grid md:grid-cols-2"
   >
     <div class="min-w-0">
-      <h2 class="font-mono text-2xl font-semibold tracking-tighter" id="get-started">Get started</h2>
-      <p class="mt-3 text-muted-foreground">
-        Install the package, turn on Svelte's async mode and put one provider in your root layout.
-        If you have used <code class="font-mono text-[0.9em]">@effect/atom-react</code>, you already
-        know the atoms; only the hooks change.
+      <h2
+        class="font-mono text-2xl font-semibold tracking-tighter"
+        id="get-started"
+      >
+        Get started
+      </h2>
+      <p class="text-muted-foreground mt-3">
+        Install the package, turn on Svelte's async mode and put one provider in
+        your root layout. If you have used <code class="font-mono text-[0.9em]"
+          >@effect/atom-react</code
+        >, you already know the atoms; only the hooks change.
       </p>
       <div class="mt-6 flex flex-wrap gap-3">
-        <Button class="px-4" href="/installation">Installation <ArrowRightIcon /></Button>
-        <Button class="px-4" href="/first-atom" variant="outline">Your first atom</Button>
+        <Button class="px-4" href="/installation"
+          >Installation <ArrowRightIcon /></Button
+        >
+        <Button class="px-4" href="/first-atom" variant="outline"
+          >Your first atom</Button
+        >
         <Button class="px-4" href="/migrating-from-react" variant="ghost">
           Coming from React
         </Button>
       </div>
     </div>
     <div class="min-w-0">
-      <h2 class="font-mono text-2xl font-semibold tracking-tighter" id="not-needed">
+      <h2
+        class="font-mono text-2xl font-semibold tracking-tighter"
+        id="not-needed"
+      >
         When you don't need atoms
       </h2>
-      <ul class="mt-3 grid gap-2 text-muted-foreground">
+      <ul class="text-muted-foreground mt-3 grid gap-2">
         {#each notNeeded as item (item)}
           <li class="flex gap-2">
             <span
               aria-hidden="true"
-              class="mt-2.5 size-1.5 shrink-0 rounded-full bg-subtle-foreground"
+              class="bg-subtle-foreground mt-2.5 size-1.5 shrink-0 rounded-full"
             ></span>
             {item}
           </li>
         {/each}
       </ul>
-      {@render links([{ href: "/why-atoms", title: "Why atoms: the trade-offs" }])}
+      {@render links([
+        { href: "/why-atoms", title: "Why atoms: the trade-offs" },
+      ])}
     </div>
     <i class="rule-cross" style:left="0" style:top="-1px"></i>
     <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
@@ -317,11 +385,16 @@
   >
     {#each nav as section (section.title)}
       <div>
-        <h2 class="text-sm font-semibold text-navigation-heading">{section.title}</h2>
+        <h2 class="text-navigation-heading text-sm font-semibold">
+          {section.title}
+        </h2>
         <ul class="mt-3 space-y-2 text-sm">
           {#each section.pages as item (item.href)}
             <li>
-              <a class="text-muted-foreground hover:text-brand-text" href={item.href}>{item.title}</a>
+              <a
+                class="text-muted-foreground hover:text-brand-text"
+                href={item.href}>{item.title}</a
+              >
             </li>
           {/each}
         </ul>
@@ -329,14 +402,17 @@
     {/each}
   </nav>
 
-  <footer class="ruled-footer border-t py-10 text-sm text-muted-foreground">
+  <footer class="ruled-footer text-muted-foreground border-t py-10 text-sm">
     <i class="rule-cross" style:left="0" style:top="-1px"></i>
     <i class="rule-cross" style:left="calc(100% - 1px)" style:top="-1px"></i>
     <p class="max-w-3xl">
       effect-atom-svelte is a community project by
-      <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev">Jarred Norris</a
-      >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect team. It is
-      at 0.x, so a minor release can change its API: see the
+      <a
+        class="underline underline-offset-4"
+        href="https://github.com/jarrednorrisdev">Jarred Norris</a
+      >, MIT licensed. It is not part of Effect and is not made or endorsed by
+      the Effect team. It is at 0.x, so a minor release can change its API: see
+      the
       <a class="underline underline-offset-4" href={changelogUrl}>changelog</a>.
       The docs are also Markdown, for AI assistants:
       <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.

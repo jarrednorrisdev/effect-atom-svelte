@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { useAtomRefresh, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import Chunks from "#lib/docs/kit/chunks.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -47,5 +48,7 @@
   <!-- Each pull's numbers together: wait before a pull and several arrive at once. -->
   <Chunks data-testid="ticks" end={done ? "done" : undefined} {items} />
 {:else}
-  <ResultChip kind="message" label="ticksAtom" tone="running">Starting…</ResultChip>
+  <ResultChip kind="message" label="ticksAtom" tone="running"
+    >Starting…</ResultChip
+  >
 {/if}

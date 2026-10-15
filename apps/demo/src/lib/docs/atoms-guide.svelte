@@ -11,14 +11,19 @@
   import { guide, guideCaption } from "./atoms-guide.ts";
 </script>
 
-<div class="not-prose overflow-hidden rounded-xl border bg-background shadow-sm" data-testid="comparison">
+<div
+  class="not-prose bg-background overflow-hidden rounded-xl border shadow-sm"
+  data-testid="comparison"
+>
   <table class="w-full text-left text-[0.8125rem] leading-snug">
     <caption class="border-b px-4 py-2.5 text-left text-xs font-medium sm:px-5">
       {guideCaption}
     </caption>
-    <thead class="text-xs text-muted-foreground">
+    <thead class="text-muted-foreground text-xs">
       <tr>
-        <th class="w-[40%] px-4 py-2 font-medium sm:px-5" scope="col">You need</th>
+        <th class="w-[40%] px-4 py-2 font-medium sm:px-5" scope="col"
+          >You need</th
+        >
         <th class="px-4 py-2 font-medium sm:px-5" scope="col">Reach for</th>
       </tr>
     </thead>
@@ -27,7 +32,9 @@
         <tr class="border-t align-top">
           <th class="px-4 py-2 font-medium sm:px-5" scope="row">{row.need}</th>
           <td class="px-4 py-2 sm:px-5">
-            <span class={["font-medium", row.atoms && "text-brand-text"]}>{row.tool}</span>:
+            <span class={["font-medium", row.atoms && "text-brand-text"]}
+              >{row.tool}</span
+            >:
             <span class="text-muted-foreground">{row.why}</span>
           </td>
         </tr>

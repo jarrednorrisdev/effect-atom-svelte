@@ -20,7 +20,7 @@ import SuspenseToggle from "./fixtures/suspense-toggle.svelte";
 import SuspenseUnreadDerived from "./fixtures/suspense-unread-derived-toggle.svelte";
 import ToggleScriptAwait from "./fixtures/toggle-script-await.svelte";
 import Toggle from "./fixtures/toggle.svelte";
-import { repeat, sleep } from "./helpers.ts";
+import { TestError, repeat, sleep } from "./helpers.ts";
 
 const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
   screen.container.textContent?.trim();
@@ -69,19 +69,21 @@ const slowSerializableFamily = (log: string[]) => {
   );
 };
 
-/** Unmounts while slow atom "a" is loading, and checks it is disposed without finishing. */
-const expectUnmountInterrupts = async (
+/**
+ * Unmounts while slow atom "a" is loading, waits for it to be disposed, then for as long as its
+ * request would have taken, so the test can check it never finished.
+ */
+const unmountWhileLoading = async (
   log: string[],
   unmount: () => Promise<unknown>
 ) => {
-  await expect.poll(() => log).toEqual(["start a"]);
+  await expect.poll(() => log).toStrictEqual(["start a"]);
   await unmount();
-  await expect.poll(() => log).toEqual(["start a", "stop a"]);
+  await expect.poll(() => log).toStrictEqual(["start a", "stop a"]);
   await sleep(afterSlowRequest);
-  expect(log).toEqual(["start a", "stop a"]);
 };
 
-describe("useAtomSuspense", () => {
+describe(useAtomSuspense, () => {
   test("shows the boundary's pending state, then the value", async () => {
     const atom = delayed(5, 150);
     const screen = await render(Harness, {
@@ -96,7 +98,7 @@ describe("useAtomSuspense", () => {
   });
 
   test("a failure reaches the boundary's failed snippet", async () => {
-    const atom = Atom.make(Effect.fail(new Error("boom")));
+    const atom = Atom.make(Effect.fail(new TestError({ message: "boom" })));
     const screen = await render(Harness, {
       async: true,
       setup: () => {
@@ -104,7 +106,7 @@ describe("useAtomSuspense", () => {
         return () => value.current;
       },
     });
-    await expect.poll(text(screen)).toBe("failed: boom");
+    await expect.poll(text(screen)).toBe("failed: TestError");
   });
 
   test("a synchronously resolving atom awaited in an $effect runs the code after the await once", async () => {
@@ -117,7 +119,7 @@ describe("useAtomSuspense", () => {
     });
     await expect.poll(() => seen.length).toBeGreaterThan(0);
     await sleep("50 millis");
-    expect(seen).toEqual([7]);
+    expect(seen).toStrictEqual([7]);
   });
 
   test("includeFailure resolves with the Failure instead of rejecting", async () => {
@@ -144,7 +146,9 @@ describe("useAtomSuspense", () => {
       ).pipe(Effect.delay("20 millis"))
     );
     const registry = AtomRegistry.make();
-    onTestFinished(() => registry.dispose());
+    onTestFinished(() => {
+      registry.dispose();
+    });
     const release = registry.mount(atom);
     onTestFinished(release);
     await expect.poll(() => registry.get(atom)._tag).toBe("Success");
@@ -316,7 +320,7 @@ describe("useAtomSuspense", () => {
     await sleep("100 millis");
     // Svelte renders some batches with pending changes rolled back; none of those renders may pick
     // the released "a" again (JND-23).
-    expect(computed).toEqual(["a", "b"]);
+    expect(computed).toStrictEqual(["a", "b"]);
     expect(text(screen)()).toBe("b");
   });
 
@@ -340,7 +344,7 @@ describe("useAtomSuspense", () => {
     registry.refresh(named("b"));
     await expect.poll(text(screen)).toBe("b b2");
     // A render with the switch rolled back still reads "a", which must not compute it again (JND-35).
-    expect(computed).toEqual(["a", "b", "b"]);
+    expect(computed).toStrictEqual(["a", "b", "b"]);
     // Kept only until the switch commits, and nothing outlives the component.
     await expect.poll(() => registry.getNodes().has(named("a"))).toBe(false);
     await screen.unmount();
@@ -367,7 +371,9 @@ describe("useAtomSuspense", () => {
     registry.set(pick, "c");
     await expect.poll(text(screen)).toBe("c");
     await sleep(afterSlowRequest);
-    expect(log.filter((entry) => entry.startsWith("done"))).toEqual(["done c"]);
+    expect(log.filter((entry) => entry.startsWith("done"))).toStrictEqual([
+      "done c",
+    ]);
     expect(log).toContain("stop a");
     expect(log).toContain("stop b");
     expect(registry.getNodes().has(slow("a"))).toBe(false);
@@ -393,7 +399,9 @@ describe("useAtomSuspense", () => {
     registry.set(pick, "b");
     await expect.poll(text(screen)).toBe("b");
     await sleep(afterSlowRequest);
-    expect(log.filter((entry) => entry.startsWith("done"))).toEqual(["done b"]);
+    expect(log.filter((entry) => entry.startsWith("done"))).toStrictEqual([
+      "done b",
+    ]);
     expect(log).toContain("stop a");
     expect(registry.getNodes().has(slow("a"))).toBe(false);
   });
@@ -444,7 +452,7 @@ describe("useAtomSuspense", () => {
     registry.set(pick, "c");
     await expect.poll(text(screen)).toBe("c");
     await expect.poll(() => log).toContain("stop a");
-    expect(log.filter((entry) => entry.startsWith("done"))).toEqual([
+    expect(log.filter((entry) => entry.startsWith("done"))).toStrictEqual([
       "done a",
       "done c",
     ]);
@@ -464,7 +472,8 @@ describe("useAtomSuspense", () => {
       },
       show: true,
     });
-    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+    await unmountWhileLoading(log, () => screen.rerender({ show: false }));
+    expect(log).toStrictEqual(["start a", "stop a"]);
   });
 
   test("a promise awaited in the script lets go of its atom on unmount (JND-16)", async () => {
@@ -479,7 +488,8 @@ describe("useAtomSuspense", () => {
       },
       show: true,
     });
-    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+    await unmountWhileLoading(log, () => screen.rerender({ show: false }));
+    expect(log).toStrictEqual(["start a", "stop a"]);
   });
 
   test("a serializable atom awaited in the script is interrupted on unmount (JND-57)", async () => {
@@ -494,7 +504,8 @@ describe("useAtomSuspense", () => {
       },
       show: true,
     });
-    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+    await unmountWhileLoading(log, () => screen.rerender({ show: false }));
+    expect(log).toStrictEqual(["start a", "stop a"]);
   });
 
   test("a settled promise is reused after its readers go away", async () => {
@@ -531,13 +542,13 @@ describe("useAtomSuspense", () => {
       setup: () => {
         const count = useAtomValue(other);
         const value = useAtomSuspense(atom);
-        return () => {
+        return async () => {
           const n = count.current;
           const promise = value.current;
           if (registry.get(atom)._tag === "Initial") {
             pending.push(promise);
           }
-          return promise.then((v) => `${v} ${n}`);
+          return `${await promise} ${n}`;
         };
       },
     });
@@ -593,7 +604,9 @@ describe("useAtomSuspense", () => {
     });
     await expect.poll(text(screen)).toBe("1");
     registry.refresh(atom);
-    expect(await Promise.all([plain.current, waiting.current])).toEqual([1, 2]);
+    await expect(
+      Promise.all([plain.current, waiting.current])
+    ).resolves.toStrictEqual([1, 2]);
     await expect.poll(text(screen)).toBe("2");
   });
 
@@ -607,7 +620,7 @@ describe("useAtomSuspense", () => {
           yield* Effect.sleep("100 millis");
           if (failNext) {
             failNext = false;
-            return yield* Effect.fail(new Error(`no weather for ${city}`));
+            return yield* new TestError({ message: `no weather for ${city}` });
           }
           loads[city] = (loads[city] ?? 0) + 1;
           return `${city.toLowerCase()}${loads[city]}`;
@@ -642,11 +655,18 @@ describe("useAtomSuspense read outside the markup", () => {
   // Svelte aborts a derived's signal when it runs again or loses its last reader, and doesn't
   // destroy deriveds with their component, so a derived only the script or a handler reads never
   // aborts it. A read after the component is destroyed gets its already aborted lifetime.
-  test.each(["script", "handler", "destroy"] as const)(
-    "a read in the %s doesn't hold a pending atom once the component is destroyed",
-    async (mode) => {
+  // Read once it is destroyed, the atom isn't started at all.
+  test.each([
+    { after: ["start", "stop"], before: ["start"], mode: "script" },
+    { after: ["start", "stop"], before: ["start"], mode: "handler" },
+    { after: [], before: [], mode: "destroy" },
+  ] as const)(
+    "a read in the $mode doesn't hold a pending atom once the component is destroyed",
+    async ({ after, before, mode }) => {
       const registry = AtomRegistry.make();
-      onTestFinished(() => registry.dispose());
+      onTestFinished(() => {
+        registry.dispose();
+      });
       const log: string[] = [];
       const atom = Atom.make((get) => {
         log.push("start");
@@ -662,21 +682,19 @@ describe("useAtomSuspense read outside the markup", () => {
       if (mode === "handler") {
         await screen.getByRole("button").click();
       }
-      if (mode !== "destroy") {
-        await expect.poll(() => log).toEqual(["start"]);
-      }
+      await expect.poll(() => log).toStrictEqual(before);
       await screen.rerender({ show: false });
-      // Read once it is destroyed, the atom isn't started at all.
-      const after = mode === "destroy" ? [] : ["start", "stop"];
-      await expect.poll(() => log).toEqual(after);
+      await expect.poll(() => log).toStrictEqual(after);
       await sleep("100 millis");
-      expect(log).toEqual(after);
+      expect(log).toStrictEqual(after);
     }
   );
 
   test("a read after the component is destroyed still gets a result it had settled", async () => {
     const registry = AtomRegistry.make();
-    onTestFinished(() => registry.dispose());
+    onTestFinished(() => {
+      registry.dispose();
+    });
     const atom = Atom.make(Effect.succeed("x").pipe(Effect.delay("20 millis")));
     let late: Promise<unknown> | undefined;
     const screen = await render(Toggle, {
@@ -697,7 +715,7 @@ describe("useAtomSuspense read outside the markup", () => {
   });
 });
 
-describe("useAtomResult", () => {
+describe(useAtomResult, () => {
   test("suspendOnWaiting makes the first await wait for a refresh in progress (JND-57)", async () => {
     const registry = AtomRegistry.make();
     const atom = counter();
@@ -827,10 +845,15 @@ describe("useAtomResult", () => {
       setup: async () => {
         refresh = useAtomRefresh(atom);
         const result = await useAtomResult(atom);
-        return () =>
-          result.current._tag === "Success"
-            ? `${result.current.value}${result.current.waiting ? " waiting" : ""}`
-            : result.current._tag;
+        return () => {
+          const { current } = result;
+          if (current._tag !== "Success") {
+            return current._tag;
+          }
+          return current.waiting
+            ? `${current.value} waiting`
+            : `${current.value}`;
+        };
       },
     });
     await expect.poll(text(screen)).toBe("1");
@@ -871,7 +894,8 @@ describe("useAtomResult", () => {
       },
       show: true,
     });
-    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+    await unmountWhileLoading(log, () => screen.rerender({ show: false }));
+    expect(log).toStrictEqual(["start a", "stop a"]);
   });
 
   test("unmounting before a serializable atom's first result interrupts it (JND-57)", async () => {
@@ -886,7 +910,8 @@ describe("useAtomResult", () => {
       },
       show: true,
     });
-    await expectUnmountInterrupts(log, () => screen.rerender({ show: false }));
+    await unmountWhileLoading(log, () => screen.rerender({ show: false }));
+    expect(log).toStrictEqual(["start a", "stop a"]);
   });
 });
 
@@ -927,8 +952,10 @@ describe("serialization keys in the browser (JND-60)", () => {
   });
 
   test("two different atoms in use at once with one key share its value, without an error or a warning", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    onTestFinished(() => warn.mockRestore());
+    const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+    onTestFinished(() => {
+      warn.mockRestore();
+    });
     const screen = await render(Harness, {
       async: true,
       registry: AtomRegistry.make(),

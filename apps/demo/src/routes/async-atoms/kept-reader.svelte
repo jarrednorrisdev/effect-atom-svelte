@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { Atom, AsyncResult } from "effect/reactivity";
   import { useAtomValue } from "effect-atom-svelte";
+  import type { Atom, AsyncResult } from "effect/reactivity";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   interface Props {

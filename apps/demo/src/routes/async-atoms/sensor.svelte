@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import { Data, Effect, Random } from "effect";
+  import { Data, Effect, Option, Random } from "effect";
   import { Atom } from "effect/reactivity";
 
   class Offline extends Data.TaggedError("Offline") {}
@@ -22,8 +22,9 @@
 </script>
 
 <script lang="ts">
-  import { AsyncResult } from "effect/reactivity";
   import { useAtom, useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+  import { AsyncResult } from "effect/reactivity";
+
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -44,7 +45,7 @@
 
   // The value, or the last one before a failure, or the fallback.
   const lastKnown = $derived(
-    AsyncResult.getOrElse(reading.current, () => undefined)
+    Option.getOrUndefined(AsyncResult.value(reading.current))
   );
 </script>
 

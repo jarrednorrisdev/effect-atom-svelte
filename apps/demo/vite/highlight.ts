@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import type { MarkedExtension, Token, Tokens } from "marked";
 import { escapeSvelte } from "mdsvex";
 import { createHighlighter } from "shiki";
 import githubDark from "shiki/themes/github-dark.mjs";
@@ -71,6 +72,28 @@ export const highlight = async (code: string, lang: string) => {
     ],
   });
   return `<div class="code-block" data-pagefind-weight="0.5">${html}${copyButton}</div>`;
+};
+
+// marked's `Generic` token, open to any extension's `type`, keeps a check of `type` from narrowing.
+const isCode = (token: Token): token is Tokens.Code => token.type === "code";
+
+/**
+ * A marked extension that renders code blocks with `highlight`, in TypeScript unless they name a
+ * language. marked renders synchronously, so each block is highlighted while walking the tokens.
+ */
+export const highlightCode = (): MarkedExtension => {
+  const highlighted = new WeakMap<Tokens.Code, string>();
+  return {
+    async: true,
+    renderer: { code: (token) => highlighted.get(token) ?? "" },
+    async walkTokens(token) {
+      if (isCode(token)) {
+        const lang =
+          token.lang === undefined || token.lang === "" ? "ts" : token.lang;
+        highlighted.set(token, await highlight(token.text, lang));
+      }
+    },
+  };
 };
 
 /** For mdsvex: highlighted HTML that Svelte will not parse as markup. */

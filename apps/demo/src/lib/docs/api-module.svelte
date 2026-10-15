@@ -9,9 +9,12 @@
   const { module }: { module: ApiModuleHtml } = $props();
 
   // The index module is what `effect-atom-svelte` itself exports; its page is the overview.
-  const title = $derived(module.name === "index" ? "API overview" : module.name);
+  const title = $derived(
+    module.name === "index" ? "API overview" : module.name
+  );
 
-  const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+  const capitalize = (text: string) =>
+    text.charAt(0).toUpperCase() + text.slice(1);
   const slug = (text: string) => text.toLowerCase().replaceAll(/\s+/gu, "-");
 </script>
 
@@ -47,7 +50,8 @@
   {#if module.entryPoints}
     {@render section("entry-points", "Entry points")}
     <p>
-      An app imports from these entry points, the <code>exports</code> in the package's
+      An app imports from these entry points, the <code>exports</code> in the
+      package's
       <code>package.json</code>:
     </p>
     <table>
@@ -64,8 +68,8 @@
       </tbody>
     </table>
     <p>
-      Each export says the version that added it. Everything in 0.1.0, the first release, says
-      since v0.1.0.
+      Each export says the version that added it. Everything in 0.1.0, the first
+      release, says since v0.1.0.
     </p>
   {/if}
 
@@ -85,7 +89,8 @@
       {/if}
       {#each entry.examples as example, index (index)}
         <p>
-          <strong>Example</strong>{#if example.title}&nbsp;({example.title}){/if}
+          <strong>Example</strong
+          >{#if example.title}&nbsp;({example.title}){/if}
         </p>
         {@html example.html}
       {/each}
@@ -98,8 +103,8 @@
     {@render section(slug(group.category), capitalize(group.category))}
     {@html group.description}
     <p>
-      Re-exported from <code>{group.from}</code>. Each links to the guide that teaches it, and to
-      its source in Effect, where it is documented.
+      Re-exported from <code>{group.from}</code>. Each links to the guide that
+      teaches it, and to its source in Effect, where it is documented.
     </p>
     <table>
       <thead>
@@ -110,7 +115,8 @@
           <tr id={entry.name}>
             <td><code>{entry.name}</code></td>
             <td>
-              {#if entry.guide}<a href={entry.guide.href}>{entry.guide.title}</a>{/if}
+              {#if entry.guide}<a href={entry.guide.href}>{entry.guide.title}</a
+                >{/if}
             </td>
             <td><a href={entry.source}>{group.from}/{entry.name}.ts</a></td>
           </tr>
@@ -122,7 +128,9 @@
 </div>
 
 {#snippet since(entry: { since: string; stability?: string | undefined })}
-  <p class="text-sm text-muted-foreground">
-    Since v{entry.since}{#if entry.stability}&ensp;·&ensp;{capitalize(entry.stability)}{/if}
+  <p class="text-muted-foreground text-sm">
+    Since v{entry.since}{#if entry.stability}&ensp;·&ensp;{capitalize(
+        entry.stability
+      )}{/if}
   </p>
 {/snippet}

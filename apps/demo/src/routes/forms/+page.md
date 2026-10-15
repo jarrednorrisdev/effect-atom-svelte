@@ -243,7 +243,10 @@ An error on the array itself, such as from `isMinLength(1)`, is `items.error`.
 
 ```svelte
 <AddressFields fields={form.at("billing")} legend="Billing address" />
-<AddressFields fields={form.at(["fulfilment", "address"])} legend="Delivery address" />
+<AddressFields
+  fields={form.at(["fulfilment", "address"])}
+  legend="Delivery address"
+/>
 ```
 
 Fields that several forms share are a Schema you reuse, such as an `Address` Struct in each form's Schema.

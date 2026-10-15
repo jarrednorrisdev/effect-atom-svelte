@@ -137,16 +137,11 @@ export interface Inspector {
   readonly complete: boolean;
 }
 
-/** `set`, `update` and `modify`, which only pass their arguments on here. */
-type Write = (atom: Atom.Atom<unknown>, argument: unknown) => unknown;
-
-/** The parts of the registry the inspector replaces with its own. */
-type Patchable = {
-  set: Write;
-  update: Write;
-  modify: Write;
-  refresh: (atom: Atom.Atom<unknown>) => void;
-} & Pick<AtomRegistry.AtomRegistry, "onNodeAdded" | "onNodeRemoved">;
+/** The registry's readonly methods the inspector replaces with its own. */
+type PatchedMethods = Pick<
+  AtomRegistry.AtomRegistry,
+  "modify" | "refresh" | "set" | "update"
+>;
 
 /** What the inspector remembers about a node between events. */
 interface NodeRecord {
@@ -238,12 +233,11 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
         // finalizer that interrupts the fiber.
         // A wrapper that passes on another atom's result (debounce, makeRefreshOnSignal) holds a
         // value that atom made, and has no fiber of its own. A runtime's fiber isn't interrupted.
-        if (
+        const ownWait =
           AsyncResult.isAsyncResult(value) &&
           value.waiting &&
-          (origins.get(value) ?? node) === node &&
-          !isRuntime(node.atom)
-        ) {
+          (origins.get(value) ?? node) === node;
+        if (ownWait && !isRuntime(node.atom)) {
           emit({ _tag: "Interrupted", node, time: performance.now() });
         }
         emit({ _tag: "Finalized", finalizers, node, time: performance.now() });
@@ -299,9 +293,11 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
     complete &&= instrumented;
   };
 
-  const patchable = registry as unknown as Patchable;
-  const { modify, onNodeAdded, onNodeRemoved, refresh, set, update } =
-    patchable;
+  const { onNodeAdded, onNodeRemoved } = registry;
+  const modify = registry.modify.bind(registry);
+  const refresh = registry.refresh.bind(registry);
+  const set = registry.set.bind(registry);
+  const update = registry.update.bind(registry);
   const writes = <A>(f: () => A): A => {
     writing += 1;
     try {
@@ -310,33 +306,44 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
       writing -= 1;
     }
   };
-  patchable.set = (atom, value) =>
-    writes(() => set.call(registry, atom, value));
-  patchable.update = (atom, f) => writes(() => update.call(registry, atom, f));
-  patchable.modify = (atom, f) => writes(() => modify.call(registry, atom, f));
-  // An atom with its own refresh (a wrapper such as withRefresh) calls the registry's refresh for
-  // the atoms it wraps, through this replacement, so each of those is marked too.
-  patchable.refresh = (atom) => {
-    const node = registry.getNodes().get(nodeKey(atom));
-    if (node !== undefined) {
-      record(node).refreshed = true;
-    }
-    try {
-      refresh.call(registry, atom);
-    } finally {
-      // Still valid: the refresh didn't reach it (what it wraps computed an equal value), or it
-      // computed already. Either way the mark isn't the cause of a later computation.
-      if (node?.currentState() === "valid") {
-        record(node).refreshed = false;
+  const patched: PatchedMethods = {
+    modify: (atom, f) => writes(() => modify(atom, f)),
+    // An atom with its own refresh (a wrapper such as withRefresh) calls the registry's refresh for
+    // the atoms it wraps, through this replacement, so each of those is marked too.
+    refresh: (atom) => {
+      const node = registry.getNodes().get(nodeKey(atom));
+      if (node !== undefined) {
+        record(node).refreshed = true;
       }
-    }
+      try {
+        refresh(atom);
+      } finally {
+        // Still valid: the refresh didn't reach it (what it wraps computed an equal value), or it
+        // computed already. Either way the mark isn't the cause of a later computation.
+        if (node?.currentState() === "valid") {
+          record(node).refreshed = false;
+        }
+      }
+    },
+    set: (atom, value) => {
+      writes(() => {
+        set(atom, value);
+      });
+    },
+    update: (atom, f) => {
+      writes(() => {
+        update(atom, f);
+      });
+    },
   };
-  patchable.onNodeAdded = (node) => {
+  // Readonly in the interface: replaced on this registry only, as its nodes are.
+  Object.assign(registry, patched);
+  registry.onNodeAdded = (node) => {
     onNodeAdded?.(node);
     instrument(node);
     emit({ _tag: "NodeAdded", node, time: performance.now() });
   };
-  patchable.onNodeRemoved = (node) => {
+  registry.onNodeRemoved = (node) => {
     onNodeRemoved?.(node);
     // An idle node is announced before it is removed; its teardown is reported first.
     if (node.currentState() !== "removed" && records.has(node)) {
@@ -362,7 +369,7 @@ const install = (registry: AtomRegistry.AtomRegistry): Inspector => {
     idleTTL: (atom) => {
       // An idle TTL of 0 is none: the registry removes the atom as soon as nothing reads it.
       if (atom.keepAlive || atom.idleTTL === 0) {
-        return undefined;
+        return;
       }
       return atom.idleTTL ?? defaultIdleTTL(registry);
     },
@@ -563,7 +570,9 @@ const emptySnapshot: ScopeSnapshot = { edges: [], nodes: [], readers: [] };
 /** The scope on the server: always empty. */
 const inertScope: InspectorScope = {
   snapshot: () => emptySnapshot,
-  subscribe: () => () => undefined,
+  subscribe: () => () => {
+    // Nothing to unsubscribe from.
+  },
 };
 
 interface ScopeRead {
@@ -636,9 +645,7 @@ class Scope implements InspectorScope {
     if (this.#listeners.size === 0) {
       return this.#walk();
     }
-    if (this.#members === undefined) {
-      this.#members = this.#walk();
-    }
+    this.#members ??= this.#walk();
     return this.#members;
   }
 
@@ -754,7 +761,9 @@ class Scope implements InspectorScope {
     }
     this.#following.set(
       registry,
-      inspect(registry).subscribe((event) => this.#receive(event))
+      inspect(registry).subscribe((event) => {
+        this.#receive(event);
+      })
     );
   }
 

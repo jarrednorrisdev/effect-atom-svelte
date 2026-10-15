@@ -16,11 +16,17 @@
   const todo = useAtom(() => todoAtom(id));
 </script>
 
-<li class={["m-0 flex items-center gap-2 rounded-md px-2", selected && "bg-brand/15"]}>
+<li
+  class={[
+    "m-0 flex items-center gap-2 rounded-md px-2",
+    selected && "bg-brand/15",
+  ]}
+>
   <input
     aria-label="{title} done"
     checked={todo.current.done}
-    onchange={(event) => (todo.current = { ...todo.current, done: event.currentTarget.checked })}
+    onchange={(event) =>
+      (todo.current = { ...todo.current, done: event.currentTarget.checked })}
     type="checkbox"
   />
   <button

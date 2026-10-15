@@ -6,8 +6,6 @@
 import type { Atom } from "effect/reactivity";
 import { createContext } from "svelte";
 
-// A const and a type of the same name, as in Effect's modules.
-/* oxlint-disable eslint/no-redeclare */
 /**
  * Marks a value as a `ScopedAtom`: every scoped atom has this key, set to this same string, as
  * Effect's own types carry a type id.
@@ -26,7 +24,6 @@ export const TypeId = "~effect-atom-svelte/ScopedAtom" as const;
  * @category type ids
  */
 export type TypeId = typeof TypeId;
-/* oxlint-enable eslint/no-redeclare */
 
 /**
  * An atom created per component subtree. `provide` builds it once in a parent and puts it in
@@ -89,20 +86,27 @@ export const make = <A extends Atom.Atom<unknown>, Input = never>(
   options?: MakeOptions
 ): ScopedAtom<A, Input> => {
   const [get, set, has] = createContext<A>();
-  const provide = (...args: [] | [Input]): A =>
-    set(
-      args.length === 0
-        ? (f as () => A)()
-        : (f as (input: Input) => A)(args[0] as Input)
-    );
+  const provide = (...args: [] | [Input]): A => {
+    if (args.length === 1) {
+      return set(f(args[0]));
+    }
+    // SAFETY: `provide`'s type allows no input only when `Input` is never or includes undefined, so
+    // `f` is the factory without input or one whose input is optional.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the union of factories can't be narrowed by the argument count
+    return set((f as () => A)());
+  };
   return {
     [TypeId]: TypeId,
+    // SAFETY: `provide` takes no input or one, which every branch of the conditional type accepts;
+    // TypeScript can't pick a branch while `Input` is generic.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the conditional type can't be narrowed for a generic `Input`
     provide: provide as ScopedAtom<A, Input>["provide"],
     use: () => {
       if (!has()) {
         const name = options?.name;
-        const which = name ? `ScopedAtom "${name}"` : "ScopedAtom";
-        const call = name ? `${name}.provide()` : "its provide()";
+        const named = name !== undefined && name !== "";
+        const which = named ? `ScopedAtom "${name}"` : "ScopedAtom";
+        const call = named ? `${name}.provide()` : "its provide()";
         throw new Error(
           `${which} used outside of the component that provides it. Call ${call} in a parent component's script.`
         );

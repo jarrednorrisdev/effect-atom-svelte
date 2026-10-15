@@ -4,9 +4,15 @@
   import type { Component, Snippet } from "svelte";
 
   interface Props {
-    readonly Panel: Component<{ open?: boolean; registry?: AtomRegistry.AtomRegistry }>;
+    readonly Panel: Component<{
+      open?: boolean;
+      registry?: AtomRegistry.AtomRegistry;
+    }>;
     // The built package's provider, as the panel's own imports are: one list of registries for both.
-    readonly Provider: Component<{ registry: AtomRegistry.AtomRegistry; children: Snippet }>;
+    readonly Provider: Component<{
+      registry: AtomRegistry.AtomRegistry;
+      children: Snippet;
+    }>;
     readonly mine: AtomRegistry.AtomRegistry;
     readonly other: AtomRegistry.AtomRegistry;
   }

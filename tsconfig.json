@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "apps/demo/tsconfig.json" },
+    { "path": "apps/demo-api/tsconfig.json" },
+    { "path": "packages/demo-domain/tsconfig.json" },
+    { "path": "packages/effect-atom-svelte/tsconfig.json" },
+    { "path": "packages/effect-atom-svelte/scripts/tsconfig.json" },
+    { "path": "packages/effect-atom-svelte-devtools/tsconfig.json" },
+    { "path": "tsconfig.tools.json" }
+  ]
+}

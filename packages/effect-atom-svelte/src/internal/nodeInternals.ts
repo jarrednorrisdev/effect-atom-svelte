@@ -24,6 +24,7 @@
 // Effect stops the inspector from reporting rather than breaking the registry.
 //
 // docs/proposals/atom-registry-inspector.md proposes an API in Effect that would replace this file.
+import { Predicate } from "effect";
 import type { AtomRegistry } from "effect/reactivity";
 
 interface LifetimeImpl {
@@ -58,11 +59,18 @@ export interface NodeHooks {
   readonly removed: () => void;
 }
 
-const isNodeImpl = (node: object): node is NodeImpl =>
-  Object.hasOwn(node, "_value") &&
-  Object.hasOwn(node, "lifetime") &&
-  typeof (node as Partial<NodeImpl>).build === "function" &&
-  (node as Partial<NodeImpl>).listeners instanceof Set;
+const isNodeImpl = (
+  node: AtomRegistry.Node<unknown>
+): node is AtomRegistry.Node<unknown> & NodeImpl => {
+  if (!(Object.hasOwn(node, "_value") && Object.hasOwn(node, "lifetime"))) {
+    return false;
+  }
+  return (
+    "build" in node &&
+    typeof node.build === "function" &&
+    node.listeners instanceof Set
+  );
+};
 
 /** A node's listeners that report each one added or removed. */
 class Listeners extends Set<() => void> {
@@ -159,22 +167,25 @@ export const instrumentNode = (
 export const defaultIdleTTL = (
   registry: AtomRegistry.AtomRegistry
 ): number | undefined => {
-  const ttl = (registry as { readonly defaultIdleTTL?: unknown })
-    .defaultIdleTTL;
+  const ttl =
+    "defaultIdleTTL" in registry ? registry.defaultIdleTTL : undefined;
   return typeof ttl === "number" ? ttl : undefined;
 };
 
 /** Whether the node holds an initial value it hasn't computed (setInitialValue on a new node). */
 export const holdsInitialValue = (node: AtomRegistry.Node<unknown>): boolean =>
-  (node as { preserveInitialValueOnBuild?: unknown })
-    .preserveInitialValueOnBuild === true;
+  "preserveInitialValueOnBuild" in node &&
+  node.preserveInitialValueOnBuild === true;
 
 /** Whether the node is building and its running build has not read `parent` yet. */
 export const buildWillRead = (
   node: AtomRegistry.Node<unknown>,
   parent: AtomRegistry.Node<unknown>
 ): boolean => {
-  const reads = (node as { lifetime?: { reads?: Set<unknown> } }).lifetime
-    ?.reads;
-  return reads !== undefined && !reads.has(parent);
+  // The lifetime is the build's `get`, a function.
+  const lifetime = "lifetime" in node ? node.lifetime : undefined;
+  const reads = Predicate.hasProperty(lifetime, "reads")
+    ? lifetime.reads
+    : undefined;
+  return reads instanceof Set && !reads.has(parent);
 };

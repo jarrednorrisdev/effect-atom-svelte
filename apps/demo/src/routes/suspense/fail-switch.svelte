@@ -6,6 +6,9 @@
   import { failSwitch, setFailNext } from "./weather-api.svelte.ts";
 </script>
 
-<button aria-pressed={failSwitch.on} onclick={() => setFailNext(!failSwitch.on)}>
+<button
+  aria-pressed={failSwitch.on}
+  onclick={() => setFailNext(!failSwitch.on)}
+>
   Fail the next load
 </button>

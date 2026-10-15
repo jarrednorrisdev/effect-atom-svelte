@@ -65,6 +65,9 @@ const panelButton = (text: string) =>
       item.textContent?.trim() === text ||
       item.textContent?.trim().endsWith(text)
   );
+// The panel draws what it learns on the next animation frame, which WebKit on CI can run well after
+// expect.poll's default second: waits for the panel's atoms allow this long.
+const drawn = { timeout: 5000 };
 // A node in the panel's graph, by its atom's name.
 const graphNode = (name: string) =>
   [
@@ -128,8 +131,11 @@ describe("AtomDevtools", () => {
     press({ altKey: true, code: "KeyA", key: "A", shiftKey: true });
     await sleep(50);
     expect(
-      JSON.parse(localStorage.getItem("effect-atom-svelte-devtools") ?? "{}")
-        .shortcut
+      (
+        JSON.parse(
+          localStorage.getItem("effect-atom-svelte-devtools") ?? "{}"
+        ) as { readonly shortcut?: string }
+      ).shortcut
     ).toBe("alt+shift+a");
     await first.unmount();
 
@@ -163,7 +169,7 @@ describe("AtomDevtools", () => {
     await expect.poll(() => panelButton("Timeline")).toBeDefined();
     panelButton("Timeline")?.click();
     // Only alphaAtom's rows.
-    await expect.poll(() => panelButton("alphaAtom")).toBeDefined();
+    await expect.poll(() => panelButton("alphaAtom"), drawn).toBeDefined();
     panelButton("alphaAtom")?.click();
     await expect.poll(() => panelButton("only alphaAtom ✕")).toBeDefined();
     const picker = document.querySelector<HTMLSelectElement>(
@@ -206,10 +212,11 @@ describe("AtomDevtools", () => {
     // Polled rather than slept: WebKit on CI can take longer to render.
     await expect.poll(() => panelButton("Graph")).toBeDefined();
     panelButton("Graph")?.click();
-    await expect.poll(() => graphNode("doubleAtom")).toBeDefined();
+    await expect.poll(() => graphNode("doubleAtom"), drawn).toBeDefined();
     graphNode("doubleAtom")?.click();
     await expect.poll(() => panelButton("Graph")).toBeDefined();
     panelButton("Graph")?.click();
+    // The graph redraws from atoms the panel already has, so no frame to wait for.
     await expect
       .poll(() => graphNode("doubleAtom")?.classList.contains("selected"))
       .toBe(true);
@@ -218,7 +225,7 @@ describe("AtomDevtools", () => {
       Atom.withLabel("quadAtom")
     );
     const releaseQuad = registry.mount(quad);
-    await expect.poll(() => graphNode("quadAtom")).toBeDefined();
+    await expect.poll(() => graphNode("quadAtom"), drawn).toBeDefined();
     await sleep(50);
     expect(graphNode("doubleAtom")?.classList.contains("selected")).toBe(true);
     releaseQuad();

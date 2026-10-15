@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useForm } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   import { Order } from "./forms.ts";
@@ -46,10 +47,14 @@
           onclick={() => items.move(item.index, 0)}
           type="button">Move to top</button
         >
-        <button onclick={() => items.remove(item.index)} type="button">Remove</button>
+        <button onclick={() => items.remove(item.index)} type="button"
+          >Remove</button
+        >
         {#each [name, quantity] as field (field.id)}
           {#if field.error}
-            <p class="field-error basis-full" id={field.errorId}>{field.error}</p>
+            <p class="field-error basis-full" id={field.errorId}>
+              {field.error}
+            </p>
           {/if}
         {/each}
       </li>
@@ -57,7 +62,10 @@
   </ol>
   {#if items.error}<p class="field-error">{items.error}</p>{/if}
   <p class="mt-2">
-    <button onclick={() => items.append({ name: "", quantity: "" })} type="button">
+    <button
+      onclick={() => items.append({ name: "", quantity: "" })}
+      type="button"
+    >
       Add item
     </button>
     <button>Place order</button>

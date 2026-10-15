@@ -3,6 +3,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+// `export *` and `export { … }` lines have no name, so two in a row are each checked rather than
+// taken for overloads of one export. Undefined for a line that isn't an export.
+const exportName = (line: string): string | undefined => {
+  const match =
+    /^export (?:declare )?(?:(?:const|function|interface|type|class)\s+(?<name>\w+)|\*|\{)/u.exec(
+      line
+    );
+  return match ? (match.groups?.name ?? "") : undefined;
+};
+
 const src = path.join(import.meta.dir, "..", "src");
 const problems: string[] = [];
 
@@ -20,37 +30,29 @@ for (const file of readdirSync(src).filter((name) => name.endsWith(".ts"))) {
       inDoc = true;
       doc = "";
     }
+    const name = inDoc ? undefined : exportName(line);
     if (inDoc) {
       doc += `${line}\n`;
       if (line.includes("*/")) {
         inDoc = false;
       }
-      continue;
-    }
-    // `export *` and `export { … }` lines have no name, so two in a row are each checked rather
-    // than taken for overloads of one export.
-    const match =
-      /^export (?:declare )?(?:(?:const|function|interface|type|class)\s+(?<name>\w+)|\*|\{)/u.exec(
-        line
-      );
-    const name = match ? (match.groups?.name ?? "") : undefined;
-    if (name === undefined) {
-      if (line.trim() !== "") {
+    } else if (name === undefined) {
+      // A line comment, such as a lint directive, may sit between a doc and its export.
+      const trimmed = line.trim();
+      if (trimmed !== "" && !trimmed.startsWith("//")) {
         doc = "";
       }
-      continue;
+    } else if (name === "" || name !== previousExport) {
+      // Overload signatures share the doc on the first one, so a repeated name is skipped.
+      previousExport = name;
+      if (!(doc.includes("@since") && doc.includes("@category"))) {
+        const what = name === "" ? line.trim() : `export ${name}`;
+        problems.push(
+          `${file}:${index + 1}: ${what} needs @since and @category`
+        );
+      }
+      doc = "";
     }
-    // Overload signatures share the doc on the first one.
-    if (name !== "" && name === previousExport) {
-      continue;
-    }
-    previousExport = name;
-    if (!(doc.includes("@since") && doc.includes("@category"))) {
-      problems.push(
-        `${file}:${index + 1}: ${name ? `export ${name}` : line.trim()} needs @since and @category`
-      );
-    }
-    doc = "";
   }
 }
 

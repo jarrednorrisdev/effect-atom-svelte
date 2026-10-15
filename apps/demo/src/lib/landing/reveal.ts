@@ -46,5 +46,7 @@ export const reveal: Attachment<HTMLElement> = (element) => {
     { rootMargin: "100000px 0px -15% 0px" }
   );
   observer.observe(element);
-  return () => observer.disconnect();
+  return () => {
+    observer.disconnect();
+  };
 };

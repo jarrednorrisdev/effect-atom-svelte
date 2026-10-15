@@ -6,7 +6,9 @@
 
   interface Props {
     readonly registry: AtomRegistry.AtomRegistry;
-    readonly named: (name: string) => Atom.Atom<AsyncResult.AsyncResult<string>>;
+    readonly named: (
+      name: string
+    ) => Atom.Atom<AsyncResult.AsyncResult<string>>;
   }
 
   const { named, registry }: Props = $props();

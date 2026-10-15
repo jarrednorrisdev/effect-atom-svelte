@@ -39,7 +39,11 @@
   const travel = onChange(
     () => pulse,
     (arrow) => {
-      animate(arrow, { "--flash": [1, 1, 0] }, { duration: 0.7, times: [0, 0.3, 1] });
+      animate(
+        arrow,
+        { "--flash": [1, 1, 0] },
+        { duration: 0.7, times: [0, 0.3, 1] }
+      );
       const icon = arrow.querySelector(".icon");
       if (icon && !reducedMotion()) {
         const along = direction === "right" ? { x: [-6, 0] } : { y: [-6, 0] };
@@ -49,7 +53,12 @@
   );
 </script>
 
-<span aria-hidden="true" class="arrow not-prose" data-direction={direction} {@attach travel}>
+<span
+  aria-hidden="true"
+  class="arrow not-prose"
+  data-direction={direction}
+  {@attach travel}
+>
   {#if label}<span class="label">{label}</span>{/if}
   <span class="icon">
     {#if direction === "down"}

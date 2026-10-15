@@ -1,5 +1,7 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { playwright } from "@vitest/browser-playwright";
+import type { Component } from "svelte";
+import type { render as renderComponent } from "svelte/server";
 import { defineConfig } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 
@@ -11,8 +13,12 @@ const renderOnServer: BrowserCommand<[path: string]> = async (
   { project },
   path
 ) => {
-  const { render } = await project.vite.ssrLoadModule("svelte/server");
-  const component = await project.vite.ssrLoadModule(path);
+  const { render } = (await project.vite.ssrLoadModule("svelte/server")) as {
+    readonly render: typeof renderComponent;
+  };
+  const component = (await project.vite.ssrLoadModule(path)) as {
+    readonly default: Component;
+  };
   const { body, head } = await render(component.default);
   return { body, head };
 };

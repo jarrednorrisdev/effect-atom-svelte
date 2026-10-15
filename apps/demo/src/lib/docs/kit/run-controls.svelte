@@ -82,7 +82,13 @@
     {/if}
   </button>
   {#if onreset}
-    <button class="control" data-cue="reset" {disabled} onclick={reset} type="button">
+    <button
+      class="control"
+      data-cue="reset"
+      {disabled}
+      onclick={reset}
+      type="button"
+    >
       <span bind:this={resetIcon} class="icon-box">
         <ResetIcon aria-hidden="true" class="icon" />
       </span>

@@ -1,6 +1,4 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
-import { Cause, Data, Effect, Option } from "effect";
+import { Cause, Effect, Option, Schema } from "effect";
 import { inspect } from "effect-atom-svelte/inspector";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -9,9 +7,11 @@ import { detail, failureText, preview } from "../src/internal/format.ts";
 import { Model } from "../src/internal/model.svelte.ts";
 import { identify, parseFrame } from "../src/internal/names.ts";
 
-class CityNotFound extends Data.TaggedError("CityNotFound")<{
-  readonly city: string;
-}> {}
+class CityNotFound extends Schema.TaggedError<CityNotFound>()("CityNotFound", {
+  city: Schema.String,
+}) {}
+
+const sleep = (millis: number) => Effect.runPromise(Effect.sleep(millis));
 
 describe("format", () => {
   test("previews values on one line, cut short", () => {
@@ -44,7 +44,9 @@ describe("format", () => {
   });
 
   test("writes out a value in full, through Effect's toJSON, without looping", () => {
-    const circular: Record<string, unknown> = { name: "loop" };
+    const circular: { readonly name: string; self?: unknown } = {
+      name: "loop",
+    };
     circular.self = circular;
     expect(detail(circular)).toContain('"self": "[circular]"');
     expect(detail(Option.some(1))).toContain('"_tag": "Some"');
@@ -134,14 +136,14 @@ describe("format", () => {
 
 describe("names", () => {
   test("reads the place from the plugin's frames and from browser URLs", () => {
-    expect(parseFrame("at todosAtom (/src/lib/todos.ts:4:14)")).toEqual({
+    expect(parseFrame("at todosAtom (/src/lib/todos.ts:4:14)")).toStrictEqual({
       column: 14,
       file: "/src/lib/todos.ts",
       line: 4,
     });
     expect(
       parseFrame("    at http://localhost:5173/@fs/J:/app/src/a.ts?t=1:12:3")
-    ).toEqual({ column: 3, file: "/@fs/J:/app/src/a.ts", line: 12 });
+    ).toStrictEqual({ column: 3, file: "/@fs/J:/app/src/a.ts", line: 12 });
     expect(parseFrame("no place here")).toBeUndefined();
   });
 
@@ -150,12 +152,16 @@ describe("names", () => {
       parseFrame(
         "    at http://localhost:5173/src/routes/(app)/+page.svelte?t=1:5:9"
       )
-    ).toEqual({ column: 9, file: "/src/routes/(app)/+page.svelte", line: 5 });
+    ).toStrictEqual({
+      column: 9,
+      file: "/src/routes/(app)/+page.svelte",
+      line: 5,
+    });
     expect(
       parseFrame(
         "    at Object.load (http://localhost:5173/src/routes/(app)/+page.ts?t=1:5:9)"
       )
-    ).toEqual({ column: 9, file: "/src/routes/(app)/+page.ts", line: 5 });
+    ).toStrictEqual({ column: 9, file: "/src/routes/(app)/+page.ts", line: 5 });
   });
 
   test("identifies an atom by its label and key", () => {
@@ -165,12 +171,13 @@ describe("names", () => {
   });
 });
 
-describe("Model", () => {
+describe(Model, () => {
   beforeEach(() => {
+    // oxlint-disable-next-line effecttsgo/global-timers -- stands in for the browser's requestAnimationFrame, a timer of its own
     vi.stubGlobal("requestAnimationFrame", (f: () => void) => setTimeout(f, 0));
-    vi.stubGlobal("cancelAnimationFrame", (handle: number) =>
-      clearTimeout(handle)
-    );
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      clearTimeout(handle);
+    });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -191,10 +198,16 @@ describe("Model", () => {
 
     const byName = new Map(model.atoms.map((item) => [item.name, item]));
     expect(byName.get("total")?.value).toBe(30);
-    expect(byName.get("count")?.plumbing).toBe(false);
-    expect(model.atoms.filter((item) => item.plumbing)).toHaveLength(1);
+    expect({
+      countIsPlumbing: byName.get("count")?.plumbing,
+      plumbing: model.atoms.filter((item) => item.plumbing).length,
+      unlabelled: model.unlabelled,
+    }).toStrictEqual({
+      countIsPlumbing: false,
+      plumbing: 1,
+      unlabelled: false,
+    });
     expect(model.totals.atoms).toBe(3);
-    expect(model.unlabelled).toBe(false);
     const computed = model.timeline
       .filter((entry) => entry.tag === "Built")
       .map((entry) => entry.detail);
@@ -245,7 +258,7 @@ describe("Model", () => {
     model.paused = true;
     model.clearTimeline();
     await sleep(5);
-    expect(model.timeline).toEqual([]);
+    expect(model.timeline).toStrictEqual([]);
     stop();
     registry.dispose();
   });

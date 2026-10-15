@@ -7,7 +7,7 @@ import {
   Hydration,
 } from "effect/reactivity";
 import { render } from "svelte/server";
-import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 
 import {
   useAtom,
@@ -44,12 +44,6 @@ import {
   unencodableAtom,
 } from "./fixtures/unsent-seed.ts";
 import { repeat, sleep, tracked as trackedAtom } from "./helpers.ts";
-
-let clients: ReturnType<typeof makeClients> | undefined;
-afterEach(async () => {
-  await clients?.dispose();
-  clients = undefined;
-});
 
 const renderSetup = (
   setup: () => unknown,
@@ -115,8 +109,10 @@ const keyAtom = (key: string) =>
 
 /** Collects Svelte's unresolved_hydratable warnings for the rest of the test, silencing them. */
 const unresolvedWarnings = () => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  onTestFinished(() => warn.mockRestore());
+  const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+  onTestFinished(() => {
+    warn.mockRestore();
+  });
   return () =>
     warn.mock.calls.filter((call) =>
       String(call[0]).includes("unresolved_hydratable")
@@ -135,8 +131,10 @@ const readTag =
 
 /** Collects every warning for the rest of the test, silencing them. */
 const allWarnings = () => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  onTestFinished(() => warn.mockRestore());
+  const warn = vi.spyOn(console, "warn").mockReturnValue(undefined);
+  onTestFinished(() => {
+    warn.mockRestore();
+  });
   return () => warn.mock.calls.map((call) => String(call[0]));
 };
 
@@ -149,7 +147,7 @@ const slowStreamAtom = (key: string) =>
   ).pipe(
     Atom.serializable({
       key,
-      schema: AsyncResult.Schema({ success: Schema.Number }),
+      schema: AsyncResult.Schema({ success: Schema.Finite }),
     })
   );
 
@@ -174,7 +172,7 @@ const readValue =
 const numberAtom = (key: string) =>
   Atom.make(0).pipe(
     Atom.keepAlive,
-    Atom.serializable({ key, schema: Schema.Number })
+    Atom.serializable({ key, schema: Schema.Finite })
   );
 
 /** The state Hydration.dehydrate gives for a registry where the atom is `value`. */
@@ -192,8 +190,7 @@ const stillRunning = (value: string) =>
 
 describe("server rendering", () => {
   test("awaits an RPC query and embeds its encoded result for hydration", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const todos = Rpc.query("listTodos", undefined, {
       serializationKey: "all",
     });
@@ -214,8 +211,7 @@ describe("server rendering", () => {
   });
 
   test("awaits useAtomSuspense in markup over HTTP", async () => {
-    clients = makeClients();
-    const { Http } = clients;
+    const { Http } = makeClients();
     const done = Http.query("todos", "list", { query: { done: "true" } });
     const output = await renderSetup(() => {
       const todos = useAtomSuspense(done);
@@ -285,7 +281,7 @@ describe("server rendering", () => {
 
   describe("what the server sends for hydration", () => {
     test("a defect isn't sent: its message and cause stay on the server", async () => {
-      const output = await renderSetup(readTag(defectAtom));
+      const output = await defectAtom.pipe(readTag, renderSetup);
       expect(output.body).toContain("Failure");
       const page = output.head + output.body;
       expect(page).not.toContain(serverSecret);
@@ -299,7 +295,7 @@ describe("server rendering", () => {
           schema: AsyncResult.Schema({ success: Schema.String }),
         })
       );
-      const output = await renderSetup(readTag(atom));
+      const output = await atom.pipe(readTag, renderSetup);
       expect(output.body).toContain("Failure");
       expect(output.head).not.toContain("Interrupt");
     });
@@ -316,7 +312,7 @@ describe("server rendering", () => {
           }),
         })
       );
-      const output = await renderSetup(readTag(atom));
+      const output = await atom.pipe(readTag, renderSetup);
       expect(output.body).toContain("Failure");
       expect(output.head).toContain("todo 7 is missing");
     });
@@ -338,10 +334,10 @@ describe("server rendering", () => {
       "%s isn't sent, and the render goes on with a warning",
       async (_, atom) => {
         const warned = allWarnings();
-        const output = await renderSetup(readTag(atom));
+        const output = await atom.pipe(readTag, renderSetup);
         expect(output.body).toMatch(/Success|Failure/u);
         expect(output.head).not.toContain("not-in-schema");
-        expect(warned()).toEqual([
+        expect(warned()).toStrictEqual([
           expect.stringContaining(
             `"${atom[Atom.SerializableTypeId].key}" doesn't encode`
           ),
@@ -350,7 +346,7 @@ describe("server rendering", () => {
     );
 
     test("a stream still running when the render ends is sent as waiting", async () => {
-      const output = await renderSetup(readTag(streamAtom));
+      const output = await streamAtom.pipe(readTag, renderSetup);
       expect(output.body).toContain("Success");
       expect(output.head).toContain("waiting:true");
     });
@@ -516,7 +512,7 @@ describe("server rendering", () => {
     test("inside a boundary with a pending snippet, the server renders that instead", async () => {
       const output = await render(ServerValueBoundary);
       expect(output.body).toContain("loading");
-      expect(serverValueComputed).toEqual([]);
+      expect(serverValueComputed).toStrictEqual([]);
     });
   });
 
@@ -524,7 +520,7 @@ describe("server rendering", () => {
     const save = Atom.fn((value: string) => Effect.succeed(value));
 
     test("useAtomResult rejects instead of hanging", async () => {
-      await expect(renderSetup(readTag(save))).rejects.toThrow(
+      await expect(save.pipe(readTag, renderSetup)).rejects.toThrow(
         "has not started"
       );
     });
@@ -547,7 +543,7 @@ describe("server rendering", () => {
           schema: AsyncResult.Schema({ success: Schema.String }),
         })
       );
-      await expect(renderSetup(readTag(idle))).rejects.toThrow(
+      await expect(idle.pipe(readTag, renderSetup)).rejects.toThrow(
         "has not started"
       );
     });
@@ -561,7 +557,7 @@ describe("server rendering", () => {
       const output = await render(SsrPendingBoundary);
       expect(output.body).toContain("loading");
       expect(output.body).not.toContain("from the server");
-      expect(pendingBoundaryComputed).toEqual(["server"]);
+      expect(pendingBoundaryComputed).toStrictEqual(["server"]);
       // The response waited for the atom, and Svelte warns the wait was for nothing it rendered.
       expect(output.head).toContain("from the server");
       expect(warnings()).toHaveLength(1);
@@ -572,9 +568,9 @@ describe("server rendering", () => {
       const warnings = unresolvedWarnings();
       const output = await render(SsrPendingBoundaryChild);
       expect(output.body).toContain("loading");
-      expect(pendingBoundaryComputed).toEqual([]);
+      expect(pendingBoundaryComputed).toStrictEqual([]);
       expect(output.head).not.toContain("pending-boundary");
-      expect(warnings()).toEqual([]);
+      expect(warnings()).toStrictEqual([]);
     });
   });
 
@@ -605,7 +601,7 @@ describe("server rendering", () => {
       return () => value.current;
     });
     expect(output.body).toContain("value");
-    await expect.poll(() => log).toEqual(["start", "stop"]);
+    await expect.poll(() => log).toStrictEqual(["start", "stop"]);
   });
 
   test("releases each request's atoms from a caller-owned registry", async () => {
@@ -655,7 +651,7 @@ describe("server rendering", () => {
       await expect.poll(() => registry.getNodes().size).toBe(0);
       // Finalizers run in no particular order across atoms.
       expect(log).toHaveLength(6);
-      expect(new Set(log)).toEqual(
+      expect(new Set(log)).toStrictEqual(
         new Set([
           "start plain",
           "start seeded",
@@ -737,12 +733,9 @@ describe("server rendering", () => {
   test("a provider inside a boundary that fails during setup still disposes its registry", async () => {
     // The provider's registry is the request's own; dropped with the boundary, it would keep
     // its keepAlive atoms, and whatever they run, for good.
-    expect(
-      await Promise.all([
-        renderBoundaryProvider(false),
-        renderBoundaryProvider(true),
-      ])
-    ).toEqual([
+    await expect(
+      Promise.all([renderBoundaryProvider(false), renderBoundaryProvider(true)])
+    ).resolves.toStrictEqual([
       { fail: false, finalized: 1 },
       { fail: true, finalized: 1 },
     ]);
@@ -770,7 +763,7 @@ describe("server rendering", () => {
     atom = next;
     expect(read?.current).toBe("next");
     await expect.poll(() => registry.getNodes().size).toBe(0);
-    expect(stopped).toEqual(["first", "next"]);
+    expect(stopped).toStrictEqual(["first", "next"]);
     registry.dispose();
   });
 
@@ -799,7 +792,7 @@ describe("server rendering", () => {
     const { preloadedSerializable } = registry as unknown as {
       readonly preloadedSerializable: ReadonlyMap<string, unknown>;
     };
-    expect([...preloadedSerializable.keys()]).toEqual([]);
+    expect([...preloadedSerializable.keys()]).toStrictEqual([]);
     registry.dispose();
   });
 
@@ -813,8 +806,8 @@ describe("server rendering", () => {
       return () => "subscribed";
     });
     expect(output.body).toContain("subscribed");
-    expect(seen).toEqual([]);
-    expect(log).toEqual([]);
+    expect(seen).toStrictEqual([]);
+    expect(log).toStrictEqual([]);
   });
 
   test("an initial value starts a browser-only atom on the server without computing it", async () => {
@@ -891,7 +884,7 @@ describe("server rendering", () => {
     await renderSetup(read);
     expect(
       warned().filter((message) => message.includes("unsent-value-read"))
-    ).toEqual([
+    ).toStrictEqual([
       expect.stringContaining(
         'useAtomValue read the serializable atom "unsent-value-read" on the server while it was still running'
       ),
@@ -930,7 +923,7 @@ describe("server rendering", () => {
     });
     expect(
       warned().filter((message) => message.includes("on the server"))
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   test("a plain read of a key the same render seeds doesn't warn, and useAtom's read is named", async () => {
@@ -946,7 +939,9 @@ describe("server rendering", () => {
     );
     const bound = Atom.writable(
       (get) => get(source),
-      (ctx, value: AsyncResult.AsyncResult<string>) => ctx.setSelf(value)
+      (ctx, value: AsyncResult.AsyncResult<string>) => {
+        ctx.setSelf(value);
+      }
     ).pipe(Atom.serializable({ key: "unsent-use-atom", schema }));
     const constant = Atom.make<AsyncResult.AsyncResult<string>>(
       AsyncResult.success("kept")
@@ -969,7 +964,7 @@ describe("server rendering", () => {
     const ours = warned().filter((message) =>
       message.includes("on the server")
     );
-    expect(ours).toEqual([
+    expect(ours).toStrictEqual([
       expect.stringContaining(
         'useAtom read the serializable atom "unsent-use-atom" on the server'
       ),
@@ -985,7 +980,9 @@ describe("server rendering", () => {
       })
     );
     const registry = AtomRegistry.make();
-    onTestFinished(() => registry.dispose());
+    onTestFinished(() => {
+      registry.dispose();
+    });
     const state = [
       {
         dehydratedAt: 0,
@@ -1010,7 +1007,7 @@ describe("server rendering", () => {
     expect(body).toContain("from the load");
     expect(
       warned().filter((message) => message.includes("boundary-value-read"))
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   test.each([false, true])(
@@ -1118,7 +1115,9 @@ describe("server rendering", () => {
         track("written", get);
         return 1;
       },
-      (ctx, value: number) => ctx.setSelf(value)
+      (ctx, value: number) => {
+        ctx.setSelf(value);
+      }
     );
     const suspended = Atom.make((get) => {
       track("suspended", get);
@@ -1156,7 +1155,7 @@ describe("server rendering", () => {
     );
     const expectBalanced = async () => {
       await expect.poll(() => log.length).toBe(startsAndStops.size);
-      expect(new Set(log)).toEqual(startsAndStops);
+      expect(new Set(log)).toStrictEqual(startsAndStops);
       log.length = 0;
     };
 
@@ -1194,8 +1193,7 @@ describe("server rendering", () => {
   });
 
   test("two different atoms with the same serialization key are rejected", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const first = Rpc.query("listTodos", undefined, {
       serializationKey: "dup",
     });

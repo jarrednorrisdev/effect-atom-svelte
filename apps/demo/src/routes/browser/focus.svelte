@@ -9,11 +9,15 @@
   const lastSeenAtom = Atom.make(() => {
     computations += 1;
     return `${new Date().toLocaleTimeString()}, computation ${computations}`;
-  }).pipe(Atom.refreshOnWindowFocus, Atom.withServerValue(() => "not yet"));
+  }).pipe(
+    Atom.refreshOnWindowFocus,
+    Atom.withServerValue(() => "not yet")
+  );
 </script>
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   // What the server's HTML had in the same place.
   import ServerHtml from "#lib/docs/kit/server-html.svelte";

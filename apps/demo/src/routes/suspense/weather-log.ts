@@ -10,7 +10,9 @@ export const loads = new EventLogState();
 // writing to the log's state then breaks Svelte's batching.
 const log = (label: string, tone: Tone) =>
   Effect.sync(() => {
-    setTimeout(() => loads.add(label, { tone }), 0);
+    setTimeout(() => {
+      loads.add(label, { tone });
+    }, 0);
   });
 
 /** Logs when a city's load starts, and how it ends: loaded, failed or interrupted. */

@@ -191,7 +191,9 @@ export const provideRegistry = (
   }
   // Not onDestroy: in the browser it never runs for a component destroyed while its script awaits.
   if (!provided) {
-    onTeardownAfterChildren(() => disposeRegistry(registry));
+    onTeardownAfterChildren(() => {
+      disposeRegistry(registry);
+    });
   }
   if (DEV && BROWSER) {
     // For developer tools to find (effect-atom-svelte/inspector).

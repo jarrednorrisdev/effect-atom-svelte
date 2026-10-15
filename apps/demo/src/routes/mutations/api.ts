@@ -21,22 +21,23 @@ export const listTodos = Effect.sync(() => [...saved]).pipe(
   Effect.delay("500 millis")
 );
 
-export const createTodo = (title: string) =>
-  Effect.gen(function* create() {
-    yield* Effect.sleep("1 second");
-    if (title.length > 60) {
-      return yield* new TitleTooLong({ maxLength: 60 });
-    }
-    const todo = { done: false, id: saved.length + 1, title };
-    saved.push(todo);
-    return todo;
-  });
+export const createTodo = Effect.fn("createTodo")(function* create(
+  title: string
+) {
+  yield* Effect.sleep("1 second");
+  if (title.length > 60) {
+    return yield* new TitleTooLong({ maxLength: 60 });
+  }
+  const todo = { done: false, id: saved.length + 1, title };
+  saved.push(todo);
+  return todo;
+});
 
 export const toggleTodo = (id: number) =>
   Effect.sync(() => {
     const index = saved.findIndex((todo) => todo.id === id);
-    const todo = saved[index];
-    if (todo) {
+    if (index !== -1) {
+      const todo = saved[index];
       saved[index] = { ...todo, done: !todo.done };
     }
     return saved[index];

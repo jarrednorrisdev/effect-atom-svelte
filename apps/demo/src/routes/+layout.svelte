@@ -1,23 +1,24 @@
 <script lang="ts">
   import "../app.css";
+  import { page } from "$app/state";
   import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
   import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
-  import { page } from "$app/state";
+  import { RegistryProvider } from "effect-atom-svelte";
+  import { onMount } from "svelte";
+  import type { Snippet } from "svelte";
+
   import * as Sidebar from "#lib/components/ui/sidebar/index.ts";
+  import { copyCode } from "#lib/docs/copy-code.ts";
   import DocsSidebar from "#lib/docs/docs-sidebar.svelte";
   import { markdownHref, neighbors } from "#lib/docs/nav.ts";
-  import { previewImage, siteName, siteUrl } from "#lib/docs/site.ts";
   import Pager from "#lib/docs/pager.svelte";
   import SiteHeader from "#lib/docs/site-header.svelte";
-  import { copyCode } from "#lib/docs/copy-code.ts";
+  import { previewImage, siteName, siteUrl } from "#lib/docs/site.ts";
   import TocMenu from "#lib/docs/toc-menu.svelte";
   import Toc from "#lib/docs/toc.svelte";
   import { TableOfContents } from "#lib/docs/toc.svelte.ts";
   import { installInTabEventSource } from "#lib/in-tab-api.ts";
   import { preferenceCookiesAtom } from "#lib/preferences.ts";
-  import { RegistryProvider } from "effect-atom-svelte";
-  import { onMount } from "svelte";
-  import type { Snippet } from "svelte";
 
   import type { LayoutData } from "./$types";
 
@@ -27,7 +28,9 @@
   installInTabEventSource();
 
   // Only pages in the sidebar have an address of their own; error pages don't.
-  const navTitle = $derived(page.error ? undefined : neighbors(page.url.pathname).page?.title);
+  const navTitle = $derived(
+    page.error ? undefined : neighbors(page.url.pathname).page?.title
+  );
   const errorTitle = $derived(
     page.status === 404 ? "Page not found" : "Something went wrong"
   );
@@ -44,7 +47,8 @@
   // Marks the page as hydrated, for the e2e tests: input typed before hydration can be lost.
   // The atom devtools, for visitors to watch the examples' atoms: loaded once the page is idle, so
   // they cost the page's first load nothing.
-  let devtools = $state<Promise<typeof import("effect-atom-svelte-devtools")>>();
+  let devtools =
+    $state<Promise<typeof import("effect-atom-svelte-devtools")>>();
   const load = () => {
     devtools = import("effect-atom-svelte-devtools");
   };
@@ -66,8 +70,20 @@
   <!-- Every page uses both fonts; without these, they only start loading once the stylesheet has
        arrived and the page has been laid out. Only the Latin files: app.css's other subsets load
        only for text that needs them. -->
-  <link as="font" crossorigin="anonymous" href={geistLatin} rel="preload" type="font/woff2" />
-  <link as="font" crossorigin="anonymous" href={monoLatin} rel="preload" type="font/woff2" />
+  <link
+    as="font"
+    crossorigin="anonymous"
+    href={geistLatin}
+    rel="preload"
+    type="font/woff2"
+  />
+  <link
+    as="font"
+    crossorigin="anonymous"
+    href={monoLatin}
+    rel="preload"
+    type="font/woff2"
+  />
   <title>{fullTitle}</title>
   <!-- Each page adds its own description (page-description.svelte), so there is none here. -->
   {#if canonical}
@@ -75,7 +91,11 @@
     {#if navTitle}
       <!-- The page as Markdown, for language models (src/lib/docs/llms.ts). The landing page has
            none: it isn't in the sidebar. -->
-      <link href="{siteUrl}{markdownHref(page.url.pathname)}" rel="alternate" type="text/markdown" />
+      <link
+        href="{siteUrl}{markdownHref(page.url.pathname)}"
+        rel="alternate"
+        type="text/markdown"
+      />
     {/if}
     <meta content={canonical} property="og:url" />
   {/if}
@@ -94,10 +114,12 @@
 
 <!-- One registry per request on the server, one for the session in the browser. The request's
      preference cookies seed the store that cookie-backed atoms read on the server. -->
-<RegistryProvider initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}>
+<RegistryProvider
+  initialValues={[[preferenceCookiesAtom, data.preferenceCookies]]}
+>
   <Sidebar.Provider class="flex-col">
     <a
-      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
+      class="focus:bg-background focus:ring-ring sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:px-3 focus:py-2 focus:ring-2"
       href="#content">Skip to content</a
     >
     <SiteHeader />
@@ -118,28 +140,38 @@
                cross at each end. The site header draws the crosses where those lines meet it. -->
           <div class="flex w-full">
             <div class="docs-area min-w-0 flex-1">
-            <div class="docs-column relative mx-auto min-w-0 px-6 pt-10 lg:px-10">
-              <TocMenu {toc} />
-              <!-- Only this part is indexed for search; the navigation around it is not. -->
-              <article bind:this={content} data-pagefind-body id="content">
-                {@render children()}
-              </article>
-              <Pager />
-              <!-- Right under the pager: its top line is the pager's bottom one. -->
-              <footer class="docs-footer relative border-t py-8 text-sm text-muted-foreground">
-                <i class="rule-cross rule-start"></i>
-                <i class="rule-cross rule-end"></i>
-                effect-atom-svelte is a community project by
-                <a class="underline underline-offset-4" href="https://github.com/jarrednorrisdev"
-                  >Jarred Norris</a
-                >, MIT licensed. It is not part of Effect and is not made or endorsed by the Effect
-                team. The docs are also Markdown, for AI assistants:
-                <a class="underline underline-offset-4" href="/llms.txt">llms.txt</a>.
-              </footer>
-            </div>
+              <div
+                class="docs-column relative mx-auto min-w-0 px-6 pt-10 lg:px-10"
+              >
+                <TocMenu {toc} />
+                <!-- Only this part is indexed for search; the navigation around it is not. -->
+                <article bind:this={content} data-pagefind-body id="content">
+                  {@render children()}
+                </article>
+                <Pager />
+                <!-- Right under the pager: its top line is the pager's bottom one. -->
+                <footer
+                  class="docs-footer text-muted-foreground relative border-t py-8 text-sm"
+                >
+                  <i class="rule-cross rule-start"></i>
+                  <i class="rule-cross rule-end"></i>
+                  effect-atom-svelte is a community project by
+                  <a
+                    class="underline underline-offset-4"
+                    href="https://github.com/jarrednorrisdev">Jarred Norris</a
+                  >, MIT licensed. It is not part of Effect and is not made or
+                  endorsed by the Effect team. The docs are also Markdown, for
+                  AI assistants:
+                  <a class="underline underline-offset-4" href="/llms.txt"
+                    >llms.txt</a
+                  >.
+                </footer>
+              </div>
             </div>
             <aside class="docs-toc hidden shrink-0 xl:block">
-              <div class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto overscroll-contain px-8 pt-10 pb-10">
+              <div
+                class="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto overscroll-contain px-8 pt-10 pb-10"
+              >
                 {#if toc.entries.length > 0}
                   <nav aria-label="On this page" class="text-sm">
                     <h2 class="docs-label mb-4">On this page</h2>

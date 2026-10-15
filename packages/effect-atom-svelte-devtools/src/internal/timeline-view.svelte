@@ -13,7 +13,13 @@
 
   const { model, showPlumbing, onselect }: Props = $props();
 
-  type Kind = "computed" | "updated" | "interrupted" | "finalized" | "readers" | "added";
+  type Kind =
+    | "computed"
+    | "updated"
+    | "interrupted"
+    | "finalized"
+    | "readers"
+    | "added";
   const kinds: Record<TimelineEntry["tag"], Kind> = {
     Built: "computed",
     Finalized: "finalized",
@@ -61,35 +67,52 @@
   const byId = $derived(new Map(model.atoms.map((view) => [view.id, view])));
   const nameOf = (id: number) => byId.get(id)?.name ?? `atom #${id}`;
   const shownRows = 400;
+  /** Whether the timeline lists the entry, given the kinds shown, the atom picked and the search. */
+  const shows = (entry: TimelineEntry, query: string) => {
+    if (!shownKinds[kinds[entry.tag]]) {
+      return false;
+    }
+    if (
+      only !== undefined &&
+      entry.atom !== only &&
+      !entry.related.includes(only)
+    ) {
+      return false;
+    }
+    if (!showPlumbing && byId.get(entry.atom)?.plumbing && only === undefined) {
+      return false;
+    }
+    return query === "" || nameOf(entry.atom).toLowerCase().includes(query);
+  };
   const rows = $derived.by(() => {
     const query = search.trim().toLowerCase();
     const matching: TimelineEntry[] = [];
-    for (let index = model.timeline.length - 1; index >= 0 && matching.length < shownRows; index -= 1) {
+    for (
+      let index = model.timeline.length - 1;
+      index >= 0 && matching.length < shownRows;
+      index -= 1
+    ) {
       const entry = model.timeline[index];
-      if (entry === undefined || !shownKinds[kinds[entry.tag]]) {
-        continue;
+      if (entry !== undefined && shows(entry, query)) {
+        matching.push(entry);
       }
-      if (only !== undefined && entry.atom !== only && !entry.related.includes(only)) {
-        continue;
-      }
-      if (!showPlumbing && byId.get(entry.atom)?.plumbing && only === undefined) {
-        continue;
-      }
-      if (query !== "" && !nameOf(entry.atom).toLowerCase().includes(query)) {
-        continue;
-      }
-      matching.push(entry);
     }
     return matching;
   });
 
   const start = $derived(model.timeline[0]?.time ?? 0);
-  const time = (entry: TimelineEntry) => `+${((entry.time - start) / 1000).toFixed(3)}`;
+  const time = (entry: TimelineEntry) =>
+    `+${((entry.time - start) / 1000).toFixed(3)}`;
 </script>
 
 <div class="timeline">
   <div class="toolbar">
-    <input aria-label="Filter by atom name" bind:value={search} placeholder="atom name" type="search" />
+    <input
+      aria-label="Filter by atom name"
+      bind:value={search}
+      placeholder="atom name"
+      type="search"
+    />
     {#each Object.keys(labels) as Kind[] as kind (kind)}
       <label class="kind">
         <input bind:checked={shownKinds[kind]} type="checkbox" />
@@ -102,31 +125,56 @@
         only {nameOf(only)} ✕
       </button>
     {/if}
-    <button class="tool" aria-pressed={model.paused} onclick={() => (model.paused = !model.paused)} type="button">
+    <button
+      class="tool"
+      aria-pressed={model.paused}
+      onclick={() => (model.paused = !model.paused)}
+      type="button"
+    >
       {model.paused ? "resume" : "pause"}
     </button>
-    <button class="tool" onclick={() => model.clearTimeline()} type="button">clear</button>
+    <button class="tool" onclick={() => model.clearTimeline()} type="button"
+      >clear</button
+    >
   </div>
 
   {#if rows.length === 0}
-    <p class="empty">Nothing yet. Use the page: every computation and update lands here.</p>
+    <p class="empty">
+      Nothing yet. Use the page: every computation and update lands here.
+    </p>
   {:else}
     <ol class="rows">
       {#each rows as entry (entry.seq)}
-        <li class="row {kinds[entry.tag]}" class:alert={entry.tag === "Interrupted"}>
+        <li
+          class="row {kinds[entry.tag]}"
+          class:alert={entry.tag === "Interrupted"}
+        >
           <span class="when">{time(entry)}</span>
           <span class="what">{verbs[entry.tag]}</span>
-          <button class="atom" class:plumbing={byId.get(entry.atom)?.plumbing} onclick={() => pick(entry.atom)} ondblclick={() => onselect(entry.atom)} title="Click: only this atom's rows. Double-click: its sheet." type="button">
+          <button
+            class="atom"
+            class:plumbing={byId.get(entry.atom)?.plumbing}
+            onclick={() => pick(entry.atom)}
+            ondblclick={() => onselect(entry.atom)}
+            title="Click: only this atom's rows. Double-click: its sheet."
+            type="button"
+          >
             {nameOf(entry.atom)}
           </button>
           <span class="detail">
             {#if entry.tag === "Built" && entry.related.length > 0}
               because
               {#each entry.related as id, index (id)}{#if index > 0},{/if}
-                <button class="atom inline" onclick={() => pick(id)} type="button">{nameOf(id)}</button>{/each}
+                <button
+                  class="atom inline"
+                  onclick={() => pick(id)}
+                  type="button">{nameOf(id)}</button
+                >{/each}
               changed
             {:else if entry.tag === "Built"}
-              {entry.detail === "first read" ? "first read" : `because it was ${entry.detail}`}
+              {entry.detail === "first read"
+                ? "first read"
+                : `because it was ${entry.detail}`}
             {:else}
               {entry.detail}
             {/if}

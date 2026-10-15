@@ -8,7 +8,7 @@ test.describe("Cookbook page", () => {
     // Hold the toggle request to see Done wait for it.
     const held = Promise.withResolvers<undefined>();
     await page.route("**/api/rpc{,/}", async (route) => {
-      if (route.request().postData()?.includes('"tag":"toggleTodo"')) {
+      if ((route.request().postData() ?? "").includes('"tag":"toggleTodo"')) {
         await held.promise;
       }
       await route.continue();
@@ -41,11 +41,15 @@ test.describe("Cookbook page", () => {
     await expect(count).toHaveText("10");
     await expect(page.getByTestId("feed-state")).toHaveText("Success");
     for (const last of [20, 30, 40, 50]) {
-      await feed.evaluate((list) => list.scrollTo(0, list.scrollHeight));
+      await feed.evaluate((list) => {
+        list.scrollTo(0, list.scrollHeight);
+      });
       await expect(feed).toContainText(`Entry ${last}`);
       await expect(count).toHaveText(String(last));
     }
-    await feed.evaluate((list) => list.scrollTo(0, list.scrollHeight));
+    await feed.evaluate((list) => {
+      list.scrollTo(0, list.scrollHeight);
+    });
     await expect(feed).toContainText("That's everything.");
     await expect(feed.locator("li")).toHaveCount(51);
     await expect(page.getByTestId("feed-state")).toHaveText("Success");

@@ -14,6 +14,7 @@
 
 <script lang="ts">
   import { useAtomSuspense } from "effect-atom-svelte";
+
   import Part from "#lib/docs/kit/part.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
 
@@ -30,7 +31,12 @@
   const requests = new RequestCount(() => todosFor(filter));
 </script>
 
-<Part code count={requests.current} countLabel="requests" label="query todos.list">
+<Part
+  code
+  count={requests.current}
+  countLabel="requests"
+  label="query todos.list"
+>
   <div aria-label="Filter" class="flex flex-wrap gap-2" role="group">
     {#each filters as option (option.value)}
       <button

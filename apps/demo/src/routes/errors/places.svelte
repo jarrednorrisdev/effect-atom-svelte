@@ -30,6 +30,7 @@
     useAtomSuspense,
     useAtomValue,
   } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import Part from "#lib/docs/kit/part.svelte";
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
@@ -79,7 +80,9 @@
           <span data-testid="places-boundary">{kept.tag}</span>
         </ResultChip>
         <p class="text-sm break-all">
-          Received <code data-testid="places-received">{JSON.stringify(kept)}</code>
+          Received <code data-testid="places-received"
+            >{JSON.stringify(kept)}</code
+          >
         </p>
         <button
           onclick={() => {

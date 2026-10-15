@@ -35,12 +35,19 @@
 
   const rows = $derived(lanes ?? [undefined]);
   const length = $derived(
-    span ?? Math.max(1000, Math.ceil((Math.max(0, ...entries.map((e) => e.at)) * 1.15) / 500) * 500)
+    span ??
+      Math.max(
+        1000,
+        Math.ceil((Math.max(0, ...entries.map((e) => e.at)) * 1.15) / 500) * 500
+      )
   );
   const left = (at: number) => `${Math.min(100, (at / length) * 100)}%`;
 </script>
 
-<div class={["timeline not-prose", lanes !== undefined && "with-lanes"]} {...rest}>
+<div
+  class={["timeline not-prose", lanes !== undefined && "with-lanes"]}
+  {...rest}
+>
   {#each rows as lane (lane)}
     {#if lane !== undefined}<span class="lane">{lane}</span>{/if}
     <div class="track-box">

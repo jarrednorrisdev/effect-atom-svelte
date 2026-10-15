@@ -11,13 +11,20 @@
     aria-label={`Search ${table.current.name.toLowerCase()}`}
     class="w-44"
     oninput={(event) =>
-      (table.current = { ...table.current, page: 0, query: event.currentTarget.value })}
+      (table.current = {
+        ...table.current,
+        page: 0,
+        query: event.currentTarget.value,
+      })}
     placeholder={`Search ${table.current.name.toLowerCase()}…`}
     value={table.current.query}
   />
   {#if table.current.selected.size > 0}
     <span class="text-sm">{table.current.selected.size} selected</span>
-    <button onclick={() => (table.current = { ...table.current, selected: new Set() })}>
+    <button
+      onclick={() =>
+        (table.current = { ...table.current, selected: new Set() })}
+    >
       Clear
     </button>
   {/if}

@@ -11,7 +11,7 @@ export const pricesState = prerender(async () => {
   const atoms = [pricesAtom, pricesWithKeysAtom];
   const releases = atoms.map((atom) => registry.mount(atom));
   await Effect.runPromise(
-    Effect.all(atoms.map((atom) => AtomRegistry.getResult(registry, atom)))
+    Effect.forEach(atoms, (atom) => AtomRegistry.getResult(registry, atom))
   );
   const state = Hydration.dehydrate(registry);
   for (const release of releases) {

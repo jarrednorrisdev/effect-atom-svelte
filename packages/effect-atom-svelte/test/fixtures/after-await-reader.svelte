@@ -10,5 +10,13 @@
   $effect.pre(() => record("after-await", afterAwait.current));
 </script>
 
-<output>{kept.current._tag === "Success" ? kept.current.value : kept.current._tag}</output>
-<output>{afterAwait.current._tag === "Success" ? afterAwait.current.value : afterAwait.current._tag}</output>
+<output
+  >{kept.current._tag === "Success"
+    ? kept.current.value
+    : kept.current._tag}</output
+>
+<output
+  >{afterAwait.current._tag === "Success"
+    ? afterAwait.current.value
+    : afterAwait.current._tag}</output
+>

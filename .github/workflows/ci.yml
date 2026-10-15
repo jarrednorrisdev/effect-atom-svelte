@@ -70,10 +70,11 @@ jobs:
           npm install --global --prefix "$HOME/.local" bun@1.4.2
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
-      - run: bun run lint
       # Turbo builds the library (and not the site) first: the site's check depends on its build,
       # and so does the site's Vitest run below. The e2e jobs build the site themselves.
       - run: bun run check
+      # Type-aware lint reads the libraries' types from the build check made.
+      - run: bun run lint
       - run: bun run --cwd packages/effect-atom-svelte test
       - run: bun run --cwd packages/effect-atom-svelte-devtools test
       - run: bunx vitest run

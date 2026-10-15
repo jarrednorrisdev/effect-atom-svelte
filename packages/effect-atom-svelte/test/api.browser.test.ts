@@ -2,7 +2,7 @@ import type { Todo } from "@demo/domain";
 import { Effect } from "effect";
 import type { Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import { useAtomSet, useAtomSuspense, useAtomValue } from "../src/index.ts";
@@ -15,15 +15,9 @@ const text = (screen: Awaited<ReturnType<typeof render>>) => () =>
 const titles = (todos: readonly Todo[]) =>
   todos.map((todo) => todo.title).join(", ");
 
-let clients: ReturnType<typeof makeClients>;
-afterEach(async () => {
-  await clients.dispose();
-});
-
 describe("AtomRpc", () => {
   test("a query renders through useAtomSuspense", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const screen = await render(Harness, {
       async: true,
       setup: () => {
@@ -37,8 +31,7 @@ describe("AtomRpc", () => {
   });
 
   test("a mutation with reactivity keys refreshes the query", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const list = Rpc.query("listTodos", undefined, {
       reactivityKeys: ["todos"],
     });
@@ -67,8 +60,7 @@ describe("AtomRpc", () => {
   });
 
   test("a typed error comes back as a Failure with its tag", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const mutation = Rpc.mutation("createTodo");
     let create!: (input: {
       payload: { title: string };
@@ -86,8 +78,7 @@ describe("AtomRpc", () => {
   });
 
   test("a query family follows the selected id", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const registry = AtomRegistry.make();
     const selected = Atom.make(1);
     const screen = await render(Harness, {
@@ -112,8 +103,7 @@ describe("AtomRpc", () => {
   });
 
   test("a streaming RPC is pulled chunk by chunk until done", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const ticks = Rpc.query("ticks", { count: 3 });
     let pull!: (value: undefined) => void;
     const screen = await render(Harness, {
@@ -139,8 +129,7 @@ describe("AtomRpc", () => {
   });
 
   test("runtime.fn composes RPC calls in an Effect", async () => {
-    clients = makeClients();
-    const { Rpc } = clients;
+    const { Rpc } = makeClients();
     const createTwo = Rpc.runtime.fn((prefix: string) =>
       Effect.gen(function* createTwoTodos() {
         const client = yield* Rpc;
@@ -156,12 +145,11 @@ describe("AtomRpc", () => {
         return () => "";
       },
     });
-    await expect(run("batch")).resolves.toEqual([3, 4]);
+    await expect(run("batch")).resolves.toStrictEqual([3, 4]);
   });
 
   test("optimisticFn shows the update before the server confirms it", async () => {
-    clients = makeClients({ latency: "200 millis" });
-    const { Rpc } = clients;
+    const { Rpc } = makeClients({ latency: "200 millis" });
     const list = Atom.optimistic(
       Rpc.query("listTodos", undefined, { reactivityKeys: ["todos"] })
     );
@@ -176,7 +164,7 @@ describe("AtomRpc", () => {
         reducer: (current, title: string) =>
           AsyncResult.map((todos: readonly Todo[]) => [
             ...todos,
-            { done: false, id: -1, title } as Todo,
+            { done: false, id: -1, title },
           ])(current),
       })
     );
@@ -201,8 +189,7 @@ describe("AtomRpc", () => {
 
 describe("AtomHttpApi", () => {
   test("a query with query params", async () => {
-    clients = makeClients();
-    const { Http } = clients;
+    const { Http } = makeClients();
     const screen = await render(Harness, {
       async: true,
       setup: () => {
@@ -216,8 +203,7 @@ describe("AtomHttpApi", () => {
   });
 
   test("a query with path params, and a typed 404", async () => {
-    clients = makeClients();
-    const { Http } = clients;
+    const { Http } = makeClients();
     const registry = AtomRegistry.make();
     const selected = Atom.make(1);
     const screen = await render(Harness, {
@@ -249,8 +235,7 @@ describe("AtomHttpApi", () => {
   });
 
   test("a mutation refreshes the list through reactivity keys, and 422 is typed", async () => {
-    clients = makeClients();
-    const { Http } = clients;
+    const { Http } = makeClients();
     const list = Http.query("todos", "list", {
       query: {},
       reactivityKeys: ["todos"],

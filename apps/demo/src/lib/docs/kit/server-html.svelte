@@ -15,17 +15,24 @@
   element's text with its whitespace collapsed, "(empty)", or "Not in the HTML".
 -->
 <script module lang="ts">
-  let fetched: { readonly path: string; readonly html: Promise<Document | undefined> } | undefined;
+  let fetched:
+    | { readonly path: string; readonly html: Promise<Document | undefined> }
+    | undefined;
 
   /** The page's HTML, parsed: what a request for it returns, before any script runs. */
   const pageHtml = (path: string) => {
     if (fetched?.path !== path) {
-      const html = (async () => {
+      const html = (async (): Promise<Document | undefined> => {
         try {
-          const response = await fetch(path, { headers: { accept: "text/html" } });
-          return new DOMParser().parseFromString(await response.text(), "text/html");
+          const response = await fetch(path, {
+            headers: { accept: "text/html" },
+          });
+          return new DOMParser().parseFromString(
+            await response.text(),
+            "text/html"
+          );
         } catch {
-          return undefined;
+          // Offline, or the request failed: there is no HTML to show.
         }
       })();
       fetched = { html, path };

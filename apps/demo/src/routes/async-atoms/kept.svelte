@@ -19,12 +19,19 @@
 
 <script lang="ts">
   import BrowserFrame from "#lib/docs/kit/browser-frame.svelte";
+
   import CacheCard from "./cache-card.svelte";
-  import { runs } from "./kept-requests.svelte.ts";
   import Reader from "./kept-reader.svelte";
+  import { runs } from "./kept-requests.svelte.ts";
 
   // The page being shown. Only the dashboard reads the three atoms.
   let page = $state<"dashboard" | "help">("help");
+
+  const cards = $derived([
+    { atom: weatherAtom, name: "weatherAtom", runs: runs.weather },
+    { atom: settingsAtom, name: "settingsAtom", runs: runs.settings },
+    { atom: searchAtom, name: "searchAtom", runs: runs.search },
+  ]);
 </script>
 
 <BrowserFrame bind:page pages={["dashboard", "help"]}>
@@ -41,11 +48,7 @@
 
 <!-- What the registry holds for each atom, and how often its request ran. -->
 <div class="mt-4 grid gap-3 sm:grid-cols-3">
-  {#each [
-    { atom: weatherAtom, name: "weatherAtom", runs: runs.weather },
-    { atom: settingsAtom, name: "settingsAtom", runs: runs.settings },
-    { atom: searchAtom, name: "searchAtom", runs: runs.search },
-  ] as card (card.name)}
+  {#each cards as card (card.name)}
     <CacheCard {...card} read={page === "dashboard"} />
   {/each}
 </div>

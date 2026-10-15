@@ -1,7 +1,11 @@
 <!-- A layout giving an atom a default with initialValues and reading it above a page's
      HydrationBoundary, which hydrates the atom's fresh value. -->
 <script lang="ts">
-  import { HydrationBoundary, RegistryProvider, useAtomValue } from "../../src/index.ts";
+  import {
+    HydrationBoundary,
+    RegistryProvider,
+    useAtomValue,
+  } from "../../src/index.ts";
   import {
     providerSeedAtom,
     providerSeedSeen,

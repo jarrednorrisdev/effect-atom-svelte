@@ -37,7 +37,8 @@
       return "failure";
     }
     const arrived = branch === "content" && before.branch !== "content";
-    const settled = branch === "content" && before.updating > 0 && updating === 0;
+    const settled =
+      branch === "content" && before.updating > 0 && updating === 0;
     return arrived || settled ? "success" : undefined;
   };
 
@@ -45,9 +46,11 @@
   const watch = (frame: HTMLElement) => {
     const read = () => {
       const before = { branch, updating };
-      branch = frame.querySelector<HTMLElement>("[data-branch]")?.dataset.branch;
+      branch =
+        frame.querySelector<HTMLElement>("[data-branch]")?.dataset.branch;
       updating = Number(
-        frame.querySelector<HTMLElement>("[data-updating]")?.dataset.updating ?? 0
+        frame.querySelector<HTMLElement>("[data-updating]")?.dataset.updating ??
+          0
       );
       const cue = outcome(before);
       if (cue && exampleTouched(example)) {
@@ -75,7 +78,11 @@
   <span class="name">&lt;svelte:boundary&gt;</span>
   <div {@attach watch}>{@render children()}</div>
 </div>
-<div aria-label="What the boundary renders" class="inspector not-prose" role="list">
+<div
+  aria-label="What the boundary renders"
+  class="inspector not-prose"
+  role="list"
+>
   {#each slots as slot (slot.id)}
     <span
       aria-current={branch === slot.id ? "true" : undefined}

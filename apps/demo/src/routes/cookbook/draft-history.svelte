@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getRegistry, useAtom, useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import { enter } from "#lib/docs/kit/motion.ts";
 

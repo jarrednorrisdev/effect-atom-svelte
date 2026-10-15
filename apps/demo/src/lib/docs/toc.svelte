@@ -2,18 +2,17 @@
   import type { TableOfContents } from "./toc.svelte.ts";
 
   /** The page's sections, as a list of links with the current one marked. */
-  const { onnavigate, toc }: { onnavigate?: () => void; toc: TableOfContents } = $props();
+  const { onnavigate, toc }: { onnavigate?: () => void; toc: TableOfContents } =
+    $props();
 
   // Each h2's number, as the page shows it above the heading (app.css, .docs-column h2).
-  const numbers = $derived.by(() => {
-    let count = 0;
-    return new Map(
-      toc.entries.map((entry) => [
-        entry.id,
-        entry.depth === 2 ? String((count += 1)).padStart(2, "0") : undefined,
-      ])
-    );
-  });
+  const numbers = $derived(
+    new Map(
+      toc.entries
+        .filter((entry) => entry.depth === 2)
+        .map((entry, index) => [entry.id, String(index + 1).padStart(2, "0")])
+    )
+  );
 </script>
 
 <ul class="space-y-2 border-l">
@@ -24,11 +23,11 @@
       <a
         aria-current={toc.active === entry.id ? "location" : undefined}
         class={[
-          "-ml-px flex gap-2.5 border-l transition-colors hover:text-foreground",
+          "hover:text-foreground -ml-px flex gap-2.5 border-l transition-colors",
           entry.depth === 3 ? "pl-[2.6rem]" : "pl-3",
           toc.active === entry.id
             ? "border-brand text-foreground"
-            : "border-transparent text-navigation-foreground",
+            : "text-navigation-foreground border-transparent",
         ]}
         href="#{entry.id}"
         onclick={onnavigate}
@@ -42,7 +41,6 @@
     </li>
   {/each}
 </ul>
-
 
 <style>
   .number::before {

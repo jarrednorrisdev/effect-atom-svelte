@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { AtomRef } from "effect/reactivity";
   import { useAtomRefPropValue } from "effect-atom-svelte";
+  import type { AtomRef } from "effect/reactivity";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
 
   interface Todo {
@@ -8,8 +9,10 @@
     readonly title: string;
   }
 
-  const { item, onremove }: { item: AtomRef.AtomRef<Todo>; onremove: () => void } =
-    $props();
+  const {
+    item,
+    onremove,
+  }: { item: AtomRef.AtomRef<Todo>; onremove: () => void } = $props();
 
   const title = useAtomRefPropValue(() => item, "title");
   const done = useAtomRefPropValue(() => item, "done");

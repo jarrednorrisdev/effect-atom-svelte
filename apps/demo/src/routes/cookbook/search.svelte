@@ -30,6 +30,7 @@
 
 <script lang="ts">
   import { useAtom, useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 
@@ -52,7 +53,10 @@
 <p class="flex flex-wrap gap-x-6 gap-y-2">
   <span>queryAtom: <FlashValue value={query.current} /></span>
   <span>
-    debouncedAtom: <FlashValue data-testid="debounced" value={debounced.current} />
+    debouncedAtom: <FlashValue
+      data-testid="debounced"
+      value={debounced.current}
+    />
   </span>
 </p>
 {#if results.current._tag === "Success"}

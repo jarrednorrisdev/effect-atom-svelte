@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { Effect } from "effect";
   import { Atom } from "effect/reactivity";
+
   import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   // What the pretend socket server saw, for the log under the example.
@@ -31,6 +32,7 @@
 
 <script lang="ts">
   import { useAtomRefresh, useAtomValue } from "effect-atom-svelte";
+
   import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
 

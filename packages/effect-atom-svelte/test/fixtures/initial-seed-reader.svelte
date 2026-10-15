@@ -15,4 +15,8 @@
 </script>
 
 <button onclick={refresh}>Refresh</button>
-<output>{result.current._tag === "Success" ? result.current.value : result.current._tag}</output>
+<output
+  >{result.current._tag === "Success"
+    ? result.current.value
+    : result.current._tag}</output
+>

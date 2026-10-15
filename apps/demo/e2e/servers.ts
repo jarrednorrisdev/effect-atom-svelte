@@ -106,23 +106,26 @@ export const test = base.extend<
         },
         `${api}/api/todos`
       );
-      const webProcess = await start(
-        process.execPath,
-        [
-          viteBin,
-          "preview",
-          "--host",
-          host,
-          "--port",
-          new URL(web).port,
-          "--strictPort",
-        ],
-        { cwd: demoDir, env: { ...process.env, DEMO_API_ORIGIN: api } },
-        web
-      ).catch((error: unknown) => {
+      let webProcess: ChildProcess;
+      try {
+        webProcess = await start(
+          process.execPath,
+          [
+            viteBin,
+            "preview",
+            "--host",
+            host,
+            "--port",
+            new URL(web).port,
+            "--strictPort",
+          ],
+          { cwd: demoDir, env: { ...process.env, DEMO_API_ORIGIN: api } },
+          web
+        );
+      } catch (error) {
         apiProcess.kill();
         throw error;
-      });
+      }
       await use({ api, web });
       webProcess.kill();
       apiProcess.kill();

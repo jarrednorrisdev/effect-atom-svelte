@@ -16,19 +16,26 @@
   shows how. To show it in production too, as the effect-atom-svelte docs do, set `production`.
 -->
 <script lang="ts">
-  import { BROWSER, DEV } from "esm-env";
-  import type { AtomRegistry } from "effect/reactivity";
   import { getRegistry } from "effect-atom-svelte";
   import { inspect, watchRegistries } from "effect-atom-svelte/inspector";
+  import type { AtomRegistry } from "effect/reactivity";
+  import { BROWSER, DEV } from "esm-env";
   import { onMount, tick } from "svelte";
 
   import GraphView from "./internal/graph-view.svelte";
   import { Model } from "./internal/model.svelte.ts";
   import SettingsView from "./internal/settings-view.svelte";
   import type { Corner } from "./internal/settings-view.svelte";
-  import { defaultShortcut, formatShortcut, matchesShortcut, parseShortcut } from "./internal/shortcut.ts";
   import SheetsView from "./internal/sheets-view.svelte";
+  import {
+    defaultShortcut,
+    formatShortcut,
+    matchesShortcut,
+    parseShortcut,
+  } from "./internal/shortcut.ts";
   import TimelineView from "./internal/timeline-view.svelte";
+
+  type Theme = "auto" | "light" | "dark";
 
   interface Props {
     /** The registry to show. Defaults to the nearest `RegistryProvider`'s. */
@@ -36,7 +43,7 @@
     /** Whether the panel starts open. Defaults to how it was left. */
     readonly open?: boolean | undefined;
     /** Light paper, a dark blueprint, or the page's own (`auto`: a `dark` class on `<html>`, or the system's). */
-    readonly theme?: "auto" | "light" | "dark" | undefined;
+    readonly theme?: Theme | undefined;
     /**
      * Shows the panel in production builds too, for a site that lets its visitors watch its atoms.
      * Without it the panel renders nothing outside development. In production it follows the
@@ -76,7 +83,10 @@
   const storageKey = "effect-atom-svelte-devtools";
   const load = (): Partial<Saved> => {
     try {
-      return JSON.parse(localStorage.getItem(storageKey) ?? "{}") as Partial<Saved>;
+      // SAFETY: only `save` writes this key, from a `Saved`; an older version wrote a part of one.
+      return JSON.parse(
+        localStorage.getItem(storageKey) ?? "{}"
+      ) as Partial<Saved>;
     } catch {
       return {};
     }
@@ -137,9 +147,15 @@
 
     const stopWatching = watchRegistries((list) => {
       // A registry given as a prop stays in the picker, even one no provider holds.
-      registries = registry !== undefined && !list.includes(registry) ? [registry, ...list] : list;
+      registries =
+        registry !== undefined && !list.includes(registry)
+          ? [registry, ...list]
+          : list;
       if (chosen === undefined || !registries.includes(chosen)) {
-        chosen = nearest !== undefined && registries.includes(nearest) ? nearest : (registries[0] ?? nearest);
+        chosen =
+          nearest !== undefined && registries.includes(nearest)
+            ? nearest
+            : (registries[0] ?? nearest);
       }
     });
 
@@ -148,10 +164,10 @@
     const media = matchMedia("(prefers-color-scheme: dark)");
     const readTheme = () => {
       dark =
-        theme === "dark" ||
-        (theme === "auto" &&
-          (root.classList.contains("dark") ||
-            (!root.classList.contains("light") && media.matches)));
+        theme === "auto"
+          ? root.classList.contains("dark") ||
+            (!root.classList.contains("light") && media.matches)
+          : theme === "dark";
     };
     readTheme();
     const observer = new MutationObserver(readTheme);
@@ -202,7 +218,9 @@
   // How tall the dock is drawn: enlarged, it takes most of the window; otherwise what was dragged,
   // kept between a usable minimum and most of the window.
   const shown = $derived(
-    expanded ? Math.round(innerHeight * 0.85) : Math.min(Math.max(height, 160), innerHeight * 0.85)
+    expanded
+      ? Math.round(innerHeight * 0.85)
+      : Math.min(Math.max(height, 160), innerHeight * 0.85)
   );
 
   // While open, the page gets room below its end, so the dock never hides the last of it.
@@ -221,7 +239,10 @@
   /** Drags the dock's top line: the dock follows the pointer until it's let go. */
   const resize = (event: PointerEvent) => {
     event.preventDefault();
-    const handle = event.currentTarget as HTMLElement;
+    const handle = event.currentTarget;
+    if (!(handle instanceof HTMLElement)) {
+      return;
+    }
     handle.setPointerCapture(event.pointerId);
     const start = event.clientY;
     const from = shown;
@@ -283,13 +304,22 @@
   // As aria-keyshortcuts writes it: "Alt+Shift+A".
   const keyShortcuts = $derived.by(() => {
     const parsed = parseShortcut(shortcut);
-    return parsed === undefined ? undefined : formatShortcut(parsed, false).replaceAll(" ", "+").replace("Ctrl", "Control");
+    return parsed === undefined
+      ? undefined
+      : formatShortcut(parsed, false)
+          .replaceAll(" ", "+")
+          .replace("Ctrl", "Control");
   });
 
   /** The shortcut, from anywhere on the page: opens the panel, or closes it. */
   const onShortcut = (event: KeyboardEvent) => {
     const parsed = parseShortcut(shortcut);
-    if (!enabled || !mounted || parsed === undefined || !matchesShortcut(event, parsed)) {
+    if (
+      !enabled ||
+      !mounted ||
+      parsed === undefined ||
+      !matchesShortcut(event, parsed)
+    ) {
       return;
     }
     event.preventDefault();
@@ -308,7 +338,10 @@
     if (event.button !== 0) {
       return;
     }
-    const button = event.currentTarget as HTMLElement;
+    const button = event.currentTarget;
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
     const box = button.getBoundingClientRect();
     const offsetX = event.clientX - box.left;
     const offsetY = event.clientY - box.top;
@@ -321,7 +354,10 @@
     // From the press on, so a quick drag that leaves the button still moves it.
     button.setPointerCapture(event.pointerId);
     const move = (next: PointerEvent) => {
-      if (!dragged && Math.hypot(next.clientX - startX, next.clientY - startY) < 5) {
+      if (
+        !dragged &&
+        Math.hypot(next.clientX - startX, next.clientY - startY) < 5
+      ) {
         return;
       }
       dragged = true;
@@ -357,7 +393,8 @@
     selected = id;
     tab = "sheets";
   };
-  const registryName = (index: number) => (index === 0 ? "registry 1" : `registry ${index + 1}`);
+  const registryName = (index: number) =>
+    index === 0 ? "registry 1" : `registry ${index + 1}`;
   const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
     { id: "graph", label: "Graph" },
     { id: "sheets", label: "Sheets" },
@@ -385,7 +422,8 @@
             void closePanel();
           }
         }}
-        tabindex="-1">
+        tabindex="-1"
+      >
         <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
         <div
           aria-label="Resize the panel"
@@ -399,12 +437,18 @@
           onpointerdown={resize}
           role="separator"
           tabindex="0"
-          title="Drag to resize; double-click to reset"></div>
+          title="Drag to resize; double-click to reset"
+        ></div>
         <header class="bar">
           <span class="cell title"><b aria-hidden="true">◎</b> Atoms</span>
           <nav aria-label="Views" class="tabs">
             {#each tabs as item, index (item.id)}
-              <button aria-pressed={tab === item.id} class="cell tab" onclick={() => (tab = item.id)} type="button">
+              <button
+                aria-pressed={tab === item.id}
+                class="cell tab"
+                onclick={() => (tab = item.id)}
+                type="button"
+              >
                 <b>{pad(index + 1)}</b>
                 {item.label}
               </button>
@@ -412,18 +456,32 @@
           </nav>
           <span class="spacer"></span>
           <span class="cell count">Atoms <b>{pad(model.totals.atoms)}</b></span>
-          <span class="cell count">Readers <b>{pad(model.totals.readers)}</b></span>
-          <span class="cell count">Updates <b>{pad(model.totals.updates)}</b></span>
-          <span class="cell count" class:alert={model.totals.interruptions > 0}>Interrupted <b>{pad(model.totals.interruptions)}</b></span>
+          <span class="cell count"
+            >Readers <b>{pad(model.totals.readers)}</b></span
+          >
+          <span class="cell count"
+            >Updates <b>{pad(model.totals.updates)}</b></span
+          >
+          <span class="cell count" class:alert={model.totals.interruptions > 0}
+            >Interrupted <b>{pad(model.totals.interruptions)}</b></span
+          >
           {#if registries.length > 1}
             <label class="cell">
               <span class="sr">Registry</span>
               <select
                 class="picker"
-                onchange={(event) => (chosen = registries[Number(event.currentTarget.value)])}
-                value={String(registries.indexOf(chosen as AtomRegistry.AtomRegistry))}>
+                onchange={(event) =>
+                  (chosen = registries[Number(event.currentTarget.value)])}
+                value={String(
+                  registries.indexOf(chosen as AtomRegistry.AtomRegistry)
+                )}
+              >
                 {#each registries as item, index (item)}
-                  <option value={String(index)}>{registryName(index)}{item === nearest ? " (this one)" : ""}</option>
+                  <option value={String(index)}
+                    >{registryName(index)}{item === nearest
+                      ? " (this one)"
+                      : ""}</option
+                  >
                 {/each}
               </select>
             </label>
@@ -432,43 +490,85 @@
             <input bind:checked={showPlumbing} type="checkbox" />
             Plumbing
           </label>
-          <button aria-label={expanded ? "Shrink the panel" : "Enlarge the panel"} class="cell icon" onclick={() => (expanded = !expanded)} title={expanded ? "Shrink" : "Enlarge"} type="button">
+          <button
+            aria-label={expanded ? "Shrink the panel" : "Enlarge the panel"}
+            class="cell icon"
+            onclick={() => (expanded = !expanded)}
+            title={expanded ? "Shrink" : "Enlarge"}
+            type="button"
+          >
             <svg aria-hidden="true" height="12" viewBox="0 0 12 12" width="12">
               {#if expanded}
-                <path d="M2 5h8M2 7h8" fill="none" stroke="currentColor" stroke-width="1.25" />
+                <path
+                  d="M2 5h8M2 7h8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.25"
+                />
               {:else}
-                <path d="M2 4l4-3 4 3M2 8l4 3 4-3" fill="none" stroke="currentColor" stroke-width="1.25" />
+                <path
+                  d="M2 4l4-3 4 3M2 8l4 3 4-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.25"
+                />
               {/if}
             </svg>
           </button>
-          <button aria-label="Close the panel" class="cell icon" onclick={closePanel} title="Close (Esc)" type="button">
+          <button
+            aria-label="Close the panel"
+            class="cell icon"
+            onclick={closePanel}
+            title="Close (Esc)"
+            type="button"
+          >
             <svg aria-hidden="true" height="12" viewBox="0 0 12 12" width="12">
-              <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.25" />
+              <path
+                d="M2.5 2.5l7 7M9.5 2.5l-7 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.25"
+              />
             </svg>
           </button>
         </header>
 
         {#if model.partial}
           <p class="notice">
-            This registry isn't the one effect-atom-svelte's inspector was written for (a newer Effect?), so only atoms added and removed are shown.
+            This registry isn't the one effect-atom-svelte's inspector was
+            written for (a newer Effect?), so only atoms added and removed are
+            shown.
           </p>
         {:else if model.unlabelled}
           <p class="notice">
-            No atom has a name. Add <code>atomLabels()</code> from <code>effect-atom-svelte-devtools/vite</code> to your Vite config to name them after their variables.
+            No atom has a name. Add <code>atomLabels()</code> from
+            <code>effect-atom-svelte-devtools/vite</code> to your Vite config to name
+            them after their variables.
           </p>
         {/if}
 
         <div class="body">
           {#if tab === "graph"}
             <div class="scroll">
-              <GraphView atoms={model.atoms} onselect={select} {selected} {showPlumbing} />
+              <GraphView
+                atoms={model.atoms}
+                onselect={select}
+                {selected}
+                {showPlumbing}
+              />
             </div>
           {:else if tab === "sheets"}
             <SheetsView {model} onselect={select} {selected} {showPlumbing} />
           {:else if tab === "timeline"}
             <TimelineView {model} onselect={select} {showPlumbing} />
           {:else}
-            <SettingsView bind:corner bind:opacity bind:scale bind:shortcut defaultShortcut={appShortcut} />
+            <SettingsView
+              bind:corner
+              bind:opacity
+              bind:scale
+              bind:shortcut
+              defaultShortcut={appShortcut}
+            />
           {/if}
         </div>
       </section>
@@ -485,8 +585,10 @@
         onclick={launch}
         onpointerdown={drag}
         title="Atom devtools ({shortcutLabel}). Drag to move."
-        type="button">
-        <b aria-hidden="true">◎</b> Atoms <span class="n">{pad(model.totals.atoms)}</span>
+        type="button"
+      >
+        <b aria-hidden="true">◎</b> Atoms
+        <span class="n">{pad(model.totals.atoms)}</span>
       </button>
     {/if}
   </div>
@@ -511,7 +613,15 @@
     --pulse: var(--accent);
     --success: var(--tone-success, #16a34a);
     --alert: var(--tone-failure, #dc2626);
-    --mono: var(--font-mono, ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace);
+    --mono: var(
+      --font-mono,
+      ui-monospace,
+      "SF Mono",
+      "JetBrains Mono",
+      Menlo,
+      Consolas,
+      monospace
+    );
     --serif: var(--font-serif, ui-serif, Georgia, "Times New Roman", serif);
     --radius: 6px;
     color: var(--ink);
@@ -637,7 +747,8 @@
     outline: none;
   }
   .resize:hover {
-    box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--accent) 60%, transparent);
+    box-shadow: inset 0 -1px 0
+      color-mix(in oklab, var(--accent) 60%, transparent);
   }
   /* The bar: a row of ruled cells, as the docs' site header is. */
   .bar {

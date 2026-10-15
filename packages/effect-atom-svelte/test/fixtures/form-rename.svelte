@@ -7,7 +7,10 @@
 
   interface Props {
     readonly title: string;
-    readonly save: Atom.Writable<AsyncResult.AsyncResult<string, never>, { title: string }>;
+    readonly save: Atom.Writable<
+      AsyncResult.AsyncResult<string, never>,
+      { title: string }
+    >;
   }
 
   const props: Props = $props();

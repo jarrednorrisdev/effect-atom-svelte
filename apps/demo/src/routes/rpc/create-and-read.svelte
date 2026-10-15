@@ -1,15 +1,17 @@
 <script module lang="ts">
   import { Effect } from "effect";
-  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   import { TodosRpc } from "#lib/clients.ts";
+  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   // Each call the effect makes, for the log under the example.
   const calls = new EventLogState();
 
   // Logs a call's failure, which ends the effect.
   const logFailure = (name: string, failure: { readonly _tag: string }) =>
-    Effect.sync(() => calls.add(`${name} failed: ${failure._tag}`, { tone: "failure" }));
+    Effect.sync(() =>
+      calls.add(`${name} failed: ${failure._tag}`, { tone: "failure" })
+    );
 
   // Two calls in one effect: getTodo needs the id that createTodo returns.
   const createAndReadAtom = TodosRpc.runtime.fn((title: string) =>
@@ -32,6 +34,7 @@
 
 <script lang="ts">
   import { useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import CauseView from "#lib/docs/kit/cause-view.svelte";
   import EffectType from "#lib/docs/kit/effect-type.svelte";
   import EventLog from "#lib/docs/kit/event-log.svelte";
@@ -51,8 +54,14 @@
 </script>
 
 <form class="flex flex-wrap items-center gap-2" onsubmit={submit}>
-  <input aria-label="Title" bind:value={title} data-testid="create-read-title" />
-  <button data-cue="start" disabled={result.current.waiting}>Create and read</button>
+  <input
+    aria-label="Title"
+    bind:value={title}
+    data-testid="create-read-title"
+  />
+  <button data-cue="start" disabled={result.current.waiting}
+    >Create and read</button
+  >
   <button onclick={() => (title = "x".repeat(70))} type="button">
     Paste a long title
   </button>

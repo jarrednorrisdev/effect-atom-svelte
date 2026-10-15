@@ -1,27 +1,31 @@
-import { Data } from "effect";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { Schema } from "effect";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 
 import { handleClientError, handleServerError } from "../src/SvelteKit.ts";
 
-class TodoNotFound extends Data.TaggedError("TodoNotFound")<{
-  readonly id: number;
-}> {
+class TodoNotFound extends Schema.TaggedError<TodoNotFound>()("TodoNotFound", {
+  id: Schema.Int,
+}) {
   override get message() {
     return `Todo ${this.id} not found`;
   }
 }
 
-class Unexplained extends Data.TaggedError("Unexplained") {}
+class Unexplained extends Schema.TaggedError<Unexplained>()(
+  "Unexplained",
+  {}
+) {}
 
 // Silences console.error and records what the hooks log.
-const logged = () =>
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
+const logged = () => {
+  const log = vi.spyOn(console, "error").mockReturnValue(undefined);
+  onTestFinished(() => {
+    log.mockRestore();
+  });
+  return log;
+};
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-describe("handleClientError", () => {
+describe(handleClientError, () => {
   test("keeps the message and _tag of an Effect error", () => {
     const log = logged();
     const error = new TodoNotFound({ id: 7 });
@@ -91,7 +95,7 @@ describe("with a kind, as in SvelteKit 3", () => {
   });
 });
 
-describe("handleServerError", () => {
+describe(handleServerError, () => {
   test("keeps the _tag but not the message of an Effect error", () => {
     const log = logged();
     const error = new TodoNotFound({ id: 7 });
@@ -164,7 +168,7 @@ describe("without a kind, as in SvelteKit 2", () => {
 
 describe("handleClientError without a kind, as in SvelteKit 2", () => {
   test("uses SvelteKit's message for an error whose own message is empty", () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    logged();
     // SvelteKit 2 shows whatever message the hook returns, and needs one.
     expect(
       handleClientError({ error: new Unexplained(), message: "Internal Error" })

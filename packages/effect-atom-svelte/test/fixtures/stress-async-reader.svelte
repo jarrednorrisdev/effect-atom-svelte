@@ -17,4 +17,7 @@
   const value = $derived(await delayed.current);
 </script>
 
+<!-- Kept on one line: Svelte 5.57.2 throws "Cannot read properties of null (reading 'f')"
+     when these awaits are split across lines. -->
+<!-- prettier-ignore -->
 <span data-testid="async-{id}">{value} {await delayedLabel.current} {await forCount.current} {label.current}</span>

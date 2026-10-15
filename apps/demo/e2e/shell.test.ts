@@ -499,6 +499,7 @@ test.describe("docs shell", () => {
       if (!("OscillatorNode" in window)) {
         return;
       }
+      // oxlint-disable-next-line typescript/unbound-method -- called below with the node as `this`.
       const original = OscillatorNode.prototype.start;
       OscillatorNode.prototype.start = function start(
         this: OscillatorNode,
@@ -514,7 +515,13 @@ test.describe("docs shell", () => {
     let toneLoads = 0;
     page.on("response", async (response) => {
       if (response.url().endsWith(".js")) {
-        const body = await response.text().catch(() => "");
+        let body: string;
+        try {
+          body = await response.text();
+        } catch {
+          // Playwright can't read a redirect's body.
+          return;
+        }
         if (body.includes("Tone.js")) {
           toneLoads += 1;
         }

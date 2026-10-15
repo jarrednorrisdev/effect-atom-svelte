@@ -56,11 +56,10 @@
   const { children, state }: Props = $props();
   const registry = getRegistry();
 
-  // SAFETY: preloadedSerializable is on the registry implementation, not the interface (Effect
-  // 4.0.0). It holds the encoded values Hydration.hydrate queued, until a lookup of the key takes one.
-  const { preloadedSerializable: preloaded } = registry as unknown as {
-    readonly preloadedSerializable?: Map<string, unknown>;
-  };
+  // The encoded values Hydration.hydrate queued, until a lookup of the key takes one. Public since
+  // Effect 4.0.2; typed as possibly missing for a registry that isn't Effect's own.
+  const preloaded: Map<string, unknown> | undefined =
+    registry.preloadedSerializable;
   // The values this boundary queued, by key, so it can drop the ones nobody took.
   const queued = new Map<string, unknown>();
   // Whether the boundary has ended, as at the end of the server render or once the browser destroys

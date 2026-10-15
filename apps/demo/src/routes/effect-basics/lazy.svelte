@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Effect, Random } from "effect";
+
   import Part from "#lib/docs/kit/part.svelte";
 
   // How many times each die was really rolled, and what each click got back.

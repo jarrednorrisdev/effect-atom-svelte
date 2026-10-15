@@ -1,7 +1,8 @@
 <script lang="ts">
   import SearchIcon from "@lucide/svelte/icons/search";
-  import { Kbd } from "#lib/components/ui/kbd/index.ts";
   import type { Component } from "svelte";
+
+  import { Kbd } from "#lib/components/ui/kbd/index.ts";
 
   import { searchShortcut } from "./search-shortcut.svelte.ts";
 
@@ -46,7 +47,7 @@
 
 <button
   aria-label="Search"
-  class="inline-flex size-8 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:w-full sm:justify-start sm:px-2.5 md:w-56"
+  class="border-input bg-background text-muted-foreground hover:border-border-strong hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center gap-2 rounded-md border text-sm transition-colors sm:w-full sm:justify-start sm:px-2.5 md:w-56"
   onclick={() => void show()}
   onfocus={() => void load()}
   onpointerenter={() => void load()}

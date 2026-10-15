@@ -3,11 +3,13 @@
   import { streamAtom, streamSeen } from "./unsent-seed.ts";
 
   const result = await useAtomResult(streamAtom);
-  const shown = $derived(
-    result.current._tag === "Success"
-      ? `${result.current.value}${result.current.waiting ? " (waiting)" : ""}`
-      : result.current._tag
-  );
+  const shown = $derived.by(() => {
+    const { current } = result;
+    if (current._tag !== "Success") {
+      return current._tag;
+    }
+    return current.waiting ? `${current.value} (waiting)` : `${current.value}`;
+  });
 
   // Browser only: effects don't run on the server.
   $effect.pre(() => {

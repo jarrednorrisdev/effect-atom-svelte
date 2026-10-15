@@ -23,7 +23,10 @@
   // again; otherwise the atom was disposed.
   const reasonOf = (stoppedAt: number | undefined) =>
     stoppedAt !== undefined &&
-    timers.some((timer) => timer.startedAt >= stoppedAt && timer.startedAt - stoppedAt < 100)
+    timers.some(
+      (timer) =>
+        timer.startedAt >= stoppedAt && timer.startedAt - stoppedAt < 100
+    )
       ? "tickIntervalAtom changed"
       : "nothing reads tickCountAtom";
 
@@ -44,7 +47,9 @@
   tone={leaked > 0 ? "failure" : "idle"}
 >
   {#if timers.length === 0}
-    <p class="m-0 text-muted-foreground">None yet. Show the clock to start one.</p>
+    <p class="text-muted-foreground m-0">
+      None yet. Show the clock to start one.
+    </p>
   {:else}
     <ul class="m-0 grid list-none gap-1 p-0">
       {#each timers as timer (timer.id)}

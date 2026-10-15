@@ -16,13 +16,19 @@
     )
   );
 
+  interface Messages {
+    readonly count: number;
+    readonly latest: readonly { readonly n: number; readonly text: string }[];
+  }
+  const noMessages: Messages = { count: 0, latest: [] };
+
   // How many messages arrived, and the last five, each numbered in arrival
   // order. Capped, so a connection left open doesn't grow the list forever.
   // withServerValueInitial keeps the connection off the server.
   const messagesAtom = Atom.make(
     events.pipe(
       Stream.scan(
-        () => ({ count: 0, latest: [] as { n: number; text: string }[] }),
+        () => noMessages,
         ({ count, latest }, text) => ({
           count: count + 1,
           latest: [...latest, { n: count + 1, text }].slice(-5),
@@ -34,15 +40,14 @@
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+
   import Cue from "#lib/docs/kit/cue.svelte";
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import { enter } from "#lib/docs/kit/motion.ts";
 
   const messages = useAtomValue(messagesAtom);
   const received = $derived(
-    messages.current._tag === "Success"
-      ? messages.current.value
-      : { count: 0, latest: [] }
+    messages.current._tag === "Success" ? messages.current.value : noMessages
   );
 </script>
 
@@ -53,7 +58,9 @@
 <ol class="flex list-none flex-wrap gap-1.5 p-0" data-testid="socket-messages">
   <!-- Keyed by arrival: the server numbers its messages again after a reconnect. -->
   {#each received.latest as message (message.n)}
-    <li class="m-0" {@attach enter()}><output>Message {message.text}</output></li>
+    <li class="m-0" {@attach enter()}>
+      <output>Message {message.text}</output>
+    </li>
   {:else}
     <li aria-busy="true">Waiting for the first message…</li>
   {/each}

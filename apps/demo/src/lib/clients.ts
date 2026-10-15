@@ -13,9 +13,11 @@ const apiOrigin = (): string => {
   if (inTabApi) {
     return inTabOrigin;
   }
-  return import.meta.env.SSR
-    ? (process.env.DEMO_API_ORIGIN ?? "http://localhost:3010")
-    : "";
+  if (!import.meta.env.SSR) {
+    return "";
+  }
+  // oxlint-disable-next-line effecttsgo/process-env -- read once at module load, outside any Effect, to build the client classes below
+  return process.env.DEMO_API_ORIGIN ?? "http://localhost:3010";
 };
 const origin = apiOrigin();
 

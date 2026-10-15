@@ -37,22 +37,26 @@
 
 <div class="frame not-prose">
   <div class="chrome">
-    <span aria-hidden="true" class="dots"><span></span><span></span><span></span></span>
-    <span class="address" data-testid="frame-address">{address ?? `example.app/${page}`}</span>
+    <span aria-hidden="true" class="dots"
+      ><span></span><span></span><span></span></span
+    >
+    <span class="address" data-testid="frame-address"
+      >{address ?? `example.app/${page}`}</span
+    >
   </div>
   {#if pages}
-  <nav aria-label="Pages" class="links">
-    {#each pages as name (name)}
-      <button
-        aria-current={page === name ? "page" : undefined}
-        class="link"
-        onclick={() => (page = name)}
-        type="button"
-      >
-        {name[0]?.toUpperCase()}{name.slice(1)}
-      </button>
-    {/each}
-  </nav>
+    <nav aria-label="Pages" class="links">
+      {#each pages as name (name)}
+        <button
+          aria-current={page === name ? "page" : undefined}
+          class="link"
+          onclick={() => (page = name)}
+          type="button"
+        >
+          {name[0]?.toUpperCase()}{name.slice(1)}
+        </button>
+      {/each}
+    </nav>
   {/if}
   {#if bar}<div class="bar">{@render bar()}</div>{/if}
   <div class="page">{@render children()}</div>

@@ -4,8 +4,8 @@
   import { hydratable } from "svelte";
 
   import { HydrationBoundary, RegistryProvider } from "../../src/index.ts";
-  import { dehydratedQuery } from "./awaited-boundary.ts";
   import AwaitedBoundaryReader from "./awaited-boundary-reader.svelte";
+  import { dehydratedQuery } from "./awaited-boundary.ts";
 
   const state = () => hydratable("awaited-boundary-state", dehydratedQuery);
 </script>

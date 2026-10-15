@@ -4,11 +4,12 @@
   code.
 -->
 <script lang="ts">
-  import EventLog from "#lib/docs/kit/event-log.svelte";
-  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
+  import { useAtomValue } from "effect-atom-svelte";
   import { untrack } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
-  import { useAtomValue } from "effect-atom-svelte";
+
+  import EventLog from "#lib/docs/kit/event-log.svelte";
+  import { EventLogState } from "#lib/docs/kit/event-log.svelte.ts";
 
   import { logAtom } from "./lifecycle-log.ts";
 
@@ -44,11 +45,4 @@
   });
 </script>
 
-<EventLog
-  {code}
-  {empty}
-  entries={log.entries}
-  {label}
-  max={8}
-  {...rest}
-/>
+<EventLog {code} {empty} entries={log.entries} {label} max={8} {...rest} />

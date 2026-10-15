@@ -5,7 +5,9 @@
 
   const { revalidate }: { revalidate: boolean } = $props();
   // svelte-ignore state_referenced_locally
-  const list = useAtomSuspense(listFor("a"), { revalidateOnHydrate: revalidate });
+  const list = useAtomSuspense(listFor("a"), {
+    revalidateOnHydrate: revalidate,
+  });
 </script>
 
 <output>{await list.current}</output>

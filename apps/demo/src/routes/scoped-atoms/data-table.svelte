@@ -1,11 +1,10 @@
 <script lang="ts">
   import { useAtomMount } from "effect-atom-svelte";
+  import type { Snippet } from "svelte";
 
   import TableFooter from "./table-footer.svelte";
   import TableHeader from "./table-header.svelte";
   import TableRows from "./table-rows.svelte";
-  import type { Snippet } from "svelte";
-
   import type { Column, Row } from "./table-scope.ts";
   import { Table } from "./table-scope.ts";
   import TableToolbar from "./table-toolbar.svelte";
@@ -23,17 +22,31 @@
     readonly sort: string;
   }
 
-  const { columns, descending, details, expanded, name, rows, sort }: Props = $props();
+  const { columns, descending, details, expanded, name, rows, sort }: Props =
+    $props();
 
   // Every part below finds this table's state with Table.use(), no props.
   // A provider runs once, so these props are read once, when the table is created.
   // svelte-ignore state_referenced_locally
-  const table = Table.provide({ columns, descending, details, expanded, name, rows, sort });
+  const table = Table.provide({
+    columns,
+    descending,
+    details,
+    expanded,
+    name,
+    rows,
+    sort,
+  });
   // Held while the table lives, even if no part below reads it.
   useAtomMount(table);
 </script>
 
-<div aria-label={name} class="data-table grid gap-2" role="group" {@attach provides(name)}>
+<div
+  aria-label={name}
+  class="data-table grid gap-2"
+  role="group"
+  {@attach provides(name)}
+>
   <h4 class="m-0 text-sm font-semibold">{name}</h4>
   <TableToolbar />
   <!-- Scrolls sideways on a narrow screen instead of squeezing the columns. -->

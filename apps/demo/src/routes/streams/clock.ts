@@ -14,13 +14,15 @@ export const clockAtom = Atom.make(
   Stream.fromSchedule(Schedule.spaced("1 second")).pipe(
     Stream.map((n) => n + 1),
     Stream.onStart(
-      Effect.sync(() => streamLog.add("stream started", { tone: "running" }))
+      Effect.sync(() => {
+        streamLog.add("stream started", { tone: "running" });
+      })
     ),
     // Runs when the stream stops: here, when the last reader goes away.
     Stream.ensuring(
-      Effect.sync(() =>
-        streamLog.add("stream stopped", { tone: "interrupted" })
-      )
+      Effect.sync(() => {
+        streamLog.add("stream stopped", { tone: "interrupted" });
+      })
     )
   )
 ).pipe(Atom.withServerValueInitial);

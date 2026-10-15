@@ -26,7 +26,7 @@
     {#if page === "chat"}
       <ChatPage />
     {:else}
-      <p class="m-0 text-muted-foreground">
+      <p class="text-muted-foreground m-0">
         No new mail. This page doesn't read messagesAtom.
       </p>
     {/if}

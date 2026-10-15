@@ -4,7 +4,7 @@ import type { Hydration } from "effect/reactivity";
 
 /** An atom a RegistryProvider gives an initial value and a HydrationBoundary hydrates. */
 export const providerSeedAtom = Atom.make(0).pipe(
-  Atom.serializable({ key: "provider-seed", schema: Schema.Number })
+  Atom.serializable({ key: "provider-seed", schema: Schema.Finite })
 );
 
 /** What a load function would dehydrate: the atom's fresh value, 2. */

@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { useAtomResult, useAtomSet, useAtomSuspense } from "../../src/index.ts";
+  import {
+    useAtomResult,
+    useAtomSet,
+    useAtomSuspense,
+  } from "../../src/index.ts";
   import { mutate, reactiveQuery } from "./reactive-query.ts";
 
   interface Props {
@@ -16,4 +20,8 @@
 
 <button onclick={() => run()}>mutate</button>
 <output>{await suspended.current}</output>
-<output>{result.current._tag === "Success" ? result.current.value : result.current._tag}</output>
+<output
+  >{result.current._tag === "Success"
+    ? result.current.value
+    : result.current._tag}</output
+>

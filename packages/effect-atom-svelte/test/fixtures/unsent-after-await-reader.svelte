@@ -8,5 +8,13 @@
   const defect = await useAtomResult(defectAtom);
 </script>
 
-<output>{kept.current._tag === "Success" ? kept.current.value : kept.current._tag}</output>
-<output>{defect.current._tag === "Success" ? defect.current.value : defect.current._tag}</output>
+<output
+  >{kept.current._tag === "Success"
+    ? kept.current.value
+    : kept.current._tag}</output
+>
+<output
+  >{defect.current._tag === "Success"
+    ? defect.current.value
+    : defect.current._tag}</output
+>

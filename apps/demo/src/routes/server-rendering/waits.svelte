@@ -1,9 +1,8 @@
 <script module lang="ts">
+  import { browser } from "$app/env";
   import { Effect, Schema } from "effect";
   import type { Duration } from "effect";
   import { AsyncResult, Atom } from "effect/reactivity";
-
-  import { browser } from "$app/env";
 
   // Records where it ran, a moment later, as a request would.
   const whereAtom = (key: string, delay: Duration.Input = "500 millis") =>
@@ -12,7 +11,10 @@
         Effect.delay(delay)
       )
     ).pipe(
-      Atom.serializable({ key, schema: AsyncResult.Schema({ success: Schema.String }) })
+      Atom.serializable({
+        key,
+        schema: AsyncResult.Schema({ success: Schema.String }),
+      })
     );
 
   const scriptAtom = whereAtom("waits-script");
@@ -23,11 +25,17 @@
 </script>
 
 <script lang="ts">
-  import { useAtomResult, useAtomSuspense, useAtomValue } from "effect-atom-svelte";
+  import {
+    useAtomResult,
+    useAtomSuspense,
+    useAtomValue,
+  } from "effect-atom-svelte";
+
   import Origin from "#lib/docs/kit/origin.svelte";
-  import StateBadge from "#lib/docs/kit/state-badge.svelte";
   // A row: how the atom is read, what the server's HTML says, and what's there now.
   import ServerRow from "#lib/docs/kit/server-row.svelte";
+  import StateBadge from "#lib/docs/kit/state-badge.svelte";
+
   // Calls useAtomSuspense(atom) for the atom it is given, inside the boundary below.
   import Later from "./later.svelte";
 
@@ -48,7 +56,7 @@
   <svelte:boundary>
     <Later atom={laterAtom} />
     {#snippet pending()}
-      <span class="text-sm text-muted-foreground">Pending snippet</span>
+      <span class="text-muted-foreground text-sm">Pending snippet</span>
     {/snippet}
   </svelte:boundary>
 </ServerRow>

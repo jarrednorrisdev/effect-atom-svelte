@@ -10,7 +10,9 @@
   });
   // How many todos aren't done yet. Derived from the list, so it follows along.
   const openCountAtom = todosAtom.pipe(
-    Atom.map(AsyncResult.map((todos) => todos.filter((todo) => !todo.done).length))
+    Atom.map(
+      AsyncResult.map((todos) => todos.filter((todo) => !todo.done).length)
+    )
   );
   const createAtom = TodosRpc.mutation("createTodo");
   const toggleAtom = TodosRpc.mutation("toggleTodo");
@@ -19,11 +21,12 @@
 <script lang="ts">
   import { Exit, Option } from "effect";
   import { useAtomResult, useAtomSet, useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import LoadingBar from "#lib/docs/kit/loading-bar.svelte";
   import Part from "#lib/docs/kit/part.svelte";
-  import ResultChip from "#lib/docs/kit/result-chip.svelte";
   import { RequestCount } from "#lib/docs/kit/requests.svelte.ts";
+  import ResultChip from "#lib/docs/kit/result-chip.svelte";
 
   // Declared before the await, so text typed before hydration is kept.
   let title = $state("Feed the cat");
@@ -53,7 +56,10 @@
   // No refresh to call: invalidating "todos" makes todosAtom fetch again.
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
-    const exit = await create({ payload: { title }, reactivityKeys: ["todos"] });
+    const exit = await create({
+      payload: { title },
+      reactivityKeys: ["todos"],
+    });
     if (Exit.isSuccess(exit)) {
       title = "";
     }
@@ -61,7 +67,12 @@
 </script>
 
 <form class="flex flex-wrap" onsubmit={submit}>
-  <input aria-label="New todo" bind:value={title} class="min-w-0 flex-1" data-testid="home-draft" />
+  <input
+    aria-label="New todo"
+    bind:value={title}
+    class="min-w-0 flex-1"
+    data-testid="home-draft"
+  />
   <button disabled={creating.current.waiting}>
     {creating.current.waiting ? "Adding…" : "Add"}
   </button>
@@ -85,7 +96,11 @@
     tone={step ? "running" : "idle"}
   >
     {#if todos.current._tag === "Success"}
-      <ul aria-busy={todos.current.waiting} class="m-0 grid gap-1" data-testid="home-todos">
+      <ul
+        aria-busy={todos.current.waiting}
+        class="m-0 grid gap-1"
+        data-testid="home-todos"
+      >
         {#each todos.current.value.slice(-5) as todo (todo.id)}
           <li class="truncate">
             <label>
@@ -97,7 +112,10 @@
                 disabled={toggling.current.waiting}
                 onclick={(event) => {
                   event.preventDefault();
-                  toggle({ payload: { id: todo.id }, reactivityKeys: ["todos"] });
+                  toggle({
+                    payload: { id: todo.id },
+                    reactivityKeys: ["todos"],
+                  });
                 }}
                 type="checkbox"
               />
@@ -107,7 +125,9 @@
         {/each}
       </ul>
     {:else if todos.current._tag === "Failure"}
-      <ResultChip kind="message" tone="failure">Couldn't reach the server</ResultChip>
+      <ResultChip kind="message" tone="failure"
+        >Couldn't reach the server</ResultChip
+      >
     {/if}
   </Part>
   <Part code label="openCountAtom">
@@ -116,6 +136,6 @@
       data-testid="home-open"
       value={AsyncResult.getOrElse(openCount.current, () => 0)}
     />
-    <p class="mt-2 mb-0 text-sm text-muted-foreground">todos not done yet</p>
+    <p class="text-muted-foreground mt-2 mb-0 text-sm">todos not done yet</p>
   </Part>
 </div>

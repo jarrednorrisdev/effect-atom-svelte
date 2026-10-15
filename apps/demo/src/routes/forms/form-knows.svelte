@@ -15,11 +15,18 @@
   const { fields, valid }: Props = $props();
 </script>
 
-<section aria-label="What the form knows" class="knows" data-testid="form-knows">
+<section
+  aria-label="What the form knows"
+  class="knows"
+  data-testid="form-knows"
+>
   <p class="knows-title">What the form knows</p>
   <table>
     <thead>
-      <tr><th>field</th><th>latest check</th><th>touched</th><th>on screen</th></tr>
+      <tr
+        ><th>field</th><th>latest check</th><th>touched</th><th>on screen</th
+        ></tr
+      >
     </thead>
     <tbody>
       {#each Object.entries(fields) as [name, field] (name)}
@@ -33,7 +40,8 @@
     </tbody>
   </table>
   <p class="knows-valid">
-    <code>form.valid</code>: <span class={valid ? "ok" : "bad"} data-testid="knows-valid">{valid}</span>
+    <code>form.valid</code>:
+    <span class={valid ? "ok" : "bad"} data-testid="knows-valid">{valid}</span>
   </p>
 </section>
 

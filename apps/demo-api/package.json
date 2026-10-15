@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/main.ts",
-    "start": "bun src/main.ts"
+    "start": "bun src/main.ts",
+    "check": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@demo/domain": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^6.0.3"
   }
 }

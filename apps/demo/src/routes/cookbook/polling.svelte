@@ -6,7 +6,10 @@
   // Changes every three seconds while something reads it.
   const everyThreeSeconds = Atom.readable((get) => {
     let ticks = 0;
-    const interval = setInterval(() => get.setSelf((ticks += 1)), 3000);
+    const interval = setInterval(() => {
+      ticks += 1;
+      get.setSelf(ticks);
+    }, 3000);
     get.addFinalizer(() => clearInterval(interval));
     return ticks;
   });
@@ -21,6 +24,7 @@
 
 <script lang="ts">
   import { useAtomValue } from "effect-atom-svelte";
+
   import FlashValue from "#lib/docs/kit/flash-value.svelte";
   import ResultHistory from "#lib/docs/kit/result-history.svelte";
   import StateBadge from "#lib/docs/kit/state-badge.svelte";
@@ -41,7 +45,11 @@
   {:else}
     <p aria-busy="true">Checking…</p>
   {/if}
-  <StateBadge data-testid="polled-state" result={polled.current} sound={false} />
+  <StateBadge
+    data-testid="polled-state"
+    result={polled.current}
+    sound={false}
+  />
 </div>
 <ResultHistory
   data-testid="polled-history"
