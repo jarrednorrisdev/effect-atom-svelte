@@ -69,6 +69,8 @@ const readers: Readonly<Record<string, (payload: Payload) => Constraints>> = {
       (flags === undefined || ["", "u", "v"].includes(String(flags))) &&
       source.startsWith("^") &&
       source.endsWith("$") &&
+      // `^a|b$` is anchored only at its ends: the browser wraps it as `^(?:^a|b$)$`.
+      !source.includes("|") &&
       !source.endsWith("\\$")
       ? { pattern: source }
       : {};

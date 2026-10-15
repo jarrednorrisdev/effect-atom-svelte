@@ -794,17 +794,19 @@ describe("found in review, round 1", () => {
       Schema.Struct({
         anchored: Schema.String.check(Schema.isPattern(/^[A-Z]{3}$/u)),
         anywhere: Schema.String.check(Schema.isPattern(/\d/u)),
+        either: Schema.String.check(Schema.isPattern(/^a|b$/u)),
         title: Schema.String.check(Schema.isBetweenLength(1, 80)),
       })
     );
     const form = Form.instance(Codes, {
       id: "r5",
-      initialValues: { anchored: "", anywhere: "", title: "" },
+      initialValues: { anchored: "", anywhere: "", either: "", title: "" },
     });
     expect(form.field("anchored").constraints).toEqual({
       pattern: "^[A-Z]{3}$",
     });
     expect(form.field("anywhere").constraints).toEqual({});
+    expect(form.field("either").constraints).toEqual({});
     expect(form.field("title").constraints).toEqual({
       maxlength: 80,
       minlength: 1,
