@@ -145,6 +145,22 @@ interface LabelOptions {
  * it is an atom, and returns it. For an `Atom.family`, returns a family that labels each member
  * with its argument, as `todoAtom(3)`.
  */
+// The key a form definition from `Form.make` carries (effect-atom-svelte's `Form.TypeId`).
+const formTypeId = "~effect-atom-svelte/Form";
+
+/** A form definition that `Form.make` was given no name for. */
+const isUnnamedForm = (
+  value: unknown
+): value is { readonly definition: { name: string | undefined } } =>
+  typeof value === "object" &&
+  value !== null &&
+  formTypeId in value &&
+  "definition" in value &&
+  typeof value.definition === "object" &&
+  value.definition !== null &&
+  "name" in value.definition &&
+  value.definition.name === undefined;
+
 export const label = <T>(
   value: T,
   text: string,
@@ -160,6 +176,9 @@ export const label = <T>(
         options.keep
       );
     }
+  } else if (isUnnamedForm(value)) {
+    // A form from effect-atom-svelte's Form.make: its instances label their atoms with its name.
+    value.definition.name = text;
   } else if (options.family && typeof value === "function") {
     const members = value as (arg: unknown) => unknown;
     return ((arg: unknown) => {

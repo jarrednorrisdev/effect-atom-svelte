@@ -89,6 +89,11 @@ export type Decoded<F extends Form<Schema.Top>> = F["schema"]["Type"];
  * @category models
  */
 export interface MakeOptions {
+  /**
+   * A name for the form, used in its atoms' labels, such as `SignUp.values`, which the devtools
+   * show. The devtools' Vite plugin fills it in from the variable a form is declared as.
+   */
+  readonly name?: string | undefined;
   /** When a field's error first shows. Defaults to `"blur"`. */
   readonly validateOn?: Timing | undefined;
   /**
@@ -128,6 +133,7 @@ const definitionOf = (
   debounce:
     options.debounce === undefined ? 0 : Duration.toMillis(options.debounce),
   leafHook: options.leafHook,
+  name: options.name,
   revalidateOn: options.revalidateOn ?? "input",
   runtime: options.runtime,
   schema,
@@ -321,6 +327,11 @@ export interface Field<V> {
   value: V;
   /** The error to show: a schema error once the field's timing reveals it, or a server one. */
   readonly error: string | undefined;
+  /**
+   * The latest check's message for the field, shown or not: the Schema checks every change, and
+   * `error` waits for the field's timing. For a live checklist, or to see what the timing hides.
+   */
+  readonly issue: string | undefined;
   /** Whether the user has left the field. `useForm`'s `attrs.onblur` sets it. */
   touched: boolean;
   /** Whether the value differs from the initial value. */

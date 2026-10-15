@@ -124,11 +124,17 @@ export class Engine {
     this.registry = options.registry;
     const { registry } = options;
     this.#original = options.initialValues;
+    // Labelled for the devtools and inspector: an instance's atoms are made here, not by the app.
+    const name = definition.name ?? "form";
     this.valuesAtom = (options.values ??
-      Atom.make<unknown>(options.initialValues)) as Atom.Writable<unknown>;
+      Atom.make<unknown>(options.initialValues).pipe(
+        Atom.withLabel(`${name}.values`)
+      )) as Atom.Writable<unknown>;
     const values = registry.get(this.valuesAtom);
     const keys = reconcileKeys(values, new Map(), () => this.#key());
-    this.stateAtom = Atom.make<State>(freshState(options.initialValues, keys));
+    this.stateAtom = Atom.make<State>(
+      freshState(options.initialValues, keys)
+    ).pipe(Atom.withLabel(`${name}.state`));
     this.#seen = { keys, values };
 
     const decode = Schema.decodeUnknownEffect(
@@ -147,9 +153,9 @@ export class Engine {
       );
     // The runtime provides the services the Schema's checks need; the types were checked in make.
     const runtime = definition.runtime as Atom.AtomRuntime<never> | undefined;
-    this.#validateAtom = (runtime
-      ? runtime.fn(run)
-      : Atom.fn(run)) as unknown as Atom.Writable<
+    this.#validateAtom = (runtime ? runtime.fn(run) : Atom.fn(run)).pipe(
+      Atom.withLabel(`${name}.check`)
+    ) as unknown as Atom.Writable<
       AsyncResult.AsyncResult<RunResult, unknown>,
       RunInput
     >;

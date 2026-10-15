@@ -845,3 +845,40 @@ describe("found in review, round 1", () => {
     form.dispose();
   });
 });
+
+describe("names and issues", () => {
+  test("an instance's atoms are labelled with the form's name", async () => {
+    const Named = Form.make(Schema.Struct({ email: Schema.String }), {
+      name: "SignUp",
+    });
+    const registry = AtomRegistry.make();
+    const form = Form.instance(Named, {
+      id: "n",
+      initialValues: { email: "" },
+      registry,
+    });
+    await tick();
+    const labels = [...registry.getNodes().keys()].flatMap((atom) =>
+      typeof atom === "string" || atom.label === undefined
+        ? []
+        : [atom.label[0]]
+    );
+    expect(new Set(labels)).toEqual(
+      new Set(["SignUp.check", "SignUp.state", "SignUp.values"])
+    );
+    form.dispose();
+  });
+
+  test("field.issue is the latest check's message, before the timing shows it", async () => {
+    const form = signIn();
+    const email = form.field("email");
+    email.value = "ada";
+    await tick();
+    expect(email.issue).toBe("Enter a valid email");
+    expect(email.error).toBeUndefined();
+    email.value = "ada@example.com";
+    await tick();
+    expect(email.issue).toBeUndefined();
+    form.dispose();
+  });
+});

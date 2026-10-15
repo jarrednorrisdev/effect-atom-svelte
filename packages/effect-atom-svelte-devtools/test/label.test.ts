@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { Form } from "effect-atom-svelte";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
@@ -20,6 +21,17 @@ describe("label", () => {
     expect(label(f, "f", "/src/a.ts:1:1")).toBe(f);
     expect(label(value, "value", "/src/a.ts:1:1")).toBe(value);
     expect(label(null, "nothing", "/src/a.ts:1:1")).toBeNull();
+  });
+
+  test("names a form from Form.make, unless it was given a name", () => {
+    const unnamed = Form.make(Schema.Struct({ email: Schema.String }));
+    expect(label(unnamed, "SignUp", "/src/forms.ts:1:14")).toBe(unnamed);
+    expect(unnamed.definition.name).toBe("SignUp");
+    const named = Form.make(Schema.Struct({ email: Schema.String }), {
+      name: "Login",
+    });
+    label(named, "SignIn", "/src/forms.ts:2:14");
+    expect(named.definition.name).toBe("Login");
   });
 
   test("keeps a label the code set itself", () => {

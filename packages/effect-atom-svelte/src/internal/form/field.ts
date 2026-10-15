@@ -31,6 +31,10 @@ export class FieldImpl {
     return this.#engine.errorAt(this.keyPath);
   }
 
+  get issue(): string | undefined {
+    return this.#engine.state.issues.get(pathId(this.keyPath));
+  }
+
   get touched(): boolean {
     return this.#engine.state.touched.has(pathId(this.keyPath));
   }

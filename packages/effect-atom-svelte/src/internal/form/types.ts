@@ -23,6 +23,11 @@ export interface ErrorsInput {
 /** A definition's settings, shared by every instance. */
 export interface Definition {
   readonly schema: Schema.Top;
+  /**
+   * The form's name, for its atoms' labels (`SignUp.values`). Writable: the devtools' Vite plugin
+   * fills it in from the variable a definition is declared as, when `Form.make` was given none.
+   */
+  name: string | undefined;
   /** An `Atom.AtomRuntime`, kept untyped: only its `fn` is used. */
   readonly runtime?: unknown;
   readonly validateOn: Timing;
