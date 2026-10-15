@@ -485,7 +485,10 @@ export interface Instance<T, D, A, E, Args> extends Group<T> {
   readonly valid: boolean;
   readonly validating: boolean;
   readonly submitting: boolean;
-  /** The last submit's result, holding only failures `mapError` didn't claim. */
+  /**
+   * The last submit's result, holding only failures `mapError` didn't claim. A validation that
+   * couldn't run at all, such as when the form's runtime failed to build, ends here as a defect.
+   */
   readonly submitResult: AsyncResult.AsyncResult<A, E>;
   /** A form-level error: `mapError`'s `form`, or a Schema check with no path, once submitted. */
   readonly rootError: string | undefined;

@@ -707,8 +707,9 @@ export class Engine {
     if (this.options.validates) {
       // The decode couldn't run at all: there is nothing to send.
       if (state.failure !== undefined) {
-        const cause = state.failure;
-        // Not the form's fault, and nothing claims it: the app shows it, as a failed submit.
+        // Not the user's input, and nothing claims it: a defect, as the error a runtime failed with
+        // isn't in the submit's error type. The app shows it, as for any defect.
+        const cause = Cause.die(Cause.squash(state.failure));
         this.#update((latest) => ({
           ...latest,
           submitResult: AsyncResult.failure(cause),

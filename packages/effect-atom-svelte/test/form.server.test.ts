@@ -1,5 +1,5 @@
 // Form instances without Svelte: values, validation timing, submit and arrays.
-import { Data, Effect, Exit, Option, Schema } from "effect";
+import { Cause, Data, Effect, Exit, Option, Schema } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, test } from "vitest";
 
@@ -751,6 +751,11 @@ describe("found in review, round 1", () => {
     const exit = await quiet(() => settled(form.submit()));
     expect(exit !== "timed out" && Exit.isFailure(exit)).toBe(true);
     expect(AsyncResult.isFailure(form.submitResult)).toBe(true);
+    // A defect: the runtime's error isn't in the submit's error type.
+    expect(
+      AsyncResult.isFailure(form.submitResult) &&
+        Cause.hasDies(form.submitResult.cause)
+    ).toBe(true);
     form.dispose();
   });
 
