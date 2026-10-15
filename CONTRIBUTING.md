@@ -62,4 +62,6 @@ cd apps/demo && bunx playwright test --repeat-each 20            # each test 20 
 
 Report bugs and suggest changes in [GitHub issues](https://github.com/jarrednorrisdev/effect-atom-svelte/issues). A change to the library needs a changeset (`bun run changeset`); CI checks for one on every pull request. [.changeset/README.md](.changeset/README.md) covers how releases are published.
 
-The maintainer tracks work in a private Linear workspace, so commits, changesets and code comments refer to issues as `JND-<n>`. Those links only open for the maintainer; the commit or comment around a reference says what it was about.
+Work is tracked in the same GitHub issues, so commits, changesets and code comments refer to an issue as `#<n>`. Older ones cite `JND-<n>`, from a private tracker the project used before; those links only open for the maintainer, so the commit or comment around a reference says what it was about.
+
+Agents working in this repo read `AGENTS.md`, whose "Agent skills" section points at `docs/agents/`: how to use the issue tracker, the triage labels, and where domain docs live.
