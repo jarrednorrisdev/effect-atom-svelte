@@ -152,7 +152,6 @@ export class Engine {
   readonly #fields = new Map<string, FieldImpl>();
   readonly #groups = new Map<string, GroupImpl>();
   readonly #arrays = new Map<string, ArrayImpl>();
-  readonly #constraints = new Map<string, Constraints>();
 
   constructor(definition: Definition, options: EngineOptions) {
     this.definition = definition;
@@ -960,13 +959,7 @@ export class Engine {
   }
 
   constraints(path: IndexPath): Constraints {
-    const id = pathId(path);
-    let found = this.#constraints.get(id);
-    if (found === undefined) {
-      found = constraintsAt(this.definition.schema.ast, path);
-      this.#constraints.set(id, found);
-    }
-    return found;
+    return constraintsAt(this.definition.schema.ast, path, () => this.values);
   }
 
   field(path: KeyPath): FieldImpl {

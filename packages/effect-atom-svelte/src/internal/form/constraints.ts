@@ -3,6 +3,7 @@ import type { Schema } from "effect";
 import { SchemaAST } from "effect";
 
 import type { IndexPath } from "./paths.ts";
+import { getIn } from "./paths.ts";
 
 /** The attributes `field.constraints` can set. */
 export interface Constraints {
@@ -147,16 +148,45 @@ const unwrap = (ast: SchemaAST.AST): SchemaAST.AST => {
   return ast;
 };
 
+interface Found {
+  readonly ast: SchemaAST.AST;
+  readonly optional: boolean;
+}
+
+// The element at `index` of an array or tuple `length` items long, as Effect's parser picks it
+// (`Arrays.getParser` in SchemaAST.ts): the fixed elements first, then the elements after the rest
+// element (`rest[1]` on) counted from the end, and the rest element in between.
+const elementAt = (
+  node: SchemaAST.Arrays,
+  index: number,
+  length: () => number
+): SchemaAST.AST | undefined => {
+  const fixed = node.elements[index];
+  if (fixed !== undefined) {
+    return fixed;
+  }
+  const [restElement, ...trailing] = node.rest;
+  if (trailing.length === 0) {
+    return restElement;
+  }
+  const trailingStart = Math.max(
+    node.elements.length,
+    length() - trailing.length
+  );
+  return index >= trailingStart ? trailing[index - trailingStart] : restElement;
+};
+
 // The field at one step below `ast`, with whether its key is optional. In a union, the first member
-// that has the step.
+// that has the step. `length` reads the current length of the array at this step.
 const step = (
   ast: SchemaAST.AST,
-  segment: string | number
-): { readonly ast: SchemaAST.AST; readonly optional: boolean } | undefined => {
+  segment: string | number,
+  length: () => number
+): Found | undefined => {
   const node = unwrap(ast);
   if (SchemaAST.isUnion(node)) {
     for (const member of node.types) {
-      const found = step(member, segment);
+      const found = step(member, segment, length);
       if (found !== undefined) {
         return found;
       }
@@ -172,7 +202,7 @@ const step = (
       : { ast: property.type, optional: SchemaAST.isOptional(property.type) };
   }
   if (SchemaAST.isArrays(node) && typeof segment === "number") {
-    const element = node.elements[segment] ?? node.rest[0];
+    const element = elementAt(node, segment, length);
     return element === undefined
       ? undefined
       : { ast: element, optional: SchemaAST.isOptional(element) };
@@ -189,24 +219,7 @@ const withoutUndefined = (ast: SchemaAST.AST): SchemaAST.AST => {
   return types.length === 1 && types[0] !== undefined ? types[0] : ast;
 };
 
-/** The HTML constraints for the field at `path` in `schema`'s AST. */
-export const constraintsAt = (
-  root: SchemaAST.AST,
-  path: IndexPath
-): Constraints => {
-  let found:
-    | { readonly ast: SchemaAST.AST; readonly optional: boolean }
-    | undefined = {
-    ast: root,
-    optional: false,
-  };
-  for (const segment of path) {
-    found &&= step(found.ast, segment);
-  }
-  if (found === undefined) {
-    return {};
-  }
-  const { ast, optional } = found;
+const read = ({ ast, optional }: Found): Constraints => {
   const into: Mutable = {};
   readNode(withoutUndefined(ast), into);
   // `required` means "not empty" to a browser, so it is set only where the Schema rejects an empty
@@ -218,4 +231,40 @@ export const constraintsAt = (
   }
   merge(out, into);
   return out;
+};
+
+// By the Schema node a path leads to, not by the path: past a rest element, the same index names a
+// different element as the array grows.
+const cache = {
+  optional: new WeakMap<SchemaAST.AST, Constraints>(),
+  required: new WeakMap<SchemaAST.AST, Constraints>(),
+};
+
+/**
+ * The HTML constraints for the field at `path` in `schema`'s AST. `values` reads the form's values,
+ * for the length of an array whose Schema has elements after its rest element; it isn't called
+ * otherwise.
+ */
+export const constraintsAt = (
+  root: SchemaAST.AST,
+  path: IndexPath,
+  values: () => unknown
+): Constraints => {
+  let found: Found | undefined = { ast: root, optional: false };
+  for (const [depth, segment] of path.entries()) {
+    found &&= step(found.ast, segment, () => {
+      const array = getIn(values(), path.slice(0, depth));
+      return Array.isArray(array) ? array.length : 0;
+    });
+  }
+  if (found === undefined) {
+    return {};
+  }
+  const byNode = found.optional ? cache.optional : cache.required;
+  let constraints = byNode.get(found.ast);
+  if (constraints === undefined) {
+    constraints = read(found);
+    byNode.set(found.ast, constraints);
+  }
+  return constraints;
 };

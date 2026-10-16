@@ -461,6 +461,49 @@ describe("constraints", () => {
     }
   });
 
+  // A head element, any number of short items, then one long last item (#68).
+  const Row = Form.make(
+    Schema.Struct({
+      row: Schema.TupleWithRest(Schema.Tuple([Schema.String]), [
+        Schema.String.check(Schema.isMaxLength(2)),
+        Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(10)),
+      ]),
+    })
+  );
+  const short = { maxlength: 2 };
+  const last = { maxlength: 10, minlength: 3, required: true };
+
+  test("an element after a rest element gets its own constraints", () => {
+    const form = Form.instance(Row, {
+      id: "row",
+      initialValues: { row: ["", "", "", ""] },
+    });
+    try {
+      expect(form.field(["row", 0]).constraints).toStrictEqual({});
+      expect(form.field(["row", 2]).constraints).toStrictEqual(short);
+      expect(form.field(["row", 3]).constraints).toStrictEqual(last);
+    } finally {
+      form.dispose();
+    }
+  });
+
+  test("an index past the rest element follows the array's length", () => {
+    const form = Form.instance(Row, {
+      id: "row",
+      initialValues: { row: ["", "", "", ""] },
+    });
+    try {
+      expect(form.field(["row", 3]).constraints).toStrictEqual(last);
+      form.field("row").value = ["", "", "", "", ""];
+      expect(form.field(["row", 3]).constraints).toStrictEqual(short);
+      expect(form.field(["row", 4]).constraints).toStrictEqual(last);
+      form.field("row").value = ["", ""];
+      expect(form.field(["row", 1]).constraints).toStrictEqual(last);
+    } finally {
+      form.dispose();
+    }
+  });
+
   test("lengths, ranges and patterns come from the Schema's checks", () => {
     const Preset = Form.make(
       Schema.Struct({
