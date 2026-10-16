@@ -461,6 +461,49 @@ describe("constraints", () => {
     }
   });
 
+  test("elements after a tuple's rest are counted from its end", () => {
+    const Row = Form.make(
+      Schema.Struct({
+        row: Schema.TupleWithRest(
+          Schema.Tuple([Schema.String.check(Schema.isMaxLength(1))]),
+          [
+            Schema.String.check(Schema.isMaxLength(2)),
+            Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(10)),
+          ]
+        ),
+      })
+    );
+    const form = Form.instance(Row, {
+      id: "row",
+      initialValues: { row: ["", "", "", ""] },
+    });
+    try {
+      expect(form.field(["row", 0]).constraints).toStrictEqual({
+        maxlength: 1,
+      });
+      expect(form.field(["row", 2]).constraints).toStrictEqual({
+        maxlength: 2,
+      });
+      expect(form.field(["row", 3]).constraints).toStrictEqual({
+        maxlength: 10,
+        minlength: 3,
+        required: true,
+      });
+      // One more item makes index 3 a rest element, and the new last one the trailing element.
+      form.setValues({ row: ["", "", "", "", ""] });
+      expect(form.field(["row", 3]).constraints).toStrictEqual({
+        maxlength: 2,
+      });
+      expect(form.field(["row", 4]).constraints).toStrictEqual({
+        maxlength: 10,
+        minlength: 3,
+        required: true,
+      });
+    } finally {
+      form.dispose();
+    }
+  });
+
   test("lengths, ranges and patterns come from the Schema's checks", () => {
     const Preset = Form.make(
       Schema.Struct({
