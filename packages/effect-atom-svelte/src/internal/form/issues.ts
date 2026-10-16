@@ -171,21 +171,16 @@ export const toPathIssues = (
         walk(current.issue, [...path, ...current.path]);
         return;
       }
+      case "Composite":
       case "AnyOf": {
         // A value no member of the union applies to (one outside a Literals, say) fails with no
         // inner issues. Effect's formatter reports it without calling a hook. Walked here as the
         // InvalidType a single Literal gives, so `leafHook` names it, and the fallback is
         // Effect's same `Expected "a" | "b"`.
-        if (current.issues.length === 0) {
+        if (current._tag === "AnyOf" && current.issues.length === 0) {
           walk(asInvalidType(current), path);
           return;
         }
-        for (const inner of current.issues) {
-          walk(inner, path);
-        }
-        return;
-      }
-      case "Composite": {
         for (const inner of current.issues) {
           walk(inner, path);
         }
