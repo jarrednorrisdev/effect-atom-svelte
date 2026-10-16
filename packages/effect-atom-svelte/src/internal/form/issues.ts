@@ -107,6 +107,11 @@ const emitDefault = (
   }
 };
 
+const asInvalidType = (issue: SchemaIssue.AnyOf): SchemaIssue.InvalidType =>
+  new SchemaIssue.InvalidType(issue.ast, issue.input, {
+    reportInput: SchemaIssue.hasInput(issue),
+  });
+
 const walkFilter = (
   issue: SchemaIssue.Filter,
   path: readonly PropertyKey[],
@@ -168,8 +173,13 @@ export const toPathIssues = (
       }
       case "Composite":
       case "AnyOf": {
-        if (current.issues.length === 0) {
-          emitDefault(current, path, emit);
+        // A value no member of the union applies to (one outside a Literals, say) fails with no
+        // inner issues. Effect's formatter reports it without calling a hook. Walked here as the
+        // InvalidType a single Literal gives, so `leafHook` names it, and the fallback is
+        // Effect's same `Expected "a" | "b"`.
+        if (current._tag === "AnyOf" && current.issues.length === 0) {
+          walk(asInvalidType(current), path);
+          return;
         }
         for (const inner of current.issues) {
           walk(inner, path);

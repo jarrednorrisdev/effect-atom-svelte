@@ -58,7 +58,7 @@ export const Login = Form.make(
 
 The sign-up example's own definition, with a confirm field and a terms checkbox, is in its `sign-up-form.ts` tab. The definition holds no state, so it lives in a module beside your atoms and every component that shows the form shares it. If you already have a Schema for the data, such as an RPC's payload, build the form from it: there are no separate field definitions to keep in step.
 
-An error's message comes from the check's `message` annotation, as above. A check without one gets Effect's own message, such as `Expected a value with a length of at most 60`. To write those yourself, pass `leafHook` (for a value of the wrong type, or a missing key) or `checkHook` (for a failed check) to `Form.make`; a `message` annotation still wins over them.
+An error's message comes from the check's `message` annotation, as above. A check without one gets Effect's own message, such as `Expected a value with a length of at most 60`. To write those yourself, pass `leafHook` (for a value of the wrong type, including one outside a `Schema.Literals`, or a missing key) or `checkHook` (for a failed check) to `Form.make`; a `message` annotation still wins over them.
 
 Validation runs the Schema's decoding as an Effect, so a check can call a service, such as one that asks the server whether a username is free. Give `Form.make` a `runtime` (see [Services and runtimes](/services)) that provides it.
 

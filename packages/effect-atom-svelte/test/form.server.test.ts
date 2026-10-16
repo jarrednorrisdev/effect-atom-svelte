@@ -1,5 +1,6 @@
 // Form instances without Svelte: values, validation timing, submit and arrays.
 import { Cause, Data, Effect, Exit, Layer, Option, Schema } from "effect";
+import type { SchemaIssue } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { assert, describe, expect, test } from "vitest";
 
@@ -176,6 +177,73 @@ describe("messages", () => {
     await tick();
     // The check on the length is unannotated, so the hook names it.
     expect(form.field("password").error).toBe("hooked");
+    form.dispose();
+  });
+
+  // A value that's none of a union's members fails as an AnyOf with no inner issues, not a leaf.
+  const Size = Schema.Literals(["s", "m"]);
+  const sizeHook = (issue: SchemaIssue.Leaf) =>
+    issue._tag === "InvalidType" ? "Choose a size" : undefined;
+
+  test.each([
+    ["Literals", Size],
+    [
+      "a Union of Literal",
+      Schema.Union([Schema.Literal("s"), Schema.Literal("m")]),
+    ],
+    ["an optional Literals", Schema.optional(Size)],
+    ["an optionalKey Literals", Schema.optionalKey(Size)],
+    ["a NullOr Literals", Schema.NullOr(Size)],
+  ])("leafHook names a value outside %s", async (_, size) => {
+    const form = Form.instance(
+      Form.make(Schema.Struct({ size }), { leafHook: sizeHook }),
+      { id: "l", initialValues: { size: "xl" } as never }
+    );
+    await form.submit();
+    expect(form.errors).toStrictEqual([
+      { message: "Choose a size", path: ["size"] },
+    ]);
+    form.dispose();
+  });
+
+  test.each([
+    ["no leafHook", {}],
+    [
+      "a leafHook that names only a missing key",
+      {
+        leafHook: (issue: SchemaIssue.Leaf) =>
+          issue._tag === "MissingKey" ? "Required" : undefined,
+      },
+    ],
+  ])(
+    "a value outside Literals keeps Effect's message with %s",
+    async (_, options) => {
+      const form = Form.instance(
+        Form.make(Schema.Struct({ size: Size }), options),
+        { id: "l", initialValues: { size: "xl" } as never }
+      );
+      await form.submit();
+      expect(form.errors).toStrictEqual([
+        { message: 'Expected "s" | "m"', path: ["size"] },
+      ]);
+      form.dispose();
+    }
+  );
+
+  test("a message annotation on Literals beats leafHook", async () => {
+    const form = Form.instance(
+      Form.make(
+        Schema.Struct({
+          size: Size.annotate({ message: "Pick s or m" }),
+        }),
+        { leafHook: sizeHook }
+      ),
+      { id: "l", initialValues: { size: "xl" } as never }
+    );
+    await form.submit();
+    expect(form.errors).toStrictEqual([
+      { message: "Pick s or m", path: ["size"] },
+    ]);
     form.dispose();
   });
 });
