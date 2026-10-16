@@ -147,16 +147,40 @@ const unwrap = (ast: SchemaAST.AST): SchemaAST.AST => {
   return ast;
 };
 
+// The element at `index`, picked as Effect's parser picks it (`Arrays.getParser` in `SchemaAST.ts`):
+// a fixed element, else the rest element, except that the elements after the rest are counted back
+// from the array's end. Those need its length; without one, there is no element.
+const elementAt = (
+  node: SchemaAST.Arrays,
+  index: number,
+  length: () => number | undefined
+): SchemaAST.AST | undefined => {
+  if (index < node.elements.length) {
+    return node.elements[index];
+  }
+  const [rest, ...tail] = node.rest;
+  if (tail.length === 0) {
+    return rest;
+  }
+  const len = length();
+  if (len === undefined) {
+    return undefined;
+  }
+  const threshold = Math.max(node.elements.length, len - tail.length);
+  return index >= threshold ? tail[index - threshold] : rest;
+};
+
 // The field at one step below `ast`, with whether its key is optional. In a union, the first member
 // that has the step.
 const step = (
   ast: SchemaAST.AST,
-  segment: string | number
+  segment: string | number,
+  length: () => number | undefined
 ): { readonly ast: SchemaAST.AST; readonly optional: boolean } | undefined => {
   const node = unwrap(ast);
   if (SchemaAST.isUnion(node)) {
     for (const member of node.types) {
-      const found = step(member, segment);
+      const found = step(member, segment, length);
       if (found !== undefined) {
         return found;
       }
@@ -172,7 +196,7 @@ const step = (
       : { ast: property.type, optional: SchemaAST.isOptional(property.type) };
   }
   if (SchemaAST.isArrays(node) && typeof segment === "number") {
-    const element = node.elements[segment] ?? node.rest[0];
+    const element = elementAt(node, segment, length);
     return element === undefined
       ? undefined
       : { ast: element, optional: SchemaAST.isOptional(element) };
@@ -189,24 +213,15 @@ const withoutUndefined = (ast: SchemaAST.AST): SchemaAST.AST => {
   return types.length === 1 && types[0] !== undefined ? types[0] : ast;
 };
 
-/** The HTML constraints for the field at `path` in `schema`'s AST. */
-export const constraintsAt = (
-  root: SchemaAST.AST,
-  path: IndexPath
-): Constraints => {
-  let found:
-    | { readonly ast: SchemaAST.AST; readonly optional: boolean }
-    | undefined = {
-    ast: root,
-    optional: false,
-  };
-  for (const segment of path) {
-    found &&= step(found.ast, segment);
-  }
-  if (found === undefined) {
-    return {};
-  }
-  const { ast, optional } = found;
+// A field's constraints depend only on its node and whether its key is optional, so each is read once.
+const cache = {
+  optional: new WeakMap<SchemaAST.AST, Constraints>(),
+  required: new WeakMap<SchemaAST.AST, Constraints>(),
+};
+
+const none: Constraints = {};
+
+const read = (ast: SchemaAST.AST, optional: boolean): Constraints => {
   const into: Mutable = {};
   readNode(withoutUndefined(ast), into);
   // `required` means "not empty" to a browser, so it is set only where the Schema rejects an empty
@@ -218,4 +233,35 @@ export const constraintsAt = (
   }
   merge(out, into);
   return out;
+};
+
+/**
+ * The HTML constraints for the field at `path` in `schema`'s AST. `lengthAt` gives the length of the
+ * array at a path, read only for a tuple with elements after its rest.
+ */
+export const constraintsAt = (
+  root: SchemaAST.AST,
+  path: IndexPath,
+  lengthAt: (path: IndexPath) => number | undefined
+): Constraints => {
+  let found:
+    | { readonly ast: SchemaAST.AST; readonly optional: boolean }
+    | undefined = {
+    ast: root,
+    optional: false,
+  };
+  for (const [depth, segment] of path.entries()) {
+    found &&= step(found.ast, segment, () => lengthAt(path.slice(0, depth)));
+  }
+  if (found === undefined) {
+    return none;
+  }
+  const { ast, optional } = found;
+  const byNode = optional ? cache.optional : cache.required;
+  let constraints = byNode.get(ast);
+  if (constraints === undefined) {
+    constraints = read(ast, optional);
+    byNode.set(ast, constraints);
+  }
+  return constraints;
 };
