@@ -61,6 +61,8 @@ jobs:
             '[$engines[] as $e | range(1; $counts[$e] + 1) | {engine: $e, shard: ., of: $counts[$e]}]')
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
           echo "::notice::e2e engines: $engines"
+      # The script decides whether anything is tested, so it is tested first.
+      - run: .github/scripts/already-tested.test.sh
       - id: tested
         env:
           GH_TOKEN: ${{ github.token }}
@@ -186,10 +188,12 @@ jobs:
 
   deploy:
     # Deploys the docs site to atom.jarrednorris.dev (apps/demo/alchemy.run.ts) once main passes.
-    # Without the Cloudflare secrets it fails, so a lost token shows on main. It runs when the tests
-    # were skipped too: a skipped need would otherwise skip it.
-    needs: [check, e2e, hosted]
-    if: ${{ !failure() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Without the Cloudflare secrets it fails, so a lost token shows on main. It also runs when scope
+    # skipped the tests, which a plain `needs` would skip it for. `cancelled()` is true only when the
+    # whole run is cancelled, so each job's result is checked instead: a cancelled job blocks it.
+    needs: [scope, check, e2e, hosted]
+    if: >-
+      ${{ always() && needs.scope.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
