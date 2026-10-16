@@ -37,7 +37,7 @@ For language models, the build also writes the docs as Markdown (`src/lib/docs/l
 
 ## Hosting
 
-The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` passes, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing.
+The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` whose jobs all passed or were skipped, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing.
 
 Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy` passes it). The stack refuses any other profile, and Cloudflare variables in the environment, outside CI.
 
@@ -52,6 +52,8 @@ The hosted build sets `VITE_DEMO_API=in-tab`, which runs the demo API in the vis
 The Playwright suite builds the demo once, then gives each worker its own demo API (`:3100` up, no latency) and `vite preview` server (`:5200` up), and resets the API's store before every test. Tests share no state, so they run in parallel and in any order. To run one: `cd apps/demo && bunx playwright test -g "<name>"`. To run Playwright in two worktrees at once, give one of them `E2E_PORT_OFFSET=50` (it moves every e2e port, including the hosted config's 5300); otherwise the runs share each other's servers. Rebuild the library first (`bun run --cwd packages/effect-atom-svelte build`) if you changed it.
 
 CI (`.github/workflows/ci.yml`) splits this into parallel jobs: lint, check and both Vitest suites; the Playwright suite in two jobs per engine (`--shard`); and the hosted check. The e2e suite runs in all three engines when a push changes the library, the e2e setup, a `package.json`, `bun.lock` or the workflow, and in Chromium alone for docs and example changes. To test every engine regardless, run the workflow by hand (`gh workflow run CI`).
+
+CI skips the tests altogether when it already passed on a commit that this one differs from only in files no test reads: changelogs, `.changeset/`, `.claude/`, `docs/`, the root Markdown files, and the version numbers the Version Packages PR bumps. A PR is compared with its base, and a push to `main` with the commit before it and the head of the PR it came from, so a squash merge of an up-to-date PR and the release PR don't test the same code again. The `scope` job notes which commit it matched, and still checks formatting (`oxfmt --check`), since lint's formatter reads Markdown. The list is in `.github/scripts/already-tested.sh`, tested by `already-tested.test.sh`; keep it to files that nothing builds or tests.
 
 To check for flakiness, repeat tests within one run instead of looping `bun run test`, which would only replay the cache:
 

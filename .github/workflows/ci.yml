@@ -23,9 +23,21 @@ jobs:
     # change to the library, the e2e setup, dependencies or this workflow runs all three; docs and
     # examples alone run Chromium (JND-91). A new branch, a force push or a manual run runs all
     # three. Its output is the e2e matrix: one entry per shard of each engine.
+    #
+    # It also decides whether to test at all. When CI already passed on a commit that this one differs
+    # from only in files no test reads (changelogs, changesets, agent docs, the version numbers the
+    # Version Packages PR bumps), the code under test is the same, so check, e2e and hosted skip and
+    # ci-ok passes. That covers a squash merge of an up-to-date PR, the Version Packages PR and its
+    # merge, and a docs-only PR. `.github/scripts/already-tested.sh` holds the list of files.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The CI runs on the commits it compares with, and the PR a push to main came from.
+      actions: read
+      pull-requests: read
     outputs:
       shards: ${{ steps.engines.outputs.shards }}
+      skip: ${{ steps.tested.outputs.skip }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,9 +61,45 @@ jobs:
             '[$engines[] as $e | range(1; $counts[$e] + 1) | {engine: $e, shard: ., of: $counts[$e]}]')
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
           echo "::notice::e2e engines: $engines"
+      # The script decides whether anything is tested, so it is tested first.
+      - run: .github/scripts/already-tested.test.sh
+      - id: tested
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # A PR is compared with its base. A push to main is compared with the commit before it, and
+          # with the head of the PR it came from, whose run tested the same code when it was up to date.
+          candidates=()
+          if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
+            candidates+=("$BASE")
+          fi
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            for pr in $(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null) | .number'); do
+              git fetch --quiet origin "pull/$pr/head" && candidates+=("$(git rev-parse FETCH_HEAD)")
+            done
+          fi
+          if [ "${#candidates[@]}" -gt 0 ] && match=$(.github/scripts/already-tested.sh "${candidates[@]}"); then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tests skipped: CI passed on ${match:0:7}, and nothing a test reads has changed since."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Lint's formatter also checks Markdown (changelogs, docs/, the root files), which a skip lets
+      # through, so a skipped run still checks the formatting. check's lint does it otherwise.
+      - if: steps.tested.outputs.skip == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - if: steps.tested.outputs.skip == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.tested.outputs.skip == 'true'
+        run: bunx oxfmt --check
 
   check:
     # Lint, types and the Vitest suites. The browser tests in the library run in all three engines.
+    needs: scope
+    if: needs.scope.outputs.skip != 'true'
     runs-on: ubuntu-latest
     # Playwright's image comes with all three browsers and their system libraries, which took up to
     # a minute and a half to install per job. Its version must match Playwright's in bun.lock; if it
@@ -91,6 +139,7 @@ jobs:
     # 420 tests, which took 19 minutes. The scope job picks the engines and each one's shards.
     name: e2e (${{ matrix.engine }}, ${{ matrix.shard }}/${{ matrix.of }})
     needs: scope
+    if: needs.scope.outputs.skip != 'true'
     runs-on: ubuntu-latest
     container: *playwright
     timeout-minutes: 20
@@ -121,6 +170,8 @@ jobs:
 
   hosted:
     # The site built as it is hosted (the demo API in the page), checked in Chromium.
+    needs: scope
+    if: needs.scope.outputs.skip != 'true'
     runs-on: ubuntu-latest
     container: *playwright
     timeout-minutes: 15
@@ -147,9 +198,12 @@ jobs:
 
   deploy:
     # Deploys the docs site to atom.jarrednorris.dev (apps/demo/alchemy.run.ts) once main passes.
-    # Without the Cloudflare secrets it fails, so a lost token shows on main.
-    needs: [check, e2e, hosted]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Without the Cloudflare secrets it fails, so a lost token shows on main. It also runs when scope
+    # skipped the tests, which a plain `needs` would skip it for. `cancelled()` is true only when the
+    # whole run is cancelled, so each job's result is checked instead: a cancelled job blocks it.
+    needs: [scope, check, e2e, hosted]
+    if: >-
+      ${{ always() && needs.scope.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -186,7 +240,8 @@ jobs:
 
   ci-ok:
     # The one check for branch protection to require. The e2e matrix changes with the scope job, so
-    # its job names do; this job's name doesn't. A skipped job (changeset outside a PR) is a pass.
+    # its job names do; this job's name doesn't. A skipped job (changeset outside a PR, or the tests
+    # when scope found the code already tested) is a pass.
     needs: [scope, check, e2e, hosted, changeset]
     if: always()
     runs-on: ubuntu-latest
