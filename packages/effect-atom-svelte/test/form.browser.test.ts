@@ -11,6 +11,7 @@ import FormBilling from "./fixtures/form-billing.svelte";
 import FormDialog from "./fixtures/form-dialog.svelte";
 import FormSignIn from "./fixtures/form-sign-in.svelte";
 import FormSsr from "./fixtures/form-ssr.svelte";
+import FormTupleRow from "./fixtures/form-tuple-row.svelte";
 import { sleep } from "./helpers.ts";
 import { recorded } from "./stubs/app-navigation.ts";
 
@@ -49,6 +50,18 @@ describe("a sign-in form", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent("Initial");
+  });
+});
+
+describe("constraints", () => {
+  test("an input after a tuple's rest takes the rest's constraints once the row grows past it", async () => {
+    const screen = await render(FormTupleRow);
+    const fourth = screen.getByLabelText("Fourth");
+    await expect.element(fourth).toHaveAttribute("maxlength", "10");
+    await expect.element(fourth).toHaveAttribute("required");
+    await screen.getByRole("button", { name: "Add" }).click();
+    await expect.element(fourth).toHaveAttribute("maxlength", "2");
+    await expect.element(fourth).not.toHaveAttribute("required");
   });
 });
 
