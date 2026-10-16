@@ -104,7 +104,11 @@ export interface MakeOptions {
   readonly revalidateOn?: Timing | undefined;
   /** How long to wait after a change before validating. Defaults to none. */
   readonly debounce?: Duration.Input | undefined;
-  /** A message for an issue that has no `message` annotation, or `undefined` for Effect's own. */
+  /**
+   * A message for an issue that has no `message` annotation, or `undefined` for Effect's own. A
+   * value outside a union, such as one that isn't in a `Schema.Literals`, comes as an
+   * `InvalidType` whose `ast` is the union.
+   */
   readonly leafHook?:
     | ((issue: SchemaIssue.Leaf) => string | undefined)
     | undefined;
