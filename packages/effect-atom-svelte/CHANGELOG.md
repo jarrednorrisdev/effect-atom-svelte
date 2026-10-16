@@ -1,5 +1,13 @@
 # effect-atom-svelte
 
+## 0.4.1
+
+### Patch Changes
+
+- 27d4a1b: Form: `leafHook` now names a value outside a union, such as a select whose value isn't one of its `Schema.Literals`. It used to get Effect's own `Expected "a" | "b"` whatever the hook returned. The hook receives it as an `InvalidType` whose `ast` is the union, as it already did for a single `Schema.Literal`.
+- d711a99: Fix tuple fields receiving the first element's HTML constraints instead of the constraints for their own position (#60).
+- 1d6ab95: Form: a field after a tuple's rest element, as in `Schema.TupleWithRest(Schema.Tuple([A]), [B, C])`, now gets its own HTML constraints (`C`'s), not the rest element's. The trailing elements are counted from the array's end, as Effect's parser counts them, so a field's constraints follow the array as it grows (#68).
+
 ## 0.4.0
 
 ### Minor Changes
