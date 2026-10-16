@@ -51,3 +51,5 @@ If your output contradicts an existing ADR, surface it explicitly rather than si
 > _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
 
 <!-- CI skip probe for #72; this PR is closed without merging. -->
+
+*   badly   formatted list item
