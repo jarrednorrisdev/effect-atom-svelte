@@ -1,6 +1,6 @@
 ---
 name: merge-prs
-description: Merge effect-atom-svelte pull requests once Jarred says so: confirm every check passed, pick squash or merge commit, rebuild and retarget a PR stacked on one that was squashed, then fast-forward main and remove merged worktrees. Use when Jarred says to merge, land or ship PRs, or to clean up after merging.
+description: Merge effect-atom-svelte pull requests once Jarred says so: confirm every check passed, squash it, rebuild and retarget a PR stacked on one that was squashed, then fast-forward main and remove merged worktrees. Use when Jarred says to merge, land or ship PRs, or to clean up after merging.
 ---
 
 # Merging PRs
@@ -19,8 +19,8 @@ Checks still running: mark it ready, `watch_pull_request`, and end the turn. A c
 
 ## 2. Merge
 
-- **Squash** when the history holds replaced or reverted attempts, or the PR's body asks for it. Otherwise a merge commit, the repo's default.
-- Squash subject: the PR's conventional title with `(#<n>)`. Body: a few lines on what changed, and the `Co-Authored-By` line from the system reminder.
+- Always squash: the repo allows nothing else (merge commits and rebase merges are off in its GitHub settings), so `main` gets one commit per PR.
+- Subject: the PR's conventional title with `(#<n>)`. Body: a few lines on what changed, and the `Co-Authored-By` line from the system reminder.
 
 ```sh
 gh pr merge <n> --squash --subject "<title> (#<n>)" --body "<summary>"
@@ -48,4 +48,4 @@ GitHub retargets the PR to `main` once the base's branch is deleted; if it hasn'
 - `unwatch_pull_request` each merged PR.
 - For each merged PR's worktree: confirm `git status --short` is empty, then `git worktree remove <path>` and `git branch -D <branch>`. Keep `esa-pr-assets`. Leave other worktrees alone unless Jarred asks: some belong to open PRs.
 
-Report the merge commits, and anything left: open PRs, worktrees kept, follow-ups.
+Report the squash commits, and anything left: open PRs, worktrees kept, follow-ups.
