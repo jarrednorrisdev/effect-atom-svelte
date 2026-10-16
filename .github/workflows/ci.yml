@@ -85,6 +85,16 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+      # Lint's formatter also checks Markdown (changelogs, docs/, the root files), which a skip lets
+      # through, so a skipped run still checks the formatting. check's lint does it otherwise.
+      - if: steps.tested.outputs.skip == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - if: steps.tested.outputs.skip == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.tested.outputs.skip == 'true'
+        run: bunx oxfmt --check
 
   check:
     # Lint, types and the Vitest suites. The browser tests in the library run in all three engines.
