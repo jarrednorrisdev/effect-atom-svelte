@@ -427,6 +427,40 @@ describe("arrays", () => {
 });
 
 describe("constraints", () => {
+  test("tuple positions use their own schema constraints inside arrays", () => {
+    const Pairs = Form.make(
+      Schema.Struct({
+        pairs: Schema.Array(
+          Schema.Tuple([
+            Schema.String.check(Schema.isMaxLength(2)),
+            Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(10)),
+          ])
+        ),
+      })
+    );
+    const form = Form.instance(Pairs, {
+      id: "pairs",
+      initialValues: {
+        pairs: [
+          ["", ""],
+          ["", ""],
+        ],
+      },
+    });
+    try {
+      expect(form.field(["pairs", 1, 1]).constraints).toStrictEqual({
+        maxlength: 10,
+        minlength: 3,
+        required: true,
+      });
+      expect(form.field(["pairs", 1, 0]).constraints).toStrictEqual({
+        maxlength: 2,
+      });
+    } finally {
+      form.dispose();
+    }
+  });
+
   test("lengths, ranges and patterns come from the Schema's checks", () => {
     const Preset = Form.make(
       Schema.Struct({

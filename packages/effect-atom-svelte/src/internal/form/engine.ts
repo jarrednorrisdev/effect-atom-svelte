@@ -960,13 +960,10 @@ export class Engine {
   }
 
   constraints(path: IndexPath): Constraints {
-    const schemaPath = path.map((segment) =>
-      typeof segment === "number" ? 0 : segment
-    );
-    const id = pathId(schemaPath);
+    const id = pathId(path);
     let found = this.#constraints.get(id);
     if (found === undefined) {
-      found = constraintsAt(this.definition.schema.ast, schemaPath);
+      found = constraintsAt(this.definition.schema.ast, path);
       this.#constraints.set(id, found);
     }
     return found;
