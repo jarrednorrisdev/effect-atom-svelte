@@ -3,7 +3,7 @@ name: review-pr
 description: Review a PR in at most two adversarial rounds on the ticket's tier, fixing clear defects and handing design decisions to the parent thread. Every PR runs it before it lands. Mergeable at 5/5, or at 4/5 when every remaining finding is a nit you handled.
 ---
 
-Review rounds until a round finds no **fix**, at most two, then hand the PR back to `ship` to land if it's mergeable: Jarred has delegated review to this process. You are the **author**: each reviewer only reports, and you make every change. The repo's `docs/agents/` names its review commands, when it has them: rendering the brief and posting the review comment. Without them, do those steps by hand as below.
+Review rounds until a round finds no **fix**, at most two, then hand the PR back to `ship` to land if it's mergeable: Jarred has delegated review to this process. You are the **author**: each reviewer only reports, and you make every change. The repo's `docs/agents/` names its review commands, when it has them: rendering the brief and posting the review comment. Without them, use the scripts beside this skill.
 
 ## 1. Choose the reviewer's tier
 
@@ -13,13 +13,19 @@ Write down the tier and a one-line reason; the review comment states both.
 
 ## 2. Dispatch a reviewer
 
-Start one fresh reviewer per round, with the brief in `brief.md` beside this skill, its placeholders filled in. Write the filled brief to `.cache/review-brief-<pr>-r<n>.md` (one per round, so a stale brief can't pass for this one), or use the repo's command that renders it. Fill `{{read_commands}}` from the repo's tracker doc, `{{smells_path}}` with the absolute path of `smells.md` beside this skill, and `{{repo_checklist}}` with the bullets in the repo's `docs/agents/review.md`, or drop that line when there is none.
+Start one fresh reviewer per round, with `brief.md` beside this skill filled in for the round. Render it after pushing, from the PR's worktree:
+
+```sh
+node <this skill's folder>/render-brief.mjs --pr <n> --round <k> --tier <tier> [--since <last reviewed sha>] [--full] [--spec-file <file>] [--notes-file <file>] [--earlier-file <file>]
+```
+
+It writes `.cache/review-brief-<pr>-r<k>.md` (one per round, so a stale brief can't pass for this one), fills the repo's Read commands, checklist and the smells path, tells the reviewer to skip vendored files, deletes a stale report, and takes the last round's context from its report. It refuses a checkout with uncommitted changes or an unpushed head. The repo's own command, when it has one, does the same.
 
 There is no merge of `main` before a round: the landing merges it. A conflict is fixed before a round is spent: `git fetch origin && git merge origin/main`, commit and push.
 
 **Round 1 is a full review. Round 2 is a delta**: the PR's own change since the last reviewed sha, `git diff <last reviewed sha> HEAD -- $(git diff --name-only origin/main...HEAD)`, plus the open findings with your responses and the last reviewer's map. When that file list is empty, the delta is empty: skip the diff, since with no path git diffs the whole range. Make round 2 a full review instead when the commits since round 1 add up to more than about 300 changed lines.
 
-When the PR closes no ticket, write the spec yourself into the brief: what Jarred asked for, in his words where you have them, or the handoff the work came from.
+When the PR closes no ticket, write the spec yourself and pass it with `--spec-file`: what Jarred asked for, in his words where you have them, or the handoff the work came from.
 
 How to start the reviewer:
 
@@ -44,7 +50,7 @@ When you changed code, commit and push, and record what you ran under "Checks ru
 
 ## 4. Update the review comment
 
-The PR carries one review comment, rewritten each round from the latest report and every round's fixes, in the shape `comment.md` gives. Use the repo's review-comment command when it has one; otherwise render it by hand and post it as `comment.md` says. The step is done when the PR's one `<!-- review-pr -->` comment shows this round's footer.
+The PR carries one review comment, rewritten each round from the latest report and every round's fixes, in the shape `comment.md` gives. Use the repo's review-comment command when it has one; otherwise render it with `node <this skill's folder>/render-comment.mjs --pr <n> --round <k> --report <report> --tier <tier> --reason "<tier reason>" [--fixed <rows file>] [--verdict "<line>"]` and post it as `comment.md` says. Keep every round's Fixed rows in one JSON file (`.cache/review-fixed-<pr>.json`). The step is done when the PR's one `<!-- review-pr -->` comment shows this round's footer.
 
 ## 5. Loop
 

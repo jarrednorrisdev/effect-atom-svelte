@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // A GitHub repo's Land command: merges origin/main into the PR's branch, runs the landing check on
 // that tree, pushes, and merges the PR only when the check passes, by a merge commit where the repo
-// allows one, else by squash. Run it from the PR's own worktree, through the lock:
+// allows one, else by squash, else by rebase. A refused merge waits for the PR's required checks and
+// tries once more. Run it from the PR's own worktree, through the lock:
 //
 //   node land-lock.mjs --pr <n> -- node land-github.mjs <n> -- "<check>" ["<check>"...]
 //
@@ -52,9 +53,28 @@ for (const check of checks) {
   if (spawnSync(check, { stdio: "inherit", shell: true }).status !== 0) refuse(`${check} failed`);
 }
 
+// CI doesn't gate the landing (the local check does), but a failing or pending check is shown.
+// gh exits non-zero when a check fails or is pending, still printing the JSON.
+let ci;
+try {
+  ci = out("gh", "pr", "checks", pr, "--json", "name,bucket");
+} catch (e) {
+  ci = e.stdout?.trim() || "[]";
+}
+for (const c of JSON.parse(ci).filter((c) => c.bucket === "fail" || c.bucket === "pending")) {
+  console.log(`land: warning: CI check ${c.name} is ${c.bucket === "fail" ? "failing" : "pending"}`);
+}
+
 const head = out("git", "rev-parse", "HEAD");
 if (!run("git", "push", "origin", `HEAD:${branch}`)) refuse("git push failed");
-const allowed = JSON.parse(out("gh", "repo", "view", "--json", "mergeCommitAllowed"));
-const method = allowed.mergeCommitAllowed ? "--merge" : "--squash";
-if (!run("gh", "pr", "merge", pr, method, "--match-head-commit", head)) refuse("gh pr merge failed");
+const allowed = JSON.parse(out("gh", "repo", "view", "--json", "mergeCommitAllowed,squashMergeAllowed"));
+const method = allowed.mergeCommitAllowed ? "--merge" : allowed.squashMergeAllowed ? "--squash" : "--rebase";
+const merge = () => run("gh", "pr", "merge", pr, method, "--match-head-commit", head);
+if (!merge()) {
+  // A ruleset's required checks refuse the merge until they pass on the head just pushed.
+  console.log("land: merge refused; waiting for the required checks on the new head");
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30_000);
+  run("gh", "pr", "checks", pr, "--required", "--watch", "--fail-fast");
+  if (!merge()) refuse("gh pr merge failed");
+}
 console.log(`land: PR #${pr} merged (head ${head.slice(0, 7)})`);

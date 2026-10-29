@@ -17,7 +17,7 @@ The skills name a step; the repo's `docs/agents/` says how to do it here. This s
 | `hunt.md` | `hunt-bugs` | only when Jarred wants bug hunts: the areas, the one-test command, where the promises live |
 | `diagrams.md` | `explainer-diagram` | only when Jarred wants diagrams: the glossary, real scenarios, Playwright, and where a PR's diagram is published |
 
-Explore, present what you found, confirm with Jarred, then write. **Fill gaps only:** a file or section that already exists stays as it is, whatever it says. Offer a change to one only when it contradicts a skill.
+Explore, present what you found, confirm with Jarred, then write. **Fill gaps only:** a file or section that already exists stays as it is, whatever it says. Offer a change to one only when it contradicts a skill. A doc in Matt's format (from `setup-matt-pocock-skills`) counts as existing: append the sections it lacks and fix its stale skill names. Update any protocol text that names a skill or step the stack replaces (an old claim command, "land with the user's go-ahead").
 
 ## 1. Explore
 
@@ -31,6 +31,9 @@ Read whatever exists; don't assume:
 - The repo's checks (`package.json` scripts, `Cargo.toml`, CI workflows), for the landing check and the review checklist.
 - The tracker CLI: `gh`, `tea` or `linearis` on the PATH and logged in, and any labels the tracker requires on every issue (an area, a kind, a triage state).
 - `.gitignore`: does it ignore `.cache/`?
+- Hooks: `git config --get core.hooksPath`. A repo moved between drives can keep a path that no longer exists, and git then runs no hooks, silently.
+- Line endings: `git ls-files --eol`. A Windows checkout with `core.autocrlf=true` has CRLF files over an LF index, which a formatter that enforces LF fails on every file.
+- A `triage-labels.md` from Matt's setup: no jnd skill reads it.
 
 ## 2. Present and ask
 
@@ -38,7 +41,7 @@ Summarise what's present and what's missing, then one section at a time, each le
 
 - **Tracker.** GitHub for a GitHub remote, Forgejo for a Forgejo one, Linear when the repo's work lives there. The PRs live on the git host either way.
 - **Stop and ask a human before.** The actions no agent takes alone (force-pushing, deleting data, spending money, publishing). `ship` sends these to Jarred. Propose a list from the repo's rules.
-- **Landing.** The **Land** command (merge `origin/main` into the branch, run the landing check on that tree, put the result on `main`) and the landing check: lint, format and typecheck of what changed. Propose both from the repo's checks. On GitHub, the Land command is `land-pr`'s `land-github.mjs` with the landing check after `--`.
+- **Landing.** The **Land** command (merge `origin/main` into the branch, run the landing check on that tree, put the result on `main`) and the landing check: lint, format and typecheck of what changed. Propose both from the repo's checks, and run the proposed check once on a clean `origin/main` first: missing tools, a full disk or tests already red there would make every landing fail. Record a red baseline (the failing tests and their issue) in the tracker doc beside the check. On GitHub the Land command is `land-pr`'s `land-github.mjs`, on Forgejo its `land-forgejo.mjs`, each with the landing check after `--`.
 - **Decision log.** Where decisions get D-numbers: propose `docs/decisions.md` when there's none.
 - **Root.** The status command, where the capacity cap lives, and the timer gate. A command that doesn't exist yet is written as `to write`, not invented.
 - **Required labels.** When the tracker requires its own labels on every issue, how they apply to map tickets. The answer goes into the tracker doc's child-ticket command.
@@ -53,9 +56,9 @@ Show the drafts, let Jarred edit them, then write them from the templates beside
 
 Fill every `<placeholder>`. Keep each file's line endings: a doc committed with CRLF stays CRLF. Run each tracker command's `--help` before writing it down: CLI flags change between versions, and an agent copies these commands unchecked. Create the labels the tracker lacks: `wayfinder:map`, `wayfinder:<research|prototype|grilling|task|build>`, `model:<haiku|sonnet|opus>`, `human:verify`.
 
-Add `.cache/` to `.gitignore`: review briefs and reports, the sync merge folder and the root's state file live there. Leave `.claude/skills/**` out of the repo's lint, format and other file checks: the synced skills are vendored, and a local fix to one shows as a tweak the next time `sync.mjs` runs.
+Add `.cache/` to `.gitignore`: review briefs and reports, the sync merge folder and the root's state file live there. Leave `.claude/skills/**` out of the repo's lint, format and other file checks, in each tool's own ignore list (a linter and a formatter often have separate ones; an existing `.claude/**` ignore already covers it): the synced skills are vendored, and a local fix to one shows as a tweak the next time `sync.mjs` runs. When the checkout has CRLF files and the formatter enforces LF or a test compares checked-in files byte for byte, add a `.gitattributes` with `* text=auto eol=lf`, then `git add --renormalize .`. Git doesn't rewrite unchanged files in other worktrees, even after they merge that commit, so tell Jarred to refresh each existing clean worktree with `git rm --cached -r -q . && git reset --hard` (it discards uncommitted changes). Offer to delete a `triage-labels.md` no jnd skill reads.
 
-Then add or update the block in whichever of `CLAUDE.md` / `AGENTS.md` exists (if neither, ask which to create; never create one beside the other):
+Then add or update the block in whichever of `CLAUDE.md` / `AGENTS.md` exists (if neither, ask which to create; never create one beside the other). When there are more, the one a tool manages (a `turbo`-managed `AGENTS.md`) is canonical, the other root file is a one-line `@AGENTS.md`, and a nested `.claude/CLAUDE.md` is merged in and deleted, so nothing loads twice:
 
 ```markdown
 ## Agent skills

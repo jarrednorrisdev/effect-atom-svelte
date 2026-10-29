@@ -2,6 +2,8 @@
 
 Issues and maps for this repo live in Linear, workspace `<workspace>`, team `<TEAM>`; ids look like `<TEAM>-42`. Use the `linearis` CLI (`npm i -g linearis`; `linearis auth login` once per machine, `linearis auth status` checks it). It prints JSON. Discover flags with `linearis usage` and `linearis <domain> usage` rather than guessing. Pull requests live on the git host (see the end).
 
+<Only when the repo maps to more than one team: a routing section saying which team and `--project` each area goes to, and which team takes work that spans them. Label names can't repeat across teams, so give one team's copies a prefix (`jnd:`) and say so.>
+
 On Windows, don't call `linearis.cmd` through `cmd.exe` with multi-line arguments: `cmd.exe` cuts them at the first newline. Call `node <npm-root>/linearis/dist/main.js` directly. (`--file` exists only on `issues batch create|update`; `create`, `update`, `discuss` and `reply` take text.)
 
 ## Issues
@@ -30,5 +32,5 @@ On `<git host>`, with `Closes <id>` in the body so Linear links it.
 
 - **Open a draft**: `gh pr create --draft --title "..." --body-file <file>`.
 - **Mark ready**: `gh pr ready <n>`.
-- **Landing check**: `<the repo's checks on what changed>`.
-- **Land**: `<command>`. It merges `origin/main` into the branch, runs the landing check on that tree, and merges only when it passes. On GitHub: `node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`, through `land-pr`'s lock, which merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, or a squash where the repo allows only that).
+- **Landing check**: `<the repo's checks on what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`.
+- **Land**: `<command>`. It merges `origin/main` into the branch, runs the landing check on that tree, and merges only when it passes. On GitHub: `node .claude/skills/land-pr/land-lock.mjs --pr <n> -- node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`, which merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, else the method the repo allows, after any required checks pass).
