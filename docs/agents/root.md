@@ -13,6 +13,6 @@ Settings the `root` skill and the wayfinders read on this machine.
 
 ## This machine
 
-- Windows. A new worktree needs `bun install`, then the packages built (`bunx turbo run build --filter='./packages/*'`), before lint, check or the dev server work.
+- Windows. A new worktree needs `bun install`, then the packages built (`bunx turbo run build --filter='./packages/*'`) and `bunx svelte-kit sync` run in `apps/demo`, before lint, check or the dev server work.
 - The dev server runs on :5180 and the demo API on :3010. Start either as a background command with `timeout: 7200000`, since the default stops it after 30 minutes. Two worktrees running Playwright at once need `E2E_PORT_OFFSET=50` on one of them.
 - `oxfmt` reflows files after edits: re-read a file before matching its text for another edit.
