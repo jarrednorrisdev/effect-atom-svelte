@@ -22,3 +22,6 @@ playwright-report
 .claude/worktrees/
 .claude/settings.local.json
 CLAUDE.local.md
+
+# The jnd skills' scratch: review briefs and reports, the sync merge folder, the root's state file.
+.cache/

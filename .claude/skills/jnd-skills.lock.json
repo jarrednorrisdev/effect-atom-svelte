@@ -1,0 +1,140 @@
+{
+  "source": "jarrednorrisdev/jnd-skills",
+  "skills": {
+    "codebase-design": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "35556307e5767556",
+      "hash": "35556307e5767556"
+    },
+    "diagnosing-bugs": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "4bef78b5eaf517e3",
+      "hash": "4bef78b5eaf517e3"
+    },
+    "domain-modeling": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "8aec21d6c229fcfe",
+      "hash": "8aec21d6c229fcfe"
+    },
+    "doubt": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "32a733b2ad72eea9",
+      "hash": "32a733b2ad72eea9"
+    },
+    "explainer-diagram": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "8d6a3425ad699ee6",
+      "hash": "8d6a3425ad699ee6"
+    },
+    "file-pr": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "c60a2052545e337d",
+      "hash": "c60a2052545e337d"
+    },
+    "grill-me": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "6ecc1fdbe5a1241c",
+      "hash": "6ecc1fdbe5a1241c"
+    },
+    "grilling": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "fbd1c2ca4e7147d2",
+      "hash": "fbd1c2ca4e7147d2"
+    },
+    "hunt-bugs": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "ba5dce4f41f3f61f",
+      "hash": "ba5dce4f41f3f61f"
+    },
+    "improve-codebase-architecture": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "19fb023a26f1c708",
+      "hash": "19fb023a26f1c708"
+    },
+    "land-pr": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "8042fa324813f0e1",
+      "hash": "8042fa324813f0e1"
+    },
+    "modernize": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "5a1ad7bf0ddf3129",
+      "hash": "5a1ad7bf0ddf3129"
+    },
+    "next-session": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "96fee5012bfe874c",
+      "hash": "96fee5012bfe874c"
+    },
+    "prototype": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "9dcc95c4ef99c7a3",
+      "hash": "9dcc95c4ef99c7a3"
+    },
+    "research": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "9158e90130c26dd2",
+      "hash": "9158e90130c26dd2"
+    },
+    "retro": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "ffc7949291932919",
+      "hash": "ffc7949291932919"
+    },
+    "review-pr": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "d3dbf5987f5b8bb9",
+      "hash": "d3dbf5987f5b8bb9"
+    },
+    "root": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "3970431dc3413fe7",
+      "hash": "3970431dc3413fe7"
+    },
+    "setup-jnd": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "7d24ea1a57ba0cc6",
+      "hash": "7d24ea1a57ba0cc6"
+    },
+    "ship": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "30f6661f245067f7",
+      "hash": "30f6661f245067f7"
+    },
+    "takeover": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "6c0ffbfb74aedfd2",
+      "hash": "6c0ffbfb74aedfd2"
+    },
+    "tdd": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "43d63b81213e9613",
+      "hash": "43d63b81213e9613"
+    },
+    "wait-what": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "ca148e1c2ab29e8d",
+      "hash": "ca148e1c2ab29e8d"
+    },
+    "wayfinder": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "bcf72d17116b4799",
+      "hash": "bcf72d17116b4799"
+    },
+    "wizard": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "27f6a047e568043f",
+      "hash": "27f6a047e568043f"
+    },
+    "writing-for-agents": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "38ad1174f9b8c17b",
+      "hash": "38ad1174f9b8c17b"
+    },
+    "writing-guidelines": {
+      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
+      "source": "f9946a95963ca0ce",
+      "hash": "f9946a95963ca0ce"
+    }
+  }
+}
