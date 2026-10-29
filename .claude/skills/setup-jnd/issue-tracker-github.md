@@ -28,5 +28,5 @@ Issues, maps and pull requests for this repo live on GitHub, at `<owner>/<repo>`
 - **Open a draft**: `gh pr create --draft --title "..." --body-file <file>`.
 - **Read**: `gh pr view <n>`, then `gh pr view <n> --comments`, and `gh pr diff <n>`.
 - **Mark ready**: `gh pr ready <n>`.
-- **Landing check**: `<the repo's lint, format and typecheck of what changed>`.
-- **Land**: `node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`, through `land-pr`'s lock. It merges `origin/main` into the branch, runs each quoted check on that tree, pushes, and merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, or a squash where the repo allows only that) only when they pass. Use the repo's own script instead when it has one.
+- **Landing check**: `<the repo's lint, format and typecheck of what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`.
+- **Land**: `node .claude/skills/land-pr/land-lock.mjs --pr <n> -- node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`. Through `land-pr`'s lock, it merges `origin/main` into the branch, runs each quoted check on that tree, pushes, and merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, else the method the repo allows, after any required checks pass) only when they pass. Use the repo's own script instead when it has one.

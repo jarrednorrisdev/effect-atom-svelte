@@ -11,7 +11,7 @@ You own the work from its current state to a landed PR. There are three ways in:
 - **"full send".** Jarred is not watching this thread and wants the work done end to end. Your updates go unread until long after you stop. Land the PR once it's mergeable.
 - **"full stop".** The same as full send, but stop with the PR ready for Jarred to land. Never land it, enable auto-merge or push to the default branch.
 
-If Jarred did not clearly say "full send" or "full stop", and no parent launched you, don't assume this autonomy.
+A handoff that says Jarred asked for it to run autonomously is a full send. If Jarred did not clearly say "full send" or "full stop", and no parent launched you, don't assume this autonomy.
 
 The repo supplies the commands: its tracker doc and `docs/agents/` say how to read, claim and label a ticket, open a PR, and land one.
 

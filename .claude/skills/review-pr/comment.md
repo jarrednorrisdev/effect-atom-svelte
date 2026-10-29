@@ -1,6 +1,6 @@
 # The review comment
 
-Render it from the reviewer's `json` block and every round's Fixed rows. The repo's review-comment command does this when it has one.
+Render it from the reviewer's `json` block and every round's Fixed rows: `render-comment.mjs` beside this file does this, or the repo's review-comment command when it has one. The shape and rules below are what it writes.
 
 ````markdown
 <!-- review-pr -->
@@ -55,3 +55,12 @@ Write the body to a file, then update the comment, or post it in round 1:
 id=$(gh api "repos/{owner}/{repo}/issues/<n>/comments" --paginate --jq '.[] | select(.body | startswith("<!-- review-pr -->")) | .id' | head -1)
 if [ -n "$id" ]; then gh api -X PATCH "repos/{owner}/{repo}/issues/comments/$id" -F body=@<file>; else gh pr comment <n> --body-file <file>; fi
 ```
+
+## Posting it by hand (Forgejo)
+
+```sh
+id=$(tea api 'repos/{owner}/{repo}/issues/<n>/comments' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(c=>c.body.startsWith("<!-- review-pr -->"))?.id ?? ""))')
+if [ -n "$id" ]; then tea api -i -X PATCH "repos/{owner}/{repo}/issues/comments/$id" -F body=@<file>; else tea api -i -X POST 'repos/{owner}/{repo}/issues/<n>/comments' -F body=@<file>; fi
+```
+
+`tea api` exits 0 on an HTTP error: check the status line `-i` prints.

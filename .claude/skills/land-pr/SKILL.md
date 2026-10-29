@@ -3,7 +3,7 @@ name: land-pr
 description: Land a mergeable PR on main, one landing at a time per repo, and log how long it waited. Use from `ship` once `review-pr` ends mergeable, or when Jarred says to land or merge a PR.
 ---
 
-Land only a PR `review-pr` left mergeable, or one Jarred told you to land. The repo's `docs/agents/` names its **Land** command: it merges `origin/main` into the branch, runs the landing check on that tree, and puts the result on `main` (Taverncraft: `bun scripts/forgejo.ts pr merge <n>`; a GitHub repo: `node <this skill's folder>/land-github.mjs <n> -- "<check>"...`, which also refuses a draft, a dirty tree or the wrong branch). Merge the way the repo does; never use `--admin` or another bypass.
+Land only a PR `review-pr` left mergeable, or one Jarred told you to land. The repo's `docs/agents/` names its **Land** command: it merges `origin/main` into the branch, runs the landing check on that tree, and puts the result on `main` (Taverncraft: `bun scripts/forgejo.ts pr merge <n>`; a GitHub or Forgejo repo: `node <this skill's folder>/land-github.mjs` or `land-forgejo.mjs` `<n> -- "<check>"...`, which also refuse a draft, a dirty tree or the wrong branch). Merge the way the repo does; never use `--admin` or another bypass.
 
 ## 1. Ready
 
@@ -21,9 +21,11 @@ node <this skill's folder>/land-lock.mjs --pr <n> -- <the repo's Land command>
 ```
 
 - The lock lets one landing run at a time in the repo, across every worktree on this machine, so `main` doesn't move under it. It waits up to 5 minutes for the lock. Exit code 75 means another landing still holds it: run the same command once more.
-- Run it in the foreground with a 10-minute timeout. When the Land command can take longer (it waits for a heavy slot, or its check is long), run it in the background with its output going to a log file, and wait for its exit line before going on.
+- Run it in the foreground with a 10-minute timeout. When the Land command can take longer (it waits for a heavy slot or for required CI checks, or its check is long), run it in the background with its output going to a log file, and wait for its exit line before going on.
 - It appends a line to the repo's landing log (wait, run time, exit code), which is how we check the lock is working. `node land-lock.mjs --stats` prints the last week's medians.
 - Touch nothing in the worktree while it runs.
+- Each quoted check runs in the platform shell (`cmd.exe` on Windows), so `VAR=x cmd` doesn't work there: set environment variables around the whole `land-lock.mjs` call. A check must leave the tree clean.
+- CI doesn't gate the landing; the landing check does. Name any CI check the Land command warns is failing or pending in your report.
 
 **When it refuses:**
 

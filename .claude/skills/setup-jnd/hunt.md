@@ -2,6 +2,7 @@
 
 What `hunt-bugs` needs to know about this repo. Add to the areas what each loop teaches.
 
+- **Setup**: `<what a hunter's fresh worktree needs before tests run: install, build, or nothing>`.
 - **Run one test**: `<command> <file> -t "<name>"`.
 - **Promises**: the behaviour the code promises lives in `<API comments, docs pages, README>`.
 - **Compare with**: `<a comparable library, or none>`. If it behaves the same way, the behaviour is probably intended.

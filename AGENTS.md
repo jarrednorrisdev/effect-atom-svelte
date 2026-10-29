@@ -22,7 +22,7 @@ Jarred owns this library and reviews the work as the person deciding what ships.
 
 ## Worktrees and dev
 
-- A new worktree needs `bun install`, then the packages built (`bunx turbo run build --filter='./packages/*'`), before `bun run dev` starts.
+- A new worktree needs `bun install`, then the packages built (`bunx turbo run build --filter='./packages/*'`) and `bunx svelte-kit sync` run in `apps/demo`, before `bun run dev` starts.
 - Start the dev server as a background command with `timeout: 7200000`; the default stops it after 30 minutes. Site on :5180.
 - The skills' scripts check the checkout they sit in, so run them from the worktree you want checked.
 - `oxfmt` reflows files after edits. Re-read a file before matching its text for another edit.
