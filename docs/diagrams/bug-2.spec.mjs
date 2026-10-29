@@ -1,6 +1,7 @@
 // Bug 2 from #38: a HydrationBoundary's first render in the browser didn't match the server's
 // HTML. The reference spec: copy it to start a new diagram.
-//   node .claude/skills/explainer-diagram/scripts/build.mjs docs/diagrams/bug-2.spec.mjs bug-2.html \n//     --glossary docs/diagrams/glossary.mjs
+//   node .claude/skills/explainer-diagram/scripts/build.mjs docs/diagrams/bug-2.spec.mjs bug-2.html \
+//     --glossary docs/diagrams/glossary.mjs
 
 const live = (v, badge, tone) => ({ v, badge, tone, live: true });
 

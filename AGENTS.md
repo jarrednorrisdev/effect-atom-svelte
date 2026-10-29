@@ -16,7 +16,7 @@ Jarred owns this library and reviews the work as the person deciding what ships.
 ## Working with Jarred
 
 - **Recommend only what you'd defend.** Give your confidence with the recommendation, and the doubts you have, before Jarred asks "any qualms?". When they push back, weigh it on its merits: change your mind for a reason, not to agree.
-- **Look it up before you state it.** A fact one lookup away gets looked up: the sidebar's order is `apps/demo/src/lib/docs/nav.ts`; Effect's and Atom's source is `~/Documents/repos/reference/effect`; a PR's claims are checked against its final diff.
+- **Look it up before you state it.** A fact one lookup away gets looked up: the sidebar's order is `apps/demo/src/lib/docs/nav.ts`; Effect's and Atom's source is `~/Documents/repos/reference/effect` on the Mac, and installed under `packages/effect-atom-svelte/node_modules/effect/src/` anywhere; a PR's claims are checked against its final diff.
 - **Explain from the ground up.** Define each term before using it, saying where it comes from (Svelte, SvelteKit, Effect or this library). A sequence over time (server then browser, a lifecycle, a race) gets an `explainer-diagram`, not paragraphs.
 - **Prototype before building.** For an example, a UI or a design choice, show a throwaway HTML prototype in chat (`html_render`) and get a yes before writing real code. Several full builds were thrown away before this rule.
 
@@ -50,6 +50,6 @@ The jnd skills read this repo's settings from `docs/agents/`. They are synced fr
 ### Stop and ask a human before
 
 - Merging the "chore: version packages" PR, or approving the `npm` environment's publish: either one publishes to npm.
-- Deploying the docs site by hand, or changing the Cloudflare secrets or the `personal` Alchemy profile.
+- Deploying the docs site by hand, or changing the Cloudflare secrets or the `jnd` Alchemy profile.
 - Force-pushing `main` or `pr-assets`, deleting either, or changing the repo's rulesets or merge settings.
 - Filing or commenting on an issue in another project, such as Effect's: it posts publicly as Jarred.
