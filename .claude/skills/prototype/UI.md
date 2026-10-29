@@ -93,7 +93,12 @@ Put the switcher in a single shared component so both sub-shapes can reuse it. L
 
 ### 5. Hand it over
 
-Surface the URL (and the `?variant=` keys). The user will flip through whenever they get to it. The interesting feedback is usually **"I want the header from B with the sidebar from C"**, which is the actual design they want.
+Jarred compares variants in his browser, flipping between them. Screenshots can't do that, so the handover is always a page he can open:
+
+- **While this thread runs:** start the server in the background and leave it running until he picks. Give the URL of each variant (its `?variant=` key, or its story where the repo prototypes in Storybook: one story per variant, and the sidebar is the switcher).
+- **After it settles:** the worktree is gone, so the branch's README and the ticket comment start with how to open it again: every command from a fresh checkout of the branch to the running page (install, any build the server needs first, start), and the URL. Run them yourself in a throwaway worktree before you write them down.
+
+Screenshots are optional, below the link, as a record on the ticket; never the only way to see the variants. The interesting feedback is usually **"I want the header from B with the sidebar from C"**, which is the actual design he wants.
 
 ### 6. Capture the answer and clean up
 

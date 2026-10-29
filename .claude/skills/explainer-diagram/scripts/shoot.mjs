@@ -1,6 +1,6 @@
 // Screenshots a built diagram, in dark mode, and reports console errors.
 //
-//   cd <a checkout's>/packages/effect-atom-svelte   # Playwright resolves from here
+//   cd <a folder with Playwright installed>   # Playwright resolves from here
 //   node <skill>/scripts/shoot.mjs <diagram.html> <out-dir> [--key before-10,after-10]
 //
 // Writes <out-dir>/<mode>-<step>.png (900 px) for every step and <out-dir>/phone.png (390 px) for
