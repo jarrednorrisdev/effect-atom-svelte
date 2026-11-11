@@ -28,3 +28,13 @@ Each round the user answers reshapes the tree: settled decisions push the fronti
 Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
 
 The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
+
+## Full send
+
+When the user has said "full send", or the map's Notes say `Mode: full send`, nobody is there to answer, and the work must keep moving. Still work the tree in rounds, written out as above, but take your recommended answer to every question yourself:
+
+- Post each round, with the answers taken, where the work keeps its record (the ticket's comment, or this thread), tagged `auto-accepted`.
+- Add each decision to the repo's decision log, tagged `auto-accepted`, so the user can veto it later. Tag one the user would normally make themselves (a taste call, the look and feel) `auto-accepted, to review`.
+- Before a decision that's hard to undo stands, run `doubt` on it.
+
+The session is done when the frontier is empty; there's no confirmation to wait for.

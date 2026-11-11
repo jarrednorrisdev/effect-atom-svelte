@@ -19,7 +19,11 @@ export const ignorePatterns = [
   // `shadcn-svelte add` can update them.
   "apps/demo/src/lib/components/ui/**",
   "apps/demo/src/lib/hooks/is-mobile.svelte.ts",
-  // Agent instructions and skills, some of them third-party
-  // (.claude/skills/NOTICE.md).
+  // Agent instructions and skills. Most skills are vendored from jnd-skills
+  // (`.claude/skills/jnd-skills.lock.json`), so a local fix would show as a
+  // tweak at the next sync.
   ".claude/**",
+  // Explainer-diagram specs and their glossary: data in the skill's own style,
+  // built by its scripts, not part of the packages.
+  "docs/diagrams/**",
 ];

@@ -72,3 +72,11 @@ Only offer to create an ADR when all three are true:
 3. **The result of a real trade-off**: there were genuine alternatives and you picked one for specific reasons
 
 If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+### Fix the tickets a decision overrides
+
+When a decision is recorded (an ADR, or an entry in the repo's decision log), edit the body of every open ticket whose text it overrides, naming the decision, so the next agent to pick one up doesn't build the old behaviour. A comment below the body is easy to miss.
+
+### Amending an ADR
+
+When a decision changes a rule an existing ADR states, whether in that ADR or in a new one, follow "Amending an ADR" in the repo's `docs/agents/domain.md`: the amendment's format, the grep that points every restatement at it, and the open tickets whose bodies change with it.

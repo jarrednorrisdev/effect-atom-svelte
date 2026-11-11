@@ -39,7 +39,7 @@ For language models, the build also writes the docs as Markdown (`src/lib/docs/l
 
 The docs site is deployed to `atom.jarrednorris.dev` on Cloudflare by [Alchemy](https://alchemy.run) (`apps/demo/alchemy.run.ts`): CI's `deploy` job runs `bun run --cwd apps/demo deploy` after a push to `main` whose jobs all passed or were skipped, and skips while the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are missing.
 
-Locally, Alchemy must use the `personal` profile (`bun run --cwd apps/demo deploy` passes it). The stack refuses any other profile, and Cloudflare variables in the environment, outside CI.
+Locally, Alchemy must use the `jnd` profile (`bun run --cwd apps/demo deploy` passes it). The stack refuses any other profile, and Cloudflare variables in the environment, outside CI.
 
 Deploys from Windows are untested (Alchemy's SvelteKit integration mishandled `\` paths before 2.0.0-beta.83); deploy through CI, which runs on Linux.
 

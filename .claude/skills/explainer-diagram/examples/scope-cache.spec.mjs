@@ -2,8 +2,8 @@
 // atom switched what it reads, the snapshot stayed stale and ScopeChanged never fired.
 // Test: inspector-scope.browser.test.ts, "says its atoms changed when an atom that mounts another
 // switches dependencies" (flag/a/b/ticker there are showDraft/saved/draft/presence here).
-
-import { terms } from "../glossary.mjs";
+//
+// Build it with: node ../scripts/build.mjs scope-cache.spec.mjs scope-cache.html --glossary glossary.mjs
 
 // The registry's graph around doc: what doc reads (solid) and mounts (dashed).
 const reg = (edges, extra = {}) => ({ edges, ...extra });
@@ -32,7 +32,7 @@ export default {
       "<code>doc</code> also keeps a <code>presence</code> connection open: a socket that tells other people who's looking at the document. <code>doc</code> never uses a value from it; it just needs it open while the document is on screen.",
       "Beside the editor sits an atom graph panel, like the one the docs site draws next to each example. It shows which atoms <code>doc</code> depends on. <b>The bug:</b> after the click, the panel still says <code>doc</code> depends on <code>saved</code>, though it now reads <code>draft</code>.",
     ],
-    terms: terms(
+    terms: [
       "atom",
       ["node", "Here, what matters is the node's parents."],
       "get",
@@ -41,7 +41,7 @@ export default {
       "inspector",
       "scope",
       ["microtask", "Here: once the registry is done running <code>doc</code>."],
-    ),
+    ],
   },
 
   lanes: [
