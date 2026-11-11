@@ -179,7 +179,7 @@ const nodeOf = <A>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<A>
 ): RegistryNode<A> =>
-  // SAFETY: ensureNode returns the implementation's node (Effect 4.0.5), which has
+  // SAFETY: ensureNode returns the implementation's node (Effect 4.0.7 and 4.1.4), which has
   // preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
   // beside the Node interface; @effect/atom-react calls its setValue the same way.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- those members are on the implementation only, which Effect doesn't export
@@ -240,12 +240,20 @@ const dropInitialValueMark = (
   }
 };
 
+// The nodes given a value by useAtomInitialValues. A node belongs to one registry, and a node the
+// registry sweeps is gone from here too, so the next component to start it gives it the value again.
+const initialValuesApplied = new WeakSet<AtomRegistry.Node<unknown>>();
+
 /**
  * On the server, the node holding a value from `useAtomInitialValues` for an atom: its own, or its
  * source's for a wrapper such as `withRefresh`, which passes the value on and reads as its source.
  * The server renders that value: mounting, reading or waiting for the atom would build it, and a
  * build runs the atom's read, the source's included, even when it keeps the value. That read may be
  * browser-only or start a request the value was there to save.
+ *
+ * The node's mark alone doesn't say where the value came from: since Effect 4.1, a value a
+ * `HydrationBoundary` brings sets it too, and the server waits for that atom as for any other, so a
+ * promise-encoded value landing during the render is the one it renders.
  *
  * For a wrapper, this assumes it reads as its source, as every wrapper Effect makes with
  * `initialValueTarget` does. A user's `Atom.transform` given `initialValueTarget` that changes the
@@ -259,7 +267,9 @@ const initialNodeOnServer = <A>(
     return undefined;
   }
   const node = nodeOf(registry, initialValueTarget(atom));
-  return node.preserveInitialValueOnBuild ? node : undefined;
+  return initialValuesApplied.has(node) && node.preserveInitialValueOnBuild
+    ? node
+    : undefined;
 };
 
 /** Whether, on the server, an atom renders a value from `useAtomInitialValues`. */
@@ -968,10 +978,6 @@ const setNodeValue = (
   nodeOf(registry, atom).setValue(value);
   dropInitialValueMark(registry, atom);
 };
-
-// The nodes given a value by useAtomInitialValues. A node belongs to one registry, and a node the
-// registry sweeps is gone from here too, so the next component to start it gives it the value again.
-const initialValuesApplied = new WeakSet<AtomRegistry.Node<unknown>>();
 
 // On the server, how many renders hold each applied node. The value applies again only once none
 // does, so a request ending doesn't let a request starting overwrite the value another still renders.

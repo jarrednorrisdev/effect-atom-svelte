@@ -12,7 +12,7 @@ Setting up takes three steps: install the packages, turn on Svelte's experimenta
 
 ## Install the packages
 
-effect-atom-svelte needs `effect` 4.0.x alongside it. Atoms come from `effect/reactivity`, which is part of `effect` itself. The commands pin `effect@~4.0.0`, as the bindings use parts of the atom registry that aren't public API, and a minor release such as 4.1 can change them.
+effect-atom-svelte needs `effect` 4.0 or 4.1 alongside it (the peer range is `>=4.0.0 <4.2.0`). Atoms come from `effect/reactivity`, which is part of `effect` itself. The commands pin `effect@~4.1.0`: the bindings use parts of the atom registry that aren't public API, which a minor release such as 4.2 can change, so the range takes a new minor only once the tests pass on it.
 
 <InstallCommand />
 

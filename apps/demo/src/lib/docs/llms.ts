@@ -25,7 +25,7 @@ const summary =
 // atom-react or of Svelte stores. Each point is taught on the page it links to.
 const essentials = `Before writing code with it:
 
-- Install \`effect@~4.0.0\` alongside \`effect-atom-svelte\`. The bindings use parts of the atom registry that aren't public API, so another minor version of \`effect\` can break them. See [Installation](${siteUrl}/installation.md).
+- Install \`effect@~4.1.0\` alongside \`effect-atom-svelte\`; the peer range is \`>=4.0.0 <4.2.0\`. The bindings use parts of the atom registry that aren't public API, so a minor version of \`effect\` outside that range can break them. See [Installation](${siteUrl}/installation.md).
 - Atoms are made with \`Atom\` from \`effect/reactivity\`; the hooks and \`RegistryProvider\` come from \`effect-atom-svelte\`. Put a \`RegistryProvider\` around the app: every hook reads the nearest one.
 - A hook returns an object with a reactive \`current\`, Svelte's convention: read it in markup, assign to it, or \`bind:\` to it. See [Reading and writing](${siteUrl}/reading-and-writing.md).
 - \`useAtomSuspense\`, \`useAtomResult\` and server rendering need Svelte's \`compilerOptions: { experimental: { async: true } }\`.

@@ -51,24 +51,24 @@
   },
   "dependencies": {
     "@sveltejs/acorn-typescript": "^1.0.13",
-    "acorn": "^8.18.0",
+    "acorn": "^8.19.0",
     "esm-env": "^1.2.2",
     "magic-string": "^0.30.21"
   },
   "devDependencies": {
-    "@sveltejs/package": "^3.0.1",
+    "@sveltejs/package": "^3.0.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@types/node": "^24",
-    "effect": "4.0.5",
+    "@types/node": "^24.19.2",
+    "effect": "4.1.4",
     "effect-atom-svelte": "workspace:*",
-    "svelte": "^5.57.2",
-    "svelte-check": "^4.7.6",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.5"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
-    "effect": "~4.0.0",
+    "effect": ">=4.0.0 <4.2.0",
     "effect-atom-svelte": "^0.4.1",
     "svelte": "^5.57.2",
     "vite": ">=5.0.0"

@@ -25,7 +25,7 @@ A devtools panel for atoms needs to answer three questions: which atoms are aliv
 | A write came from outside | none | Replaces `registry.set`, `update` and `modify` on the instance to count writes in progress. |
 | The registry's default idle TTL | none | Reads `RegistryImpl.defaultIdleTTL`. |
 
-Each of these breaks silently when the implementation changes, which is why effect-atom-svelte's peer range for `effect` is `~4.0.0`. Any other binding (`@effect/atom-react`, a Vue or Solid adapter) that wanted devtools would have to repeat the same work against the same internals.
+Each of these breaks silently when the implementation changes, which is why effect-atom-svelte's peer range for `effect` stops at the newest minor its tests have passed on (`>=4.0.0 <4.2.0` as of 4.1). Any other binding (`@effect/atom-react`, a Vue or Solid adapter) that wanted devtools would have to repeat the same work against the same internals.
 
 The prototype that preceded the panel polled `getNodes()` every 150 ms and read `listeners`, `_value` and `state` directly. It missed everything that happened between polls: a refetch that started and was interrupted inside one interval left no trace.
 
@@ -123,7 +123,7 @@ Devtools also need names. `Atom.withLabel` returns a copy of the atom, so labell
 
 ## What effect-atom-svelte would do with it
 
-`inspect()` in `effect-atom-svelte/inspector` would call `registry.inspect` when it exists and fall back to `nodeInternals.ts` when it doesn't, keeping its own event types. Everything in the table above under "What effect-atom-svelte does instead" would go, along with the two inferences, and the `~4.0.0` peer range could widen once nothing else relies on internals.
+`inspect()` in `effect-atom-svelte/inspector` would call `registry.inspect` when it exists and fall back to `nodeInternals.ts` when it doesn't, keeping its own event types. Everything in the table above under "What effect-atom-svelte does instead" would go, along with the two inferences, and the peer range's upper bound could go once nothing else relies on internals.
 
 ## Alternatives considered
 

@@ -1,1 +1,1 @@
-npm install "effect@~4.0.0" effect-atom-svelte
+npm install "effect@~4.1.0" effect-atom-svelte
