@@ -116,7 +116,7 @@ test.describe("docs shell", () => {
       .poll(() =>
         page.evaluate(() => (window as unknown as { copied: string[] }).copied)
       )
-      .toEqual(['bun add "effect@~4.0.0" effect-atom-svelte']);
+      .toEqual(['bun add "effect@~4.1.0" effect-atom-svelte']);
     await expect(
       page.getByRole("button", { name: "Copied" }).first()
     ).toBeAttached();
@@ -129,11 +129,11 @@ test.describe("docs shell", () => {
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
     const shown = page.locator(".install-command pre:visible");
     await expect(shown).toHaveText(
-      'bun add "effect@~4.0.0" effect-atom-svelte'
+      'bun add "effect@~4.1.0" effect-atom-svelte'
     );
     await page.getByRole("tab", { name: "pnpm" }).click();
     await expect(shown).toHaveText(
-      'pnpm add "effect@~4.0.0" effect-atom-svelte'
+      'pnpm add "effect@~4.1.0" effect-atom-svelte'
     );
     // Kept in localStorage, so the next visit opens on pnpm.
     await page.reload();
@@ -143,7 +143,7 @@ test.describe("docs shell", () => {
       "true"
     );
     await expect(shown).toHaveText(
-      'pnpm add "effect@~4.0.0" effect-atom-svelte'
+      'pnpm add "effect@~4.1.0" effect-atom-svelte'
     );
   });
 

@@ -179,7 +179,7 @@ const nodeOf = <A>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<A>
 ): RegistryNode<A> =>
-  // SAFETY: ensureNode returns the implementation's node (Effect 4.0.5), which has
+  // SAFETY: ensureNode returns the implementation's node (Effect 4.0.7 and 4.1.4), which has
   // preserveInitialValueOnBuild, _value, setValue and failed (set while a first build has thrown)
   // beside the Node interface; @effect/atom-react calls its setValue the same way.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- those members are on the implementation only, which Effect doesn't export

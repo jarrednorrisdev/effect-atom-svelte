@@ -1,1 +1,1 @@
-pnpm add "effect@~4.0.0" effect-atom-svelte
+pnpm add "effect@~4.1.0" effect-atom-svelte
