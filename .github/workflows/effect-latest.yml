@@ -1,0 +1,94 @@
+name: Effect latest
+
+# The library reaches into the private parts of Effect's atom registry (the hooks, HydrationBoundary
+# and the devtools inspector), which a minor release can change without notice: Effect 4.1 did, and
+# server rendering quietly rendered `Initial`. So the `effect` peer range stops at the newest minor
+# tested, and this workflow tests what CI's lockfile doesn't: the newest Effect release the peer
+# range accepts, which is what users install, and Effect's newest release, which tells us whether
+# the range can be raised. A failure shows as a failed run in the Actions tab, which GitHub emails
+# to whoever last changed the schedule.
+on:
+  schedule:
+    # Daily, 06:17 UTC.
+    - cron: "17 6 * * *"
+  # Run by hand from the Actions tab or with `gh workflow run "Effect latest"`.
+  workflow_dispatch:
+  # A change to this workflow is tested on its PR, since a schedule only runs from main.
+  pull_request:
+    paths: [.github/workflows/effect-latest.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: effect-latest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  versions:
+    # The Effect versions to test: the newest in the library's peer range, and the newest release,
+    # once when they're the same.
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.versions.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: versions
+        run: |
+          range=$(jq -r '.peerDependencies.effect' packages/effect-atom-svelte/package.json)
+          in_range=$(npm view "effect@$range" version --json | jq -r 'if type == "array" then last else . end')
+          latest=$(npm view effect@latest version)
+          matrix=$(jq -nc --arg range "$range" --arg in_range "$in_range" --arg latest "$latest" \
+            'if $in_range == $latest
+             then [{name: "newest in \($range), and latest", version: $latest}]
+             else [{name: "newest in \($range)", version: $in_range}, {name: "latest", version: $latest}]
+             end')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "::notice::peer range $range: newest $in_range; latest $latest"
+
+  test:
+    # The library's and the devtools' typecheck and tests, on that Effect: what CI's check job runs
+    # for them. Lint and the docs site are left out: they test this repo's code, not Effect's.
+    name: test (${{ matrix.name }}, effect ${{ matrix.version }})
+    needs: versions
+    runs-on: ubuntu-latest
+    # The image CI's check job uses, with all three browsers: see ci.yml.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.versions.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          npm install --global --prefix "$HOME/.local" bun@1.4.2
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # Every workspace moves to the same Effect: the library's tests import @demo/domain, and two
+      # copies of Effect fail the typecheck where nothing is wrong. Peer ranges stay as they are.
+      - env:
+          EFFECT: ${{ matrix.version }}
+        run: |
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync, globSync } from "node:fs";
+            for (const file of ["package.json", ...globSync("{apps,packages}/*/package.json")]) {
+              const json = JSON.parse(readFileSync(file, "utf8"));
+              for (const field of ["dependencies", "devDependencies"]) {
+                if (json[field]?.effect) json[field].effect = process.env.EFFECT;
+              }
+              writeFileSync(file, JSON.stringify(json, null, 2) + "\n");
+            }
+          '
+          git diff --stat
+      - run: bun install
+      - run: bunx turbo run check --filter='./packages/*'
+      - run: bun run --cwd packages/effect-atom-svelte test
+      - run: bun run --cwd packages/effect-atom-svelte-devtools test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: vitest-results-${{ matrix.version }}
+          path: packages/effect-atom-svelte/.vitest
+          retention-days: 7
