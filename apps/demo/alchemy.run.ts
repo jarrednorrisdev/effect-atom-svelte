@@ -1,5 +1,5 @@
+import { providers, state, Website } from "@alchemy.run/cloudflare";
 import { Stack } from "alchemy";
-import { providers, state, Website } from "alchemy/Cloudflare";
 import { Effect } from "effect";
 
 // Locally this stack only ever deploys through the `jnd` Alchemy profile (Jarred's personal
