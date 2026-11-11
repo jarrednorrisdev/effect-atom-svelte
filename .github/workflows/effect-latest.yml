@@ -83,10 +83,14 @@ jobs:
             }
           '
           git diff --stat
-      - run: bun install
+      - id: install
+        run: bun install
       - run: bunx turbo run check --filter='./packages/*'
-      - run: bun run --cwd packages/effect-atom-svelte test
-      - run: bun run --cwd packages/effect-atom-svelte-devtools test
+      # The tests run even when the typecheck fails: a type error must not hide a change in behaviour.
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun run --cwd packages/effect-atom-svelte test
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun run --cwd packages/effect-atom-svelte-devtools test
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
