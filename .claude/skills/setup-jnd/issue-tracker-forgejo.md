@@ -22,11 +22,13 @@ Forgejo has no sub-issues: a map's children carry a `map:<n>` label naming the m
 - **Claim**: `tea api -i -X PATCH 'repos/{owner}/{repo}/issues/<n>' -d '{"assignees":["<your Forgejo login>"]}'`, the session's first write. Not `tea issues edit --add-assignees`: tea 0.16 sends that to an endpoint Forgejo answers with 404, and nothing is assigned.
 - **Resolve**: comment the answer, close the issue, then append a context pointer (gist and link) to the map's Decisions so far.
 - **Tier**: remove the old `model:` label and add the new one.
+- **Milestone** (ship fast): create `tea api -X POST 'repos/{owner}/{repo}/milestones' -d '{"title":"vX.Y.Z"}'`; set `tea api -X PATCH 'repos/{owner}/{repo}/issues/<n>' -d '{"milestone":<milestone id>}'`; its tickets `tea api 'repos/{owner}/{repo}/issues?type=issues&state=all&milestones=vX.Y.Z'`; close `tea api -X PATCH 'repos/{owner}/{repo}/milestones/<id>' -d '{"state":"closed"}'`.
 
 ## Pull requests
 
 - **Open a draft**: `tea pulls create --draft --title "..." --description-file <file> --head <branch> --base main`. `--draft` prepends `WIP:`, which is Forgejo's draft. Forgejo reports a `WIP:` PR as `mergeable: false` whatever its state, so check for conflicts with `git merge-tree --write-tree origin/main HEAD` (exit 1 means a conflict), never the API's flag.
 - **Read**: `tea pulls <n> --comments --output json`; the diff is `git diff origin/main...<branch>`.
 - **Mark ready**: `tea pulls edit <n> --title "<title without WIP:>"`.
-- **Landing check**: `<the repo's lint, format and typecheck of what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`.
+- **Landing check**: `<the repo's lint, format and typecheck of what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`. When there are any, the Land line's quoted checks are the ones that skip them.
+- **Pre-queue check** (optional): `<a command that merges origin/main, then runs format, lint and the tests of what changed>`. `land-pr` runs it before the Land command, so a red PR fails alone rather than breaking a batch.
 - **Land**: `node .claude/skills/land-pr/land-lock.mjs --pr <n> -- node .claude/skills/land-pr/land-forgejo.mjs <n> -- "<check>"...`. Through `land-pr`'s lock, it merges `origin/main` into the branch, runs each quoted check on that tree, pushes, and merges by the repo's default style, pinned to the head it checked, only when they pass. Use the repo's own script instead when it has one.

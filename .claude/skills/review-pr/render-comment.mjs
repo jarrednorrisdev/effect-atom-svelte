@@ -4,10 +4,12 @@
 // worktree:
 //
 //   node render-comment.mjs --pr <n> --round <k> --report <file> --tier <tier> --reason "<tier reason>"
-//     [--effort <effort>] [--fixed <file>] [--verdict "<line>"]
+//     [--effort <effort>] [--fixed <file>] [--verdict "<line>"] [--raise <Axis>=<score>]...
 //
 // --fixed is a JSON array of every round's rows: {"round", "axis", "finding", "resolution", "nit"?}.
 // --verdict replaces the reviewer's verdict, e.g. to name fixes no reviewer has checked.
+// --raise <Axis>=<score>[:<why>] sets an axis's score after fixes that changed no behaviour, and
+// replaces its Why (repeat it per axis); at 5 it clears the axis's "To reach 5".
 // Prints the comment's path; post it as comment.md says. Exit codes: 0 written, 1 refused, 2 bad arguments.
 
 import { execFileSync } from "node:child_process";
@@ -18,7 +20,10 @@ import { parseArgs } from "node:util";
 let values;
 try {
   ({ values } = parseArgs({
-    options: Object.fromEntries(["pr", "round", "report", "tier", "reason", "effort", "fixed", "verdict"].map((k) => [k, { type: "string" }])),
+    options: {
+      ...Object.fromEntries(["pr", "round", "report", "tier", "reason", "effort", "fixed", "verdict"].map((k) => [k, { type: "string" }])),
+      raise: { type: "string", multiple: true },
+    },
   }));
 } catch (e) {
   console.error(e.message);
@@ -26,7 +31,7 @@ try {
 }
 const { pr, round, tier, reason } = values;
 if (!/^\d+$/.test(pr ?? "") || !/^\d+$/.test(round ?? "") || !values.report || !tier || !reason) {
-  console.error('usage: node render-comment.mjs --pr <n> --round <k> --report <file> --tier <tier> --reason "<why>" [--effort <e>] [--fixed <file>] [--verdict "<line>"]');
+  console.error('usage: node render-comment.mjs --pr <n> --round <k> --report <file> --tier <tier> --reason "<why>" [--effort <e>] [--fixed <file>] [--verdict "<line>"] [--raise <Axis>=<score>]');
   process.exit(2);
 }
 const refuse = (why) => {
@@ -45,7 +50,8 @@ try {
 const fixed = values.fixed ? JSON.parse(fs.readFileSync(values.fixed, "utf8")) : [];
 
 const git = (...a) => execFileSync("git", a, { encoding: "utf8" }).trim();
-const root = git("rev-parse", "--show-toplevel");
+// The on-disk spelling: a shell can start in a differently cased path on Windows.
+const root = fs.realpathSync.native(git("rev-parse", "--show-toplevel"));
 // A link to path:line at the sha the reviewer read, on GitHub or Forgejo.
 const remote = git("remote", "get-url", "origin").replace(/\.git$/, "").replace(/^git@([^:]+):/, "https://$1/");
 const web = remote.replace(/^ssh:\/\/git@([^/]+)\//, "https://$1/");
@@ -55,9 +61,18 @@ const cell = (s) => String(s ?? "").replaceAll("|", "\\|").replace(/\s*\n\s*/g, 
 const num = (s) => (s === "n/a" ? 5 : Number(s));
 const dot = (s) => (s === "n/a" ? "⚪" : { 5: "🟢", 4: "🟡", 3: "🟠" }[s] ?? "🔴");
 const axes = ["Spec", "Design", "Implementation", "Stability", "Security"];
-const subs = axes.map((a) => [a, r.subscores?.[a] ?? refuse(`the report has no ${a} subscore`)]);
+const subs = axes.map((a) => [a, { ...(r.subscores?.[a] ?? refuse(`the report has no ${a} subscore`)) }]);
+for (const raise of values.raise ?? []) {
+  const [axis, rest = ""] = raise.split("=");
+  const [to, why] = [rest.slice(0, 1), rest.slice(2)];
+  const sub = subs.find(([a]) => a === axis)?.[1];
+  if (!sub || !/^[1-5]$/.test(to ?? "")) refuse(`--raise ${raise}: expected <Axis>=<1-5>, with Axis one of ${axes.join(", ")}`);
+  sub.score = Number(to);
+  sub.why = why || `raised to ${to} after the fixes below`;
+  if (sub.score === 5) delete sub.toReach;
+}
 const score = Math.min(...subs.map(([, s]) => num(s.score)));
-const toReach = subs.some(([, s]) => num(s.score) < 5);
+const toReach = subs.some(([, s]) => num(s.score) < 5 && s.toReach);
 
 const out = ["<!-- review-pr -->", "", `## Confidence Score: ${score}/5`, "", `**[${r.impact} impact]** ${values.verdict ?? r.verdict}`, ""];
 out.push(toReach ? "| Subscore | Score | Why | To reach 5 |" : "| Subscore | Score | Why |");
@@ -67,7 +82,11 @@ for (const [a, s] of subs) {
   if (toReach) row.push(num(s.score) < 5 ? cell(s.toReach) : "");
   out.push(`| ${row.join(" | ")} |`);
 }
-const decisions = r.decisions ?? [];
+// An answered decide goes into the Fixed rows under its finding (SKILL.md step 5), so a decision
+// whose finding has a Fixed row is closed, not open.
+const norm = (s) => String(s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+const answered = new Set(fixed.map((f) => norm(f.finding)));
+const decisions = (r.decisions ?? []).filter((d) => !answered.has(norm(d.finding)));
 if (decisions.length) {
   out.push("", "### Decisions", "");
   decisions.forEach((d, i) =>
@@ -82,7 +101,7 @@ if (fixed.length) {
   out.push("", "</details>");
 }
 const model = `claude-${tier.toLowerCase()}-5-5`;
-out.push("", `<sub>Round ${round} · ${tier[0].toUpperCase()}${tier.slice(1)} (${model}, ${values.effort ?? "default effort"}): ${reason} · reviewed at ${r.sha.slice(0, 7)}</sub>`);
+out.push("", `<sub>Round ${round} · ${tier[0].toUpperCase()}${tier.slice(1)} (${[model, values.effort].filter(Boolean).join(", ")}): ${reason} · reviewed at ${r.sha.slice(0, 7)}</sub>`);
 const state = { round: Number(round), sha: r.sha, tier, context: r.context ?? "", open: decisions.map((d) => d.finding) };
 out.push("", `<!-- review-pr-state: ${JSON.stringify(state).replaceAll("--", "- -")} -->`, "");
 

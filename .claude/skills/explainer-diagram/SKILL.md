@@ -43,7 +43,7 @@ Done when every step has a source, the scenario does too, and every user snippet
 Start with the **primer** (`primer` in the spec), drawn above the steps:
 
 - **The scenario, in full sentences.** What the app is, what the user does, why each piece exists, and what goes wrong: "Picture a document editor. The page shows… ", not "An editor page. `doc` is the text." If it reads like a code comment, rewrite it.
-- **Every term the steps rely on**, each with a plain definition and where it comes from, picked from the glossary (see [The primer's terms](#the-primers-terms)). Steps then link a term as `{{id}}` or `{{id|shown text}}`: underlined, with its definition on hover.
+- **Every term the steps rely on**, each with a plain definition and where it comes from, picked from the glossary (see [The primer's terms](#the-primer-s-terms)). Steps then link a term as `{{id}}` or `{{id|shown text}}`: underlined, with its definition on hover.
 
 Test it: someone who has never opened this repo reads the primer and step 1, and can picture the app and say what every name on screen is.
 

@@ -22,14 +22,14 @@
       "hash": "32a733b2ad72eea9"
     },
     "explainer-diagram": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "8d6a3425ad699ee6",
-      "hash": "8d6a3425ad699ee6"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "d2c8bba6e5fecc42",
+      "hash": "d2c8bba6e5fecc42"
     },
     "file-pr": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "c60a2052545e337d",
-      "hash": "c60a2052545e337d"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "86f88d18e6601198",
+      "hash": "86f88d18e6601198"
     },
     "grill-me": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
@@ -42,9 +42,9 @@
       "hash": "fbd1c2ca4e7147d2"
     },
     "hunt-bugs": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "ba5dce4f41f3f61f",
-      "hash": "ba5dce4f41f3f61f"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "d9bf3591d4f829c2",
+      "hash": "d9bf3591d4f829c2"
     },
     "improve-codebase-architecture": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
@@ -52,9 +52,9 @@
       "hash": "19fb023a26f1c708"
     },
     "land-pr": {
-      "commit": "374fa5adf56be87e2451254ab5dcb8cd14bd5e6e",
-      "source": "83532acc8d022d53",
-      "hash": "83532acc8d022d53"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "d071fc4b8e607d47",
+      "hash": "d071fc4b8e607d47"
     },
     "modernize": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
@@ -62,14 +62,14 @@
       "hash": "5a1ad7bf0ddf3129"
     },
     "next-session": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "96fee5012bfe874c",
-      "hash": "96fee5012bfe874c"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "095164ad80b63e68",
+      "hash": "095164ad80b63e68"
     },
     "prototype": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "9dcc95c4ef99c7a3",
-      "hash": "9dcc95c4ef99c7a3"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "cb1842f822445fb5",
+      "hash": "cb1842f822445fb5"
     },
     "research": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
@@ -77,34 +77,34 @@
       "hash": "9158e90130c26dd2"
     },
     "retro": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "ffc7949291932919",
-      "hash": "ffc7949291932919"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "3aecd000e0bd8ba7",
+      "hash": "3aecd000e0bd8ba7"
     },
     "review-pr": {
-      "commit": "374fa5adf56be87e2451254ab5dcb8cd14bd5e6e",
-      "source": "0fbcbec020d8914b",
-      "hash": "0fbcbec020d8914b"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "22f4ce68132b54c4",
+      "hash": "22f4ce68132b54c4"
     },
     "root": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "3970431dc3413fe7",
-      "hash": "3970431dc3413fe7"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "5e4e466f28cad9c8",
+      "hash": "5e4e466f28cad9c8"
     },
     "setup-jnd": {
-      "commit": "374fa5adf56be87e2451254ab5dcb8cd14bd5e6e",
-      "source": "6911b2f3f70ce2c6",
-      "hash": "6911b2f3f70ce2c6"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "cd3810a96970e953",
+      "hash": "cd3810a96970e953"
     },
     "ship": {
-      "commit": "374fa5adf56be87e2451254ab5dcb8cd14bd5e6e",
-      "source": "4a0cb04e95d9b4ac",
-      "hash": "4a0cb04e95d9b4ac"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "1d146913ff641168",
+      "hash": "1d146913ff641168"
     },
     "takeover": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "6c0ffbfb74aedfd2",
-      "hash": "6c0ffbfb74aedfd2"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "c1f8b9f372b22545",
+      "hash": "c1f8b9f372b22545"
     },
     "tdd": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
@@ -117,9 +117,9 @@
       "hash": "ca148e1c2ab29e8d"
     },
     "wayfinder": {
-      "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",
-      "source": "bcf72d17116b4799",
-      "hash": "bcf72d17116b4799"
+      "commit": "02e8182298b3267628b88c9cfd6a9cfed0be2761",
+      "source": "3d2ff4c51712de83",
+      "hash": "3d2ff4c51712de83"
     },
     "wizard": {
       "commit": "d56db58062aceeec77e7d71d5c4772b931e966de",

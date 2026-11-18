@@ -13,7 +13,7 @@ The repo's `docs/agents/hunt.md` holds what's specific to it: the **areas** (cod
 
 ## 0. Start
 
-Create the map (Destination: "no unreported bug in `<areas>` survives a loop", Notes: the mode and the loop count Jarred gave), or adopt the open one. Build the **known list** every brief carries, so hunters don't find the same bug again: the map's open tickets, its Out of scope lines (findings already rejected), open PRs, and recent `fix` commits (`git log --oneline origin/main | grep -i fix`).
+Create the map (Destination: "no unreported bug in `<areas>` survives a loop", Notes: the mode, the map slug and the loop count Jarred gave), or adopt the open one. Build the **known list** every brief carries, so hunters don't find the same bug again: the map's open tickets, its Out of scope lines (findings already rejected), open PRs, and recent `fix` commits (`git log --oneline origin/main | grep -i fix`).
 
 ## 1. Hunt
 
@@ -29,6 +29,8 @@ A hunter's failing test is a claim, not a verdict. For each area with findings, 
 - the scenario is one a real user reaches.
 
 Re-run a sample of the red tests yourself. Sort the survivors into fix, docs-only, upstream, or not a bug. Done when every finding has a verdict with its reason.
+
+Settle each hunter and reviewer that shows in T3's thread list and then remove its worktree, as `wayfinder`'s Settling says, once you hold its result: a hunter when its findings are in, a reviewer when its verdicts are. The build threads that fix the survivors report ready to settle under `wayfinder`'s step 4.
 
 ## 3. File
 

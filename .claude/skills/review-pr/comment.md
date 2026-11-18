@@ -49,17 +49,17 @@ Render it from the reviewer's `json` block and every round's Fixed rows: `render
 
 ## Posting it by hand (GitHub)
 
-Write the body to a file, then update the comment, or post it in round 1:
+`<file>` is the body file, `.cache/review-comment-<pr>.md` when `render-comment.mjs` wrote it (its stdout is only that path). Update the comment, or post it in round 1:
 
 ```sh
-id=$(gh api "repos/{owner}/{repo}/issues/<n>/comments" --paginate --jq '.[] | select(.body | startswith("<!-- review-pr -->")) | .id' | head -1)
+id=$(gh api "repos/{owner}/{repo}/issues/<n>/comments" --paginate --jq '.[] | select(.body | contains("<!-- review-pr -->")) | .id' | head -1)
 if [ -n "$id" ]; then gh api -X PATCH "repos/{owner}/{repo}/issues/comments/$id" -F body=@<file>; else gh pr comment <n> --body-file <file>; fi
 ```
 
 ## Posting it by hand (Forgejo)
 
 ```sh
-id=$(tea api 'repos/{owner}/{repo}/issues/<n>/comments' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(c=>c.body.startsWith("<!-- review-pr -->"))?.id ?? ""))')
+id=$(tea api 'repos/{owner}/{repo}/issues/<n>/comments' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(c=>(c.body ?? "").includes("<!-- review-pr -->"))?.id ?? ""))')
 if [ -n "$id" ]; then tea api -i -X PATCH "repos/{owner}/{repo}/issues/comments/$id" -F body=@<file>; else tea api -i -X POST 'repos/{owner}/{repo}/issues/<n>/comments' -F body=@<file>; fi
 ```
 

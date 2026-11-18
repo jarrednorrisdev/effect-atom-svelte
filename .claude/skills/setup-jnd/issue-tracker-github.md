@@ -22,11 +22,13 @@ Issues, maps and pull requests for this repo live on GitHub, at `<owner>/<repo>`
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
 - **Resolve**: comment the answer, close the issue, then append a context pointer (gist and link) to the map's Decisions so far.
 - **Tier**: `gh issue edit <n> --remove-label model:<old> --add-label model:<new>`.
+- **Milestone** (ship fast): create `gh api repos/<owner>/<repo>/milestones -f title=vX.Y.Z`; set `gh issue edit <n> --milestone vX.Y.Z`; its tickets `gh issue list --milestone vX.Y.Z --state all --json number,title,state`; close `gh api -X PATCH repos/<owner>/<repo>/milestones/<number> -f state=closed`.
 
 ## Pull requests
 
 - **Open a draft**: `gh pr create --draft --title "..." --body-file <file>`.
 - **Read**: `gh pr view <n>`, then `gh pr view <n> --comments`, and `gh pr diff <n>`.
 - **Mark ready**: `gh pr ready <n>`.
-- **Landing check**: `<the repo's lint, format and typecheck of what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`.
+- **Landing check**: `<the repo's lint, format and typecheck of what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`. When there are any, the Land line's quoted checks are the ones that skip them.
+- **Pre-queue check** (optional): `<a command that merges origin/main, then runs format, lint and the tests of what changed>`. `land-pr` runs it before the Land command, so a red PR fails alone rather than breaking a batch.
 - **Land**: `node .claude/skills/land-pr/land-lock.mjs --pr <n> -- node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`. Through `land-pr`'s lock, it merges `origin/main` into the branch, runs each quoted check on that tree, pushes, and merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, else the method the repo allows, after any required checks pass) only when they pass. Use the repo's own script instead when it has one.
