@@ -1,6 +1,6 @@
 // The one place the inspector (../Inspector.ts) relies on how Effect implements AtomRegistry rather
 // than on its public API. Written against effect 4.0.1 (effect/src/reactivity/AtomRegistry.ts); the
-// peer range is ~4.0.0 because of code like this.
+// peer range stops at the newest minor tested (>=4.0.0 <4.2.0) because of code like this.
 //
 // The public `AtomRegistry` announces nodes added and removed (`onNodeAdded`, `onNodeRemoved`), and
 // a `Node` shows its parents, children and listeners. It says nothing when a node's value changes,

@@ -48,6 +48,7 @@ const documentCookieStore = KeyValueStore.makeStringOnly({
     }
   }),
   get: (key) => Effect.sync(() => readDocumentCookies().get(key)),
+  keys: Effect.sync(() => [...readDocumentCookies().keys()]),
   remove: (key) =>
     Effect.sync(() => {
       writeDocumentCookie(key, "", 0);
@@ -70,6 +71,7 @@ const requestCookieStore = (cookies: Readonly<Record<string, string>>) => {
       values.clear();
     }),
     get: (key) => Effect.sync(() => values.get(key)),
+    keys: Effect.sync(() => [...values.keys()]),
     remove: (key) => Effect.sync(() => values.delete(key)),
     set: (key, value) => Effect.sync(() => values.set(key, value)),
     size: Effect.sync(() => values.size),

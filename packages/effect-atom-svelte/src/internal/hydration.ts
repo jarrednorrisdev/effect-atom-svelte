@@ -73,13 +73,16 @@ export const encodeSeed = (
 export const decodeSeed = (
   key: string,
   value: unknown,
-  decode: (value: unknown) => unknown
+  decode: (value: Schema.Json) => unknown
 ): unknown => {
   if (value === noSeed) {
     return undefined;
   }
   try {
-    return decode(value);
+    // SAFETY: the server sends what encodeSeed returned, the atom's JSON codec's output, and
+    // hydratable carries it as JSON, so it is JSON here; decode checks it against the schema.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- hydratable types the value it carries as unknown
+    return decode(value as Schema.Json);
   } catch (error) {
     if (!Schema.isSchemaError(error)) {
       throw error;

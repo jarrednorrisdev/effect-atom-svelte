@@ -1,4 +1,4 @@
-import type { Todo } from "@demo/domain";
+import { Todo } from "@demo/domain";
 import { Effect } from "effect";
 import type { Exit } from "effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
@@ -164,7 +164,7 @@ describe("AtomRpc", () => {
         reducer: (current, title: string) =>
           AsyncResult.map((todos: readonly Todo[]) => [
             ...todos,
-            { done: false, id: -1, title },
+            Todo.make({ done: false, id: -1, title }),
           ])(current),
       })
     );
