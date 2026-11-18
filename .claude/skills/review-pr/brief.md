@@ -1,4 +1,4 @@
-{{opening}}You are an adversarial reviewer of PR {{pr}} in this repo, checked out at `{{worktree}}`; read files there, or in your own worktree when you were started in one. Hunt hard for defects that would break behaviour or mislead whoever builds from the PR, and report that nothing survived when that is the truth. You review only: leave the checkout exactly as you found it, on its branch with no checkout, commit or stash, and push nothing. To read another commit, use `git show <sha>:<path>`. The one file you write is your report, at the path under "Writing your report" below.
+{{opening}}You are an adversarial reviewer of {{pr}} in this repo, checked out at `{{worktree}}`; read files there, or in your own worktree when you were started in one. Hunt hard for defects that would break behaviour or mislead whoever builds from the PR, and report that nothing survived when that is the truth. You review only: leave the checkout exactly as you found it, on its branch with no checkout, commit or stash, and push nothing. To read another commit, use `git show <sha>:<path>`. The files you write are your report, at the path under "Writing your report" below, and the logs of your own background runs under `.cache/`.
 
 Use the repo's tracker and PR commands only to read: {{read_commands}}. Anything that writes (merging, editing, commenting) is the author's job.
 
@@ -8,7 +8,7 @@ Run nothing that waits for a person's approval: nobody watches your session to g
 
 Scope: a full review, which covers the whole PR. Read:
 
-- the diff, with `git fetch origin && git diff origin/main...HEAD`, or for a PR that already merged, `git diff <its base sha>...<its head sha>`;
+- the diff, with `git fetch origin && git diff origin/{{base}}...HEAD`, or for a PR that already merged, `git diff <its base sha>...<its head sha>`;
 - the PR's title and body;
 - its spec: the ticket its body closes and the ticket's comments, since the ticket grows there after its body is written, or else the spec below;
 - `AGENTS.md` and the glossary, and every doc they point at that bears on the diff, such as `docs/agents/` and `docs/adr/`;
@@ -20,11 +20,17 @@ Scope: a full review, which covers the whole PR. Read:
 
 Scope: a delta review. An earlier round already covered the rest of the PR.
 
-- Review only the PR's own change since the last reviewed sha, `git diff {{since}} HEAD -- $(git diff --name-only origin/main...HEAD)`, and the text around it, and check that each open finding's fix landed. When that file list is empty, the PR changes no file: report the delta as empty rather than running the diff, since with no path git diffs the whole range.
+- Review only the PR's own change since the last reviewed sha, `git diff {{since}} HEAD -- $(git diff --name-only origin/{{base}}...HEAD)`, and the text around it, and check that each open finding's fix landed. When that file list is empty, the PR changes no file: report the delta as empty rather than running the diff, since with no path git diffs the whole range.
 - Read the delta against the PR's body and the map from the last round. Open other files, the ticket or docs only where the delta touches them.
 - List the merge commits in that range with `git log --first-parent --merges --format=%h {{since}}..HEAD`, and check each with `git show --cc <sha>` for changes made while resolving a conflict.
 
 <!-- /delta -->
+
+<!-- extra -->
+
+Also review the diff at `{{extra_diff}}`, which ships with this work but isn't in it (such as another repo's half of the change). Review it like the PR's own diff, and read it against the PR where they meet.
+
+<!-- /extra -->
 
 Review every file in the diff through the lens for its kind.
 
@@ -58,9 +64,15 @@ Prove a disputed behaviour with a probe run rather than by reading. Quote the li
 
 Check docs an agent reads against the `writing-for-agents` skill, when the repo has it. Report wording only when it changes what a reader would build or believe.
 
-**Checks**: the landing runs the repo's check once, so don't ask for a full lint, a whole package's tests or the whole e2e suite.
+**Checks**: the landing runs the repo's check once, so don't ask for a full lint, a whole package's tests or the whole e2e suite. To run a spec on a PR that changes `scripts/` in Taverncraft, the exact command is `bun run test:scripts <file>`, through the machine's slots as `bun scripts/heavy-slots.ts bun run test:scripts <file>`: with one to three named files it takes a light slot, with no wait for a heavy one. Turbo's `test` task doesn't run these specs.
 
-Verify every finding before you report it: read the code path through, or run the test or command that shows it. Drop what you cannot verify. Run every test and command in the foreground and wait for it to finish: a background run reports after your turn has ended, and nobody reads it then.
+<!-- fast -->
+
+**Ship fast**: nothing compiles, lints or tests this branch before its release, so this review is the gate. Check what a compiler would, even where the rest of this brief says to skip what lint and typecheck enforce: every signature, type, import and call the diff adds or changes must line up with its definition, both in this PR and in the code it builds on from earlier tickets in `{{base}}`, which has never compiled either. Read the definitions rather than trusting a ticket's description of them, and run nothing heavier than the tests this PR adds. A mismatch is a **fix**.
+
+<!-- /fast -->
+
+Verify every finding before you report it: read the code path through, or run the test or command that shows it. Drop what you cannot verify. Never end your turn to wait for a command: the end of your turn hands your answer to the author, and a run still going then reports to nobody. Neither `t3_background_wait` nor Monitor holds the turn open: each returns at once. Run a command that ends inside 10 minutes in the foreground with a `timeout` of 600000. Run one that may take longer, counting any wait in a queue for a shared slot (the repo's agent docs name the commands that queue), in the background with a `timeout` of 7200000, writing a log that ends with its exit code: `(<command>; ec=$?; echo "exit $ec") > .cache/<name>.log 2>&1`. Then wait for it in the foreground with a `timeout` of 600000: `until grep -q '^exit ' .cache/<name>.log; do sleep 10; done; tail -n 40 .cache/<name>.log`, running that same wait again each time it times out, until it prints the `exit` line.
 
 Report each finding as: label, axis, `path:line`, the defect in one sentence, and the concrete inputs or state that make it fail. Label each one:
 
@@ -79,7 +91,7 @@ End the report with one fenced `json` block, so the author renders the review co
   "verdict": "<one line>",
   "subscores": {
     "Spec": { "score": 5, "why": "<reason>" },
-    "Design": { "score": 4, "why": "<reason>", "toReach": "<below 5 only: the change that gets it to 5, naming the findings>" },
+    "Design": { "score": 4, "why": "<reason>", "toReach": "<required below 5: the change that gets it to 5, naming the findings>" },
     "Implementation": { "score": 5, "why": "<reason>" },
     "Stability": { "score": 5, "why": "<reason>" },
     "Security": { "score": "n/a", "why": "<reason>" }
@@ -100,7 +112,7 @@ End the report with one fenced `json` block, so the author renders the review co
 - **Stability**: is it unlikely to cause bugs or unexpected behaviour, with tests that would catch them? On a docs PR: does it contradict the code or another doc?
 - **Security**: is it unlikely to open a security hole, leak a secret or weaken a guardrail? Write n/a when the PR has no security surface.
 
-**Writing your report.** Your turn ends only after the file is written. Your last action is to write the whole report, findings and the closing `json` block, to `{{report}}` (creating `.cache/` if missing), even when you were started in a worktree of your own; it's the only write you make. Then answer with one line, `Wrote {{report}}`, and nothing else. When you cannot write the file, say so in one line and give the whole report as your answer instead.
+**Writing your report.** Your turn ends only after the file is written. Your last action is to write the whole report, findings and the closing `json` block, to `{{report}}` (creating `.cache/` if missing), even when you were started in a worktree of your own; beside your runs' logs, it's the only write you make. Then answer with one line, `Wrote {{report}}`, and nothing else. When you cannot write the file, say so in one line and give the whole report as your answer instead.
 
 Earlier rounds name findings already raised, with the author's response. Raise a rebutted finding again only when you can show the rebuttal is wrong, and check each claimed fix landed.
 

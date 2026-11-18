@@ -45,6 +45,7 @@ The jnd skills read this repo's settings from `docs/agents/`. They are synced fr
 - Tracker and PRs: GitHub issues and PRs through the `gh` CLI; squash is the only merge method. See `docs/agents/issue-tracker.md`.
 - Triage labels: the five default roles. See `docs/agents/triage-labels.md`.
 - Domain docs and decisions: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`, created when first needed; small decisions go in `docs/decisions.md`. See `docs/agents/domain.md`.
+- Ship mode: properly. See `docs/agents/ship-mode.md`.
 - Root thread: see `docs/agents/root.md`. Review checklist: `docs/agents/review.md`. High-risk areas: `docs/agents/tiers.md`. Bug hunts: `docs/agents/hunt.md`. Explainer diagrams: `docs/agents/diagrams.md`.
 
 ### Stop and ask a human before

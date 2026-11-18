@@ -15,7 +15,7 @@ In the factory, `wayfinder` launches each ticket and the threads hand over thems
 
 1. **Pick the work.** For the same work, skip to step 2. Otherwise use the ticket the user named, or recommend the open, unblocked, unassigned ticket that the most other tickets wait on, and confirm it with the user. An assigned ticket is already claimed. The repo's tracker doc (named in `AGENTS.md` / `CLAUDE.md`) holds the commands. Done when the user has agreed the ticket.
 
-2. **Write the handoff** to the scratchpad: the `scratchpad/<repo>/handoffs/` folder beside the repo's main checkout, where the main checkout is the parent of `git rev-parse --path-format=absolute --git-common-dir` and `<repo>` is its folder name. Create the folder if it's missing. Name the file `<YYYY-MM-DD>-<slug>.md`: `<slug>` is the branch name without its prefix (`jarred/`, `feature/`, `fix/`). The branch is the tracker's suggested branch name when it gives one (Linear's `branchName`), otherwise the repo's documented branch convention; for the same work, the current branch. Model it on the newest handoff in that folder, if there is one. Sections:
+2. **Write the handoff** to the scratchpad: the `scratchpad/<repo>/handoffs/` folder beside the repo's main checkout, where the main checkout is the parent of `git rev-parse --path-format=absolute --git-common-dir` and `<repo>` is its folder name. Create the folder if it's missing. Name the file `<YYYY-MM-DD>-<slug>.md`: `<slug>` is the branch name's last segment, without prefixes such as `jarred/`, `fix/` or `tooling/chore/`. The branch is the tracker's suggested branch name when it gives one (Linear's `branchName`), otherwise the repo's documented branch convention; for the same work, the current branch. Model it on the newest handoff in that folder, if there is one. Sections:
    - **Opening**: the ticket and its map as named links, the skills to follow, and the branch the thread runs on.
    - **Why this ticket**: what it unblocks. For the same work: where this session got to.
    - **The question**: the decision to make or the next step, sharpened with what this session learned.
@@ -29,8 +29,8 @@ In the factory, `wayfinder` launches each ticket and the threads hand over thems
 3. **Launch the thread** with `t3_thread_launch`:
    - `title`: the ticket's name, or the work's.
    - `workspaceStrategy`: for the next ticket, `{"type":"worktree","baseRef":"main","branch":"<branch>","startFromOrigin":true}`. For the same work, this thread's checkout: `{"type":"existing_worktree","worktreePath":"<this worktree>"}`, or `{"type":"root"}` when this thread runs in the project checkout. Then stop editing it.
-   - `message`: "Read the handoff first and follow it: `<handoff path>`. This thread runs on branch `<branch>`. Don't create another branch or worktree." Then one line naming the ticket or work and how to work it.
+   - `message`: "Read the handoff first and follow it: `<handoff path>`. This thread runs on branch `<branch>`. Don't create another branch or worktree." Then one line naming the ticket or work and how to work it, and the parent to send its `Ready to settle` to (`wayfinder`'s Settling): this thread's parent, or none.
 
    Done when the launch returns a `threadId`.
 
-4. **Report** the handoff path and the thread as `[title](t3-thread://v1/<threadId>)`, with the `threadId` copied verbatim.
+4. **Report** the handoff path and the thread as `[title](t3-thread://v1/<threadId>)`, with the `threadId` copied verbatim. With a parent, end with your own `Ready to settle`, sent under its own `clientRequestId` (`wayfinder`'s Message ids), naming a worktree the new thread took over as handed over.

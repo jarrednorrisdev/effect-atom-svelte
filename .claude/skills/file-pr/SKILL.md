@@ -8,7 +8,7 @@ description: Open a concise draft PR, or rewrite a PR's body. Use when opening, 
 ## Before opening
 
 - Check whether a PR for this branch already exists.
-- Review the diff against the base branch (`git diff origin/main...HEAD`) to make sure its contents match the goal.
+- Review the diff against the base branch (`git diff origin/<base>...HEAD`; `main`, or in ship fast the ticket's release branch) to make sure its contents match the goal.
 - When the change unifies a duplicated expression, grep the repo for every copy first: a copy missed here surfaces only in review.
 - When the PR changes a command's flags or usage, grep the docs and skills for the old usage: a doc that still shows it surfaces only in review.
 - When the PR does part of a later ticket, comment on that ticket saying which part.
@@ -71,9 +71,9 @@ Then add a visual only when it shows the shape faster than words. Pick the small
 
 ## Opening it
 
-Open it as a **draft**: `gh pr create --draft`, or the repo's create command with a `WIP:` title on Forgejo. It stays a draft while `review-pr` runs, and `land-pr` marks it ready. Then link it to this thread with `link_pull_request`.
+Open it as a **draft**: `gh pr create --draft`, or the repo's create command with a `WIP:` title on Forgejo. In ship fast (`ship`'s `fast.md`), a ticket's base is its release branch (`--base release/vX.Y.Z`). It stays a draft while `review-pr` runs, and `land-pr` marks it ready. Then link it to this thread with `link_pull_request`.
 
-Before submitting, check the title, body and attachments for secrets and private details. End the body with the attribution line the harness gives, unless the repo's rules forbid one.
+Before submitting, check the title, body and attachments for secrets and private details. End the body with the attribution line the harness gives, unless the repo's rules forbid one (the Agent skills block in `AGENTS.md` says so when they do). The same goes for commit messages.
 
 If `gh pr create` fails because GitHub's GraphQL rate limit is used up, open it through REST: `gh api repos/<owner>/<repo>/pulls -f title=... -f head=... -f base=... -F draft=true -F body=@<file>`.
 

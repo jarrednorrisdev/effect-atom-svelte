@@ -19,4 +19,4 @@ Independently verify the original failure and realistic workflows, following the
 
 When the requested finish includes a PR, file or update it with `file-pr`, then carry on with `ship` from its review step rather than stopping at creation. Merge or close the original PR only when authorized.
 
-Report what you inherited, what you changed, how you verified it, how credit was preserved, and any remaining decision.
+Report what you inherited, what you changed, how you verified it, how credit was preserved, and any remaining decision. With a parent, send the report under a new `clientRequestId` (`wayfinder`'s Message ids); it ends with `Ready to settle` as `wayfinder`'s Settling says, for your thread and for the one you took over, naming any worktree you continued in as handed over.

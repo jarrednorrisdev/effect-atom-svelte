@@ -21,7 +21,7 @@ The user, or `ship`, has asked for a **retrospective**. You are suggesting impro
 - **No-ops**: look for instructions in steering files that don't modify the agent's behavior. _Use when_ the steering files are large and unwieldy.
 - **Information access**: look for opportunities to increase the agent's access to information. Teeing dev server logs, readonly access to third-party services. _Use when_ a crucial piece of information was not available to the agent.
 
-4. State each rule at the scope of its evidence: a rule drawn from one failure covers that failure's case, and names the files or situations it applies to.
+4. State each rule at the scope of its evidence: a rule drawn from one failure covers that failure's case, and names the files or situations it applies to. Give each candidate a one-line repro: the steps or command that show the problem, or the thread and moment it happened. A candidate often waits, parked, for a later fixer, who should not have to dig through threads to see it.
 
 5. Present these candidates to the user, in order of severity. In a launched thread, report them to your parent instead.
 

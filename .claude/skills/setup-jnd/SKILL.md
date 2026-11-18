@@ -1,6 +1,6 @@
 ---
 name: setup-jnd
-description: "Configure a repo for the jnd skills: write the docs/agents/ files they read (tracker and PR commands, domain docs and decision log, root thread settings, review checklist, high-risk areas). Run once per repo after syncing the skills in, and again to fill gaps."
+description: "Configure a repo for the jnd skills: write the docs/agents/ files they read (ship mode, tracker and PR commands, domain docs and decision log, root thread settings, review checklist, high-risk areas). Run once per repo after syncing the skills in, and again to fill gaps."
 ---
 
 # Setup jnd
@@ -9,6 +9,7 @@ The skills name a step; the repo's `docs/agents/` says how to do it here. This s
 
 | File | Read by | Holds |
 | --- | --- | --- |
+| `ship-mode.md` | every skill that ships work, through `ship`'s `fast.md` | `mode: fast` or `mode: properly`; for ship fast, the release branches, compile check, full run, tagging, deploys and time budget |
 | `issue-tracker.md` | `wayfinder`, `ship`, `file-pr`, `land-pr`, `review-pr` | the tracker's commands, the map and ticket operations, and the PR commands: open a draft, mark ready, land, the landing check |
 | `domain.md` | every skill that names a domain concept, `domain-modeling` | the glossary and ADR layout, amending an ADR, the decision log |
 | `root.md` | `root`, `wayfinder` | the status command, capacity setting, timer gate, and anything specific to this machine |
@@ -39,9 +40,10 @@ Read whatever exists; don't assume:
 
 Summarise what's present and what's missing, then one section at a time, each led by the recommended answer so Jarred can accept it in a word. Skip a section exploration already settled.
 
+- **Ship mode.** Recommend fast (the default, and what a missing file means) unless Jarred has declared the project beta or later, or people outside his team use it; then properly. For fast, propose `ship-mode.md`'s commands from the repo's checks: the compile check is the cheapest whole-repo check, the full run is what CI runs. Jarred changes the mode himself when a project reaches beta.
 - **Tracker.** GitHub for a GitHub remote, Forgejo for a Forgejo one, Linear when the repo's work lives there. The PRs live on the git host either way.
 - **Stop and ask a human before.** The actions no agent takes alone (force-pushing, deleting data, spending money, publishing). `ship` sends these to Jarred. Propose a list from the repo's rules.
-- **Landing.** The **Land** command (merge `origin/main` into the branch, run the landing check on that tree, put the result on `main`) and the landing check: lint, format and typecheck of what changed. Propose both from the repo's checks, and run the proposed check once on a clean `origin/main` first: missing tools, a full disk or tests already red there would make every landing fail. Record a red baseline (the failing tests and their issue) in the tracker doc beside the check. On GitHub the Land command is `land-pr`'s `land-github.mjs`, on Forgejo its `land-forgejo.mjs`, each with the landing check after `--`.
+- **Landing.** The **Land** command (merge `origin/main` into the branch, run the landing check on that tree, put the result on `main`) and the landing check: lint, format and typecheck of what changed. Propose both from the repo's checks, and run the proposed check once in a fresh worktree from `origin/main`, as a landing thread gets: missing tools, generated files a new worktree lacks, a full disk or tests already red there would make every landing fail. Write any setup a new worktree needs into the tracker doc. Record a red baseline (the failing tests and their issue) in the tracker doc beside the check. On GitHub the Land command is `land-pr`'s `land-github.mjs`, on Forgejo its `land-forgejo.mjs`, each with the landing check after `--`.
 - **Decision log.** Where decisions get D-numbers: propose `docs/decisions.md` when there's none.
 - **Root.** The status command, where the capacity cap lives, and the timer gate. A command that doesn't exist yet is written as `to write`, not invented.
 - **Required labels.** When the tracker requires its own labels on every issue, how they apply to map tickets. The answer goes into the tracker doc's child-ticket command.
@@ -52,9 +54,9 @@ Summarise what's present and what's missing, then one section at a time, each le
 Show the drafts, let Jarred edit them, then write them from the templates beside this skill:
 
 - [issue-tracker-github.md](issue-tracker-github.md), [issue-tracker-forgejo.md](issue-tracker-forgejo.md) or [issue-tracker-linear.md](issue-tracker-linear.md)
-- [domain.md](domain.md), [root.md](root.md), [review.md](review.md), [tiers.md](tiers.md), plus [hunt.md](hunt.md) and [diagrams.md](diagrams.md) when asked
+- [ship-mode.md](ship-mode.md), [domain.md](domain.md), [root.md](root.md), [review.md](review.md), [tiers.md](tiers.md), plus [hunt.md](hunt.md) and [diagrams.md](diagrams.md) when asked
 
-Fill every `<placeholder>`. Keep each file's line endings: a doc committed with CRLF stays CRLF. Run each tracker command's `--help` before writing it down: CLI flags change between versions, and an agent copies these commands unchecked. Create the labels the tracker lacks: `wayfinder:map`, `wayfinder:<research|prototype|grilling|task|build>`, `model:<haiku|sonnet|opus>`, `human:verify`.
+Fill every `<placeholder>`. Keep each file's line endings: a doc committed with CRLF stays CRLF. Run each tracker command's `--help` before writing it down: CLI flags change between versions, and an agent copies these commands unchecked. Create the labels the tracker lacks: `wayfinder:map`, `wayfinder:<research|prototype|grilling|task|build>`, `model:<haiku|sonnet|opus>`, `human:verify`. In ship fast, ask Jarred for the first release and create its milestone and branch (`git push origin origin/main:refs/heads/release/vX.Y.Z`).
 
 Add `.cache/` to `.gitignore`: review briefs and reports, the sync merge folder and the root's state file live there. Leave `.claude/skills/**` out of the repo's lint, format and other file checks, in each tool's own ignore list (a linter and a formatter often have separate ones; an existing `.claude/**` ignore already covers it): the synced skills are vendored, and a local fix to one shows as a tweak the next time `sync.mjs` runs. When the checkout has CRLF files and the formatter enforces LF or a test compares checked-in files byte for byte, add a `.gitattributes` with `* text=auto eol=lf`, then `git add --renormalize .`. Git doesn't rewrite unchanged files in other worktrees, even after they merge that commit, so tell Jarred to refresh each existing clean worktree with `git rm --cached -r -q . && git reset --hard` (it discards uncommitted changes). Offer to delete a `triage-labels.md` no jnd skill reads.
 
@@ -67,6 +69,7 @@ The jnd skills read this repo's settings from `docs/agents/`:
 
 - Tracker and PRs: <one line>. See `docs/agents/issue-tracker.md`.
 - Domain docs and decisions: <one line>. See `docs/agents/domain.md`.
+- Ship mode: <fast or properly>. See `docs/agents/ship-mode.md`.
 - Root thread: see `docs/agents/root.md`. Review checklist: `docs/agents/review.md`. High-risk areas: `docs/agents/tiers.md`.
 
 ### Stop and ask a human before

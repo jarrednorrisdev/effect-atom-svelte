@@ -2,7 +2,7 @@
 
 Issues and maps for this repo live in Linear, workspace `<workspace>`, team `<TEAM>`; ids look like `<TEAM>-42`. Use the `linearis` CLI (`npm i -g linearis`; `linearis auth login` once per machine, `linearis auth status` checks it). It prints JSON. Discover flags with `linearis usage` and `linearis <domain> usage` rather than guessing. Pull requests live on the git host (see the end).
 
-<Only when the repo maps to more than one team: a routing section saying which team and `--project` each area goes to, and which team takes work that spans them. Label names can't repeat across teams, so give one team's copies a prefix (`jnd:`) and say so.>
+<Only when the repo maps to more than one team: a routing section saying which team and `--project` each area goes to, and which team takes work that spans them. When the workspace refuses a label name another team already has, give one team's copies a prefix (`jnd:`) and say so.>
 
 On Windows, don't call `linearis.cmd` through `cmd.exe` with multi-line arguments: `cmd.exe` cuts them at the first newline. Call `node <npm-root>/linearis/dist/main.js` directly. (`--file` exists only on `issues batch create|update`; `create`, `update`, `discuss` and `reply` take text.)
 
@@ -25,6 +25,7 @@ On Windows, don't call `linearis.cmd` through `cmd.exe` with multi-line argument
 - **Claim**: `linearis issues update <id> --assignee me`, the session's first write.
 - **Resolve**: comment the answer, close the issue, then append a context pointer (gist and link) to the map's Decisions so far.
 - **Tier**: two calls, since one `--label-mode` can't do both: remove the old `model:` label (`--label-mode remove`), then add the new one (`--label-mode add`).
+- **Milestone** (ship fast): a release is a Linear project milestone in `<project>`. Create `linearis milestones create vX.Y.Z --project <project>`; set `linearis issues update <id> --project-milestone vX.Y.Z`; its tickets `linearis issues list --project <project> --milestone vX.Y.Z` (add `--state-type completed` for the closed ones). Linear milestones don't close: a released one stays, its tickets all done.
 
 ## Pull requests
 
@@ -32,5 +33,5 @@ On `<git host>`, with `Closes <id>` in the body so Linear links it.
 
 - **Open a draft**: `gh pr create --draft --title "..." --body-file <file>`.
 - **Mark ready**: `gh pr ready <n>`.
-- **Landing check**: `<the repo's checks on what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`.
+- **Landing check**: `<the repo's checks on what changed>`. Known failing on `main`: `<each test, its issue, and the check that skips it; or none>`. When there are any, the Land line's quoted checks are the ones that skip them.
 - **Land**: `<command>`. It merges `origin/main` into the branch, runs the landing check on that tree, and merges only when it passes. On GitHub: `node .claude/skills/land-pr/land-lock.mjs --pr <n> -- node .claude/skills/land-pr/land-github.mjs <n> -- "<check>"...`, which merges with `gh pr merge <n> --match-head-commit <sha>` (a merge commit, else the method the repo allows, after any required checks pass).
